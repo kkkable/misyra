@@ -7,15 +7,18 @@
  * formatting on Windows and Linux).
  */
 import assert from "node:assert/strict";
+import { createRequire } from "node:module";
+import { join } from "node:path";
 import { test } from "node:test";
 import {
   fileExists,
   readJson,
   readText,
   relativePosix,
+  repoRoot,
   workspaceDirs,
 } from "../toolchain/helpers.mjs";
-import { runTool } from "./fixture-runner.mjs";
+import { runTool } from "@misyra/test-config/fixture-runner";
 
 test("the root prettier configuration references the shared package", () => {
   assert.ok(fileExists(".prettierrc.json"), "expected .prettierrc.json at the repository root");
@@ -26,7 +29,8 @@ test("the root prettier configuration references the shared package", () => {
     `root prettier config must delegate to @misyra/prettier-config, got: ${reference}`,
   );
   assert.ok(
-    !("printWidth" in rootConfig) && !("endOfLine" in rootConfig),
+    typeof rootConfig === "string" ||
+      (!("printWidth" in rootConfig) && !("endOfLine" in rootConfig)),
     "root prettier config must not duplicate formatting rules locally",
   );
 });
@@ -43,12 +47,20 @@ test("the shared prettier package preserves the approved formatting policy", () 
   assert.match(policy, /trailingComma:\s*"all"/, "shared policy must keep trailing commas");
 });
 
-test("prettier resolves the shared configuration for repository files", () => {
-  const result = runTool("prettier", ["--find-config-path", "README.md"]);
-  assert.equal(result.code, 0, `prettier must resolve a config, got: ${result.output}`);
-  assert.ok(
-    result.output.replaceAll("\\", "/").includes("packages/prettier-config"),
-    `expected the shared package config to win, got: ${result.output}`,
+test("prettier resolves the shared configuration for repository files", async () => {
+  const found = runTool("prettier", ["--find-config-path", "README.md"]);
+  assert.equal(found.code, 0, `prettier must resolve a config, got: ${found.output}`);
+  // Prettier reports the root delegating rc file, so compare what it resolves
+  // at runtime against the shared package policy itself.
+  const prettier = await import("prettier");
+  const resolved = await prettier.resolveConfig(join(repoRoot, "README.md"));
+  assert.ok(resolved, "prettier must resolve configuration content for README.md");
+  const requireFromRoot = createRequire(join(repoRoot, "noop.js"));
+  const shared = requireFromRoot("./packages/prettier-config");
+  assert.deepEqual(
+    resolved,
+    shared,
+    "prettier must resolve exactly the shared @misyra/prettier-config policy",
   );
 });
 

@@ -6,5 +6,10 @@
     "noUnusedParameters": false,
     "types": ["node"]
   },
-  "include": ["eslint/floating-promise.ts", "boundary/deep-import.ts", "boundary/cross-package-relative.ts"]
+  "include": [
+    "eslint/floating-promise.ts",
+    "boundary/deep-import.ts",
+    "boundary/cross-package-relative.ts",
+    "../../../packages/*/src/**/*.ts"
+  ]
 }

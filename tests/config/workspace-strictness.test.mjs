@@ -12,7 +12,7 @@ import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { readJson, relativePosix, repoRoot, workspaceDirs } from "../toolchain/helpers.mjs";
-import { runTsc } from "./fixture-runner.mjs";
+import { runTsc } from "@misyra/test-config/fixture-runner";
 
 const SHARED_CONFIG = "@misyra/typescript-config/strict-base.json";
 const FORBIDDEN_OVERRIDES = [

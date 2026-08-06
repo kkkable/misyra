@@ -64,7 +64,7 @@ export function parseWorkspacePackages(yamlText) {
     if (inPackages) {
       const item = line.match(/^\s*-\s*(.+?)\s*$/);
       if (item) {
-        packages.push(item[1].replace(/^["']|["']$/g, ""));
+        packages.push(String(item[1]).replace(/^["']|["']$/g, ""));
         continue;
       }
       if (line.trim() !== "") inPackages = false;
@@ -82,7 +82,7 @@ export function parseWorkspacePackages(yamlText) {
 export function globWorkspaceDirs(pattern) {
   const match = pattern.match(/^(.+?)\/\*$/);
   if (!match) throw new Error(`Unsupported workspace glob: ${pattern}`);
-  const base = join(repoRoot, ...match[1].split("/"));
+  const base = join(repoRoot, ...String(match[1]).split("/"));
   let entries;
   try {
     entries = readdirSync(base, { withFileTypes: true });

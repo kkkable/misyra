@@ -12,7 +12,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { test } from "node:test";
 import { relativePosix, repoRoot, workspaceDirs } from "../toolchain/helpers.mjs";
-import { runEslintOnFile, runTool } from "./fixture-runner.mjs";
+import { runEslintOnFile, runTool } from "@misyra/test-config/fixture-runner";
 
 /**
  * Extract import/export specifiers from TypeScript source text.
@@ -22,7 +22,7 @@ import { runEslintOnFile, runTool } from "./fixture-runner.mjs";
  */
 function importSpecifiers(source) {
   const matches = source.matchAll(/(?:from|import)\s+["']([^"']+)["']/g);
-  return [...matches].map((match) => match[1]);
+  return [...matches].map((match) => match[1]).filter((specifier) => typeof specifier === "string");
 }
 
 /**

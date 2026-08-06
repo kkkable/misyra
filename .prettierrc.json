@@ -1,5 +1,1 @@
-{
-  "endOfLine": "lf",
-  "printWidth": 100,
-  "trailingComma": "all"
-}
+"@misyra/prettier-config"

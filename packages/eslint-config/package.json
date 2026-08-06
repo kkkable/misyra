@@ -1,0 +1,22 @@
+{
+  "name": "@misyra/eslint-config",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Shared ESLint configurations for Misyra: Node/MJS base and type-aware TypeScript.",
+  "exports": {
+    "./base": {
+      "default": "./base.mjs"
+    },
+    "./typescript": {
+      "default": "./typescript.mjs"
+    }
+  },
+  "dependencies": {
+    "@eslint/js": "9.39.5",
+    "globals": "17.9.0",
+    "typescript-eslint": "8.66.0"
+  },
+  "peerDependencies": {
+    "eslint": "9.39.5"
+  }
+}

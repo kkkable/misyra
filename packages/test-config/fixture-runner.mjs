@@ -1,13 +1,35 @@
 /**
- * Fixture runners shared with the MTS-002 expected-failure contract tests.
+ * Fixture runners shared by the Misyra expected-failure contract tests.
  *
  * Expected-failure fixtures must assert the exact failure reason, so these
  * runners capture the full combined output and exit code of the invoked tool
  * instead of accepting any nonzero exit.
  */
 import { execFileSync } from "node:child_process";
-import { join } from "node:path";
-import { repoRoot } from "../toolchain/helpers.mjs";
+import { existsSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+/**
+ * Locate the repository root by walking up from this module until the
+ * workspace declaration is found. Node realpaths workspace symlinks, so a
+ * fixed number of parent hops is not reliable across layouts.
+ *
+ * @param {string} startDir
+ * @returns {string}
+ */
+function findRepoRoot(startDir) {
+  let current = startDir;
+  for (;;) {
+    if (existsSync(join(current, "pnpm-workspace.yaml"))) return current;
+    const parent = dirname(current);
+    if (parent === current) throw new Error("could not locate the repository root");
+    current = parent;
+  }
+}
+
+/** Repository root resolved from this package's physical location. */
+export const repoRoot = findRepoRoot(dirname(fileURLToPath(import.meta.url)));
 
 /**
  * Run a repository-local tool from the repo root.
@@ -45,6 +67,8 @@ export function runTsc(projectRelativePath) {
 
 /**
  * Run the repository ESLint config against a single file with JSON output.
+ * Expected-failure fixtures are globally ignored for repository-wide lint
+ * runs, so this runner lints them explicitly with --no-ignore.
  *
  * @param {string} fileRelativePath
  * @returns {{ code: number | null, output: string }}
@@ -54,6 +78,7 @@ export function runEslintOnFile(fileRelativePath) {
     "--no-config-lookup",
     "--config",
     join(repoRoot, "eslint.config.mjs"),
+    "--no-ignore",
     "--format",
     "json",
     join(repoRoot, fileRelativePath),
