@@ -10,6 +10,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: materialize-approved-specifications
+  cancel-in-progress: true
+
 jobs:
   materialize:
     runs-on: ubuntu-latest
