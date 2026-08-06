@@ -24,7 +24,17 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cat .spec-upload/chunk-* > /tmp/specs.b64
+          cat \
+            .spec-upload/chunk-00 \
+            .spec-upload/chunk-01 \
+            .spec-upload/chunk-02 \
+            .spec-upload/chunk-03 \
+            .spec-upload/chunk-04 \
+            .spec-upload/chunk-05 \
+            .spec-upload/chunk-06a \
+            .spec-upload/chunk-06b \
+            .spec-upload/chunk-07 \
+            > /tmp/specs.b64
           base64 --decode /tmp/specs.b64 > /tmp/specs.tar.gz
           echo "9fcec83dbca7d42c64462df54bce5e7f8cbf38f8836e810050d3839e6abcf7cb  /tmp/specs.tar.gz" | sha256sum --check -
 
