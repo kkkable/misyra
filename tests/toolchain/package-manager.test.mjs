@@ -25,12 +25,15 @@ test("package.json pins the package manager through packageManager", () => {
   );
 });
 
-test("package.json declares the Node.js 24 LTS engine target", () => {
+test("package.json declares the approved Node.js 24 LTS engine range", () => {
   const root = readJson("package.json");
   const node = root.engines?.node;
   assert.equal(typeof node, "string", "engines.node is missing");
-  assert.match(node, /24/, "engines.node must target the Node.js 24 LTS line");
-  assert.ok(!node.includes("<"), "engines.node must not allow pre-24 runtimes");
+  assert.equal(
+    node.replaceAll(/\s+/g, " ").trim(),
+    ">=24 <25",
+    "engines.node must target exactly the approved Node.js 24 LTS major range",
+  );
 });
 
 test("the root workspace is private and is named misyra", () => {

@@ -20,12 +20,16 @@ import {
   workspaceDirs,
 } from "./helpers.mjs";
 
-test("pnpm-workspace.yaml declares at least one workspace glob", () => {
+test("pnpm-workspace.yaml declares exactly the approved workspace roots", () => {
   const patterns = parseWorkspacePackages(readText("pnpm-workspace.yaml"));
-  assert.ok(patterns.length > 0, "workspace package globs are missing");
   for (const pattern of patterns) {
     assert.match(pattern, /^[\w-]+\/\*$/, `unsupported workspace glob: ${pattern}`);
   }
+  assert.deepEqual(
+    [...patterns].sort(),
+    ["apps/*", "packages/*"],
+    "workspace roots must be exactly the approved apps/* and packages/* topology",
+  );
 });
 
 test("declared workspace directories each contain a valid package.json", () => {
