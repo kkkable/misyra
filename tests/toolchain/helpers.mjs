@@ -105,6 +105,16 @@ export function workspaceDirs() {
 }
 
 /**
+ * Repository-relative POSIX path for an absolute path inside the repo.
+ *
+ * @param {string} absolutePath
+ * @returns {string}
+ */
+export function relativePosix(absolutePath) {
+  return relative(repoRoot, absolutePath).split(sep).join("/");
+}
+
+/**
  * Recursively collect files matching a predicate, skipping ignored directories.
  *
  * @param {string} dir
@@ -126,7 +136,7 @@ export function walkFiles(dir, matches, skip = new Set(["node_modules", ".git"])
     if (entry.isDirectory()) {
       if (!skip.has(entry.name)) results.push(...walkFiles(full, matches, skip));
     } else if (matches(entry.name)) {
-      results.push(relative(repoRoot, full).split(sep).join("/"));
+      results.push(relativePosix(full));
     }
   }
   return results;

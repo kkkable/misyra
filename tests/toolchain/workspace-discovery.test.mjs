@@ -6,13 +6,14 @@
  * pnpm-lock.yaml.
  */
 import assert from "node:assert/strict";
-import { basename, join } from "node:path";
+import { basename } from "node:path";
 import { test } from "node:test";
 import {
   fileExists,
   parseWorkspacePackages,
   readJson,
   readText,
+  relativePosix,
   repoRoot,
   run,
   walkFiles,
@@ -31,9 +32,7 @@ test("declared workspace directories each contain a valid package.json", () => {
   const dirs = workspaceDirs();
   assert.ok(dirs.length > 0, "at least one workspace package must be discoverable");
   for (const dir of dirs) {
-    const manifest = readJson(
-      `${dir.slice(repoRoot.length + 1).replaceAll("\\", "/")}/package.json`,
-    );
+    const manifest = readJson(`${relativePosix(dir)}/package.json`);
     assert.match(
       manifest.name,
       /^@misyra\//,
@@ -87,15 +86,10 @@ test("pnpm recursively discovers the same workspaces as pnpm-workspace.yaml", ()
 
 test("no workspace depends on an undeclared workspace package", () => {
   const names = new Set(
-    workspaceDirs().map(
-      (dir) =>
-        readJson(`${dir.slice(repoRoot.length + 1).replaceAll("\\", "/")}/package.json`).name,
-    ),
+    workspaceDirs().map((dir) => readJson(`${relativePosix(dir)}/package.json`).name),
   );
   for (const dir of workspaceDirs()) {
-    const manifest = readJson(
-      join(dir.slice(repoRoot.length + 1).replaceAll("\\", "/"), "package.json"),
-    );
+    const manifest = readJson(`${relativePosix(dir)}/package.json`);
     for (const deps of [manifest.dependencies ?? {}, manifest.devDependencies ?? {}]) {
       for (const [dep, range] of Object.entries(deps)) {
         if (dep.startsWith("@misyra/")) {
