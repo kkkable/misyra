@@ -8,7 +8,7 @@ infrastructure validation. No product features are implemented yet.
 
 ## Requirements
 
-- Node.js **24 LTS** (declared in `engines`)
+- Node.js **24 LTS** (declared in `engines` as the approved `>=24 <25` range)
 - Corepack enabled, which resolves the pinned package manager
   (`packageManager` field in [`package.json`](package.json)): **pnpm 10.34.5**
 
@@ -21,6 +21,7 @@ pnpm install --frozen-lockfile
 
 | Path                       | Purpose                                                                    |
 | -------------------------- | -------------------------------------------------------------------------- |
+| `apps/*`                   | Workspace root reserved for application packages (none exist yet)          |
 | `packages/*`               | pnpm workspace packages (currently a single non-product toolchain fixture) |
 | `tests/toolchain/`         | Node test-runner contract tests for the toolchain and workspace rules      |
 | `.github/workflows/ci.yml` | CI running the full contract suite on Linux and Windows                    |

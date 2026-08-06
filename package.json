@@ -5,7 +5,7 @@
   "description": "Misyra mobile application monorepo (MTS-001 toolchain bootstrap only).",
   "packageManager": "pnpm@10.34.5",
   "engines": {
-    "node": ">=24"
+    "node": ">=24 <25"
   },
   "scripts": {
     "build": "turbo run build",
