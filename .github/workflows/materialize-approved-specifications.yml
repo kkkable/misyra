@@ -18,11 +18,16 @@ jobs:
   materialize:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out documentation branch
-        uses: actions/checkout@v4
-        with:
-          ref: docs/add-approved-specifications
-          fetch-depth: 0
+      - name: Check out documentation branch without external actions
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git init .
+          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git fetch --depth=1 origin docs/add-approved-specifications
+          git checkout -B docs/add-approved-specifications FETCH_HEAD
 
       - name: Reconstruct and verify approved specifications
         shell: bash
