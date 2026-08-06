@@ -1,0 +1,9 @@
+{
+  "name": "@misyra/toolchain-fixture",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Non-product fixture proving pnpm workspace discovery and Turborepo task execution for MTS-001.",
+  "scripts": {
+    "build": "node scripts/build.mjs"
+  }
+}

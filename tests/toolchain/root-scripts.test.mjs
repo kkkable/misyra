@@ -22,7 +22,20 @@ const REQUIRED_SCRIPTS = [
 ];
 
 const PORTABLE_RUNNERS = /^(node|pnpm|corepack|turbo|eslint|prettier|tsc)(\.c?js)?(\s|$)/;
-const POSIX_ONLY_TOKENS = ["&&", "||", ";", "$(", "`", "export ", "rm ", "cp ", "mv ", "mkdir ", "cat ", " > "];
+const POSIX_ONLY_TOKENS = [
+  "&&",
+  "||",
+  ";",
+  "$(",
+  "`",
+  "export ",
+  "rm ",
+  "cp ",
+  "mv ",
+  "mkdir ",
+  "cat ",
+  " > ",
+];
 
 test("root package.json declares the full required script contract", () => {
   const { scripts } = readJson("package.json");
@@ -36,22 +49,37 @@ test("root package.json declares the full required script contract", () => {
 test("every root script is a single portable command", () => {
   const { scripts } = readJson("package.json");
   for (const [name, command] of Object.entries(scripts)) {
-    assert.match(command, PORTABLE_RUNNERS, `script "${name}" must invoke a portable runner directly: ${command}`);
+    assert.match(
+      command,
+      PORTABLE_RUNNERS,
+      `script "${name}" must invoke a portable runner directly: ${command}`,
+    );
     for (const token of POSIX_ONLY_TOKENS) {
-      assert.ok(!command.includes(token), `script "${name}" uses non-portable syntax "${token}": ${command}`);
+      assert.ok(
+        !command.includes(token),
+        `script "${name}" uses non-portable syntax "${token}": ${command}`,
+      );
     }
   }
 });
 
 test("the audit script enforces the high severity threshold", () => {
   const { scripts } = readJson("package.json");
-  assert.match(scripts.audit, /audit-level=high/, "audit script must fail on high severity findings");
+  assert.match(
+    scripts.audit,
+    /audit-level=high/,
+    "audit script must fail on high severity findings",
+  );
 });
 
 test("format ships both write and check modes", () => {
   const { scripts } = readJson("package.json");
   assert.match(scripts.format, /--write/, "format script must normalize files");
-  assert.match(scripts["format:check"], /--check/, "format:check script must verify without writing");
+  assert.match(
+    scripts["format:check"],
+    /--check/,
+    "format:check script must verify without writing",
+  );
 });
 
 test("typecheck is a no-emit TypeScript compilation", () => {

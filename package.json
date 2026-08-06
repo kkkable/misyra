@@ -1,0 +1,29 @@
+{
+  "name": "misyra",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Misyra mobile application monorepo (MTS-001 toolchain bootstrap only).",
+  "packageManager": "pnpm@10.34.5",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test \"tests/**/*.test.mjs\"",
+    "audit": "pnpm audit --audit-level=high",
+    "infra:validate": "node --test \"tests/toolchain/*.test.mjs\""
+  },
+  "devDependencies": {
+    "@eslint/js": "9.39.5",
+    "@types/node": "24.13.3",
+    "eslint": "9.39.5",
+    "globals": "17.9.0",
+    "prettier": "3.9.6",
+    "turbo": "2.10.8",
+    "typescript": "5.9.3"
+  }
+}

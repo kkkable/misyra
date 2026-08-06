@@ -11,17 +11,31 @@ import { fileURLToPath } from "node:url";
 
 export const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
-/** Read and JSON-parse a file relative to the repository root. */
+/**
+ * Read and JSON-parse a file relative to the repository root.
+ *
+ * @param {string} relativePath
+ */
 export function readJson(relativePath) {
   return JSON.parse(readFileSync(join(repoRoot, relativePath), "utf8"));
 }
 
-/** Read a text file relative to the repository root. */
+/**
+ * Read a text file relative to the repository root.
+ *
+ * @param {string} relativePath
+ * @returns {string}
+ */
 export function readText(relativePath) {
   return readFileSync(join(repoRoot, relativePath), "utf8");
 }
 
-/** True when the path exists and is a regular file. */
+/**
+ * True when the path exists and is a regular file.
+ *
+ * @param {string} relativePath
+ * @returns {boolean}
+ */
 export function fileExists(relativePath) {
   try {
     return statSync(join(repoRoot, relativePath)).isFile();
@@ -33,6 +47,9 @@ export function fileExists(relativePath) {
 /**
  * Minimal parser for the subset of pnpm-workspace.yaml used by this repo:
  * a top-level `packages:` list of quoted or unquoted glob entries.
+ *
+ * @param {string} yamlText
+ * @returns {string[]}
  */
 export function parseWorkspacePackages(yamlText) {
   const lines = yamlText.split(/\r?\n/);
@@ -56,7 +73,12 @@ export function parseWorkspacePackages(yamlText) {
   return packages;
 }
 
-/** Expand a single-segment workspace glob such as `packages/*` into directories. */
+/**
+ * Expand a single-segment workspace glob such as `packages/*` into directories.
+ *
+ * @param {string} pattern
+ * @returns {string[]}
+ */
 export function globWorkspaceDirs(pattern) {
   const match = pattern.match(/^(.+?)\/\*$/);
   if (!match) throw new Error(`Unsupported workspace glob: ${pattern}`);
@@ -72,14 +94,26 @@ export function globWorkspaceDirs(pattern) {
     .map((entry) => join(base, entry.name));
 }
 
-/** Directories of every workspace declared by pnpm-workspace.yaml. */
+/**
+ * Directories of every workspace declared by pnpm-workspace.yaml.
+ *
+ * @returns {string[]}
+ */
 export function workspaceDirs() {
   const patterns = parseWorkspacePackages(readText("pnpm-workspace.yaml"));
   return patterns.flatMap((pattern) => globWorkspaceDirs(pattern));
 }
 
-/** Recursively collect files matching a predicate, skipping ignored directories. */
+/**
+ * Recursively collect files matching a predicate, skipping ignored directories.
+ *
+ * @param {string} dir
+ * @param {(name: string) => boolean} matches
+ * @param {Set<string>} [skip]
+ * @returns {string[]}
+ */
 export function walkFiles(dir, matches, skip = new Set(["node_modules", ".git"])) {
+  /** @type {string[]} */
   const results = [];
   let entries;
   try {
@@ -98,7 +132,13 @@ export function walkFiles(dir, matches, skip = new Set(["node_modules", ".git"])
   return results;
 }
 
-/** Run a command from the repo root and return trimmed stdout. */
+/**
+ * Run a command from the repo root and return trimmed stdout.
+ *
+ * @param {string} command
+ * @param {readonly string[]} args
+ * @returns {string}
+ */
 export function run(command, args) {
   return execFileSync(command, args, {
     cwd: repoRoot,
@@ -107,7 +147,11 @@ export function run(command, args) {
   }).trim();
 }
 
-/** Files tracked by git (empty list before the first commit). */
+/**
+ * Files tracked by git (empty list before the first commit).
+ *
+ * @returns {string[]}
+ */
 export function gitTrackedFiles() {
   try {
     const out = run("git", ["ls-files"]);

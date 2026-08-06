@@ -18,7 +18,11 @@ test("root package.json exists", () => {
 test("package.json pins the package manager through packageManager", () => {
   const root = readJson("package.json");
   assert.equal(typeof root.packageManager, "string", "packageManager field is missing");
-  assert.match(root.packageManager, PACKAGE_MANAGER_PATTERN, "packageManager must pin an exact pnpm version");
+  assert.match(
+    root.packageManager,
+    PACKAGE_MANAGER_PATTERN,
+    "packageManager must pin an exact pnpm version",
+  );
 });
 
 test("package.json declares the Node.js 24 LTS engine target", () => {
@@ -50,7 +54,10 @@ test("corepack can resolve the pinned package manager", () => {
 });
 
 test("pnpm-workspace.yaml exists so pnpm owns workspace discovery", () => {
-  assert.ok(fileExists("pnpm-workspace.yaml"), "expected pnpm-workspace.yaml at the repository root");
+  assert.ok(
+    fileExists("pnpm-workspace.yaml"),
+    "expected pnpm-workspace.yaml at the repository root",
+  );
   const text = readText("pnpm-workspace.yaml");
   assert.match(text, /^packages\s*:/m, "pnpm-workspace.yaml must declare a packages list");
 });

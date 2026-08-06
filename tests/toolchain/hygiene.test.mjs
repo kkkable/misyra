@@ -54,15 +54,17 @@ test(".gitattributes normalizes line endings to LF", () => {
 
 test("no forbidden artifact is tracked by git", () => {
   const tracked = gitTrackedFiles();
-  const violations = tracked.filter((file) => FORBIDDEN_TRACKED_PATTERNS.some((pattern) => pattern.test(file)));
+  const violations = tracked.filter((file) =>
+    FORBIDDEN_TRACKED_PATTERNS.some((pattern) => pattern.test(file)),
+  );
   assert.deepEqual(violations, [], `forbidden files tracked: ${violations.join(", ")}`);
 });
 
 test("the lockfile is the only dependency manifest artifact tracked", () => {
   const tracked = gitTrackedFiles();
   const foreign = tracked.filter((file) =>
-    ["package-lock.json", "yarn.lock", "bun.lockb", "bun.lock", "npm-shrinkwrap.json"].some((name) =>
-      file.endsWith(name),
+    ["package-lock.json", "yarn.lock", "bun.lockb", "bun.lock", "npm-shrinkwrap.json"].some(
+      (name) => file.endsWith(name),
     ),
   );
   assert.deepEqual(foreign, [], `foreign lockfiles tracked: ${foreign.join(", ")}`);
