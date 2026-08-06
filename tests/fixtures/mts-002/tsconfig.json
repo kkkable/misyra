@@ -1,0 +1,10 @@
+{
+  "extends": "@misyra/typescript-config/strict-base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "types": ["node"]
+  },
+  "include": ["eslint/floating-promise.ts", "boundary/deep-import.ts", "boundary/cross-package-relative.ts"]
+}
