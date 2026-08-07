@@ -16,7 +16,12 @@
     "test": "node --test \"tests/**/*.test.mjs\"",
     "test:config": "node --test \"tests/config/*.test.mjs\"",
     "audit": "pnpm audit --audit-level=high",
-    "infra:validate": "node --test \"tests/toolchain/*.test.mjs\""
+    "infra:validate": "node --test \"tests/toolchain/*.test.mjs\"",
+    "dev:up": "node scripts/dev/up.mjs",
+    "dev:down": "node scripts/dev/down.mjs",
+    "dev:reset": "node scripts/dev/reset.mjs",
+    "dev:health": "node scripts/dev/health.mjs",
+    "test:services": "node --test \"integration/mts-004/*.test.mjs\""
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",
@@ -25,11 +30,14 @@
     "@misyra/test-config": "workspace:*",
     "@misyra/typescript-config": "workspace:*",
     "@types/node": "24.13.3",
+    "@types/pg": "8.20.4",
     "eslint": "9.39.5",
     "globals": "17.9.0",
+    "pg": "8.22.0",
     "prettier": "3.9.6",
     "turbo": "2.10.8",
     "typescript": "5.9.3",
-    "typescript-eslint": "8.66.0"
+    "typescript-eslint": "8.66.0",
+    "yaml": "2.9.0"
   }
 }
