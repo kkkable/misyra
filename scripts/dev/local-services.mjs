@@ -6,7 +6,7 @@
  */
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -83,6 +83,7 @@ export async function probeLocalPorts(probes) {
   for (const probe of probes) {
     const detail = await new Promise((resolvePromise) => {
       const socket = connect({ host: "127.0.0.1", port: probe.port });
+      /** @param {boolean} ok @param {string} message */
       const finish = (ok, message) => {
         socket.destroy();
         resolvePromise(message ? `${message}` : ok ? "reachable" : "unreachable");

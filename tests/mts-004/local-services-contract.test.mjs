@@ -77,13 +77,13 @@ test("compose.yaml pins PostgreSQL 18 and a stable pinned Azurite image", () => 
   const services = /** @type {Record<string, Record<string, unknown>>} */ (
     composeDocument().services
   );
-  assert.equal(
-    services.postgres.image,
-    "postgres:18",
-    "PostgreSQL must be the approved major version 18",
-  );
+  const postgres = /** @type {Record<string, unknown> | undefined} */ (services["postgres"]);
+  const azurite = /** @type {Record<string, unknown> | undefined} */ (services["azurite"]);
+  assert.ok(postgres, "compose.yaml must define the postgres service");
+  assert.ok(azurite, "compose.yaml must define the azurite service");
+  assert.equal(postgres.image, "postgres:18", "PostgreSQL must be the approved major version 18");
   assert.match(
-    String(services.azurite.image ?? ""),
+    String(azurite.image ?? ""),
     /^mcr\.microsoft\.com\/azure-storage\/azurite:\d+\.\d+\.\d+$/,
     "Azurite must use a stable pinned MCR image tag (no latest/alpha/previews)",
   );
@@ -107,8 +107,12 @@ test("compose.yaml publishes the deterministic local ports", () => {
   const services = /** @type {Record<string, Record<string, unknown>>} */ (
     composeDocument().services
   );
-  const postgresPorts = /** @type {string[]} */ (services.postgres.ports);
-  const azuritePorts = /** @type {string[]} */ (services.azurite.ports);
+  const postgres = /** @type {Record<string, unknown> | undefined} */ (services["postgres"]);
+  const azurite = /** @type {Record<string, unknown> | undefined} */ (services["azurite"]);
+  assert.ok(postgres, "compose.yaml must define the postgres service");
+  assert.ok(azurite, "compose.yaml must define the azurite service");
+  const postgresPorts = /** @type {string[]} */ (postgres.ports ?? []);
+  const azuritePorts = /** @type {string[]} */ (azurite.ports ?? []);
   assert.ok(
     postgresPorts.some((entry) => entry.endsWith(":5432")),
     "PostgreSQL must publish the deterministic 5432 development port",
@@ -138,8 +142,9 @@ test("compose.yaml persists state in Misyra-owned named volumes only", () => {
         mount.startsWith("misyra-"),
         `${name} volume mount must reference a Misyra-owned volume: ${mount}`,
       );
+      const volumeName = mount.split(":")[0] ?? mount;
       assert.ok(
-        !mount.split(":")[0].includes("/"),
+        !volumeName.includes("/"),
         `${name} must not bind-mount host directories: ${mount}`,
       );
     }
