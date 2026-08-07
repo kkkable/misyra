@@ -92,18 +92,6 @@ test("each tab route carries its approved localization key", () => {
   }
 });
 
-test("no extra permanent root navigation destinations exist", () => {
-  const appDir = join(repoRoot, "apps", "mobile", "app");
-  const entries = readdirSync(appDir, { withFileTypes: true }).filter((entry) =>
-    entry.isDirectory(),
-  );
-  assert.deepEqual(
-    entries.map((entry) => entry.name),
-    ["(tabs)"],
-    "only the (tabs) group may exist as permanent root navigation",
-  );
-});
-
 test("the permanent tab contract accepts non-tab root route groups", () => {
   const fixtureTabsDir = join(FIXTURE_ROUTE_GROUPS, "(tabs)");
 
