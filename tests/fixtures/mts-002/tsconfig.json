@@ -9,7 +9,6 @@
   "include": [
     "eslint/floating-promise.ts",
     "boundary/deep-import.ts",
-    "boundary/cross-package-relative.ts",
     "../../../packages/*/src/**/*.ts"
   ]
 }
