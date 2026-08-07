@@ -1,0 +1,19 @@
+{
+  "name": "@misyra/localization",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "English and zh-HK localization catalogs for Misyra (technical specification section 25).",
+  "exports": {
+    ".": {
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "node scripts/build.mjs --no-emit"
+  },
+  "dependencies": {
+    "@misyra/typescript-config": "workspace:*"
+  }
+}

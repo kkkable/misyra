@@ -6,7 +6,9 @@
       "outputs": []
     },
     "lint": {},
-    "typecheck": {},
+    "typecheck": {
+      "dependsOn": ["^build"]
+    },
     "test": {}
   }
 }

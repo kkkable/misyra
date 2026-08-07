@@ -2,6 +2,7 @@ pnpm-lock.yaml
 dist
 coverage
 .turbo
+.expo
 tests/fixtures
 
 # Approved specification documents are archival: their bytes were

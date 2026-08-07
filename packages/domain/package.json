@@ -1,0 +1,18 @@
+{
+  "name": "@misyra/domain",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Pure TypeScript domain shell for Misyra. No framework, database, or provider imports (technical specification section 5.1).",
+  "exports": {
+    ".": {
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs"
+  },
+  "dependencies": {
+    "@misyra/typescript-config": "workspace:*"
+  }
+}

@@ -10,7 +10,7 @@ import globals from "globals";
 
 export const baseConfig = [
   {
-    ignores: ["**/node_modules/**", "**/dist/**", "**/coverage/**", ".turbo/**"],
+    ignores: ["**/node_modules/**", "**/dist/**", "**/coverage/**", "**/.expo/**", ".turbo/**"],
   },
   js.configs.recommended,
   {

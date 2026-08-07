@@ -1,0 +1,24 @@
+{
+  "name": "@misyra/worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Background worker shell for Misyra. Starts and stops without provider credentials; consumers arrive with later tickets.",
+  "exports": {
+    ".": {
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "node scripts/build.mjs --no-emit",
+    "start": "node dist/main.js"
+  },
+  "dependencies": {
+    "@misyra/typescript-config": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.3"
+  }
+}
