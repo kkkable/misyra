@@ -1,18 +1,14 @@
 {
+  "extends": "@misyra/typescript-config/strict-base.json",
   "compilerOptions": {
-    "target": "ES2023",
-    "lib": ["ES2023"],
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
-    "strict": true,
-    "noFallthroughCasesInSwitch": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
     "allowJs": true,
     "checkJs": true,
-    "skipLibCheck": true,
-    "noEmit": true,
     "types": ["node"]
   },
-  "include": ["eslint.config.mjs", "tests/**/*.mjs", "packages/*/scripts/**/*.mjs"]
+  "include": [
+    "eslint.config.mjs",
+    "tests/**/*.mjs",
+    "packages/*/scripts/**/*.mjs",
+    "packages/*/src/**/*.ts"
+  ]
 }

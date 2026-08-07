@@ -2,8 +2,17 @@
   "name": "@misyra/toolchain-fixture",
   "version": "0.0.0",
   "private": true,
-  "description": "Non-product fixture proving pnpm workspace discovery and Turborepo task execution for MTS-001.",
+  "description": "Non-product TypeScript fixture proving shared strict configuration, workspace discovery, and Turborepo task execution.",
+  "exports": {
+    ".": {
+      "default": "./dist/index.js"
+    }
+  },
   "scripts": {
     "build": "node scripts/build.mjs"
+  },
+  "dependencies": {
+    "@misyra/test-config": "workspace:*",
+    "@misyra/typescript-config": "workspace:*"
   }
 }

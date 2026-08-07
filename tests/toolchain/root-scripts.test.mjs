@@ -19,6 +19,7 @@ const REQUIRED_SCRIPTS = [
   "build",
   "audit",
   "infra:validate",
+  "test:config",
 ];
 
 const PORTABLE_RUNNERS = /^(node|pnpm|corepack|turbo|eslint|prettier|tsc)(\.c?js)?(\s|$)/;
