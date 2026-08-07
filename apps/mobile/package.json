@@ -1,0 +1,32 @@
+{
+  "name": "@misyra/mobile",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Expo mobile shell for Misyra exposing only the four approved root tabs as placeholders (technical specification section 8).",
+  "main": "expo-router/entry",
+  "exports": {
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "node scripts/build.mjs --no-emit"
+  },
+  "dependencies": {
+    "@expo/log-box": "57.0.2",
+    "@expo/metro-runtime": "57.0.8",
+    "@misyra/localization": "workspace:*",
+    "expo": "57.0.11",
+    "expo-constants": "57.0.9",
+    "expo-linking": "57.0.5",
+    "expo-localization": "57.0.1",
+    "expo-router": "57.0.11",
+    "react": "19.2.3",
+    "react-native": "0.86.2",
+    "react-native-safe-area-context": "5.8.1",
+    "react-native-screens": "4.27.0"
+  },
+  "devDependencies": {
+    "@misyra/typescript-config": "workspace:*",
+    "@types/react": "19.2.18"
+  }
+}

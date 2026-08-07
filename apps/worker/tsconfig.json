@@ -1,0 +1,7 @@
+{
+  "extends": "@misyra/typescript-config/strict-base.json",
+  "compilerOptions": {
+    "types": ["node"]
+  },
+  "include": ["src"]
+}

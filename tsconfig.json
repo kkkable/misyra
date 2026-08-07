@@ -9,6 +9,9 @@
     "eslint.config.mjs",
     "tests/**/*.mjs",
     "packages/*/scripts/**/*.mjs",
-    "packages/*/src/**/*.ts"
+    "packages/*/src/**/*.ts",
+    "apps/*/scripts/**/*.mjs",
+    "apps/api/src/**/*.ts",
+    "apps/worker/src/**/*.ts"
   ]
 }

@@ -6,6 +6,9 @@ dist/
 coverage/
 .turbo/
 
+# Expo generated output
+.expo/
+
 # Environment and secrets
 .env
 .env.*
