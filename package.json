@@ -24,6 +24,7 @@
     "test:services": "node --test \"integration/mts-004/*.test.mjs\""
   },
   "devDependencies": {
+    "@azure/storage-blob": "12.29.1",
     "@eslint/js": "9.39.5",
     "@misyra/eslint-config": "workspace:*",
     "@misyra/prettier-config": "workspace:*",

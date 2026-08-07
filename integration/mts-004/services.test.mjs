@@ -8,18 +8,15 @@
  */
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { createHmac } from "node:crypto";
 import { test } from "node:test";
+import { BlobServiceClient, StorageSharedKeyCredential } from "@azure/storage-blob";
 import { repoRoot } from "../../tests/toolchain/helpers.mjs";
 
 const AZURITE_ACCOUNT = "devstoreaccount1";
 // Well-known public development key documented by Microsoft for the local
 // storage emulator only. It is not a secret and never works against Azure.
 const AZURITE_KEY =
-  "Eby8vdM02xNOcqFlqUwJPLlmEtl+XW1LyqK5L3b8jgQ6cKbLbLb0iVZ0wQpJRrOaJw0J3lDm6b0jQ6cKbLbLb0A==".replace(
-    /^.*$/,
-    "Eby8vdM02xNOcqFlqUwJPLlmEtl+XW1LyqK5L3b8jgQ6cKbLbLb0iVZ0wQpJRrOaJw0J3lDm6b0jQ6cKbLbLb0A==",
-  );
+  "Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==";
 const PROBE_CONTAINER = "mts-004-probe";
 const POSTGRES_PORT = Number(process.env.MISYRA_POSTGRES_PORT ?? 5432);
 const BLOB_PORT = Number(process.env.MISYRA_AZURITE_BLOB_PORT ?? 10000);
@@ -28,7 +25,8 @@ const POSTGRES_URL =
   `postgres://misyra:misyra_local_dev@localhost:${POSTGRES_PORT}/misyra`;
 
 /**
- * Resolve the Docker CLI for this host (PATH first, Docker Desktop fallback).
+ * Resolve the Docker CLI for this host. Docker Desktop installs may not be
+ * on PATH in every session, so MISYRA_DOCKER_BIN overrides the lookup.
  *
  * @returns {string}
  */
@@ -67,72 +65,27 @@ function composeServiceStates() {
 }
 
 /**
- * Sign a Blob service request with the emulator SharedKey scheme.
+ * Authenticated Blob service client for the local Azurite container.
  *
- * @param {string} method
- * @param {string} pathAndQuery
- * @param {Record<string, string>} headers
- * @param {string} dateHeader
- * @param {string} contentLength
- * @returns {string}
+ * @returns {BlobServiceClient}
  */
-function sharedKeyAuthorization(method, pathAndQuery, headers, dateHeader, contentLength) {
-  const msHeaders = Object.entries(headers)
-    .filter(([name]) => name.toLowerCase().startsWith("x-ms-"))
-    .map(([name, value]) => `${name.toLowerCase()}:${value}`)
-    .sort()
-    .join("\n");
-  const canonicalizedResource = `/${AZURITE_ACCOUNT}${pathAndQuery.split("?")[0]}`;
-  const query = pathAndQuery.includes("?")
-    ? pathAndQuery
-        .split("?")[1]
-        .split("&")
-        .map((pair) => pair.split("="))
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([key, value]) => `${key.toLowerCase()}:${value}`)
-        .join("\n")
-    : "";
-  const stringToSign = [
-    method,
-    "",
-    "",
-    contentLength,
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    dateHeader,
-    msHeaders,
-    query ? `${canonicalizedResource}\n${query}` : canonicalizedResource,
-  ].join("\n");
-  const signature = createHmac("sha256", Buffer.from(AZURITE_KEY, "base64"))
-    .update(stringToSign, "utf8")
-    .digest("base64");
-  return `SharedKey ${AZURITE_ACCOUNT}:${signature}`;
+function blobServiceClient() {
+  const credential = new StorageSharedKeyCredential(AZURITE_ACCOUNT, AZURITE_KEY);
+  return new BlobServiceClient(`http://127.0.0.1:${BLOB_PORT}/${AZURITE_ACCOUNT}`, credential);
 }
 
 /**
- * Perform a signed Blob request against the local Azurite container.
+ * Names of all Blob containers currently stored by Azurite.
  *
- * @param {string} method
- * @param {string} pathAndQuery
- * @returns {Promise<{ status: number; body: string }>}
+ * @param {BlobServiceClient} client
+ * @returns {Promise<string[]>}
  */
-async function blobRequest(method, pathAndQuery) {
-  const dateHeader = new Date().toUTCString();
-  const headers = {
-    "x-ms-date": dateHeader,
-    "x-ms-version": "2025-01-05",
-  };
-  const authorization = sharedKeyAuthorization(method, pathAndQuery, headers, dateHeader, "");
-  const response = await fetch(`http://127.0.0.1:${BLOB_PORT}${pathAndQuery}`, {
-    method,
-    headers: { ...headers, authorization, "content-length": "0" },
-  });
-  return { status: response.status, body: await response.text() };
+async function containerNames(client) {
+  const names = [];
+  for await (const container of client.listContainers()) {
+    names.push(container.name);
+  }
+  return names;
 }
 
 test("Compose reports every misyra-local service running and healthy", () => {
@@ -171,38 +124,26 @@ test("PostgreSQL 18 accepts connections and read/write queries", async () => {
 });
 
 test("Azurite serves authenticated Blob container lifecycle operations", async () => {
-  const listBefore = await blobRequest("GET", `/${AZURITE_ACCOUNT}?comp=list`);
-  assert.equal(
-    listBefore.status,
-    200,
-    `signed List Containers must succeed against Azurite: ${listBefore.status} ${listBefore.body}`,
-  );
-  assert.ok(!listBefore.body.includes(PROBE_CONTAINER), "probe container must start absent");
+  const client = blobServiceClient();
 
-  const created = await blobRequest(
-    "PUT",
-    `/${AZURITE_ACCOUNT}/${PROBE_CONTAINER}?restype=container`,
-  );
-  assert.equal(
-    created.status,
-    201,
-    `container creation must succeed: ${created.status} ${created.body}`,
-  );
-
-  const listAfter = await blobRequest("GET", `/${AZURITE_ACCOUNT}?comp=list`);
+  const namesBefore = await containerNames(client);
   assert.ok(
-    listAfter.body.includes(PROBE_CONTAINER),
-    "created container must appear in the listing",
+    !namesBefore.includes(PROBE_CONTAINER),
+    "probe container must start absent from Azurite storage",
   );
 
-  const deleted = await blobRequest(
-    "DELETE",
-    `/${AZURITE_ACCOUNT}/${PROBE_CONTAINER}?restype=container`,
+  await client.createContainer(PROBE_CONTAINER);
+  const namesAfterCreate = await containerNames(client);
+  assert.ok(
+    namesAfterCreate.includes(PROBE_CONTAINER),
+    "created container must appear in the authenticated listing",
   );
-  assert.equal(
-    deleted.status,
-    202,
-    `container deletion must succeed: ${deleted.status} ${deleted.body}`,
+
+  await client.deleteContainer(PROBE_CONTAINER);
+  const namesAfterDelete = await containerNames(client);
+  assert.ok(
+    !namesAfterDelete.includes(PROBE_CONTAINER),
+    "deleted container must disappear from the authenticated listing",
   );
 });
 
