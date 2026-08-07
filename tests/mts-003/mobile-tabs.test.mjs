@@ -11,11 +11,12 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { test } from "node:test";
 import { repoRoot } from "../toolchain/helpers.mjs";
 
 const TABS_DIR = join(repoRoot, "apps", "mobile", "app", "(tabs)");
+const FIXTURE_ROUTE_GROUPS = join(repoRoot, "tests", "fixtures", "mts-003", "route-groups");
 
 /** Approved inventory from technical specification section 8. */
 const APPROVED_TABS = [
@@ -100,6 +101,51 @@ test("no extra permanent root navigation destinations exist", () => {
     entries.map((entry) => entry.name),
     ["(tabs)"],
     "only the (tabs) group may exist as permanent root navigation",
+  );
+});
+
+test("the permanent tab contract accepts non-tab root route groups", () => {
+  const fixtureTabsDir = join(FIXTURE_ROUTE_GROUPS, "(tabs)");
+
+  // The representative keeps the permanent tab inventory exactly...
+  const fixtureTabFiles = readdirSync(fixtureTabsDir)
+    .filter((name) => name.endsWith(".tsx"))
+    .sort();
+  assert.deepEqual(
+    fixtureTabFiles,
+    ["_layout.tsx", ...APPROVED_TABS.map((tab) => `${tab.route}.tsx`)].sort(),
+    "the fixture (tabs) group must keep exactly the approved four routes",
+  );
+
+  // ...while a non-tab root route group exists next to it.
+  const fixtureRootGroups = readdirSync(FIXTURE_ROUTE_GROUPS, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .sort();
+  assert.ok(fixtureRootGroups.includes("(tabs)"), "the fixture keeps the (tabs) group");
+  assert.ok(
+    fixtureRootGroups.some((name) => name !== "(tabs)"),
+    "the fixture adds a representative non-tab route group",
+  );
+
+  // A root-directory exclusivity rule rejects this approved-shape tree even
+  // though the permanent tab inventory is untouched.
+  const exclusivityRuleAccepts =
+    fixtureRootGroups.length === 1 && fixtureRootGroups[0] === "(tabs)";
+  assert.equal(
+    exclusivityRuleAccepts,
+    false,
+    "sanity: the representative must trip any root-directory exclusivity rule",
+  );
+
+  // The MTS-003 contract protects only the permanent tab inventory, so it
+  // must not enforce such an exclusivity rule anywhere.
+  const contractSource = readFileSync(fileURLToPath(import.meta.url), "utf8");
+  const enforcesExclusivity = /deepEqual\([\s\S]{0,160}?\["\(tabs\)"\]/.test(contractSource);
+  assert.equal(
+    enforcesExclusivity,
+    false,
+    "the permanent tab contract must not require apps/mobile/app to hold only the (tabs) group; approved later modal routes keep the same four permanent tabs",
   );
 });
 
