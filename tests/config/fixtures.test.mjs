@@ -9,7 +9,7 @@
  */
 import assert from "node:assert/strict";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, resolve, sep } from "node:path";
 import { test } from "node:test";
 import { relativePosix, repoRoot, workspaceDirs } from "../toolchain/helpers.mjs";
 import { runEslintOnFile, runTool } from "@misyra/test-config/fixture-runner";
@@ -41,7 +41,11 @@ export function boundaryViolations(filePath, workspaceDir) {
     }
     if (specifier.startsWith(".")) {
       const target = resolve(dirname(filePath), specifier);
-      if (!target.startsWith(workspaceDir)) {
+      // Separator-aware containment: a raw prefix match would mistake a
+      // prefix-collision sibling (e.g. packages/toolchain-fixture-x) for the
+      // workspace itself.
+      const insideWorkspace = target === workspaceDir || target.startsWith(workspaceDir + sep);
+      if (!insideWorkspace) {
         violations.push(`relative import crosses a workspace boundary: ${specifier}`);
       }
     }
@@ -75,13 +79,47 @@ test("the deep-import fixture fails for the package-boundary lint rule", () => {
   );
 });
 
-test("the boundary scanner detects the cross-workspace relative import fixture", () => {
-  const fixture = join(repoRoot, "tests/fixtures/mts-002/boundary/cross-package-relative.ts");
+test("the cross-workspace relative-import fixture is a real violation inside its owning workspace", () => {
   const workspace = join(repoRoot, "packages/toolchain-fixture");
+  const fixture = join(workspace, "fixtures/boundary/cross-package-relative.ts");
+  assert.ok(
+    existsSync(fixture),
+    "the boundary fixture must live under a non-source fixture directory inside packages/toolchain-fixture",
+  );
+  const specifiers = importSpecifiers(readFileSync(fixture, "utf8")).filter((specifier) =>
+    specifier.startsWith("."),
+  );
+  assert.equal(specifiers.length, 1, "the fixture must contain exactly one relative import");
+  const specifier = /** @type {string} */ (specifiers[0]);
+  const target = resolve(dirname(fixture), specifier);
+  const siblingWorkspace = join(repoRoot, "packages/test-config");
+  const siblingFile = join(siblingWorkspace, "index.js");
+  assert.ok(
+    target === siblingFile,
+    `the relative import must resolve into the real sibling workspace file packages/test-config/index.js, got: ${relativePosix(target)}`,
+  );
+  assert.ok(existsSync(target), "the sibling workspace target file must exist");
   const violations = boundaryViolations(fixture, workspace);
   assert.ok(
     violations.some((violation) => violation.includes("crosses a workspace boundary")),
     `expected a workspace-boundary violation, got: ${JSON.stringify(violations)}`,
+  );
+});
+
+test("the boundary scanner matches the owning workspace by path segment, not raw prefix", () => {
+  const workspace = join(repoRoot, "packages/toolchain-fixture");
+  const fixture = join(workspace, "fixtures/boundary/cross-package-relative.ts");
+  assert.ok(
+    existsSync(fixture),
+    "the boundary fixture must live under a non-source fixture directory inside packages/toolchain-fixture",
+  );
+  // A claimed workspace whose path is only a string prefix of the real one
+  // must never count as containment for the resolved target.
+  const prefixCollisionWorkspace = join(repoRoot, "packages/toolchain-fixtur");
+  const violations = boundaryViolations(fixture, prefixCollisionWorkspace);
+  assert.ok(
+    violations.some((violation) => violation.includes("crosses a workspace boundary")),
+    "a prefix-collision workspace path must not be mistaken for containment",
   );
 });
 

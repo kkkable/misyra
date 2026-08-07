@@ -68,3 +68,40 @@ test("format:check remains deterministic against the shared policy", () => {
   const result = runTool("prettier", ["--check", "README.md"]);
   assert.equal(result.code, 0, `README.md must satisfy the shared policy: ${result.output}`);
 });
+
+const APPROVED_SPEC_DOCS = [
+  "docs/specifications/product-specification.md",
+  "docs/specifications/technical-specification.md",
+  "docs/specifications/implementation-tickets.md",
+];
+
+test(".prettierignore excludes the approved specification documents byte-for-byte", async () => {
+  assert.ok(fileExists(".prettierignore"), "expected .prettierignore at the repository root");
+  const entries = readText(".prettierignore")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line !== "" && !line.startsWith("#"));
+  for (const doc of APPROVED_SPEC_DOCS) {
+    assert.ok(
+      entries.includes(doc),
+      `.prettierignore must exclude the approved document ${doc} so its bytes stay untouched`,
+    );
+  }
+  const docsEntries = entries
+    .filter((entry) => entry.replace(/^\/+/, "").startsWith("docs"))
+    .sort();
+  assert.deepEqual(
+    docsEntries,
+    [...APPROVED_SPEC_DOCS].sort(),
+    "docs formatting exclusions must stay narrow: exactly the three approved specification files",
+  );
+  const prettier = await import("prettier");
+  for (const doc of APPROVED_SPEC_DOCS) {
+    // Mirror the CLI: the ignore file is only consulted when referenced
+    // explicitly through the API.
+    const info = await prettier.getFileInfo(join(repoRoot, doc), {
+      ignorePath: join(repoRoot, ".prettierignore"),
+    });
+    assert.equal(info.ignored, true, `prettier must ignore the approved document ${doc}`);
+  }
+});
