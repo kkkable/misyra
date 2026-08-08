@@ -34,16 +34,13 @@ const HIGH_GATE = "pnpm audit --audit-level=high";
 
 test("the root manifest declares the exact two-GHSA audit exception", () => {
   const manifest = /** @type {Record<string, unknown>} */ (readJson("package.json"));
-  const pnpmSection = manifest.pnpm;
+  const pnpmSection = /** @type {Record<string, unknown> | undefined} */ (manifest.pnpm);
   assert.ok(
-    pnpmSection && typeof pnpmSection === "object",
+    pnpmSection,
     "root package.json must declare a `pnpm` section holding the audit exception",
   );
-  const auditConfig = /** @type {Record<string, unknown>} */ (pnpmSection).auditConfig;
-  assert.ok(
-    auditConfig && typeof auditConfig === "object",
-    "pnpm.auditConfig must exist so the exception is explicit and reviewable",
-  );
+  const auditConfig = /** @type {Record<string, unknown> | undefined} */ (pnpmSection.auditConfig);
+  assert.ok(auditConfig, "pnpm.auditConfig must exist so the exception is explicit and reviewable");
   const keys = Object.keys(auditConfig).sort();
   assert.deepEqual(
     keys,
