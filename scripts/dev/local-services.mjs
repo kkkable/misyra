@@ -5,7 +5,7 @@
  * CLI so the scripts stay portable across Windows PowerShell and Linux.
  */
 import { spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -17,20 +17,92 @@ export const COMPOSE_PROJECT = "misyra-local";
 /** Misyra-owned named volumes declared by compose.yaml. */
 export const COMPOSE_VOLUMES = ["misyra-postgres-data", "misyra-azurite-data"];
 
+/** Repository root .env that Docker Compose reads automatically. */
+export const ENV_FILE_PATH = resolve(repoRoot, ".env");
+
+const ENV_LINE = /^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/;
+
 /**
- * Deterministic local service configuration. Environment overrides win so
- * developers can move ports without editing compose.yaml; defaults mirror
- * the compose.yaml interpolation fallbacks exactly.
+ * Parse the dotenv subset used by Misyra local development: KEY=VALUE lines,
+ * blank lines, #-comments, and values optionally wrapped in matching single or
+ * double quotes. Escape sequences and multi-line values are intentionally
+ * unsupported so parsing stays deterministic and standard-library-only.
+ *
+ * @param {string} content raw .env text
+ * @returns {Map<string, string>} parsed values in file order
  */
-export const serviceConfig = {
-  postgresUser: process.env.MISYRA_POSTGRES_USER ?? "misyra",
-  postgresPassword: process.env.MISYRA_POSTGRES_PASSWORD ?? "misyra_local_dev",
-  postgresDb: process.env.MISYRA_POSTGRES_DB ?? "misyra",
-  postgresPort: Number(process.env.MISYRA_POSTGRES_PORT ?? 5432),
-  azuriteBlobPort: Number(process.env.MISYRA_AZURITE_BLOB_PORT ?? 10000),
-  azuriteQueuePort: Number(process.env.MISYRA_AZURITE_QUEUE_PORT ?? 10001),
-  azuriteTablePort: Number(process.env.MISYRA_AZURITE_TABLE_PORT ?? 10002),
-};
+export function parseEnvFile(content) {
+  const values = new Map();
+  for (const rawLine of content.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (line.length === 0 || line.startsWith("#")) continue;
+    const match = ENV_LINE.exec(line);
+    if (!match) continue;
+    let value = String(match[2]).trim();
+    if (
+      value.length >= 2 &&
+      ((value.startsWith('"') && value.endsWith('"')) ||
+        (value.startsWith("'") && value.endsWith("'")))
+    ) {
+      value = value.slice(1, -1);
+    }
+    values.set(String(match[1]), value);
+  }
+  return values;
+}
+
+/**
+ * Resolve the deterministic local service configuration with the same
+ * precedence Docker Compose applies to compose.yaml interpolation: a value
+ * already present in `env` wins, then the repository root .env file (the
+ * override mechanism pnpm dev:up documents), then the deterministic default
+ * that mirrors the compose.yaml interpolation fallback exactly.
+ *
+ * @param {object} [options]
+ * @param {Record<string, string | undefined>} [options.env] explicit
+ *   environment; defaults to process.env
+ * @param {string} [options.envFilePath] .env source; defaults to the
+ *   repository root .env. A missing file silently falls back to defaults.
+ * @returns {{
+ *   postgresUser: string;
+ *   postgresPassword: string;
+ *   postgresDb: string;
+ *   postgresPort: number;
+ *   azuriteBlobPort: number;
+ *   azuriteQueuePort: number;
+ *   azuriteTablePort: number;
+ * }}
+ */
+export function resolveServiceConfig(options = {}) {
+  const env = options.env ?? process.env;
+  const envFilePath = options.envFilePath ?? ENV_FILE_PATH;
+  const fileValues = existsSync(envFilePath)
+    ? parseEnvFile(readFileSync(envFilePath, "utf8"))
+    : new Map();
+  /**
+   * @param {string} key
+   * @param {string} fallback
+   * @returns {string}
+   */
+  const pick = (key, fallback) => env[key] ?? fileValues.get(key) ?? fallback;
+  return {
+    postgresUser: pick("MISYRA_POSTGRES_USER", "misyra"),
+    postgresPassword: pick("MISYRA_POSTGRES_PASSWORD", "misyra_local_dev"),
+    postgresDb: pick("MISYRA_POSTGRES_DB", "misyra"),
+    postgresPort: Number(pick("MISYRA_POSTGRES_PORT", "5432")),
+    azuriteBlobPort: Number(pick("MISYRA_AZURITE_BLOB_PORT", "10000")),
+    azuriteQueuePort: Number(pick("MISYRA_AZURITE_QUEUE_PORT", "10001")),
+    azuriteTablePort: Number(pick("MISYRA_AZURITE_TABLE_PORT", "10002")),
+  };
+}
+
+/**
+ * Deterministic local service configuration shared by dev:health and the
+ * live integration suite. Environment overrides win so developers can move
+ * ports without editing compose.yaml; defaults mirror the compose.yaml
+ * interpolation fallbacks exactly.
+ */
+export const serviceConfig = resolveServiceConfig();
 
 /**
  * Resolve the Docker CLI binary. PATH wins; on Windows the standard Docker

@@ -5,11 +5,16 @@
  * Exercises the three required TDD evidence streams: Compose health state,
  * PostgreSQL connectivity, and the Azurite container, plus the full-mode
  * health script and deterministic failure behavior when services are down.
+ *
+ * Endpoints resolve through the shared local-service configuration, so the
+ * suite agrees with Docker Compose about root .env overrides (explicit
+ * process.env > .env file > deterministic default).
  */
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
 import { test } from "node:test";
 import { BlobServiceClient, StorageSharedKeyCredential } from "@azure/storage-blob";
+import { serviceConfig } from "../../scripts/dev/local-services.mjs";
 import { repoRoot } from "../../tests/toolchain/helpers.mjs";
 
 const AZURITE_ACCOUNT = "devstoreaccount1";
@@ -18,11 +23,11 @@ const AZURITE_ACCOUNT = "devstoreaccount1";
 const AZURITE_KEY =
   "Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==";
 const PROBE_CONTAINER = "mts-004-probe";
-const POSTGRES_PORT = Number(process.env.MISYRA_POSTGRES_PORT ?? 5432);
-const BLOB_PORT = Number(process.env.MISYRA_AZURITE_BLOB_PORT ?? 10000);
+const POSTGRES_PORT = serviceConfig.postgresPort;
+const BLOB_PORT = serviceConfig.azuriteBlobPort;
 const POSTGRES_URL =
   process.env.MISYRA_POSTGRES_URL ??
-  `postgres://misyra:misyra_local_dev@localhost:${POSTGRES_PORT}/misyra`;
+  `postgres://${serviceConfig.postgresUser}:${serviceConfig.postgresPassword}@localhost:${POSTGRES_PORT}/${serviceConfig.postgresDb}`;
 
 /**
  * Resolve the Docker CLI for this host. Docker Desktop installs may not be
