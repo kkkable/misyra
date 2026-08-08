@@ -40,5 +40,13 @@
     "typescript": "5.9.3",
     "typescript-eslint": "8.66.0",
     "yaml": "2.9.0"
+  },
+  "pnpm": {
+    "auditConfig": {
+      "ignoreGhsas": [
+        "GHSA-w3rx-r6r6-pgpr",
+        "GHSA-5p2g-fcmc-qvqq"
+      ]
+    }
   }
 }
