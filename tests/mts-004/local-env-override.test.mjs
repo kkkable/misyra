@@ -203,12 +203,12 @@ test("the shared health/config module resolves fixture ports in a fresh process"
   }
 });
 
-test("the module-level serviceConfig matches an explicit default resolution", () => {
-  const config = resolveServiceConfig({
-    env: {},
-    envFilePath: join(tmpdir(), "mts004-missing-env-file"),
-  });
-  assert.deepEqual(serviceConfig, config, "serviceConfig must be a resolveServiceConfig product");
+test("the module-level serviceConfig equals a like-for-like resolution", () => {
+  assert.deepEqual(
+    serviceConfig,
+    resolveServiceConfig(),
+    "serviceConfig must be the resolveServiceConfig product of the identical real inputs (process.env + the repository root .env), whatever values a developer keeps there",
+  );
 });
 
 /** Marker that keeps the sandboxed re-run below from recursing into itself. */
@@ -240,6 +240,7 @@ test("the committed override suite stays green under a developer's non-default r
       ].join("\n"),
       "utf8",
     );
+    /** @type {Record<string, string | undefined>} */
     const sandboxEnv = { ...process.env, [SANDBOX_GUARD]: "1" };
     // Run the mirror as a top-level test runner: runner-internal environment
     // inherited from an outer node --test process would switch the child into
