@@ -11,13 +11,25 @@
  *
  * Every test here uses an isolated temporary fixture (or a nonexistent path)
  * and never writes the user's real root .env. The suite stays portable: it
- * needs no Docker engine and no running services.
+ * needs no Docker engine and no running services. Its own pass/fail result
+ * must never depend on the values a developer keeps in the real root .env —
+ * non-default ports there are a supported configuration, so the suite proves
+ * that by re-running a sandboxed mirror of itself against a non-default .env
+ * fixture (guarded against recursion by MISYRA_OVERRIDE_SANDBOX).
  */
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { pathToFileURL } from "node:url";
 import {
@@ -197,6 +209,56 @@ test("the module-level serviceConfig matches an explicit default resolution", ()
     envFilePath: join(tmpdir(), "mts004-missing-env-file"),
   });
   assert.deepEqual(serviceConfig, config, "serviceConfig must be a resolveServiceConfig product");
+});
+
+/** Marker that keeps the sandboxed re-run below from recursing into itself. */
+const SANDBOX_GUARD = "MISYRA_OVERRIDE_SANDBOX";
+
+test("the committed override suite stays green under a developer's non-default root .env", () => {
+  if (process.env[SANDBOX_GUARD] === "1") return; // this IS the sandboxed re-run
+  const dir = mkdtempSync(join(tmpdir(), "mts004-sandbox-"));
+  try {
+    // Mirror the repo layout this suite imports against, rooted at the
+    // sandbox, so the copied module resolves ENV_FILE_PATH to the fixture
+    // .env below instead of the developer's real root .env.
+    const moduleTarget = join(dir, "scripts", "dev", "local-services.mjs");
+    const testTarget = join(dir, "tests", "mts-004", "local-env-override.test.mjs");
+    mkdirSync(dirname(moduleTarget), { recursive: true });
+    mkdirSync(dirname(testTarget), { recursive: true });
+    copyFileSync(join(repoRoot, "scripts", "dev", "local-services.mjs"), moduleTarget);
+    copyFileSync(join(repoRoot, "tests", "mts-004", "local-env-override.test.mjs"), testTarget);
+    // Supported developer state: non-default ports in the repository root .env.
+    writeFileSync(
+      join(dir, ".env"),
+      [
+        "# sandboxed developer-state fixture (never the real root .env)",
+        "MISYRA_POSTGRES_PORT=56432",
+        "MISYRA_AZURITE_BLOB_PORT=10010",
+        "MISYRA_AZURITE_QUEUE_PORT=10011",
+        "MISYRA_AZURITE_TABLE_PORT=10012",
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+    const sandboxEnv = { ...process.env, [SANDBOX_GUARD]: "1" };
+    // Run the mirror as a top-level test runner: runner-internal environment
+    // inherited from an outer node --test process would switch the child into
+    // IPC child mode and mask its true exit status.
+    delete sandboxEnv.NODE_TEST_CONTEXT;
+    const result = spawnSync(process.execPath, ["--test", testTarget], {
+      encoding: "utf8",
+      env: sandboxEnv,
+    });
+    assert.equal(
+      result.status,
+      0,
+      "the committed override tests must stay green when the developer's root .env holds supported non-default ports; sandboxed re-run output follows:\n" +
+        (result.stdout ?? "") +
+        (result.stderr ?? ""),
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test("the suite never mutates the user's real root .env", () => {
