@@ -74,10 +74,7 @@ const APPROVED_BOUNDARIES = [
   },
   {
     module: "monitoring.bicep",
-    types: [
-      "Microsoft.Insights/components",
-      "Microsoft.OperationalInsights/workspaces",
-    ],
+    types: ["Microsoft.Insights/components", "Microsoft.OperationalInsights/workspaces"],
   },
 ];
 
@@ -118,10 +115,7 @@ function isDirectory(path) {
  */
 function readInfraFile(file) {
   const rel = relative(repoRoot, file);
-  assert.ok(
-    isFile(file),
-    `MTS-006 skeleton file ${rel} is missing — GREEN must create it`,
-  );
+  assert.ok(isFile(file), `MTS-006 skeleton file ${rel} is missing — GREEN must create it`);
   return readFileSync(file, "utf8");
 }
 
@@ -131,8 +125,9 @@ function readInfraFile(file) {
  * @returns {string[]} Absolute paths of files inside the boundary.
  */
 function infraFiles() {
+  /** @type {string[]} */
   const out = [];
-  const walk = (dir) => {
+  const walk = (/** @type {string} */ dir) => {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
       const full = join(dir, entry.name);
       if (entry.isDirectory()) walk(full);
@@ -199,11 +194,7 @@ test("every approved foundation module exists and declares its resource boundary
     const text = readInfraFile(join(MODULES_DIR, module));
     for (const type of types) {
       const escaped = type.replace(".", "\\.");
-      assert.match(
-        text,
-        new RegExp(`'${escaped}@`),
-        `${module} must declare the ${type} boundary`,
-      );
+      assert.match(text, new RegExp(`'${escaped}@`), `${module} must declare the ${type} boundary`);
     }
   }
 });
@@ -211,16 +202,8 @@ test("every approved foundation module exists and declares its resource boundary
 test("every module derives resource names from environment parameters", () => {
   for (const { module } of APPROVED_BOUNDARIES) {
     const text = readInfraFile(join(MODULES_DIR, module));
-    assert.match(
-      text,
-      /\bnamePrefix\b/,
-      `${module} must accept the name prefix parameter`,
-    );
-    assert.match(
-      text,
-      /\benvironment\b/,
-      `${module} must accept the environment parameter`,
-    );
+    assert.match(text, /\bnamePrefix\b/, `${module} must accept the name prefix parameter`);
+    assert.match(text, /\benvironment\b/, `${module} must accept the environment parameter`);
   }
 });
 
@@ -228,16 +211,19 @@ test("top-level resource names are parameterized, never hard-coded", () => {
   for (const { module } of APPROVED_BOUNDARIES) {
     const text = readInfraFile(join(MODULES_DIR, module));
     for (const block of text.split(/^resource\s+/m).slice(1)) {
-      if (!/^[A-Za-z_][A-Za-z0-9_]*\s+'Microsoft\./.test(block)) {
-        continue; // child resources (queues, containers, blob services)
+      const typeMatch = block.match(/^[A-Za-z_][A-Za-z0-9_]*\s+'([^']+)'@[0-9-]+/);
+      if (typeMatch === null) {
+        continue;
       }
-      const nameLine = block
-        .split("\n")
-        .find((line) => /^\s*name\s*:/.test(line));
-      assert.ok(
-        nameLine,
-        `${module}: top-level resource block is missing a name: property`,
-      );
+      // Top-level resource types have exactly one '/' (provider/type). Child
+      // resources (queues, containers, blob services) have additional path
+      // segments and are allowed deterministic fixed names.
+      const typeName = typeMatch[1];
+      if (typeName === undefined || typeName.split("/").length - 1 > 1) {
+        continue;
+      }
+      const nameLine = block.split("\n").find((line) => /^\s*name\s*:/.test(line));
+      assert.ok(nameLine, `${module}: top-level resource block is missing a name: property`);
       assert.match(
         nameLine,
         /\$\{/,
@@ -296,11 +282,7 @@ test("modules and the root entry point expose deterministic composition outputs"
   );
   for (const { module } of APPROVED_BOUNDARIES) {
     const text = readInfraFile(join(MODULES_DIR, module));
-    assert.match(
-      text,
-      /^output\s+\w+/m,
-      `${module} must expose at least one deterministic output`,
-    );
+    assert.match(text, /^output\s+\w+/m, `${module} must expose at least one deterministic output`);
   }
 });
 
@@ -318,24 +300,13 @@ test("parameter shapes exist for development, staging, and production", () => {
       new RegExp(`param\\s+environment\\s*=\\s*'${env}'`),
       `${env}.bicepparam must select the ${env} environment`,
     );
-    assert.match(
-      text,
-      /param\s+namePrefix\s*=\s*'/,
-      `${env}.bicepparam must set the name prefix`,
-    );
-    assert.match(
-      text,
-      /param\s+location\s*=\s*'/,
-      `${env}.bicepparam must set the region`,
-    );
+    assert.match(text, /param\s+namePrefix\s*=\s*'/, `${env}.bicepparam must set the name prefix`);
+    assert.match(text, /param\s+location\s*=\s*'/, `${env}.bicepparam must set the region`);
   }
 });
 
 test("no secret values, credentials, or provider identifiers are committed", () => {
-  assert.ok(
-    isDirectory(INFRA_AZURE),
-    "infra/azure boundary is missing — GREEN must create it",
-  );
+  assert.ok(isDirectory(INFRA_AZURE), "infra/azure boundary is missing — GREEN must create it");
   const patterns = [
     {
       name: "subscription/tenant GUID",
@@ -380,29 +351,23 @@ test("no secret values, credentials, or provider identifiers are committed", () 
   );
 });
 
-test(
-  "the skeleton compiles for every environment parameter shape (optional compiler)",
-  (t) => {
-    if (!bicepCompilerAvailable()) {
-      t.skip(
-        "Azure CLI/Bicep not installed — deterministic contracts above remain the validation gate (CI installs no Bicep tooling by design)",
-      );
-    }
-    const bicep = (args) =>
-      run("az", ["bicep", ...args], { cwd: repoRoot });
+test("the skeleton compiles for every environment parameter shape (optional compiler)", (t) => {
+  if (!bicepCompilerAvailable()) {
+    t.skip(
+      "Azure CLI/Bicep not installed — deterministic contracts above remain the validation gate (CI installs no Bicep tooling by design)",
+    );
+  }
+  /** @type {(args: string[]) => string} */
+  const bicep = (args) => run("az", ["bicep", ...args]);
+  // --stdout keeps compiled ARM templates out of the source tree.
+  bicep(["build", "--file", relative(repoRoot, MAIN_BICEP), "--stdout", "--no-restore"]);
+  for (const env of ENVIRONMENTS) {
     bicep([
-      "build",
+      "build-params",
       "--file",
-      relative(repoRoot, MAIN_BICEP),
+      relative(repoRoot, join(PARAMS_DIR, `${env}.bicepparam`)),
+      "--stdout",
       "--no-restore",
     ]);
-    for (const env of ENVIRONMENTS) {
-      bicep([
-        "build-params",
-        "--file",
-        relative(repoRoot, join(PARAMS_DIR, `${env}.bicepparam`)),
-        "--no-restore",
-      ]);
-    }
-  },
-);
+  }
+});

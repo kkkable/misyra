@@ -6,6 +6,9 @@ dist/
 coverage/
 .turbo/
 
+# Compiled ARM templates emitted by `az bicep build` (keep Bicep sources only)
+infra/azure/**/*.json
+
 # Expo generated output
 .expo/
 
