@@ -5,9 +5,16 @@
  * compose.yaml automatically reads the repository root .env, so a developer
  * who edits .env (the workflow pnpm dev:up documents) moves the published
  * host ports. The Node tooling (dev:health and the live integration suite)
- * must resolve the same endpoints with Compose-compatible precedence:
+ * must resolve the same endpoints with Compose-compatible precedence.
+ * compose.yaml interpolates every MTS-004 setting with the `${VAR:-default}`
+ * form, which Docker Compose defines as: use VAR only when it is set and
+ * non-empty; otherwise use the fallback. The resolver therefore follows:
  *
- *   explicit process.env value > root .env value > deterministic default
+ *   non-empty explicit process.env value > non-empty root .env value > deterministic default
+ *
+ * An empty string from either source falls through exactly like an unset
+ * variable, so an empty MISYRA_POSTGRES_PORT can never resolve to
+ * Number("") === 0 while Compose publishes the deterministic fallback.
  *
  * Every test here uses an isolated temporary fixture (or a nonexistent path)
  * and never writes the user's real root .env. The suite stays portable: it
@@ -162,6 +169,125 @@ test("an explicit process.env value overrides the same .env fixture value", () =
       config.azuriteQueuePort,
       OVERRIDE_PORTS.queue,
       "fixture values without an explicit environment counterpart must still apply",
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("an empty explicit environment value falls through to the non-empty .env value", () => {
+  const dir = mkdtempSync(join(tmpdir(), "mts004-env-"));
+  try {
+    const fixture = join(dir, ".env");
+    writeFileSync(
+      fixture,
+      [
+        "MISYRA_POSTGRES_PORT=55432",
+        "MISYRA_AZURITE_BLOB_PORT=10010",
+        "MISYRA_POSTGRES_USER=fixture_user",
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+    const config = resolveServiceConfig({
+      env: {
+        MISYRA_POSTGRES_PORT: "",
+        MISYRA_AZURITE_BLOB_PORT: "",
+        MISYRA_POSTGRES_USER: "",
+      },
+      envFilePath: fixture,
+    });
+    assert.equal(
+      config.postgresPort,
+      55432,
+      "an empty explicit MISYRA_POSTGRES_PORT must fall through to the non-empty .env port (Compose :-), not resolve to 0",
+    );
+    assert.equal(
+      config.azuriteBlobPort,
+      10010,
+      "an empty explicit MISYRA_AZURITE_BLOB_PORT must fall through to the non-empty .env port (Compose :-), not resolve to 0",
+    );
+    assert.equal(
+      config.postgresUser,
+      "fixture_user",
+      "an empty explicit MISYRA_POSTGRES_USER must fall through to the non-empty .env string value (Compose :-)",
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("empty values from both explicit environment and .env resolve to the deterministic Compose fallback", () => {
+  const dir = mkdtempSync(join(tmpdir(), "mts004-env-"));
+  try {
+    const fixture = join(dir, ".env");
+    writeFileSync(
+      fixture,
+      [
+        "MISYRA_POSTGRES_PORT=",
+        "MISYRA_AZURITE_BLOB_PORT=",
+        "MISYRA_POSTGRES_USER=",
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+    const config = resolveServiceConfig({
+      env: {
+        MISYRA_POSTGRES_PORT: "",
+        MISYRA_AZURITE_BLOB_PORT: "",
+        MISYRA_POSTGRES_USER: "",
+      },
+      envFilePath: fixture,
+    });
+    assert.equal(
+      config.postgresPort,
+      5432,
+      "empty env and empty .env MISYRA_POSTGRES_PORT must use the deterministic Compose fallback 5432, not 0",
+    );
+    assert.equal(
+      config.azuriteBlobPort,
+      10000,
+      "empty env and empty .env MISYRA_AZURITE_BLOB_PORT must use the deterministic Compose fallback 10000, not 0",
+    );
+    assert.equal(
+      config.postgresUser,
+      "misyra",
+      "empty env and empty .env MISYRA_POSTGRES_USER must use the deterministic Compose fallback misyra, not an empty string",
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("an empty .env value alone resolves to the deterministic Compose fallback", () => {
+  const dir = mkdtempSync(join(tmpdir(), "mts004-env-"));
+  try {
+    const fixture = join(dir, ".env");
+    writeFileSync(
+      fixture,
+      [
+        "MISYRA_POSTGRES_PORT=",
+        "MISYRA_AZURITE_QUEUE_PORT=",
+        "MISYRA_POSTGRES_PASSWORD=",
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+    const config = resolveServiceConfig({ env: {}, envFilePath: fixture });
+    assert.equal(
+      config.postgresPort,
+      5432,
+      "an empty .env MISYRA_POSTGRES_PORT must fall back to 5432 like Compose :- does, not resolve to 0",
+    );
+    assert.equal(
+      config.azuriteQueuePort,
+      10001,
+      "an empty .env MISYRA_AZURITE_QUEUE_PORT must fall back to 10001 like Compose :- does, not resolve to 0",
+    );
+    assert.equal(
+      config.postgresPassword,
+      "misyra_local_dev",
+      "an empty .env MISYRA_POSTGRES_PASSWORD must fall back to the deterministic Compose default, not stay empty",
     );
   } finally {
     rmSync(dir, { recursive: true, force: true });
