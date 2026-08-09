@@ -169,6 +169,93 @@ test("static prose mentioning environment or payload text passes the gate", () =
   }
 });
 
+test("a console call executed inside template interpolation fails the gate", () => {
+  // ${...} regions are executable code, not static template text: a real
+  // console.log executed inside an interpolation and logging a token must
+  // be flagged, not skipped together with the surrounding static prose.
+  const dir = mkdtempSync(join(tmpdir(), "misyra-privacy-"));
+  const fixture = join(dir, "interpolation-executed-log.mjs");
+  writeFileSync(
+    fixture,
+    [
+      "// Intentional privacy-gate fixture: a real console call inside a",
+      "// template interpolation must be flagged.",
+      "export function render(user) {",
+      "  const rendered = `${console.log(user.token)}`;",
+      "  return rendered;",
+      "}",
+      "",
+    ].join("\n"),
+  );
+  try {
+    const result = runScript([fixture]);
+    assert.notEqual(
+      result.status,
+      0,
+      `a console.log executed inside template interpolation must fail the gate:\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("an HTTP payload log executed inside template interpolation fails the gate", () => {
+  // Same rule for HTTP payloads: a console.error executed inside ${...}
+  // and logging a request body must be flagged.
+  const dir = mkdtempSync(join(tmpdir(), "misyra-privacy-"));
+  const fixture = join(dir, "interpolation-http-payload.mjs");
+  writeFileSync(
+    fixture,
+    [
+      "// Intentional privacy-gate fixture: logging an HTTP payload inside a",
+      "// template interpolation must be flagged.",
+      "export function renderRequest(request) {",
+      "  return render(`${console.error(request.body)}`);",
+      "}",
+      "",
+    ].join("\n"),
+  );
+  try {
+    const result = runScript([fixture]);
+    assert.notEqual(
+      result.status,
+      0,
+      `console.error executed inside template interpolation must fail the gate:\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("console-looking static template text does not create a false positive", () => {
+  // Static template text is prose, not evaluation: a console.log(...)
+  // mention inside backticks with no interpolation must stay green.
+  const dir = mkdtempSync(join(tmpdir(), "misyra-privacy-"));
+  const fixture = join(dir, "static-template-prose.mjs");
+  writeFileSync(
+    fixture,
+    [
+      "// Intentional privacy-gate fixture: static template prose is not a",
+      "// real console call.",
+      "export function example() {",
+      "  const message = `example: console.log(user.token)`;",
+      "  return message;",
+      "}",
+      "",
+    ].join("\n"),
+  );
+  try {
+    const result = runScript([fixture]);
+    assert.equal(
+      result.status,
+      0,
+      `static template prose must pass the gate:\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("clean source passes the privacy gate", () => {
   const result = runScript([CLEAN]);
   assert.equal(
