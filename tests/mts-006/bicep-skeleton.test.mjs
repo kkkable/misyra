@@ -139,24 +139,33 @@ function infraFiles() {
 }
 
 /**
- * True when a Bicep compiler (Azure CLI or the standalone bicep binary) is
- * available on PATH. Never installs or modifies global tooling.
+ * Resolves the Bicep compiler available on PATH: the Azure CLI extension
+ * (`az bicep ...`) or the standalone binary (`bicep ...`), preferring the
+ * Azure CLI exactly like the detection contract always did. Returns null
+ * when neither compiler is available. Never installs or modifies global
+ * tooling.
  *
- * @returns {boolean} Whether a Bicep compiler can be invoked.
+ * The resolved compiler is the one the compile contract must invoke: the
+ * detection and compilation paths must agree, otherwise a machine with a
+ * standalone `bicep` binary (but no `az`) would be told a compiler exists
+ * and then fail invoking `az`.
+ *
+ * @returns {{ cmd: string, args: string[] } | null} The invocation prefix
+ *   for the available compiler, or null when none is available.
  */
-function bicepCompilerAvailable() {
+function resolveBicepCompiler() {
   for (const candidate of [
-    { cmd: "az", args: ["bicep", "version"] },
-    { cmd: "bicep", args: ["--version"] },
+    { cmd: "az", args: ["bicep"], detect: ["bicep", "version"] },
+    { cmd: "bicep", args: [], detect: ["--version"] },
   ]) {
     try {
-      run(candidate.cmd, candidate.args);
-      return true;
+      run(candidate.cmd, candidate.detect);
+      return { cmd: candidate.cmd, args: [...candidate.args] };
     } catch {
       // candidate compiler not available — try the next one
     }
   }
-  return false;
+  return null;
 }
 
 test("the Bicep skeleton root entry point exists", () => {
@@ -352,13 +361,18 @@ test("no secret values, credentials, or provider identifiers are committed", () 
 });
 
 test("the skeleton compiles for every environment parameter shape (optional compiler)", (t) => {
-  if (!bicepCompilerAvailable()) {
+  const compiler = resolveBicepCompiler();
+  if (compiler === null) {
     t.skip(
       "Azure CLI/Bicep not installed — deterministic contracts above remain the validation gate (CI installs no Bicep tooling by design)",
     );
+    return;
   }
+  // Invoke the SAME compiler the detection path resolved: `az bicep ...`
+  // when the Azure CLI is available, plain `bicep ...` when only the
+  // standalone binary is. Detection and compilation must never disagree.
   /** @type {(args: string[]) => string} */
-  const bicep = (args) => run("az", ["bicep", ...args]);
+  const bicep = (args) => run(compiler.cmd, [...compiler.args, ...args]);
   // --stdout keeps compiled ARM templates out of the source tree.
   bicep(["build", "--file", relative(repoRoot, MAIN_BICEP), "--stdout", "--no-restore"]);
   for (const env of ENVIRONMENTS) {

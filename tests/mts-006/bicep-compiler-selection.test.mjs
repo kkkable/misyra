@@ -24,7 +24,10 @@ import { test } from "node:test";
 import { repoRoot } from "../toolchain/helpers.mjs";
 
 /** The MTS-006 suite whose compile path is under contract. */
-const COMPILE_SUITE = relative(repoRoot, join(repoRoot, "tests", "mts-006", "bicep-skeleton.test.mjs"));
+const COMPILE_SUITE = relative(
+  repoRoot,
+  join(repoRoot, "tests", "mts-006", "bicep-skeleton.test.mjs"),
+);
 
 /**
  * Create an isolated sandbox whose PATH contains a fake standalone `bicep`
