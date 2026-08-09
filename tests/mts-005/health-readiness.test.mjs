@@ -12,10 +12,14 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { pathToFileURL } from "node:url";
 import { repoRoot } from "../toolchain/helpers.mjs";
+
+/** Guaranteed-absent .env path: the suite must never read the real root .env. */
+const NO_ENV_FILE = join(tmpdir(), "mts005-no-such-env", ".env");
 
 /**
  * Import a workspace's built entry point, building the workspace first when
@@ -98,7 +102,7 @@ function assertContentFree(response, expectedStatus) {
 
 test("the API serves content-free liveness without any credentials", async () => {
   const api = await loadBuiltWorkspace("apps/api", "@misyra/api");
-  const app = await api.buildApp({ env: CREDENTIAL_FREE_ENV });
+  const app = await api.buildApp({ env: CREDENTIAL_FREE_ENV, envFilePath: NO_ENV_FILE });
   try {
     await app.ready();
     const response = await app.inject({ method: "GET", url: "/health/live" });
@@ -110,7 +114,11 @@ test("the API serves content-free liveness without any credentials", async () =>
 
 test("liveness stays healthy when every required dependency is unavailable", async () => {
   const api = await loadBuiltWorkspace("apps/api", "@misyra/api");
-  const app = await api.buildApp({ env: CREDENTIAL_FREE_ENV, healthProbe: allDown });
+  const app = await api.buildApp({
+    env: CREDENTIAL_FREE_ENV,
+    envFilePath: NO_ENV_FILE,
+    healthProbe: allDown,
+  });
   try {
     await app.ready();
     const live = await app.inject({ method: "GET", url: "/health/live" });
@@ -124,7 +132,11 @@ test("liveness stays healthy when every required dependency is unavailable", asy
 
 test("readiness returns 200 when every required dependency is available", async () => {
   const api = await loadBuiltWorkspace("apps/api", "@misyra/api");
-  const app = await api.buildApp({ env: CREDENTIAL_FREE_ENV, healthProbe: allUp });
+  const app = await api.buildApp({
+    env: CREDENTIAL_FREE_ENV,
+    envFilePath: NO_ENV_FILE,
+    healthProbe: allUp,
+  });
   try {
     await app.ready();
     const response = await app.inject({ method: "GET", url: "/health/ready" });
@@ -136,7 +148,11 @@ test("readiness returns 200 when every required dependency is available", async 
 
 test("readiness returns a stable 503 when PostgreSQL is unavailable", async () => {
   const api = await loadBuiltWorkspace("apps/api", "@misyra/api");
-  const app = await api.buildApp({ env: CREDENTIAL_FREE_ENV, healthProbe: postgresDown });
+  const app = await api.buildApp({
+    env: CREDENTIAL_FREE_ENV,
+    envFilePath: NO_ENV_FILE,
+    healthProbe: postgresDown,
+  });
   try {
     await app.ready();
     const first = await app.inject({ method: "GET", url: "/health/ready" });
@@ -150,7 +166,11 @@ test("readiness returns a stable 503 when PostgreSQL is unavailable", async () =
 
 test("readiness returns a stable 503 when Azurite is unavailable", async () => {
   const api = await loadBuiltWorkspace("apps/api", "@misyra/api");
-  const app = await api.buildApp({ env: CREDENTIAL_FREE_ENV, healthProbe: azuriteDown });
+  const app = await api.buildApp({
+    env: CREDENTIAL_FREE_ENV,
+    envFilePath: NO_ENV_FILE,
+    healthProbe: azuriteDown,
+  });
   try {
     await app.ready();
     const response = await app.inject({ method: "GET", url: "/health/ready" });
@@ -162,7 +182,11 @@ test("readiness returns a stable 503 when Azurite is unavailable", async () => {
 
 test("readiness is deterministic across repeated probes", async () => {
   const api = await loadBuiltWorkspace("apps/api", "@misyra/api");
-  const app = await api.buildApp({ env: CREDENTIAL_FREE_ENV, healthProbe: postgresDown });
+  const app = await api.buildApp({
+    env: CREDENTIAL_FREE_ENV,
+    envFilePath: NO_ENV_FILE,
+    healthProbe: postgresDown,
+  });
   try {
     await app.ready();
     for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -188,6 +212,7 @@ test("readiness resolves dependency ports from non-empty environment overrides",
   };
   const app = await api.buildApp({
     env: { MISYRA_POSTGRES_PORT: "55432", MISYRA_AZURITE_BLOB_PORT: "10077" },
+    envFilePath: NO_ENV_FILE,
     healthProbe: recordingProbe,
   });
   try {
@@ -215,6 +240,7 @@ test("readiness treats an empty explicit port value as missing (Compose semantic
   };
   const app = await api.buildApp({
     env: { MISYRA_POSTGRES_PORT: "", MISYRA_AZURITE_BLOB_PORT: "" },
+    envFilePath: NO_ENV_FILE,
     healthProbe: recordingProbe,
   });
   try {
@@ -229,7 +255,11 @@ test("readiness treats an empty explicit port value as missing (Compose semantic
 
 test("health responses are content-free snapshots (redaction contract)", async () => {
   const api = await loadBuiltWorkspace("apps/api", "@misyra/api");
-  const app = await api.buildApp({ env: CREDENTIAL_FREE_ENV, healthProbe: postgresDown });
+  const app = await api.buildApp({
+    env: CREDENTIAL_FREE_ENV,
+    envFilePath: NO_ENV_FILE,
+    healthProbe: postgresDown,
+  });
   try {
     await app.ready();
     const live = await app.inject({ method: "GET", url: "/health/live" });
