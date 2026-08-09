@@ -8,6 +8,8 @@
   "include": [
     "eslint.config.mjs",
     "tests/**/*.mjs",
+    "integration/**/*.mjs",
+    "scripts/dev/**/*.mjs",
     "packages/*/scripts/**/*.mjs",
     "packages/*/src/**/*.ts",
     "apps/*/scripts/**/*.mjs",
