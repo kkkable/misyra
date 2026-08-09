@@ -262,7 +262,10 @@ test("a normally wired readiness probe receives the same effective local ports a
     ]);
     /** @type {Array<{ postgresPort: number; azuriteBlobPort: number }>} */
     const captured = [];
-    /** @type {import("node:net").Socket} @returns {Promise<Array<{ name: string; ok: boolean }>>} */
+    /**
+     * @param {{ postgresPort: number; azuriteBlobPort: number }} config
+     * @returns {Promise<Array<{ name: string; ok: boolean }>>}
+     */
     const recordingProbe = async (config) => {
       captured.push(config);
       return allUp();

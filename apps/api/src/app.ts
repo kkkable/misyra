@@ -24,6 +24,8 @@ export interface AppOptions {
    * Azurite ports on 127.0.0.1.
    */
   healthProbe?: DependencyProbe;
+  /** .env source for readiness port resolution; defaults to the repository root .env. */
+  envFilePath?: string | undefined;
 }
 
 /**
@@ -35,6 +37,10 @@ export async function buildApp(options: AppOptions = {}): Promise<FastifyInstanc
   const app = Fastify({
     logger: false,
   });
-  await registerHealthRoutes(app, { env: options.env, probe: options.healthProbe });
+  await registerHealthRoutes(app, {
+    env: options.env,
+    envFilePath: options.envFilePath,
+    probe: options.healthProbe,
+  });
   return app;
 }

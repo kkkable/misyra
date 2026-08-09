@@ -4,6 +4,8 @@
  */
 export { buildApp, type AppOptions } from "./app.js";
 export {
+  DEFAULT_ENV_FILE_PATH,
+  parseEnvFile,
   probeDependencies,
   registerHealthRoutes,
   resolveDependencyConfig,
@@ -11,4 +13,5 @@ export {
   type DependencyProbe,
   type DependencyState,
   type HealthRoutesOptions,
+  type ResolveDependencyConfigOptions,
 } from "./health.js";
