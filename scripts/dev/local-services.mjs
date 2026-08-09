@@ -53,10 +53,15 @@ export function parseEnvFile(content) {
 
 /**
  * Resolve the deterministic local service configuration with the same
- * precedence Docker Compose applies to compose.yaml interpolation: a value
- * already present in `env` wins, then the repository root .env file (the
- * override mechanism pnpm dev:up documents), then the deterministic default
- * that mirrors the compose.yaml interpolation fallback exactly.
+ * precedence Docker Compose applies to compose.yaml interpolation: a
+ * non-empty value already present in `env` wins, then a non-empty value from
+ * the repository root .env file (the override mechanism pnpm dev:up
+ * documents), then the deterministic default that mirrors the compose.yaml
+ * interpolation fallback exactly. compose.yaml uses the `${VAR:-fallback}`
+ * form for every MTS-004 setting, so a variable that is unset OR empty
+ * (from the shell or from a .env line) falls through to the fallback —
+ * an empty MISYRA_POSTGRES_PORT can never resolve to Number("") === 0 while
+ * Compose publishes 5432.
  *
  * @param {object} [options]
  * @param {Record<string, string | undefined>} [options.env] explicit
@@ -80,11 +85,21 @@ export function resolveServiceConfig(options = {}) {
     ? parseEnvFile(readFileSync(envFilePath, "utf8"))
     : new Map();
   /**
+   * Compose `${VAR:-fallback}` semantics: a value counts only when it is
+   * present and non-empty, so an empty string behaves exactly like an unset
+   * variable.
+   *
    * @param {string} key
    * @param {string} fallback
    * @returns {string}
    */
-  const pick = (key, fallback) => env[key] ?? fileValues.get(key) ?? fallback;
+  const pick = (key, fallback) => {
+    const envValue = env[key];
+    if (envValue !== undefined && envValue !== "") return envValue;
+    const fileValue = fileValues.get(key);
+    if (fileValue !== undefined && fileValue !== "") return fileValue;
+    return fallback;
+  };
   return {
     postgresUser: pick("MISYRA_POSTGRES_USER", "misyra"),
     postgresPassword: pick("MISYRA_POSTGRES_PASSWORD", "misyra_local_dev"),
