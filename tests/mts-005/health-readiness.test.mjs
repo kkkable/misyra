@@ -178,6 +178,10 @@ test("readiness resolves dependency ports from non-empty environment overrides",
   const api = await loadBuiltWorkspace("apps/api", "@misyra/api");
   /** @type {Array<{ postgresPort: number; azuriteBlobPort: number }>} */
   const captured = [];
+  /**
+   * @param {{ postgresPort: number; azuriteBlobPort: number }} config
+   * @returns {Promise<Array<{ name: string; ok: boolean }>>}
+   */
   const recordingProbe = async (config) => {
     captured.push(config);
     return allUp();
@@ -201,6 +205,10 @@ test("readiness treats an empty explicit port value as missing (Compose semantic
   const api = await loadBuiltWorkspace("apps/api", "@misyra/api");
   /** @type {Array<{ postgresPort: number; azuriteBlobPort: number }>} */
   const captured = [];
+  /**
+   * @param {{ postgresPort: number; azuriteBlobPort: number }} config
+   * @returns {Promise<Array<{ name: string; ok: boolean }>>}
+   */
   const recordingProbe = async (config) => {
     captured.push(config);
     return allUp();
@@ -259,7 +267,11 @@ test("the worker shell reports its own health state", async () => {
   await shell.start();
   assert.deepEqual(shell.getHealth(), { status: "ok" }, "running worker must report ok");
   await shell.stop();
-  assert.deepEqual(shell.getHealth(), { status: "unavailable" }, "stopped worker must report unavailable");
+  assert.deepEqual(
+    shell.getHealth(),
+    { status: "unavailable" },
+    "stopped worker must report unavailable",
+  );
 });
 
 test("worker health is independently observable over its own HTTP surface", async () => {
@@ -301,7 +313,10 @@ test("worker health responses are content-free (redaction contract)", async () =
   try {
     const running = await fetch(`${healthServer.address}/health/live`);
     const body = await running.text();
-    assert.ok(CANONICAL_BODIES.includes(body), `worker health body must be a fixed snapshot, got ${body}`);
+    assert.ok(
+      CANONICAL_BODIES.includes(body),
+      `worker health body must be a fixed snapshot, got ${body}`,
+    );
     assert.ok(body.length < 64, "worker health output must stay tiny");
   } finally {
     await healthServer.close();
