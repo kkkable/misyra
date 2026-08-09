@@ -19,6 +19,12 @@ const SCRIPT = "scripts/ci/localization-check.mjs";
 const EN_CATALOG = "packages/localization/src/catalogs/en.ts";
 const ZH_CATALOG = "packages/localization/src/catalogs/zh-hk.ts";
 
+/**
+ * Run the localization gate script and return its result.
+ *
+ * @param {string[]} args
+ * @returns {import("node:child_process").SpawnSyncReturns<string>}
+ */
 function runScript(args) {
   return spawnSync(process.execPath, [SCRIPT, ...args], {
     cwd: repoRoot,
@@ -26,6 +32,14 @@ function runScript(args) {
   });
 }
 
+/**
+ * Copy both catalogs into a throwaway directory, apply `mutate`, and return
+ * the temp paths so the gate can be exercised against damaged catalogs
+ * without touching the approved originals.
+ *
+ * @param {(enPath: string, zhPath: string) => void} mutate
+ * @returns {{ dir: string; enPath: string; zhPath: string }}
+ */
 function withTempCatalogs(mutate) {
   const dir = mkdtempSync(join(tmpdir(), "misyra-l10n-"));
   const enPath = join(dir, "en.ts");

@@ -26,6 +26,12 @@ const FIXTURE_FILES = [
   "jwt.txt",
 ];
 
+/**
+ * Run the secret-scan gate script and return its result.
+ *
+ * @param {string[]} args
+ * @returns {import("node:child_process").SpawnSyncReturns<string>}
+ */
 function runScript(args) {
   return spawnSync(process.execPath, [SCRIPT, ...args], {
     cwd: repoRoot,
@@ -39,11 +45,7 @@ test("the secret-scan gate script exists", () => {
 
 test("the secret-scan gate detects every documented secret-like fixture", () => {
   const result = runScript([FIXTURES]);
-  assert.notEqual(
-    result.status,
-    0,
-    "scanning the secrets fixture directory must fail the gate",
-  );
+  assert.notEqual(result.status, 0, "scanning the secrets fixture directory must fail the gate");
   for (const name of FIXTURE_FILES) {
     assert.ok(
       result.stdout.includes(name),

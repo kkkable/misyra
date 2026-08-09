@@ -21,6 +21,12 @@ const BAD_LOGGING = "tests/mts-007/fixtures/privacy/bad-logging.mjs";
 const ENV_LOGGING = "tests/mts-007/fixtures/privacy/env-logging.mjs";
 const CLEAN = "tests/mts-007/fixtures/privacy/clean.mjs";
 
+/**
+ * Run the privacy gate script and return its result.
+ *
+ * @param {string[]} args
+ * @returns {import("node:child_process").SpawnSyncReturns<string>}
+ */
 function runScript(args) {
   return spawnSync(process.execPath, [SCRIPT, ...args], {
     cwd: repoRoot,
@@ -60,7 +66,7 @@ test("logging HTTP request payloads fails the gate", () => {
     [
       "// Intentional privacy-gate fixture: logging an HTTP request body must be flagged.",
       "export function logRequest(request) {",
-      "  console.log(\"request\", request.body);",
+      '  console.log("request", request.body);',
       "}",
       "",
     ].join("\n"),

@@ -24,6 +24,12 @@ const BICEP_VERSION = "v0.45.6";
 const BICEP_LINUX_SHA256 = "3fae480c469677788f1552f55e70e31c8084f80769c7e8353118327e0ab361e4";
 const BICEP_WINDOWS_SHA256 = "38c8cd33ba8f0ac4ffd2b8114382b69cb62ffe1d040fde7e622d78ce77acb56e";
 
+/**
+ * Every core section-28 gate that must be wired into CI, as [name, pattern]
+ * pairs matched against `run` bodies.
+ *
+ * @type {Array<[string, RegExp]>}
+ */
 const REQUIRED_GATE_INVOCATIONS = [
   ["formatting check", /pnpm format:check/],
   ["lint", /pnpm lint/],
@@ -40,6 +46,11 @@ function workflowText() {
   return readText(WORKFLOW_PATH);
 }
 
+/**
+ * Parse the workflow document.
+ *
+ * @returns {Record<string, any>}
+ */
 function workflow() {
   const doc = parse(workflowText());
   assert.ok(doc && typeof doc === "object", "ci.yml must parse as YAML");
@@ -47,7 +58,12 @@ function workflow() {
   return doc;
 }
 
-/** Every `run` script body across every job and step. */
+/**
+ * Every `run` script body across every job and step.
+ *
+ * @param {Record<string, any>} doc
+ * @returns {string[]}
+ */
 function allRunBodies(doc) {
   const runs = [];
   for (const job of Object.values(doc.jobs)) {
@@ -58,6 +74,12 @@ function allRunBodies(doc) {
   return runs;
 }
 
+/**
+ * Every step across every job.
+ *
+ * @param {Record<string, any>} doc
+ * @returns {Array<Record<string, any>>}
+ */
 function allSteps(doc) {
   const steps = [];
   for (const job of Object.values(doc.jobs)) {
@@ -94,13 +116,16 @@ test("the toolchain matrix preserves Ubuntu and Windows coverage", () => {
 test("CI runs from a clean checkout with pinned Node 24 and frozen-lockfile install", () => {
   const doc = workflow();
   const uses = allSteps(doc).map((step) => step.uses ?? "");
-  assert.ok(uses.some((u) => u.startsWith("actions/checkout@")), "actions/checkout step missing");
+  assert.ok(
+    uses.some((u) => u.startsWith("actions/checkout@")),
+    "actions/checkout step missing",
+  );
   assert.ok(
     uses.some((u) => u.startsWith("pnpm/action-setup@")),
     "pnpm/action-setup step missing (packageManager pin)",
   );
-  const nodeSetup = allSteps(doc).filter((step) =>
-    typeof step.uses === "string" && step.uses.startsWith("actions/setup-node@"),
+  const nodeSetup = allSteps(doc).filter(
+    (step) => typeof step.uses === "string" && step.uses.startsWith("actions/setup-node@"),
   );
   assert.ok(nodeSetup.length >= 1, "actions/setup-node step missing");
   for (const step of nodeSetup) {
@@ -130,7 +155,9 @@ test("CI covers the core section-28 gates", () => {
 test("CI runs a deterministic secret-scan gate", () => {
   const runs = allRunBodies(workflow());
   assert.ok(
-    runs.some((r) => /(^|\s)pnpm secret:scan(\s|$)/.test(r) || /node scripts\/ci\/secret-scan\.mjs/.test(r)),
+    runs.some(
+      (r) => /(^|\s)pnpm secret:scan(\s|$)/.test(r) || /node scripts\/ci\/secret-scan\.mjs/.test(r),
+    ),
     "CI is missing a deterministic secret-scan gate",
   );
 });
@@ -139,7 +166,9 @@ test("CI runs a localization-completeness gate for English and zh-HK", () => {
   const runs = allRunBodies(workflow());
   assert.ok(
     runs.some(
-      (r) => /(^|\s)pnpm localization:check(\s|$)/.test(r) || /node scripts\/ci\/localization-check\.mjs/.test(r),
+      (r) =>
+        /(^|\s)pnpm localization:check(\s|$)/.test(r) ||
+        /node scripts\/ci\/localization-check\.mjs/.test(r),
     ),
     "CI is missing the localization-completeness gate",
   );
@@ -149,7 +178,9 @@ test("CI runs a privacy/logging static gate", () => {
   const runs = allRunBodies(workflow());
   assert.ok(
     runs.some(
-      (r) => /(^|\s)pnpm privacy:check(\s|$)/.test(r) || /node scripts\/ci\/privacy-logging-check\.mjs/.test(r),
+      (r) =>
+        /(^|\s)pnpm privacy:check(\s|$)/.test(r) ||
+        /node scripts\/ci\/privacy-logging-check\.mjs/.test(r),
     ),
     "CI is missing the privacy/logging gate",
   );
@@ -211,17 +242,31 @@ test("CI configures no secret-bearing artifacts or environment dumps", () => {
 test("CI includes a deterministic local-service integration gate without provider credentials", () => {
   const doc = workflow();
   const integration = doc.jobs.integration;
-  assert.ok(integration, "ci.yml must declare an integration job for affected-package integration tests");
-  assert.equal(integration["runs-on"], "ubuntu-latest", "integration job must run on ubuntu-latest");
-  const runs = (integration.steps ?? []).map((step) => step.run ?? "");
-  assert.ok(runs.some((r) => /pnpm dev:up/.test(r)), "integration job must start local services");
+  assert.ok(
+    integration,
+    "ci.yml must declare an integration job for affected-package integration tests",
+  );
+  assert.equal(
+    integration["runs-on"],
+    "ubuntu-latest",
+    "integration job must run on ubuntu-latest",
+  );
+  const steps = /** @type {Array<Record<string, any>>} */ (integration.steps ?? []);
+  const runs = steps.map((step) => step.run ?? "");
+  assert.ok(
+    runs.some((r) => /pnpm dev:up/.test(r)),
+    "integration job must start local services",
+  );
   assert.ok(
     runs.some((r) => /pnpm test:services/.test(r)),
     "integration job must run the local-service integration suite",
   );
-  assert.ok(runs.some((r) => /pnpm dev:down/.test(r)), "integration job must stop local services");
   assert.ok(
-    (integration.steps ?? []).some((step) => step.if === "always()" && /dev:down/.test(step.run ?? "")),
+    runs.some((r) => /pnpm dev:down/.test(r)),
+    "integration job must stop local services",
+  );
+  assert.ok(
+    steps.some((step) => step.if === "always()" && /dev:down/.test(step.run ?? "")),
     "integration cleanup must run even on failure",
   );
 });
