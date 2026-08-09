@@ -150,22 +150,57 @@ function infraFiles() {
  * standalone `bicep` binary (but no `az`) would be told a compiler exists
  * and then fail invoking `az`.
  *
- * @returns {{ cmd: string, args: string[] } | null} The invocation prefix
- *   for the available compiler, or null when none is available.
+ * The returned `kind` selects the toolchain-specific argument adapter so
+ * each compiler receives its documented syntax:
+ *
+ * - Azure CLI (`"az"`):        `az bicep build --file <file> --stdout` /
+ *                              `az bicep build-params --file <file> --stdout`;
+ * - standalone (`"standalone"`): `bicep build <file> --stdout` /
+ *                              `bicep build-params <file> --stdout`.
+ *
+ * @returns {{ kind: "az" | "standalone", cmd: string, args: string[] } | null}
+ *   The invocation prefix and toolchain kind of the available compiler, or
+ *   null when none is available.
  */
 function resolveBicepCompiler() {
-  for (const candidate of [
-    { cmd: "az", args: ["bicep"], detect: ["bicep", "version"] },
-    { cmd: "bicep", args: [], detect: ["--version"] },
-  ]) {
+  /**
+   * Candidate compilers in detection order. `kind` selects the
+   * toolchain-specific argument adapter for the compile path.
+   *
+   * @type {ReadonlyArray<{ kind: "az" | "standalone", cmd: string, args: readonly string[], detect: readonly string[] }>}
+   */
+  const candidates = [
+    { kind: "az", cmd: "az", args: ["bicep"], detect: ["bicep", "version"] },
+    { kind: "standalone", cmd: "bicep", args: [], detect: ["--version"] },
+  ];
+  for (const candidate of candidates) {
     try {
       run(candidate.cmd, candidate.detect);
-      return { cmd: candidate.cmd, args: [...candidate.args] };
+      return { kind: candidate.kind, cmd: candidate.cmd, args: [...candidate.args] };
     } catch {
       // candidate compiler not available — try the next one
     }
   }
   return null;
+}
+
+/**
+ * Build the toolchain-specific argument list for compiling a Bicep entry
+ * file to stdout: `--file <path>` for the Azure CLI, a positional file
+ * argument for the standalone CLI (Microsoft reference:
+ * https://learn.microsoft.com/en-us/azure/azure-resource-manager/bicep/bicep-cli).
+ *
+ * @param {"az" | "standalone"} kind - Resolved compiler toolchain.
+ * @param {readonly string[]} prefix - Compiler invocation prefix args.
+ * @param {string} command - `"build"` or `"build-params"`.
+ * @param {string} file - Repository-relative path of the input file.
+ * @returns {string[]} Complete argument list for the resolved toolchain.
+ */
+function bicepCompileArgs(kind, prefix, command, file) {
+  if (kind === "az") {
+    return [...prefix, command, "--file", file, "--stdout", "--no-restore"];
+  }
+  return [...prefix, command, file, "--stdout"];
 }
 
 test("the Bicep skeleton root entry point exists", () => {
@@ -368,20 +403,17 @@ test("the skeleton compiles for every environment parameter shape (optional comp
     );
     return;
   }
-  // Invoke the SAME compiler the detection path resolved: `az bicep ...`
-  // when the Azure CLI is available, plain `bicep ...` when only the
-  // standalone binary is. Detection and compilation must never disagree.
-  /** @type {(args: string[]) => string} */
-  const bicep = (args) => run(compiler.cmd, [...compiler.args, ...args]);
+  // Invoke the SAME compiler the detection path resolved, with the
+  // toolchain-specific argument adapter: `az bicep ... --file <path>` when
+  // the Azure CLI is available, positional `bicep <file>` arguments when
+  // only the standalone binary is. Detection and compilation must never
+  // disagree, and each compiler must receive its documented syntax.
+  /** @type {(command: "build" | "build-params", file: string) => string} */
+  const bicep = (command, file) =>
+    run(compiler.cmd, bicepCompileArgs(compiler.kind, compiler.args, command, file));
   // --stdout keeps compiled ARM templates out of the source tree.
-  bicep(["build", "--file", relative(repoRoot, MAIN_BICEP), "--stdout", "--no-restore"]);
+  bicep("build", relative(repoRoot, MAIN_BICEP));
   for (const env of ENVIRONMENTS) {
-    bicep([
-      "build-params",
-      "--file",
-      relative(repoRoot, join(PARAMS_DIR, `${env}.bicepparam`)),
-      "--stdout",
-      "--no-restore",
-    ]);
+    bicep("build-params", relative(repoRoot, join(PARAMS_DIR, `${env}.bicepparam`)));
   }
 });

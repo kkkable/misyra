@@ -71,15 +71,15 @@ function createCompilerSandbox(kind) {
   const azWin = `@echo off\r\nsetlocal\r\necho %*>> "${marker}"\r\nif not "%~1"=="bicep" (echo unexpected az invocation: %* >&2 & exit /b 1)\r\nif "%~2"=="version" echo Bicep CLI version 0.45.6 (fake)& exit /b 0\r\nif not "%~2"=="build" if not "%~2"=="build-params" (echo unexpected az bicep invocation: %* >&2 & exit /b 1)\r\nif not "%~3"=="--file" (echo az bicep %~2 requires --file <path>; got: %* >&2 & exit /b 1)\r\nif "%~4"=="" (echo az bicep %~2 requires --file <path>; got: %* >&2 & exit /b 1)\r\necho {"fake":true}\r\nexit /b 0\r\n`;
   const azPosix = `#!/bin/sh\nprintf '%s\\n' "$*" >> "${marker}"\n[ "$1" = "bicep" ] || { echo "unexpected az invocation: $*" >&2; exit 1; }\nif [ "$2" = "version" ]; then echo "Bicep CLI version 0.45.6 (fake)"; exit 0; fi\ncase "$2" in build|build-params) ;; *) echo "unexpected az bicep invocation: $*" >&2; exit 1 ;; esac\n[ "$3" = "--file" ] || { echo "az bicep $2 requires --file <path>; got: $*" >&2; exit 1; }\n[ -n "$4" ] || { echo "az bicep $2 requires --file <path>; got: $*" >&2; exit 1; }\necho '{"fake":true}'\nexit 0\n`;
 
-  const script = kind === "standalone" ? (isWin ? standaloneWin : standalonePosix) : (isWin ? azWin : azPosix);
+  const script =
+    kind === "standalone" ? (isWin ? standaloneWin : standalonePosix) : isWin ? azWin : azPosix;
   const fileName =
-    kind === "standalone" ? (isWin ? "bicep.cmd" : "bicep") : (isWin ? "az.cmd" : "az");
+    kind === "standalone" ? (isWin ? "bicep.cmd" : "bicep") : isWin ? "az.cmd" : "az";
   writeFileSync(join(binDir, fileName), script, { mode: 0o755 });
   // PATH contains only the sandbox bin directory (plus System32 so Windows
   // shell-based spawns behave). The other compiler lives outside this PATH,
   // so it is guaranteed unavailable inside the sandbox.
-  const systemDir =
-    isWin ? `${delimiter}${process.env.SystemRoot ?? "C:\\Windows"}\\System32` : "";
+  const systemDir = isWin ? `${delimiter}${process.env.SystemRoot ?? "C:\\Windows"}\\System32` : "";
   return { root, path: `${binDir}${systemDir}`, marker };
 }
 
