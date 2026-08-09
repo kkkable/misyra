@@ -7,8 +7,11 @@
  * variables, and HTTP request/response payloads in tracked source files
  * (.ts/.tsx/.mjs/.js/.cjs/.mts/.cts), or explicit paths when given.
  * Comments and string literals are ignored so static prose cannot trip the
- * gate; only actual code arguments are evaluated. Matched values are never
- * printed — only file paths and violation kinds.
+ * gate; only actual code arguments are evaluated. Each console.* call is
+ * examined over its balanced argument region: quoted literals and static
+ * template text are skipped, while ${...} interpolation expressions inside
+ * template literals are executable code and are inspected. Matched values
+ * are never printed — only file paths and violation kinds.
  *
  * Exit code 0 = clean, 1 = violations found, 2 = usage/scan error.
  */
@@ -116,6 +119,207 @@ function isInsideString(source, index) {
   return inDouble || inSingle || inTemplate;
 }
 
+/**
+ * Return the index just past the closing quote of the string literal opened
+ * at `i` (which must point at the opening quote). Handles backslash escapes.
+ *
+ * @param {string} source
+ * @param {number} i
+ * @param {string} quote
+ * @returns {number}
+ */
+function skipString(source, i, quote) {
+  i += 1;
+  while (i < source.length) {
+    if (source[i] === "\\") {
+      i += 2;
+      continue;
+    }
+    if (source[i] === quote) return i + 1;
+    i += 1;
+  }
+  return i;
+}
+
+/**
+ * Return the index just past the closing "}" of the ${...} expression that
+ * starts just after "${" at position `i`. Nested braces, strings, and
+ * templates inside the expression are handled.
+ *
+ * @param {string} source
+ * @param {number} i
+ * @returns {number}
+ */
+function skipInterpolation(source, i) {
+  let depth = 1;
+  while (i < source.length) {
+    const ch = source[i];
+    if (ch === "\\") {
+      i += 2;
+      continue;
+    }
+    if (ch === '"' || ch === "'") {
+      i = skipString(source, i, ch);
+      continue;
+    }
+    if (ch === "`") {
+      i = skipTemplate(source, i);
+      continue;
+    }
+    if (ch === "{") {
+      depth += 1;
+    } else if (ch === "}") {
+      depth -= 1;
+      if (depth === 0) return i + 1;
+    }
+    i += 1;
+  }
+  return i;
+}
+
+/**
+ * Return the index just past the closing backtick of the template literal
+ * opened at `i`. ${...} interpolation regions are skipped as units.
+ *
+ * @param {string} source
+ * @param {number} i
+ * @returns {number}
+ */
+function skipTemplate(source, i) {
+  i += 1;
+  while (i < source.length) {
+    if (source[i] === "\\") {
+      i += 2;
+      continue;
+    }
+    if (source[i] === "`") return i + 1;
+    if (source[i] === "$" && source[i + 1] === "{") {
+      i = skipInterpolation(source, i + 2);
+      continue;
+    }
+    i += 1;
+  }
+  return i;
+}
+
+/**
+ * Return the raw text between the parentheses of the call opened at
+ * `openIndex`, or null when the call is unbalanced. Literals (including
+ * templates with interpolations) are skipped so parentheses inside them
+ * cannot confuse balance; interpolation expressions are self-contained
+ * brace-balanced units in valid JavaScript.
+ *
+ * @param {string} source
+ * @param {number} openIndex
+ * @returns {string | null}
+ */
+function callArguments(source, openIndex) {
+  let depth = 1;
+  let i = openIndex + 1;
+  while (i < source.length) {
+    const ch = source[i];
+    if (ch === '"' || ch === "'") {
+      i = skipString(source, i, ch);
+      continue;
+    }
+    if (ch === "`") {
+      i = skipTemplate(source, i);
+      continue;
+    }
+    if (ch === "(") {
+      depth += 1;
+    } else if (ch === ")") {
+      depth -= 1;
+      if (depth === 0) return source.slice(openIndex + 1, i);
+    }
+    i += 1;
+  }
+  return null;
+}
+
+/**
+ * Append the executable code of the template literal opened at `i` to
+ * `parts` and return the index just past its closing backtick. Static text
+ * between interpolations contributes spaces only (so tokens cannot merge
+ * across a boundary); each ${...} expression contributes its own code.
+ *
+ * @param {string} source
+ * @param {number} i
+ * @param {string[]} parts
+ * @returns {number}
+ */
+function templateExecutable(source, i, parts) {
+  i += 1;
+  while (i < source.length) {
+    if (source[i] === "\\") {
+      i += 2;
+      continue;
+    }
+    if (source[i] === "`") return i + 1;
+    if (source[i] === "$" && source[i + 1] === "{") {
+      i += 2;
+      let depth = 1;
+      while (i < source.length && depth > 0) {
+        const ch = source[i];
+        if (ch === '"' || ch === "'") {
+          i = skipString(source, i, ch);
+          parts.push(" ");
+          continue;
+        }
+        if (ch === "`") {
+          i = templateExecutable(source, i, parts);
+          continue;
+        }
+        if (ch === "{") {
+          depth += 1;
+        } else if (ch === "}") {
+          depth -= 1;
+          if (depth === 0) {
+            i += 1;
+            break;
+          }
+        } else {
+          parts.push(ch);
+        }
+        i += 1;
+      }
+      continue;
+    }
+    parts.push(" ");
+    i += 1;
+  }
+  return i;
+}
+
+/**
+ * Reduce a call argument region to its executable code: quoted string
+ * literals and static template text are skipped (spaces are left so tokens
+ * cannot merge across a boundary), while ${...} interpolations and all
+ * other code characters are kept for pattern matching.
+ *
+ * @param {string} region
+ * @returns {string}
+ */
+function executableText(region) {
+  const parts = [];
+  let i = 0;
+  while (i < region.length) {
+    const ch = region[i];
+    if (ch === '"' || ch === "'") {
+      i = skipString(region, i, ch);
+      parts.push(" ");
+      continue;
+    }
+    if (ch === "`") {
+      i = templateExecutable(region, i, parts);
+      continue;
+    }
+    parts.push(ch);
+    i += 1;
+  }
+  return parts.join("");
+}
+
 function posix(path) {
   return path.split("\\").join("/");
 }
@@ -153,15 +357,15 @@ function scanFile(abs) {
     if (isInsideString(source, match.index)) {
       continue; // quoted code or documentation, not a real call
     }
-    const span = source.slice(match.index, match.index + 400);
-    const code = span
-      .replace(/"[^"]*"/g, "")
-      .replace(/'[^']*'/g, "")
-      .replace(/`[^`]*`/g, "");
-    if (ENV_ACCESS.test(span)) {
+    const args = callArguments(source, match.index + match[0].length - 1);
+    if (args === null) {
+      continue; // unbalanced call; nothing to evaluate
+    }
+    const code = executableText(args);
+    if (ENV_ACCESS.test(code)) {
       violations.push(`${relPosix}: environment-variable-logging`);
     }
-    if (HTTP_PAYLOAD.test(span)) {
+    if (HTTP_PAYLOAD.test(code)) {
       violations.push(`${relPosix}: http-payload-logging`);
     }
     if (SENSITIVE_TOKEN.test(code)) {
