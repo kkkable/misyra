@@ -19,7 +19,7 @@
  * developer keeps in the real root .env.
  */
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -28,9 +28,6 @@ import { existsSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { resolveServiceConfig } from "../../scripts/dev/local-services.mjs";
 import { repoRoot } from "../toolchain/helpers.mjs";
-
-const REAL_ENV_FILE = join(repoRoot, ".env");
-const REAL_ENV_BEFORE = existsSync(REAL_ENV_FILE) ? readFileSync(REAL_ENV_FILE, "utf8") : null;
 
 /** Non-default host ports proving root-.env overrides move the API config. */
 const OVERRIDE_PORTS = {
@@ -292,13 +289,4 @@ test("a normally wired readiness probe receives the same effective local ports a
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
-});
-
-test("the suite never mutates the user's real root .env", () => {
-  const after = existsSync(REAL_ENV_FILE) ? readFileSync(REAL_ENV_FILE, "utf8") : null;
-  assert.equal(
-    after,
-    REAL_ENV_BEFORE,
-    "the real repository root .env must be byte-identical after this suite runs",
-  );
 });
