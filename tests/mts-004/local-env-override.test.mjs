@@ -223,12 +223,9 @@ test("empty values from both explicit environment and .env resolve to the determ
     const fixture = join(dir, ".env");
     writeFileSync(
       fixture,
-      [
-        "MISYRA_POSTGRES_PORT=",
-        "MISYRA_AZURITE_BLOB_PORT=",
-        "MISYRA_POSTGRES_USER=",
-        "",
-      ].join("\n"),
+      ["MISYRA_POSTGRES_PORT=", "MISYRA_AZURITE_BLOB_PORT=", "MISYRA_POSTGRES_USER=", ""].join(
+        "\n",
+      ),
       "utf8",
     );
     const config = resolveServiceConfig({
@@ -265,12 +262,9 @@ test("an empty .env value alone resolves to the deterministic Compose fallback",
     const fixture = join(dir, ".env");
     writeFileSync(
       fixture,
-      [
-        "MISYRA_POSTGRES_PORT=",
-        "MISYRA_AZURITE_QUEUE_PORT=",
-        "MISYRA_POSTGRES_PASSWORD=",
-        "",
-      ].join("\n"),
+      ["MISYRA_POSTGRES_PORT=", "MISYRA_AZURITE_QUEUE_PORT=", "MISYRA_POSTGRES_PASSWORD=", ""].join(
+        "\n",
+      ),
       "utf8",
     );
     const config = resolveServiceConfig({ env: {}, envFilePath: fixture });
