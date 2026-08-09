@@ -1,9 +1,11 @@
 /**
- * Public entry for the Misyra worker shell (MTS-003).
+ * Public entry for the Misyra worker shell (MTS-003) with its MTS-005
+ * independent health surface.
  *
  * The worker starts and stops without any Apple, Google, Azure, AI, or
  * database credentials. Queue consumers and scheduled jobs belong to later
- * tickets; this shell only establishes the process boundary.
+ * tickets; this shell only establishes the process boundary and a
+ * content-free health endpoint that is independent of the API.
  */
 
 /** Options accepted by the worker shell. */
@@ -16,6 +18,12 @@ export interface WorkerShellOptions {
   env?: Readonly<Record<string, string | undefined>>;
 }
 
+/** Content-free health state of the worker shell. */
+export interface WorkerHealth {
+  /** "ok" while running; "unavailable" while stopped. */
+  readonly status: "ok" | "unavailable";
+}
+
 /** Lifecycle surface of the worker shell. */
 export interface WorkerShell {
   /** True between a successful start and stop. */
@@ -24,6 +32,11 @@ export interface WorkerShell {
   start(): Promise<void>;
   /** Stop the shell cleanly. Idempotent while stopped. */
   stop(): Promise<void>;
+  /**
+   * The worker's own health state, observable independently of the API
+   * health endpoint.
+   */
+  getHealth(): WorkerHealth;
 }
 
 /**
@@ -43,5 +56,14 @@ export function createWorkerShell(_options: WorkerShellOptions = {}): WorkerShel
     async stop() {
       running = false;
     },
+    getHealth() {
+      return { status: running ? "ok" : "unavailable" };
+    },
   };
 }
+
+export {
+  createWorkerHealthServer,
+  type WorkerHealthServer,
+  type WorkerHealthServerOptions,
+} from "./health.js";
