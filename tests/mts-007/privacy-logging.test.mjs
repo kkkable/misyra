@@ -83,6 +83,92 @@ test("logging HTTP request payloads fails the gate", () => {
   }
 });
 
+test("a safe log stays green when a sensitive identifier appears in unrelated nearby code", () => {
+  // The log argument is a static literal; a sensitive-looking identifier
+  // appears only in unrelated code after the call. The gate must evaluate
+  // the actual log arguments, not an arbitrary fixed tail of the file.
+  const dir = mkdtempSync(join(tmpdir(), "misyra-privacy-"));
+  const fixture = join(dir, "safe-near-sensitive.mjs");
+  writeFileSync(
+    fixture,
+    [
+      "// Intentional privacy-gate fixture: the log argument is a static literal;",
+      "// a sensitive-looking identifier appears only in unrelated code after the call.",
+      "export function run(passwordPolicy) {",
+      '  console.log("started");',
+      "  return passwordPolicy;",
+      "}",
+      "",
+    ].join("\n"),
+  );
+  try {
+    const result = runScript([fixture]);
+    assert.equal(
+      result.status,
+      0,
+      `a safe log must pass even when unrelated code nearby mentions sensitive identifiers:\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("template-interpolated sensitive values fail the gate", () => {
+  // The sensitive value is an executable ${...} expression inside a template
+  // literal and must be inspected, not stripped together with the static text.
+  const dir = mkdtempSync(join(tmpdir(), "misyra-privacy-"));
+  const fixture = join(dir, "template-interpolation.mjs");
+  writeFileSync(
+    fixture,
+    [
+      "// Intentional privacy-gate fixture: logging a template-interpolated",
+      "// sensitive value must be rejected.",
+      "export function logToken(user) {",
+      "  console.log(`token ${user.token}`);",
+      "}",
+      "",
+    ].join("\n"),
+  );
+  try {
+    const result = runScript([fixture]);
+    assert.notEqual(
+      result.status,
+      0,
+      `logging a template-interpolated token must fail the gate:\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("static prose mentioning environment or payload text passes the gate", () => {
+  // Literal text is prose, not evaluation: mentioning process.env or
+  // request.body inside a string must not trip the environment or
+  // HTTP-payload rules.
+  const dir = mkdtempSync(join(tmpdir(), "misyra-privacy-"));
+  const fixture = join(dir, "static-mention.mjs");
+  writeFileSync(
+    fixture,
+    [
+      "// Intentional privacy-gate fixture: literal text is prose, not evaluation.",
+      "export function explain() {",
+      '  console.log("process.env and request.body are never evaluated here");',
+      "}",
+      "",
+    ].join("\n"),
+  );
+  try {
+    const result = runScript([fixture]);
+    assert.equal(
+      result.status,
+      0,
+      `static prose inside a literal must pass the gate:\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("clean source passes the privacy gate", () => {
   const result = runScript([CLEAN]);
   assert.equal(
