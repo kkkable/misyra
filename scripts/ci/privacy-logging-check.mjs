@@ -91,32 +91,79 @@ function stripComments(source) {
   return out;
 }
 
-/** True when `index` sits inside a string or template literal of `source`. */
+/**
+ * True when `index` sits inside a quoted string literal or inside static
+ * template text of `source`. Executable `${...}` interpolation regions are
+ * code, not literal text: they can contain real console.* calls, so an
+ * index inside one returns false. Nested strings, braces, and templates
+ * inside an interpolation are handled by the balancing helpers.
+ */
 function isInsideString(source, index) {
-  let inDouble = false;
-  let inSingle = false;
-  let inTemplate = false;
-  for (let i = 0; i < index; i += 1) {
-    const char = source[i];
-    if (char === "\\") {
-      i += 1;
+  return insideCodeRegion(source, 0, index);
+}
+
+/**
+ * Classify `index` within executable code scanned from `start` (no literal
+ * is open at `start`). Returns true when `index` sits inside a quoted
+ * string literal or inside the static text of a nested template literal.
+ *
+ * @param {string} source
+ * @param {number} start
+ * @param {number} index
+ * @returns {boolean}
+ */
+function insideCodeRegion(source, start, index) {
+  let i = start;
+  while (i < index) {
+    const ch = source[i];
+    if (ch === "\\") {
+      i += 2;
       continue;
     }
-    if (inDouble) {
-      if (char === '"') inDouble = false;
-    } else if (inSingle) {
-      if (char === "'") inSingle = false;
-    } else if (inTemplate) {
-      if (char === "`") inTemplate = false;
-    } else if (char === '"') {
-      inDouble = true;
-    } else if (char === "'") {
-      inSingle = true;
-    } else if (char === "`") {
-      inTemplate = true;
+    if (ch === '"' || ch === "'") {
+      const end = skipString(source, i, ch);
+      if (index < end) return true;
+      i = end;
+      continue;
     }
+    if (ch === "`") {
+      if (insideTemplateStatic(source, i + 1, index)) return true;
+      i = skipTemplate(source, i);
+      continue;
+    }
+    i += 1;
   }
-  return inDouble || inSingle || inTemplate;
+  return false;
+}
+
+/**
+ * Walk the template literal whose opening backtick precedes `i`. Returns
+ * true when `index` sits inside static template text (or a nested literal
+ * inside an interpolation); false when it sits in executable interpolation
+ * code or past the template's closing backtick.
+ *
+ * @param {string} source
+ * @param {number} i
+ * @param {number} index
+ * @returns {boolean}
+ */
+function insideTemplateStatic(source, i, index) {
+  while (i < index) {
+    const ch = source[i];
+    if (ch === "\\") {
+      i += 2;
+      continue;
+    }
+    if (ch === "`") return false; // template closed before index
+    if (ch === "$" && source[i + 1] === "{") {
+      const end = skipInterpolation(source, i + 2);
+      if (index < end) return insideCodeRegion(source, i + 2, index);
+      i = end;
+      continue;
+    }
+    i += 1;
+  }
+  return true; // reached index while still in static template text
 }
 
 /**
