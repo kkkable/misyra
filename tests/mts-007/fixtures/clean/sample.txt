@@ -1,0 +1,4 @@
+MTS-007 clean scan fixture.
+
+The quick brown fox jumps over the lazy dog. This file contains no
+credential-like material and must always pass the secret-scan gate.

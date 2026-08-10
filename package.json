@@ -21,7 +21,11 @@
     "dev:down": "node scripts/dev/down.mjs",
     "dev:reset": "node scripts/dev/reset.mjs",
     "dev:health": "node scripts/dev/health.mjs",
-    "test:services": "node --test \"integration/mts-004/*.test.mjs\""
+    "test:services": "node --test \"integration/mts-004/*.test.mjs\"",
+    "secret:scan": "node scripts/ci/secret-scan.mjs",
+    "localization:check": "node scripts/ci/localization-check.mjs",
+    "privacy:check": "node scripts/ci/privacy-logging-check.mjs",
+    "bicep:validate": "node --test \"tests/mts-006/*.test.mjs\""
   },
   "devDependencies": {
     "@azure/storage-blob": "12.29.1",
