@@ -210,3 +210,15 @@ test("tappable Row keeps the 44pt height floor", () => {
     "tappable Row Pressable must apply the shared layout carrying the 44 pt floor",
   );
 });
+
+test("SettingsRow forwards interactivity to Row so its interactive path reuses the 44pt floor", () => {
+  const source = readText("apps/mobile/src/primitives/SettingsRow.tsx");
+  assert.ok(
+    !source.includes("<Pressable"),
+    "SettingsRow must not open a second interactive path beside Row's",
+  );
+  assert.ok(
+    source.includes("...(onPress ? { onPress } : {})"),
+    "SettingsRow must forward onPress to Row so the interactive path inherits the 44 pt floor",
+  );
+});
