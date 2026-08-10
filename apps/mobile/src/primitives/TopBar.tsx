@@ -1,9 +1,10 @@
 import type { ReactNode } from "react";
 import { Text, View } from "react-native";
-import { space, typography } from "@misyra/design-tokens";
+import { space } from "@misyra/design-tokens";
 import {
   MIN_TOUCH_TARGET,
   primitiveA11yRole,
+  semanticTypographyStyle,
   textToken,
   wrappableTextStyle,
   type ThemeMode,
@@ -40,7 +41,10 @@ export function TopBar({ mode, title, onBack, right }: TopBarProps) {
           label={`Back: ${title}`}
           glyph={
             <Text
-              style={{ color: textToken(mode, "textPrimary"), fontSize: 24, fontWeight: "600" }}
+              style={{
+                color: textToken(mode, "textPrimary"),
+                ...semanticTypographyStyle("title3"),
+              }}
             >
               ‹
             </Text>
@@ -55,8 +59,7 @@ export function TopBar({ mode, title, onBack, right }: TopBarProps) {
           {
             flex: 1,
             color: textToken(mode, "textPrimary"),
-            fontSize: typography.headline.size,
-            fontWeight: "600",
+            ...semanticTypographyStyle("headline"),
           },
           wrappableTextStyle(),
         ]}

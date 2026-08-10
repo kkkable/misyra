@@ -1,6 +1,6 @@
 import { Modal, Text, View } from "react-native";
 import { radius, space, themes } from "@misyra/design-tokens";
-import { surfaceToken, textToken, type ThemeMode } from "./core";
+import { semanticTypographyStyle, surfaceToken, textToken, type ThemeMode } from "./core";
 import { Button } from "./Button";
 
 export interface DialogProps {
@@ -54,14 +54,17 @@ export function Dialog({
         >
           <Text
             accessibilityRole="header"
-            style={{ color: textToken(mode, "textPrimary"), fontSize: 18, fontWeight: "600" }}
+            style={{
+              color: textToken(mode, "textPrimary"),
+              ...semanticTypographyStyle("headline"),
+            }}
           >
             {title}
           </Text>
           <Text
             style={{
               color: textToken(mode, "textSecondary"),
-              fontSize: 16,
+              ...semanticTypographyStyle("body", 400),
               lineHeight: 22,
               marginTop: space[2],
             }}

@@ -1,7 +1,13 @@
 import { Platform, Text, View } from "react-native";
 import type { ViewStyle } from "react-native";
 import { elevation, radius, space, themes } from "@misyra/design-tokens";
-import { surfaceToken, textToken, wrappableTextStyle, type ThemeMode } from "./core";
+import {
+  semanticTypographyStyle,
+  surfaceToken,
+  textToken,
+  wrappableTextStyle,
+  type ThemeMode,
+} from "./core";
 
 export interface ToastProps {
   readonly mode: ThemeMode;
@@ -42,12 +48,17 @@ export function Toast({ mode, message, title, visible }: ToastProps) {
       ]}
     >
       {title ? (
-        <Text style={{ color: textToken(mode, "textPrimary"), fontSize: 16, fontWeight: "600" }}>
+        <Text
+          style={{ color: textToken(mode, "textPrimary"), ...semanticTypographyStyle("headline") }}
+        >
           {title}
         </Text>
       ) : null}
       <Text
-        style={[{ color: textToken(mode, "textSecondary"), fontSize: 14 }, wrappableTextStyle()]}
+        style={[
+          { color: textToken(mode, "textSecondary"), ...semanticTypographyStyle("bodySmall", 400) },
+          wrappableTextStyle(),
+        ]}
       >
         {message}
       </Text>

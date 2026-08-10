@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Text, View } from "react-native";
 import { space } from "@misyra/design-tokens";
-import { textToken, wrappableTextStyle, type ThemeMode } from "./core";
+import { semanticTypographyStyle, textToken, wrappableTextStyle, type ThemeMode } from "./core";
 
 export interface EmptyStateProps {
   readonly mode: ThemeMode;
@@ -32,8 +32,7 @@ export function EmptyState({ mode, title, message, glyph, action }: EmptyStatePr
         style={[
           {
             color: textToken(mode, "textPrimary"),
-            fontSize: 18,
-            fontWeight: "600",
+            ...semanticTypographyStyle("headline"),
             textAlign: "center",
           },
           wrappableTextStyle(),
@@ -44,7 +43,11 @@ export function EmptyState({ mode, title, message, glyph, action }: EmptyStatePr
       {message ? (
         <Text
           style={[
-            { color: textToken(mode, "textSecondary"), fontSize: 14, textAlign: "center" },
+            {
+              color: textToken(mode, "textSecondary"),
+              ...semanticTypographyStyle("bodySmall", 400),
+              textAlign: "center",
+            },
             wrappableTextStyle(),
           ]}
         >

@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { Modal, Platform, Text, View } from "react-native";
 import type { ViewStyle } from "react-native";
 import { elevation, radius, space, themes } from "@misyra/design-tokens";
-import { surfaceToken, textToken, type ThemeMode } from "./core";
+import { semanticTypographyStyle, surfaceToken, textToken, type ThemeMode } from "./core";
 
 export interface SheetProps {
   readonly mode: ThemeMode;
@@ -40,8 +40,7 @@ export function Sheet({ mode, visible, title, onDismiss, children }: SheetProps)
             accessibilityRole="header"
             style={{
               color: textToken(mode, "textPrimary"),
-              fontSize: 18,
-              fontWeight: "600",
+              ...semanticTypographyStyle("headline"),
               marginBottom: space[3],
             }}
           >

@@ -1,6 +1,12 @@
 import { Text, TextInput, View } from "react-native";
 import { radius, space } from "@misyra/design-tokens";
-import { fieldColors, textToken, type FieldState, type ThemeMode } from "./core";
+import {
+  fieldColors,
+  semanticTypographyStyle,
+  textToken,
+  type FieldState,
+  type ThemeMode,
+} from "./core";
 
 export interface TextAreaProps {
   readonly mode: ThemeMode;
@@ -28,7 +34,12 @@ export function TextArea({
   const colors = fieldColors(mode, "filled", state);
   return (
     <View style={{ gap: space[1] }}>
-      <Text style={{ color: textToken(mode, "textPrimary"), fontSize: 14, fontWeight: "500" }}>
+      <Text
+        style={{
+          color: textToken(mode, "textPrimary"),
+          ...semanticTypographyStyle("bodySmall", 500),
+        }}
+      >
         {label}
       </Text>
       <TextInput

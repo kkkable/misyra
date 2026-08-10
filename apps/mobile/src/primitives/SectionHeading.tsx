@@ -1,6 +1,5 @@
 import { Text } from "react-native";
-import { typography } from "@misyra/design-tokens";
-import { primitiveA11yRole, textToken, type ThemeMode } from "./core";
+import { semanticTypographyStyle, primitiveA11yRole, textToken, type ThemeMode } from "./core";
 
 export interface SectionHeadingProps {
   readonly mode: ThemeMode;
@@ -17,8 +16,7 @@ export function SectionHeading({ mode, title }: SectionHeadingProps) {
       accessibilityRole={primitiveA11yRole("header")}
       style={{
         color: textToken(mode, "textPrimary"),
-        fontSize: typography.title3.size,
-        fontWeight: "700",
+        ...semanticTypographyStyle("title3"),
       }}
     >
       {title}

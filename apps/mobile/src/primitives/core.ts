@@ -14,7 +14,13 @@
  * - §6.6 Semantic colors        — every color here is an approved token value
  * - §6.9 Content framing        — SCREEN_HORIZONTAL_PADDING = space 16, LARGE_SECTION_SPACING = space 24
  */
-import { space, themes, wcagContrastRatio } from "@misyra/design-tokens";
+import {
+  space,
+  themes,
+  typography,
+  wcagContrastRatio,
+  type TypographyWeight,
+} from "@misyra/design-tokens";
 
 /** §6.1 — Minimum touch target (pt). */
 export const MIN_TOUCH_TARGET = 44;
@@ -296,3 +302,39 @@ export const SCREEN_HORIZONTAL_PADDING = space[4];
 
 /** §6.9 — Spacing between large content sections (space 24). */
 export const LARGE_SECTION_SPACING = space[6];
+
+/** §6.5 — Approved semantic typography token keys. */
+export type SemanticTypographyKey = keyof typeof typography;
+
+/** A text style resolved from an approved semantic typography token (§6.5). */
+export interface SemanticTextStyle {
+  readonly fontSize: number;
+  readonly fontWeight: TypographyWeight;
+}
+
+/**
+ * §6.5 — Resolves an approved semantic typography token to the text style
+ * primitives must use. `weight` must be one of the token's approved weights;
+ * when omitted, the token's characteristic (heaviest) approved weight is
+ * used. This is the only way primitive modules obtain font sizes/weights —
+ * raw `fontSize`/`fontWeight` literals are forbidden in the primitive layer.
+ */
+export function semanticTypographyStyle(
+  token: SemanticTypographyKey,
+  weight?: TypographyWeight,
+): SemanticTextStyle {
+  const tokenValue = typography[token];
+  // Widen the per-token literal tuple so `.includes` accepts any approved
+  // TypographyWeight (a union-keyed lookup would narrow the parameter to never).
+  const approvedWeights: readonly TypographyWeight[] = tokenValue.weight;
+  // The approved inventory guarantees every token declares at least one
+  // weight (§6.5), so the characteristic (heaviest) weight is always defined.
+  const resolved = weight ?? approvedWeights[approvedWeights.length - 1]!;
+  if (!approvedWeights.includes(resolved)) {
+    throw new Error(
+      `semanticTypographyStyle: weight ${resolved} is not approved for typography token "${token}" ` +
+        `(approved: ${approvedWeights.join("/")})`,
+    );
+  }
+  return { fontSize: tokenValue.size, fontWeight: resolved };
+}

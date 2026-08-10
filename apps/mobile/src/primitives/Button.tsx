@@ -7,6 +7,7 @@ import {
   interactionAccessibility,
   minTouchTargetStyle,
   primitiveA11yRole,
+  semanticTypographyStyle,
   wrappableTextStyle,
   type ButtonState,
   type ButtonVariant,
@@ -64,7 +65,11 @@ export function Button({
       {state === "loading" ? <ActivityIndicator size="small" color={colors.foreground} /> : null}
       <Text
         style={[
-          { color: colors.foreground, fontWeight: "600", textAlign: "center" },
+          {
+            color: colors.foreground,
+            ...semanticTypographyStyle("body", 500),
+            textAlign: "center",
+          },
           wrappableTextStyle(),
         ]}
       >

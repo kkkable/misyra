@@ -1,6 +1,6 @@
 import { Text, View } from "react-native";
 import { space } from "@misyra/design-tokens";
-import { textToken, type ThemeMode } from "./core";
+import { semanticTypographyStyle, textToken, type ThemeMode } from "./core";
 import { Row } from "./Row";
 
 export interface SettingsRowProps {
@@ -23,9 +23,21 @@ export function SettingsRow({ mode, label, value, onPress }: SettingsRowProps) {
       right={
         <View style={{ alignItems: "center", flexDirection: "row", gap: space[2] }}>
           {value ? (
-            <Text style={{ color: textToken(mode, "textSecondary"), fontSize: 14 }}>{value}</Text>
+            <Text
+              style={{
+                color: textToken(mode, "textSecondary"),
+                ...semanticTypographyStyle("bodySmall", 400),
+              }}
+            >
+              {value}
+            </Text>
           ) : null}
-          <Text style={{ color: textToken(mode, "textTertiary"), fontSize: 20, fontWeight: "600" }}>
+          <Text
+            style={{
+              color: textToken(mode, "textTertiary"),
+              ...semanticTypographyStyle("headline"),
+            }}
+          >
             ›
           </Text>
         </View>

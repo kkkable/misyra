@@ -3,6 +3,7 @@ import { Pressable, Text, View } from "react-native";
 import { radius, space } from "@misyra/design-tokens";
 import {
   MIN_TOUCH_TARGET,
+  semanticTypographyStyle,
   surfaceToken,
   textToken,
   wrappableTextStyle,
@@ -29,7 +30,7 @@ export function Row({ mode, title, detail, right, onPress, testID }: RowProps) {
       <View style={{ flex: 1, gap: space[1] }}>
         <Text
           style={[
-            { color: textToken(mode, "textPrimary"), fontSize: 16, fontWeight: "500" },
+            { color: textToken(mode, "textPrimary"), ...semanticTypographyStyle("body", 500) },
             wrappableTextStyle(),
           ]}
         >
@@ -38,7 +39,10 @@ export function Row({ mode, title, detail, right, onPress, testID }: RowProps) {
         {detail ? (
           <Text
             style={[
-              { color: textToken(mode, "textSecondary"), fontSize: 13 },
+              {
+                color: textToken(mode, "textSecondary"),
+                ...semanticTypographyStyle("bodySmall", 400),
+              },
               wrappableTextStyle(),
             ]}
           >
