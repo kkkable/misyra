@@ -21,6 +21,18 @@
  * These contracts intentionally FAIL at the reviewed head `914e36e` (input
  * surfaces carry no typography; interactive Card has no floor) and go green
  * once the real primitive surfaces consume the contracts.
+ *
+ * Round 3 (COMMANDER DIRECTIVE 2026-08-10T15:03:53Z findings) adds:
+ *   5. a normal enabled `Button` routes the real `Pressable` callback's
+ *      `pressed=true` path through the approved `buttonColors()` resolver
+ *      (primary reaches `primaryPressed`, secondary its approved pressed
+ *      mapping) instead of only dimming opacity;
+ *   6. the runtime pressed colour path stays gated on `state === "normal"`
+ *      so disabled/loading buttons never resolve the interactive pressed
+ *      state, and no raw colour literal replaces the approved resolver;
+ *   7. the actual `TextField` `TextInput` surface guarantees the 44 pt
+ *      interactive height floor through the shared MTS-009 mechanism,
+ *      while `TextArea` keeps its explicit 120 pt minimum.
  */
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
@@ -220,5 +232,87 @@ test("SettingsRow forwards interactivity to Row so its interactive path reuses t
   assert.ok(
     source.includes("...(onPress ? { onPress } : {})"),
     "SettingsRow must forward onPress to Row so the interactive path inherits the 44 pt floor",
+  );
+});
+
+test("normal enabled Button routes the Pressable pressed path through the approved pressed-state colours", () => {
+  const source = readText("apps/mobile/src/primitives/Button.tsx");
+  const start = source.indexOf("<Pressable");
+  assert.notEqual(start, -1, "Button must render a Pressable");
+  const end = source.indexOf("</Pressable>", start);
+  assert.notEqual(end, -1, "Button Pressable must be terminated");
+  const block = source.slice(start, end + 11);
+  const styleStart = block.indexOf("style={");
+  assert.notEqual(styleStart, -1, "Button Pressable must define a style callback");
+  const styleCallback = block.slice(styleStart);
+  assert.ok(
+    /style=\{\s*\(\{ pressed \}\)\s*=>/.test(styleCallback),
+    "the Button Pressable style must consume the runtime pressed argument",
+  );
+  // The pressed boolean may still tint opacity, but the actual pressed visual
+  // colours must come from the approved resolver — exactly like IconButton's
+  // runtime pattern — not from an opacity-only dim.
+  assert.ok(
+    /buttonColors\(\s*mode\s*,\s*variant\s*,\s*["']pressed["']\s*\)/.test(styleCallback),
+    "the runtime pressed path must re-resolve the approved pressed-state colours through " +
+      'buttonColors(mode, variant, "pressed") so primary reaches t.primaryPressed and ' +
+      "secondary its approved pressed mapping; a normal enabled Button currently only " +
+      "changes opacity while physically pressed",
+  );
+});
+
+test("disabled and loading Buttons never enter the interactive pressed colour state", () => {
+  const source = readText("apps/mobile/src/primitives/Button.tsx");
+  const start = source.indexOf("<Pressable");
+  assert.notEqual(start, -1, "Button must render a Pressable");
+  const end = source.indexOf("</Pressable>", start);
+  assert.notEqual(end, -1, "Button Pressable must be terminated");
+  const block = source.slice(start, end + 11);
+  const styleStart = block.indexOf("style={");
+  assert.notEqual(styleStart, -1, "Button Pressable must define a style callback");
+  const styleCallback = block.slice(styleStart);
+  assert.ok(
+    /state === "normal" && pressed|pressed && state === "normal"/.test(styleCallback),
+    'the runtime pressed colour path must be gated on state === "normal" so disabled and ' +
+      "loading buttons keep their approved non-interactive colours",
+  );
+});
+
+test("Button introduces no raw colour literal beside the approved resolver", () => {
+  const source = readText("apps/mobile/src/primitives/Button.tsx");
+  const rawColour = source.match(/#[0-9a-fA-F]{3,8}\b|rgba?\(|hsla?\(/);
+  assert.equal(
+    rawColour,
+    null,
+    "Button must resolve every colour through the approved buttonColors() contract; " +
+      "a raw colour literal would bypass the §6.6 token boundary",
+  );
+});
+
+test("TextField TextInput surface guarantees the 44 pt interactive height floor", () => {
+  const source = readText("apps/mobile/src/primitives/TextField.tsx");
+  const inputs = textSurfaces(source).filter((surface) => surface.kind === "TextInput");
+  assert.equal(inputs.length, 1, "TextField must contain exactly one TextInput text surface");
+  const input = inputs[0];
+  assert.ok(input, "the single TextInput surface must exist");
+  const block = input.block;
+  assert.ok(
+    block.includes("minHeight: MIN_TOUCH_TARGET") || block.includes("minTouchTargetStyle("),
+    "the editable TextField surface must guarantee at least MIN_TOUCH_TARGET (44 pt) through " +
+      "an existing shared MTS-009 mechanism; it currently relies on font metrics and padding " +
+      "and can fall below the §6.1/§6.2 interactive floor",
+  );
+});
+
+test("TextArea keeps an interactive height above the 44 pt floor", () => {
+  const source = readText("apps/mobile/src/primitives/TextArea.tsx");
+  const inputs = textSurfaces(source).filter((surface) => surface.kind === "TextInput");
+  assert.equal(inputs.length, 1, "TextArea must contain exactly one TextInput text surface");
+  const input = inputs[0];
+  assert.ok(input, "the single TextInput surface must exist");
+  const block = input.block;
+  assert.ok(
+    /minHeight:\s*120/.test(block),
+    "TextArea must keep its explicit 120 pt minimum, which exceeds the 44 pt floor",
   );
 });

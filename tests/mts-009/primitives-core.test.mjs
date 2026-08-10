@@ -158,7 +158,15 @@ test("button variants resolve approved tokens across states and themes", async (
       background: t.surface,
       foreground: t.textPrimary,
     });
+    assert.deepEqual(core.buttonColors(mode, "secondary", "pressed"), {
+      background: t.surfaceMuted,
+      foreground: t.textPrimary,
+    });
     assert.deepEqual(core.buttonColors(mode, "destructive", "normal"), {
+      background: t.destructiveSoft,
+      foreground: t.destructive,
+    });
+    assert.deepEqual(core.buttonColors(mode, "destructive", "pressed"), {
       background: t.destructiveSoft,
       foreground: t.destructive,
     });
