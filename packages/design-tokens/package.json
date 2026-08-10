@@ -3,9 +3,10 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Typed design token shell for Misyra (token values are implemented by MTS-008).",
+  "description": "Typed, framework-free light/dark design tokens for Misyra.",
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     }
   },

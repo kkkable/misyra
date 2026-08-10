@@ -25,6 +25,7 @@
     "secret:scan": "node scripts/ci/secret-scan.mjs",
     "localization:check": "node scripts/ci/localization-check.mjs",
     "privacy:check": "node scripts/ci/privacy-logging-check.mjs",
+    "hardcoded-color:check": "node scripts/ci/hardcoded-color-check.mjs",
     "bicep:validate": "node --test \"tests/mts-006/*.test.mjs\""
   },
   "devDependencies": {
