@@ -162,9 +162,6 @@ test("elevation shadows are restrained (§6.8: no stacked heavy shadows)", async
       Number.isInteger(width) && Number.isInteger(height),
       "iOS shadow offset must be integer points",
     );
-    assert.ok(
-      Math.abs(height) <= 6,
-      `iOS shadow offset must stay within ±6 points, got ${height}`,
-    );
+    assert.ok(Math.abs(height) <= 6, `iOS shadow offset must stay within ±6 points, got ${height}`);
   }
 });

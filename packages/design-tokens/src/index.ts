@@ -2,18 +2,24 @@
  * Typed, framework-free visual design tokens for Misyra (MTS-008).
  *
  * The single source of truth for reusable visual constants is the approved
- * Technical Specification, section 6 ("Visual Design System"):
+ * Technical Specification, section 6 ("Visual Design System") and section
+ * 7.2 ("Timing tokens"):
  *   - §6.3 space scale,
  *   - §6.4 radius scale,
  *   - §6.5 semantic typography (platform system-font intent; no bundled font),
  *   - §6.6 light palette,
- *   - §6.7 dark palette.
+ *   - §6.7 dark palette,
+ *   - §6.8 elevation (restrained shadows),
+ *   - §7.2 duration / easing / spring motion tokens.
  *
  * This package is pure TypeScript and platform/framework neutral. It declares
  * no React Native, Expo, React, provider, database, Azure, or feature-layer
- * dependency or import, and it performs no runtime logic.
+ * dependency or import. The only runtime code is the documented WCAG 2.x
+ * contrast helper; everything else is data and types.
  *
- * Motion/haptic behavior is intentionally out of scope (MTS-011).
+ * Motion/haptic *behavior* (animation helpers, Reanimated integration,
+ * Reduce Motion service, haptic adapter) is intentionally out of scope
+ * (MTS-011); the centralized motion tokens themselves are part of MTS-008.
  */
 
 /** Approx. 4-point base-grid spacing scale (§6.3). */
@@ -176,3 +182,117 @@ type Equal<X, Y> =
  */
 export const lightDarkSemanticKeyParity: Equal<keyof typeof lightColors, keyof typeof darkColors> =
   true;
+
+/**
+ * Timing durations in milliseconds (technical specification §7.2).
+ *
+ * Centralized so screens and services never invent their own durations;
+ * `celebrationMin`/`celebrationMax` are the approved mission-completion
+ * celebration bounds.
+ */
+export const duration = {
+  instant: 80,
+  fast: 140,
+  standard: 220,
+  sheet: 280,
+  emphasis: 420,
+  celebrationMin: 600,
+  celebrationMax: 900,
+} as const;
+
+/** Cubic-bezier easing curves (technical specification §7.2). */
+export const easing = {
+  standard: [0.2, 0.0, 0.0, 1.0],
+  enter: [0.0, 0.0, 0.2, 1.0],
+  exit: [0.4, 0.0, 1.0, 1.0],
+} as const;
+
+/** Spring configuration for release after drag/resize (technical specification §7.2). */
+export const spring = {
+  damping: 22,
+  stiffness: 260,
+  mass: 0.8,
+} as const;
+
+/**
+ * Elevation (technical specification §6.8): restrained shadows only.
+ *
+ * Three semantic levels, each with platform-specific representations so
+ * screens never invent their own shadow constants:
+ *   - `card`     — subtle 1–2 pt vertical offset, low opacity;
+ *   - `sheet`    — stronger top separation (bottom sheets slide up from the
+ *                  bottom, so their separation shadow is cast upward);
+ *   - `floating` — medium elevation for the floating capture / primary
+ *                  action.
+ *
+ * iOS values are shadow properties; Android uses material elevation. The
+ * numeric representations intentionally differ per platform (§6.8: visually
+ * equivalent, not numerically identical) but stay centralized.
+ */
+export const elevation = {
+  card: {
+    ios: {
+      shadowColor: "#000000",
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.08,
+      shadowRadius: 3,
+    },
+    android: { elevation: 2 },
+  },
+  sheet: {
+    ios: {
+      shadowColor: "#000000",
+      shadowOffset: { width: 0, height: -4 },
+      shadowOpacity: 0.12,
+      shadowRadius: 12,
+    },
+    android: { elevation: 12 },
+  },
+  floating: {
+    ios: {
+      shadowColor: "#000000",
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.16,
+      shadowRadius: 16,
+    },
+    android: { elevation: 16 },
+  },
+} as const;
+
+/**
+ * WCAG 2.x relative luminance of an sRGB hex color.
+ *
+ * Follows the WCAG 2.1 §1.4.3 formula:
+ *   - each 8-bit channel is normalized to [0, 1];
+ *   - linearize: c / 12.92 when c <= 0.03928, otherwise ((c + 0.055) / 1.055) ^ 2.4;
+ *   - L = 0.2126R + 0.7152G + 0.0722B.
+ *
+ * Accepts "#RGB" and "#RRGGBB" forms; anything else throws.
+ */
+export function wcagRelativeLuminance(hex: string): number {
+  const normalized = hex.replace(/^#/, "");
+  const expanded =
+    normalized.length === 3 ? [...normalized].map((c) => c + c).join("") : normalized;
+  if (!/^[0-9a-fA-F]{6}$/.test(expanded)) {
+    throw new Error(`wcagRelativeLuminance: expected "#RGB" or "#RRGGBB", got "${hex}"`);
+  }
+  const [r, g, b] = [0, 2, 4].map((i) => {
+    const channel = parseInt(expanded.slice(i, i + 2), 16) / 255;
+    return channel <= 0.03928 ? channel / 12.92 : Math.pow((channel + 0.055) / 1.055, 2.4);
+  }) as [number, number, number];
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/**
+ * WCAG 2.x contrast ratio between two hex colors:
+ * (L1 + 0.05) / (L2 + 0.05), where L1 >= L2 (WCAG 2.1 §1.4.3).
+ *
+ * Ordinary text requires 4.5:1 (AA); UI components and large text require
+ * 3:1. Centralized here so screens and primitives never implement a second,
+ * divergent contrast calculation.
+ */
+export function wcagContrastRatio(fg: string, bg: string): number {
+  const l1 = wcagRelativeLuminance(fg);
+  const l2 = wcagRelativeLuminance(bg);
+  return l1 >= l2 ? (l1 + 0.05) / (l2 + 0.05) : (l2 + 0.05) / (l1 + 0.05);
+}

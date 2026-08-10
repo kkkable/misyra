@@ -45,7 +45,11 @@ async function loadGuard() {
 
 test("guard module exists and exposes the check contract", async () => {
   const guard = await loadGuard();
-  assert.equal(typeof guard.checkHardcodedColors, "function", "checkHardcodedColors must be exported");
+  assert.equal(
+    typeof guard.checkHardcodedColors,
+    "function",
+    "checkHardcodedColors must be exported",
+  );
   assert.ok(Array.isArray(guard.DEFAULT_EXCEPTIONS), "DEFAULT_EXCEPTIONS must be exported");
   assert.equal(
     guard.DEFAULT_EXCEPTIONS.length,
@@ -66,9 +70,7 @@ test("raw hex literal fixture is flagged with file, line and value", async () =>
   const guard = await loadGuard();
   const file = join(FIXTURE_DIR, "raw-hex.tsx");
   const result = guard.checkHardcodedColors({ files: [file] });
-  assert.deepEqual(result.violations, [
-    { file, line: 1, value: "#FF00AA" },
-  ]);
+  assert.deepEqual(result.violations, [{ file, line: 1, value: "#FF00AA" }]);
 });
 
 test("raw rgb/rgba literal fixture is flagged with file, line and value", async () => {
@@ -112,7 +114,12 @@ test("an exception entry does not leak to other files or lines", async () => {
   const exceptionForOtherFile = guard.checkHardcodedColors({
     files: [hexFile],
     exceptions: [
-      { file: join(FIXTURE_DIR, "documented-exception.tsx"), line: 1, value: "#FF00AA", reason: "wrong file" },
+      {
+        file: join(FIXTURE_DIR, "documented-exception.tsx"),
+        line: 1,
+        value: "#FF00AA",
+        reason: "wrong file",
+      },
     ],
   });
   assert.deepEqual(exceptionForOtherFile.violations, [

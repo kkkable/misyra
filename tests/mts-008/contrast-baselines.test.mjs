@@ -66,6 +66,7 @@ async function loadTokens() {
 }
 
 /** Ordinary-text pairings (WCAG 2.1 §1.4.3, 4.5:1) in both modes. */
+/** @type {readonly (readonly [string, string])[]} */
 const TEXT_PAIRINGS = [
   ["textPrimary", "surface"],
   ["textSecondary", "surface"],
@@ -73,6 +74,7 @@ const TEXT_PAIRINGS = [
 ];
 
 /** Primary-control pairings (WCAG 2.1 §1.4.11, 3:1) in both modes. */
+/** @type {readonly (readonly [string, string])[]} */
 const CONTROL_PAIRINGS = [
   ["primaryText", "primary"],
   ["primaryText", "primaryPressed"],
@@ -83,6 +85,8 @@ const CONTROL_PAIRINGS = [
  * against the exact §6.6/§6.7 palette values (tolerance ±0.01). Pinning the
  * exact ratios proves the package calculation and the approved palette
  * agree with the documented reference implementation.
+ *
+ * @type {Record<string, Record<string, number>>}
  */
 const EXPECTED_RATIOS = {
   light: {
@@ -132,7 +136,9 @@ test("ordinary text pairings match the documented reference ratios exactly", asy
     const palette = mode === "light" ? mod.lightColors : mod.darkColors;
     for (const [fg, bg] of TEXT_PAIRINGS) {
       const actual = mod.wcagContrastRatio(palette[fg], palette[bg]);
-      const expected = EXPECTED_RATIOS[mode][`${fg}/${bg}`];
+      const expected = /** @type {number} */ (
+        /** @type {Record<string, number>} */ (EXPECTED_RATIOS[mode])[`${fg}/${bg}`]
+      );
       assert.ok(
         Math.abs(actual - expected) < 0.01,
         `${mode} ${fg}/${bg}: expected ${expected.toFixed(6)}:1, got ${actual.toFixed(6)}:1`,
@@ -161,7 +167,9 @@ test("primary control pairings match the documented reference ratios exactly", a
     const palette = mode === "light" ? mod.lightColors : mod.darkColors;
     for (const [fg, bg] of CONTROL_PAIRINGS) {
       const actual = mod.wcagContrastRatio(palette[fg], palette[bg]);
-      const expected = EXPECTED_RATIOS[mode][`${fg}/${bg}`];
+      const expected = /** @type {number} */ (
+        /** @type {Record<string, number>} */ (EXPECTED_RATIOS[mode])[`${fg}/${bg}`]
+      );
       assert.ok(
         Math.abs(actual - expected) < 0.01,
         `${mode} ${fg}/${bg}: expected ${expected.toFixed(6)}:1, got ${actual.toFixed(6)}:1`,
