@@ -25,6 +25,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { pathToFileURL } from "node:url";
 import { repoRoot, walkFiles } from "../toolchain/helpers.mjs";
+import { runTsc } from "@misyra/test-config/fixture-runner";
 
 const PACKAGE_DIR = join(repoRoot, "packages", "design-tokens");
 const DIST_ENTRY = join(PACKAGE_DIR, "dist", "index.js");
@@ -236,6 +237,16 @@ test("public entry is importable and exposes every token family", async () => {
   for (const family of ["space", "radius", "typography", "lightColors", "darkColors"]) {
     assert.ok(family in mod, `public entry must export ${family}`);
   }
+});
+
+test("exported ColorValue accepts approved values from both palettes via the public type surface", () => {
+  ensureBuilt();
+  const result = runTsc("tests/fixtures/mts-008/tsconfig.color-value-fixture.json");
+  assert.equal(
+    result.code,
+    0,
+    `the public ColorValue type must accept approved light AND dark values; tsc output:\n${result.output}`,
+  );
 });
 
 test("design-tokens introduces no framework/provider dependency or import", () => {
