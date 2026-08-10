@@ -52,10 +52,7 @@ test("public boundary re-exports the full primitive inventory (no deep imports)"
   for (const name of EXPECTED) {
     const starExport = src.includes(`export * from "./${name}"`);
     const namedExport = new RegExp(`\\b${name}\\b`).test(src);
-    assert.ok(
-      starExport || namedExport,
-      `index.ts does not surface primitive "${name}"`,
-    );
+    assert.ok(starExport || namedExport, `index.ts does not surface primitive "${name}"`);
   }
 });
 
