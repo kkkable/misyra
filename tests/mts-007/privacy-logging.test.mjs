@@ -256,6 +256,126 @@ test("console-looking static template text does not create a false positive", ()
   }
 });
 
+test("a block-commented console call inside template interpolation stays green", () => {
+  // Comment text inside an executable ${...} interpolation region is not
+  // executable: the commented console.log must not create a false positive.
+  const dir = mkdtempSync(join(tmpdir(), "misyra-privacy-"));
+  const fixture = join(dir, "interpolation-block-comment.mjs");
+  writeFileSync(
+    fixture,
+    [
+      "// Intentional privacy-gate fixture: comment text inside a template",
+      "// interpolation is not executable code.",
+      "export function render(user) {",
+      '  const rendered = `${/* console.log(user.token) */ "safe"}`;',
+      "  return rendered;",
+      "}",
+      "",
+    ].join("\n"),
+  );
+  try {
+    const result = runScript([fixture]);
+    assert.equal(
+      result.status,
+      0,
+      `a block-commented console call inside interpolation must stay green:\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("a line-commented HTTP payload console call inside interpolation stays green", () => {
+  // A line comment inside an executable ${...} interpolation region is not
+  // executable: the commented console.error must not create a false positive.
+  const dir = mkdtempSync(join(tmpdir(), "misyra-privacy-"));
+  const fixture = join(dir, "interpolation-line-comment.mjs");
+  writeFileSync(
+    fixture,
+    [
+      "// Intentional privacy-gate fixture: comment text inside a template",
+      "// interpolation is not executable code.",
+      "export function renderRequest(request) {",
+      "  const other = `${",
+      "    // console.error(request.body)",
+      '    "safe"',
+      "  }`;",
+      "  return other;",
+      "}",
+      "",
+    ].join("\n"),
+  );
+  try {
+    const result = runScript([fixture]);
+    assert.equal(
+      result.status,
+      0,
+      `a line-commented console call inside interpolation must stay green:\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("a commented console call outside any template stays green", () => {
+  // Ordinary comments outside templates must keep ignoring commented-out
+  // diagnostic logging.
+  const dir = mkdtempSync(join(tmpdir(), "misyra-privacy-"));
+  const fixture = join(dir, "ordinary-comment.mjs");
+  writeFileSync(
+    fixture,
+    [
+      "// Intentional privacy-gate fixture: commented-out diagnostic logging",
+      "// must not trip the gate.",
+      "export function run(user) {",
+      "  // console.log(user.token)",
+      "  /* console.error(request.body) */",
+      "  return user.id;",
+      "}",
+      "",
+    ].join("\n"),
+  );
+  try {
+    const result = runScript([fixture]);
+    assert.equal(
+      result.status,
+      0,
+      `ordinary comments must stay green:\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("a commented console call inside a nested template interpolation stays green", () => {
+  // An interpolation nested inside another template is still executable
+  // code, and its comment text must not create a false positive.
+  const dir = mkdtempSync(join(tmpdir(), "misyra-privacy-"));
+  const fixture = join(dir, "nested-interpolation-comment.mjs");
+  writeFileSync(
+    fixture,
+    [
+      "// Intentional privacy-gate fixture: comment text inside an",
+      "// interpolation nested in another template is not executable code.",
+      "export function render(user) {",
+      '  const rendered = `${`inner ${/* console.log(user.token) */ "ok"}`}`;',
+      "  return rendered;",
+      "}",
+      "",
+    ].join("\n"),
+  );
+  try {
+    const result = runScript([fixture]);
+    assert.equal(
+      result.status,
+      0,
+      `a block-commented console call inside a nested interpolation must stay green:\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("clean source passes the privacy gate", () => {
   const result = runScript([CLEAN]);
   assert.equal(
