@@ -15,7 +15,7 @@
 import type { ColorValue } from "../../../packages/design-tokens/dist/index.js";
 
 /** Approved dark-mode literals must be assignable to ColorValue. */
-export const darkPrimary: ColorValue = "#9B7AFF";
+export const darkPrimary: ColorValue = "#6D3DFF";
 export const darkVerified: ColorValue = "#54CF83";
 export const darkCanvas: ColorValue = "#11111A";
 export const darkOverlay: ColorValue = "rgba(0, 0, 0, 0.62)";

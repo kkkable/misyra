@@ -498,8 +498,8 @@ export const darkColors = {
   border: '#343247',
   divider: '#2A2939',
 
-  primary: '#9B7AFF',
-  primaryPressed: '#8461F4',
+  primary: '#6D3DFF',
+  primaryPressed: '#724AF2',
   primarySoft: '#2A214A',
   primaryText: '#FFFFFF',
 

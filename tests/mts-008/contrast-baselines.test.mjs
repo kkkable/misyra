@@ -132,8 +132,8 @@ const EXPECTED_RATIOS = {
     "textPrimary/surface": 16.121096,
     "textSecondary/surface": 8.703854,
     "textPrimary/canvas": 17.391433,
-    "primaryText/primary": 3.171474,
-    "primaryText/primaryPressed": 4.202257,
+    "primaryText/primary": 5.582524,
+    "primaryText/primaryPressed": 5.280157,
   },
 };
 
