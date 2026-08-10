@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { Platform, Pressable, View } from "react-native";
 import type { StyleProp, ViewStyle } from "react-native";
 import { elevation, radius, space } from "@misyra/design-tokens";
-import { surfaceToken, type ThemeMode } from "./core";
+import { minTouchTargetStyle, surfaceToken, type ThemeMode } from "./core";
 
 export interface CardProps {
   readonly mode: ThemeMode;
@@ -31,7 +31,7 @@ export function Card({ mode, children, onPress, testID }: CardProps) {
       <Pressable
         accessibilityRole="button"
         onPress={onPress}
-        style={({ pressed }) => [style, pressed ? { opacity: 0.92 } : null]}
+        style={({ pressed }) => [style, minTouchTargetStyle(), pressed ? { opacity: 0.92 } : null]}
         {...(testID ? { testID } : {})}
       >
         {children}

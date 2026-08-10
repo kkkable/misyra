@@ -60,6 +60,7 @@ export function TextArea({
           paddingHorizontal: space[3],
           paddingVertical: space[3],
           textAlignVertical: "top",
+          ...semanticTypographyStyle("body", 400),
         }}
         value={value}
         {...(testID ? { testID } : {})}

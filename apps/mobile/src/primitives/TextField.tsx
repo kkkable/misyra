@@ -58,6 +58,7 @@ export function TextField({
           color: colors.foreground,
           paddingHorizontal: space[3],
           paddingVertical: space[3],
+          ...semanticTypographyStyle("body", 400),
         }}
         value={value}
         {...(testID ? { testID } : {})}
