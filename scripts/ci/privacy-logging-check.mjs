@@ -32,63 +32,153 @@ const SENSITIVE_TOKEN =
 
 /**
  * Remove line and block comments so commented-out code cannot trip the
- * gate, while preserving string and template literals verbatim (a literal
- * may itself contain "//" or "/*").
+ * gate, while preserving string literals and the static text of template
+ * literals verbatim (a literal may itself contain "//" or "/*").
+ *
+ * Template literals are walked as structures: static text between
+ * interpolations is copied verbatim, but each ${...} interpolation region
+ * is executable code, so comments inside it are stripped like comments in
+ * any other code (a commented-out console.* call inside an interpolation is
+ * still a comment). Strings, templates, and braces inside an interpolation
+ * are handled recursively, so replacing a comment with whitespace can never
+ * change the surrounding literal's shape.
  */
 function stripComments(source) {
-  let out = "";
+  const out = [];
   let i = 0;
-  let inDouble = false;
-  let inSingle = false;
-  let inTemplate = false;
   while (i < source.length) {
     const char = source[i];
     const next = source[i + 1];
-    if (inDouble || inSingle || inTemplate) {
-      out += char;
-      if (char === "\\") {
-        out += next ?? "";
-        i += 2;
-        continue;
-      }
-      if (
-        (inDouble && char === '"') ||
-        (inSingle && char === "'") ||
-        (inTemplate && char === "`")
-      ) {
-        inDouble = false;
-        inSingle = false;
-        inTemplate = false;
-      }
-      i += 1;
-      continue;
-    }
-    if (char === '"') {
-      inDouble = true;
-      out += char;
-      i += 1;
-    } else if (char === "'") {
-      inSingle = true;
-      out += char;
-      i += 1;
+    if (char === '"' || char === "'") {
+      i = copyString(source, i, char, out);
     } else if (char === "`") {
-      inTemplate = true;
-      out += char;
-      i += 1;
+      i = copyTemplate(source, i, out);
     } else if (char === "/" && next === "/") {
       while (i < source.length && source[i] !== "\n") i += 1;
-      out += "\n";
+      out.push("\n");
     } else if (char === "/" && next === "*") {
       i += 2;
       while (i < source.length && !(source[i] === "*" && source[i + 1] === "/")) i += 1;
       i += Math.min(2, source.length - i);
-      out += " ";
+      out.push(" ");
     } else {
-      out += char;
+      out.push(char);
       i += 1;
     }
   }
-  return out;
+  return out.join("");
+}
+
+/**
+ * Append the string literal opened at `i` (which must point at the opening
+ * quote) verbatim, then return the index just past the closing quote.
+ * Backslash escapes are copied as-is.
+ *
+ * @param {string} source
+ * @param {number} i
+ * @param {string} quote
+ * @param {string[]} out
+ * @returns {number}
+ */
+function copyString(source, i, quote, out) {
+  out.push(source[i]);
+  i += 1;
+  while (i < source.length) {
+    const ch = source[i];
+    if (ch === "\\") {
+      out.push(ch, source[i + 1] ?? "");
+      i += 2;
+      continue;
+    }
+    out.push(ch);
+    i += 1;
+    if (ch === quote) break;
+  }
+  return i;
+}
+
+/**
+ * Append the entire template literal opened at `i` (which must point at the
+ * opening backtick). Static text is copied verbatim; each ${...} region is
+ * executable code passed to `copyCodeRegion`, which strips comments. Returns
+ * the index just past the closing backtick.
+ *
+ * @param {string} source
+ * @param {number} i
+ * @param {string[]} out
+ * @returns {number}
+ */
+function copyTemplate(source, i, out) {
+  out.push(source[i]);
+  i += 1;
+  while (i < source.length) {
+    const ch = source[i];
+    if (ch === "\\") {
+      out.push(ch, source[i + 1] ?? "");
+      i += 2;
+      continue;
+    }
+    if (ch === "`") {
+      out.push(ch);
+      return i + 1;
+    }
+    if (ch === "$" && source[i + 1] === "{") {
+      out.push("$", "{");
+      i = copyCodeRegion(source, i + 2, out);
+      continue;
+    }
+    out.push(ch);
+    i += 1;
+  }
+  return i;
+}
+
+/**
+ * Append executable code starting just after "${" (interpolation depth 1),
+ * stripping line and block comments, until the matching "}". Strings,
+ * templates, and nested braces inside the expression are handled
+ * recursively. Returns the index just past the interpolation's closing "}".
+ *
+ * @param {string} source
+ * @param {number} i
+ * @param {string[]} out
+ * @returns {number}
+ */
+function copyCodeRegion(source, i, out) {
+  let depth = 1;
+  while (i < source.length && depth > 0) {
+    const ch = source[i];
+    const next = source[i + 1];
+    if (ch === '"' || ch === "'") {
+      i = copyString(source, i, ch, out);
+      continue;
+    }
+    if (ch === "`") {
+      i = copyTemplate(source, i, out);
+      continue;
+    }
+    if (ch === "/" && next === "/") {
+      while (i < source.length && source[i] !== "\n") i += 1;
+      out.push("\n");
+      continue;
+    }
+    if (ch === "/" && next === "*") {
+      i += 2;
+      while (i < source.length && !(source[i] === "*" && source[i + 1] === "/")) i += 1;
+      i += Math.min(2, source.length - i);
+      out.push(" ");
+      continue;
+    }
+    out.push(ch);
+    i += 1;
+    if (ch === "{") {
+      depth += 1;
+    } else if (ch === "}") {
+      depth -= 1;
+      if (depth === 0) return i;
+    }
+  }
+  return i;
 }
 
 /**
