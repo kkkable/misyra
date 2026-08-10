@@ -12,23 +12,42 @@
  */
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { pathToFileURL } from "node:url";
-import { themes, wcagContrastRatio } from "../../packages/design-tokens/dist/index.js";
 import { repoRoot } from "../toolchain/helpers.mjs";
 
 const CORE = join(repoRoot, "apps", "mobile", "src", "primitives", "core.ts");
 // Compiled under apps/mobile/node_modules so the emitted module resolves the
 // @misyra/design-tokens workspace package at runtime. node_modules/ is ignored.
 const OUT = join(repoRoot, "apps", "mobile", "node_modules", ".mts009-core");
+const TOKENS_ENTRY = join(repoRoot, "packages", "design-tokens", "dist", "index.js");
 
-/** @type {Record<string, any> | undefined} */
-let cached;
+/**
+ * Materialize the built design-tokens public entry in a fresh checkout when
+ * dist is absent (CI runs Typecheck before Build). The package build is pure
+ * `tsc` — no network, no toolchain beyond the already-installed compiler.
+ */
+function ensureBuilt() {
+  if (!existsSync(TOKENS_ENTRY)) {
+    execFileSync(
+      process.execPath,
+      [join(repoRoot, "packages", "design-tokens", "scripts", "build.mjs")],
+      {
+        cwd: join(repoRoot, "packages", "design-tokens"),
+        encoding: "utf8",
+      },
+    );
+  }
+}
+
+/** @type {any} */ let cachedCore;
+/** @type {any} */ let cachedTokens;
 
 /** Compile and import the primitive core once per run. */
 async function loadCore() {
-  if (cached === undefined) {
+  if (cachedCore === undefined) {
     execFileSync(
       process.execPath,
       [
@@ -47,9 +66,18 @@ async function loadCore() {
       ],
       { cwd: repoRoot, encoding: "utf8" },
     );
-    cached = await import(pathToFileURL(join(OUT, "core.js")).href);
+    cachedCore = await import(pathToFileURL(join(OUT, "core.js")).href);
   }
-  return cached;
+  return cachedCore;
+}
+
+/** Load the built design-tokens public entry once per run. */
+async function loadTokens() {
+  if (cachedTokens === undefined) {
+    ensureBuilt();
+    cachedTokens = await import(pathToFileURL(TOKENS_ENTRY).href);
+  }
+  return cachedTokens;
 }
 
 test("touch targets respect the 44x44 point floor", async () => {
@@ -101,6 +129,7 @@ test("accessibility roles are defined for every primitive kind", async () => {
 
 test("primary button label meets 4.5:1 contrast in both themes", async () => {
   const core = await loadCore();
+  const { themes, wcagContrastRatio } = await loadTokens();
   for (const mode of ["light", "dark"]) {
     const actual = core.primaryLabelContrast(mode);
     assert.ok(actual >= 4.5, `${mode} primary label contrast ${actual} < 4.5`);
@@ -114,6 +143,7 @@ test("primary button label meets 4.5:1 contrast in both themes", async () => {
 
 test("button variants resolve approved tokens across states and themes", async () => {
   const core = await loadCore();
+  const { themes } = await loadTokens();
   for (const mode of ["light", "dark"]) {
     const t = themes[mode];
     assert.deepEqual(core.buttonColors(mode, "primary", "normal"), {
@@ -141,6 +171,7 @@ test("button variants resolve approved tokens across states and themes", async (
 
 test("secondary and destructive labels keep control contrast in both themes", async () => {
   const core = await loadCore();
+  const { wcagContrastRatio } = await loadTokens();
   for (const mode of ["light", "dark"]) {
     const secondary = core.buttonColors(mode, "secondary", "normal");
     const destructive = core.buttonColors(mode, "destructive", "normal");
@@ -157,6 +188,7 @@ test("secondary and destructive labels keep control contrast in both themes", as
 
 test("filled fields expose per-state colors from approved tokens", async () => {
   const core = await loadCore();
+  const { themes } = await loadTokens();
   for (const mode of ["light", "dark"]) {
     const t = themes[mode];
     assert.deepEqual(core.fieldColors(mode, "filled", "normal"), {
@@ -188,6 +220,7 @@ test("filled fields expose per-state colors from approved tokens", async () => {
 
 test("icon buttons resolve approved tokens across states", async () => {
   const core = await loadCore();
+  const { themes } = await loadTokens();
   for (const mode of ["light", "dark"]) {
     const t = themes[mode];
     assert.deepEqual(core.iconButtonColors(mode, "normal"), {
@@ -207,6 +240,7 @@ test("icon buttons resolve approved tokens across states", async () => {
 
 test("surface and text tokens resolve to approved theme values", async () => {
   const core = await loadCore();
+  const { themes } = await loadTokens();
   for (const mode of ["light", "dark"]) {
     const t = themes[mode];
     assert.equal(core.surfaceToken(mode, "canvas"), t.canvas);
