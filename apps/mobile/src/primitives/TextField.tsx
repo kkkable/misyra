@@ -4,6 +4,7 @@ import {
   fieldColors,
   semanticTypographyStyle,
   textToken,
+  MIN_TOUCH_TARGET,
   type FieldState,
   type ThemeMode,
 } from "./core";
@@ -56,6 +57,7 @@ export function TextField({
           borderRadius: radius.sm,
           borderWidth: 1,
           color: colors.foreground,
+          minHeight: MIN_TOUCH_TARGET,
           paddingHorizontal: space[3],
           paddingVertical: space[3],
           ...semanticTypographyStyle("body", 400),

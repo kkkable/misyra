@@ -47,19 +47,23 @@ export function Button({
       disabled={disabled}
       onPress={onPress}
       accessibilityRole={primitiveA11yRole("button")}
-      style={({ pressed }) => [
-        {
-          alignItems: "center",
-          backgroundColor: colors.background,
-          borderRadius: radius.sm,
-          flexDirection: "row",
-          gap: space[2],
-          justifyContent: "center",
-          paddingHorizontal: space[4],
-          opacity: pressed && state === "normal" ? 0.92 : 1,
-        },
-        minTouchTargetStyle(),
-      ]}
+      style={({ pressed }) => {
+        const resolved =
+          state === "normal" && pressed ? buttonColors(mode, variant, "pressed") : colors;
+        return [
+          {
+            alignItems: "center",
+            backgroundColor: resolved.background,
+            borderRadius: radius.sm,
+            flexDirection: "row",
+            gap: space[2],
+            justifyContent: "center",
+            paddingHorizontal: space[4],
+            opacity: pressed && state === "normal" ? 0.92 : 1,
+          },
+          minTouchTargetStyle(),
+        ];
+      }}
       {...(testID ? { testID } : {})}
     >
       {state === "loading" ? <ActivityIndicator size="small" color={colors.foreground} /> : null}
