@@ -141,8 +141,14 @@ export const darkColors = {
 /** Union of the approved semantic color keys shared by both palettes. */
 export type SemanticColorKey = keyof typeof lightColors;
 
-/** A semantic color value from the approved palettes. */
-export type ColorValue = (typeof lightColors)[SemanticColorKey];
+/**
+ * A semantic color value from the approved palettes — the union of the
+ * light (§6.6) and dark (§6.7) palette value types, so consumers may use
+ * any approved literal from either mode. The contract stays a literal
+ * union: arbitrary non-token colors are still rejected.
+ */
+export type ColorValue =
+  (typeof lightColors)[SemanticColorKey] | (typeof darkColors)[SemanticColorKey];
 
 /**
  * Typed light/dark theme pair exposing the same semantic color keys, so
