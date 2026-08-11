@@ -16,4 +16,8 @@ export const zhHK: Record<keyof typeof en, string> = {
   "placeholders.aiPlanner": "AI 規劃師畫面正在準備中。",
   "placeholders.progress": "進度畫面正在準備中。",
   "placeholders.settings": "設定畫面正在準備中。",
+  "placeholders.evidenceTitle": "證據",
+  "placeholders.evidence": "證據畫面正在準備中。",
+  "placeholders.storyTitle": "故事",
+  "placeholders.story": "故事畫面正在準備中。",
 };

@@ -54,15 +54,16 @@ function stackScreenTag(source, name) {
 }
 
 /**
- * Assert a single-line JSX tag carries an exact `prop="value"` pair.
+ * Assert a single-line JSX tag carries an exact `prop="value"` or
+ * `prop: "value"` pair (the latter inside `options={{ ... }}`).
  *
  * @param {string} tag the opening tag text.
  * @param {string} prop the prop name.
  * @param {string} value the exact quoted value.
  */
 function assertTagProp(tag, prop, value) {
-  const pattern = new RegExp(`\\b${prop}="${value}"`);
-  assert.match(tag, pattern, `expected ${prop}="${value}" inside <${tag}>`);
+  const pattern = new RegExp(`\\b${prop}\\s*[:=]\\s*"${value}"`);
+  assert.match(tag, pattern, `expected ${prop}: "${value}" inside <${tag}>`);
 }
 
 test("the mobile app keeps exactly the four approved permanent tab routes", () => {
@@ -91,8 +92,8 @@ test("no Missions/Stories/modal route is hidden inside the permanent tab group",
 
 test("the tab layout registers exactly the approved tab names", () => {
   const layout = readText("apps/mobile/app/(tabs)/_layout.tsx");
-  const names = [...layout.matchAll(/<Tabs\.Screen[^>]*\bname="([^"]+)"/g)].map(
-    (match) => String(match[1]),
+  const names = [...layout.matchAll(/<Tabs\.Screen[^>]*\bname="([^"]+)"/g)].map((match) =>
+    String(match[1]),
   );
   assert.deepEqual(
     [...names].sort(),
@@ -187,12 +188,20 @@ test("unmatched deep-link targets fall back deterministically to Calendar", () =
     "the fallback route must use the expo-router redirect surface",
   );
   assert.match(fallback, /\bRedirect\b/, "the fallback route must render <Redirect>");
-  assert.match(fallback, /href=(["'])\/\1/, "the fallback must target Calendar (/), the product-safe default root");
+  assert.match(
+    fallback,
+    /href=(["'])\/\1/,
+    "the fallback must target Calendar (/), the product-safe default root",
+  );
 });
 
 test("the deep-link scheme is configured for the app", () => {
   const config = readText("apps/mobile/app.config.ts");
-  assert.match(config, /scheme:\s*["']misyra["']/, "app.config.ts must declare the misyra deep-link scheme");
+  assert.match(
+    config,
+    /scheme:\s*["']misyra["']/,
+    "app.config.ts must declare the misyra deep-link scheme",
+  );
 });
 
 test("modal placeholder screens source their copy from the localization boundary", () => {
@@ -261,8 +270,8 @@ test("navigation route files stay within the approved import surface (no later-t
     "openai",
     "@ai-sdk/",
   ];
-  const files = readdirSync(APP_DIR, { recursive: true }).filter((name) =>
-    name.endsWith(".tsx"),
+  const files = readdirSync(APP_DIR, { recursive: true }).filter(
+    (name) => typeof name === "string" && name.endsWith(".tsx"),
   );
   assert.ok(files.length > 0, "expected at least one route file under apps/mobile/app");
   for (const file of files) {
