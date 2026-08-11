@@ -69,7 +69,9 @@ async function loadRealAdapter() {
 function makeFakeProvider({ reject = false } = {}) {
   /** @type {Array<[string, ...unknown[]]>} */
   const calls = [];
-  const record = (name) =>
+  /** @type {(name: string) => (...args: unknown[]) => Promise<void>} */
+  const record =
+    (name) =>
     (...args) => {
       calls.push([name, ...args]);
       return reject
@@ -139,15 +141,8 @@ test("Android: all AndroidHaptics constants used are real SDK 57 enum values", (
   const dts = readText(HAPTICS_DTS);
   const section = dts.match(/export declare enum AndroidHaptics \{([\s\S]*?)\}/);
   assert.ok(section, "expo-haptics SDK must declare the AndroidHaptics enum");
-  const sdkValues = new Set(
-    [...section[1].matchAll(/(\w+)\s*=\s*"([^"]+)"/g)].map((m) => m[2]),
-  );
-  for (const constant of [
-    "segment-tick",
-    "segment-frequent-tick",
-    "confirm",
-    "reject",
-  ]) {
+  const sdkValues = new Set([...(section[1] ?? "").matchAll(/(\w+)\s*=\s*"([^"]+)"/g)].map((m) => m[2]));
+  for (const constant of ["segment-tick", "segment-frequent-tick", "confirm", "reject"]) {
     assert.ok(
       sdkValues.has(constant),
       `AndroidHaptics constant "${constant}" must exist in the installed SDK 57 enum`,
@@ -176,10 +171,7 @@ test("iOS: semantic intents retain the subtle selection/impact/notification APIs
     "iOS must keep the reviewed subtle selection/impact/notification mapping",
   );
   const used = new Set(calls.map(([name]) => name));
-  assert.ok(
-    !used.has("performAndroidHapticsAsync"),
-    "iOS must not use the Android-only API",
-  );
+  assert.ok(!used.has("performAndroidHapticsAsync"), "iOS must not use the Android-only API");
 });
 
 test("real adapter rejection/unavailability is a silent no-op and cannot crash the caller", async () => {
@@ -216,7 +208,7 @@ test("real adapter availability is platform-derived, never an unconditional supp
 });
 
 test("real adapter source references the system-haptic API and no unconditional supported flag", () => {
-  const src = readText(join(MOTION_DIR, "expo-haptics.ts"));
+  const src = readText("apps/mobile/src/motion/expo-haptics.ts");
   assert.ok(
     src.includes("performAndroidHapticsAsync"),
     "expo-haptics.ts must route Android feedback through performAndroidHapticsAsync",
@@ -228,9 +220,9 @@ test("real adapter source references the system-haptic API and no unconditional 
 });
 
 test("native wiring module binds the factory to Platform.OS and the real Expo provider", () => {
-  const wiring = join(MOTION_DIR, "expo-haptics-native.ts");
-  assert.ok(existsSync(wiring), "missing expo-haptics-native.ts wiring module");
-  const src = readText(wiring);
+  const WIRING = "apps/mobile/src/motion/expo-haptics-native.ts";
+  assert.ok(fileExists(WIRING), "missing expo-haptics-native.ts wiring module");
+  const src = readText(WIRING);
   assert.ok(src.includes("Platform.OS"), "wiring must derive the platform from Platform.OS");
   assert.ok(
     src.includes("createExpoHapticsAdapter"),
