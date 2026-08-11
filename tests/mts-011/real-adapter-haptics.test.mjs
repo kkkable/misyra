@@ -141,7 +141,9 @@ test("Android: all AndroidHaptics constants used are real SDK 57 enum values", (
   const dts = readText(HAPTICS_DTS);
   const section = dts.match(/export declare enum AndroidHaptics \{([\s\S]*?)\}/);
   assert.ok(section, "expo-haptics SDK must declare the AndroidHaptics enum");
-  const sdkValues = new Set([...(section[1] ?? "").matchAll(/(\w+)\s*=\s*"([^"]+)"/g)].map((m) => m[2]));
+  const sdkValues = new Set(
+    [...(section[1] ?? "").matchAll(/(\w+)\s*=\s*"([^"]+)"/g)].map((m) => m[2]),
+  );
   for (const constant of ["segment-tick", "segment-frequent-tick", "confirm", "reject"]) {
     assert.ok(
       sdkValues.has(constant),
