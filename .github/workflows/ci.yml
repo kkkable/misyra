@@ -47,8 +47,15 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Install Playwright Chromium (MTS-012 screenshot harness)
+        run: pnpm exec playwright install --with-deps chromium
+
       - name: Test
         run: pnpm test
+
+      - name: Regenerate MTS-012 image baselines (Linux renderer)
+        if: runner.os == 'Linux' && !cancelled()
+        run: pnpm visual:update-image-baselines
 
       - name: Scan for committed secrets
         run: pnpm secret:scan

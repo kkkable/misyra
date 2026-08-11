@@ -9,6 +9,10 @@ coverage/
 # Compiled ARM templates emitted by `az bicep build` (keep Bicep sources only)
 infra/azure/**/*.json
 
+# MTS-012 image-harness font rebuild sources (the committed artifact is the
+# subset woff2 + glyph inventory; the full Noto Sans SC variable font is large)
+scripts/assets/
+
 # Expo generated output
 .expo/
 
@@ -22,6 +26,10 @@ infra/azure/**/*.json
 *.log
 npm-debug.log*
 pnpm-debug.log*
+
+# pnpm's local content-addressable store (pnpm 10 default when no
+# store-dir is configured; CI redirects it into the tool cache)
+.pnpm-store/
 
 # IDE metadata
 .vscode/
