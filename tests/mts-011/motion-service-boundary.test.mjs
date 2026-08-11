@@ -32,10 +32,7 @@ test("public boundary re-exports the motion and haptic API surface", () => {
     "FakeHapticsAdapter",
   ];
   for (const name of expected) {
-    assert.ok(
-      src.includes(name),
-      `motion index.ts does not surface "${name}"`,
-    );
+    assert.ok(src.includes(name), `motion index.ts does not surface "${name}"`);
   }
 });
 
