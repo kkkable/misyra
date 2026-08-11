@@ -161,18 +161,46 @@ test("the root layout composes navigation inside a safe-area provider", () => {
   );
 });
 
-test("the tab shell is bottom-gesture-inset aware", () => {
+test("the built-in bottom tab bar owns the bottom safe-area inset (no duplicate manual padding)", () => {
+  // Source-backed proof that the installed Expo Router vendored bottom-tabs
+  // built-in bar applies the resolved bottom safe-area inset itself when the
+  // bar renders at the bottom edge. Because the built-in bar already owns the
+  // inset, Misyra's tab shell must NOT re-apply insets.bottom as manual
+  // tab-bar padding (which would double the inset and inflate the bar).
+  const builtInBar = readText(
+    "apps/mobile/node_modules/expo-router/build/react-navigation/bottom-tabs/views/BottomTabBar.js",
+  );
+  assert.match(
+    builtInBar,
+    /tabBarPosition\s*===\s*['"]bottom['"]/,
+    "the built-in tab bar must position itself at the bottom edge so it owns the inset",
+  );
+  assert.match(
+    builtInBar,
+    /paddingBottom\s*:\s*[^;{]*insets\.bottom/,
+    "the built-in bottom tab bar must apply the resolved bottom safe-area inset itself",
+  );
+
   const layout = readText("apps/mobile/app/(tabs)/_layout.tsx");
   assert.match(
     layout,
-    /useSafeAreaInsets\b.*react-native-safe-area-context|react-native-safe-area-context.*useSafeAreaInsets/,
-    "tab shell must consume useSafeAreaInsets from react-native-safe-area-context",
+    /<Tabs\b/,
+    "the tab shell must use the standard built-in <Tabs> navigator so it owns the inset",
   );
-  assert.match(layout, /useSafeAreaInsets\(\)/, "tab shell must call useSafeAreaInsets()");
-  assert.match(
+  assert.doesNotMatch(
     layout,
-    /tabBarStyle[\s\S]{0,160}?insets\.bottom/,
-    "tab bar style must apply the resolved bottom gesture inset",
+    /\btabBar\s*=\s*\{/,
+    "the tab shell must not supply a custom tab bar that would re-own inset handling",
+  );
+  assert.doesNotMatch(
+    layout,
+    /insets\.bottom/,
+    "the tab shell must not manually inject the bottom safe-area inset (the built-in tab bar applies it once)",
+  );
+  assert.doesNotMatch(
+    layout,
+    /paddingBottom\s*[:=]/,
+    "the tab shell must not set manual paddingBottom that would duplicate the built-in bottom inset",
   );
 });
 
