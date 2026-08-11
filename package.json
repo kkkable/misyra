@@ -22,6 +22,7 @@
     "dev:reset": "node scripts/dev/reset.mjs",
     "dev:health": "node scripts/dev/health.mjs",
     "test:services": "node --test \"integration/mts-004/*.test.mjs\"",
+    "visual:update-baselines": "node tests/mts-012/update-baselines.mjs",
     "secret:scan": "node scripts/ci/secret-scan.mjs",
     "localization:check": "node scripts/ci/localization-check.mjs",
     "privacy:check": "node scripts/ci/privacy-logging-check.mjs",

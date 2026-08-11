@@ -45,13 +45,15 @@ const HARNESS_ENTRY = "./harness/manifest.mjs";
 const BASELINES_DIR = join(repoRoot, "tests", "mts-012", "baselines");
 const MTS_012_DIR = join(repoRoot, "tests", "mts-012");
 
-/** @type {Promise<typeof import("./harness/manifest.mjs")> | undefined} */
+/** @type {Promise<any> | undefined} */
+// Dynamic module (repo convention: MTS-009/010/011 type real-module loads as
+// `any`; the harness module itself is fully type-checked by root tsc).
 let harnessPromise;
 
 /** Load the harness entry; at the RED head this rejects (module missing). */
 function loadHarness() {
   harnessPromise ??= import(HARNESS_ENTRY);
-  return harnessPromise;
+  return harnessPromise ?? Promise.reject(new Error("harness module unavailable"));
 }
 
 /** Every approved platform × size × appearance × locale × text-scale combo. */
@@ -118,10 +120,7 @@ test("fixture matrix covers light/dark appearance, English/zh-HK, and large text
   assert.deepEqual(APPEARANCES, ["light", "dark"], "both appearance modes must be represented");
   assert.ok(LOCALES.includes("en"), "English must be represented");
   assert.ok(LOCALES.includes("zh-HK"), "zh-HK must be represented");
-  assert.ok(
-    TEXT_SCALES.includes(2),
-    "large text (textScale ≥ 2) must be included in the fixtures",
-  );
+  assert.ok(TEXT_SCALES.includes(2), "large text (textScale ≥ 2) must be included in the fixtures");
   assert.ok(TEXT_SCALES.includes(1), "normal text scale must be included");
 });
 
@@ -187,7 +186,8 @@ test("touch targets stay ≥ 44 pt at every size, appearance, locale, and text s
       slots.push({ name: `tab:${tab.route}`, width: tab.width, height: tab.height });
     }
     for (const [name, spec] of Object.entries(primitives.layout.primitives)) {
-      if (spec.minWidth !== undefined) slots.push({ name, width: spec.minWidth, height: spec.minHeight });
+      if (spec.minWidth !== undefined)
+        slots.push({ name, width: spec.minWidth, height: spec.minHeight });
     }
     assert.ok(slots.length >= 5, "the harness must model at least five interactive slots");
     for (const slot of slots) {
@@ -245,6 +245,7 @@ test("the visual-regression gate fails on an intentional mismatch and reports th
   const baseline = h.buildManifest("shell", combo);
   const mutated = structuredClone(baseline);
   mutated.layout.tabBar.height = 99;
+  /** @type {any[]} */
   const diffs = h.compareManifest(mutated.layout, baseline.layout);
   assert.ok(
     diffs.length >= 1,
@@ -302,19 +303,31 @@ test("normal test execution never rewrites accepted baselines (baseline-update g
     }
   }
   // (b) No *test* file may write baselines; only the explicit update script may.
+  // NOTE: assembled from split parts so the guard never matches its own source.
+  const writePattern = new RegExp(
+    ["writ", "eFile", "Sync"].join("") +
+      "|" +
+      ["appen", "dFile", "Sync"].join("") +
+      "|" +
+      ["create", "Write", "Stream"].join(""),
+  );
   const testFiles = walkFiles(MTS_012_DIR, (name) => name.endsWith(".test.mjs"));
   assert.ok(testFiles.length >= 1, "expected at least one MTS-012 test file");
   for (const rel of testFiles) {
     const source = readFileSync(join(repoRoot, rel), "utf8");
     assert.ok(
-      !/writeFileSync|appendFileSync|createWriteStream/.test(source),
+      !writePattern.test(source),
       `${rel} must never write files (baseline updates must stay explicit)`,
     );
   }
   // (c) The explicit update workflow must exist as a standalone script.
   const updateScript = join(MTS_012_DIR, "update-baselines.mjs");
   const script = readFileSync(updateScript, "utf8");
-  assert.match(script, /writeFileSync/, "update-baselines.mjs must be the explicit baseline writer");
+  assert.match(
+    script,
+    new RegExp(["writ", "eFile", "Sync"].join("")),
+    "update-baselines.mjs must be the explicit baseline writer",
+  );
   assert.match(script, /baselines/, "update-baselines.mjs must target the baselines directory");
 });
 
@@ -350,9 +363,8 @@ test("the harness stays responsive rather than scaling a fixed canvas", async ()
     );
   }
   // No scale-to-fit transforms anywhere in the mobile app sources.
-  const appSources = walkFiles(
-    join(repoRoot, "apps", "mobile", "app"),
-    (name) => /\.tsx?$/.test(name),
+  const appSources = walkFiles(join(repoRoot, "apps", "mobile", "app"), (name) =>
+    /\.tsx?$/.test(name),
   );
   for (const rel of appSources) {
     const source = readFileSync(join(repoRoot, rel), "utf8");
@@ -395,17 +407,13 @@ test("selected and unselected tab states are represented distinctly", async () =
   const h = await loadHarness();
   for (const combo of allCombos()) {
     const m = h.buildManifest("shell", combo);
-    const selected = m.layout.tabs.filter((tab) => tab.selected);
+    const selected = m.layout.tabs.filter((/** @type {any} */ tab) => tab.selected);
     assert.equal(
       selected.length,
       1,
       `exactly one tab must be selected at ${combo.platform}|${combo.device.id}`,
     );
-    assert.equal(
-      selected[0].route,
-      "index",
-      "Calendar must be the default selected root (§8)",
-    );
+    assert.equal(selected[0].route, "index", "Calendar must be the default selected root (§8)");
     for (const tab of m.layout.tabs) {
       assert.equal(
         tab.accessibilityState.selected,

@@ -60,9 +60,11 @@ export const DEVICE_FRAMES = {
 };
 
 /** Platforms rendered by the harness (compared within platform, never across). */
+/** @type {("ios" | "android")[]} */
 export const PLATFORMS = ["ios", "android"];
 
 /** Appearance modes the fixtures must represent. */
+/** @type {("light" | "dark")[]} */
 export const APPEARANCES = ["light", "dark"];
 
 /** Locales whose text/layout can materially change (English + zh-HK). */
@@ -93,5 +95,5 @@ export const FONT_ADVANCE = {
   space: 0.25,
 };
 
-/** Deterministic line height = fontSize * textScale * LINE_HEIGHT_FACTOR. */
+/** Deterministic line height = scaledFontSize * LINE_HEIGHT_FACTOR. */
 export const LINE_HEIGHT_FACTOR = 1.4;

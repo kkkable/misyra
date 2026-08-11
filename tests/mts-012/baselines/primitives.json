@@ -1,0 +1,4550 @@
+{
+  "schema": 1,
+  "surface": "primitives",
+  "combos": {
+    "ios|360x800|light|en|1": {
+      "safeArea": { "top": 59, "bottom": 34, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 328,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#FFFFFF",
+          "primary": "#6D3CF3",
+          "textPrimary": "#15152D",
+          "textSecondary": "#667085"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "The Calendar screen is being prepared.",
+            "lines": 1,
+            "lineWidths": [284],
+            "requiredHeight": 22.4,
+            "height": 44,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "ios|360x800|light|en|2": {
+      "safeArea": { "top": 59, "bottom": 34, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 328,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#FFFFFF",
+          "primary": "#6D3CF3",
+          "textPrimary": "#15152D",
+          "textSecondary": "#667085"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "The Calendar screen is being prepared.",
+            "lines": 2,
+            "lineWidths": [328, 232],
+            "requiredHeight": 89.6,
+            "height": 89.6,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "ios|360x800|light|zh-HK|1": {
+      "safeArea": { "top": 59, "bottom": 34, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 328,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#FFFFFF",
+          "primary": "#6D3CF3",
+          "textPrimary": "#15152D",
+          "textSecondary": "#667085"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "日曆畫面正在準備中。",
+            "lines": 1,
+            "lineWidths": [192],
+            "requiredHeight": 22.4,
+            "height": 44,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "ios|360x800|light|zh-HK|2": {
+      "safeArea": { "top": 59, "bottom": 34, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 328,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#FFFFFF",
+          "primary": "#6D3CF3",
+          "textPrimary": "#15152D",
+          "textSecondary": "#667085"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "日曆畫面正在準備中。",
+            "lines": 2,
+            "lineWidths": [312, 64],
+            "requiredHeight": 89.6,
+            "height": 89.6,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "ios|360x800|dark|en|1": {
+      "safeArea": { "top": 59, "bottom": 34, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 328,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#191925",
+          "primary": "#6D3DFF",
+          "textPrimary": "#F7F5FF",
+          "textSecondary": "#B9B5C8"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "The Calendar screen is being prepared.",
+            "lines": 1,
+            "lineWidths": [284],
+            "requiredHeight": 22.4,
+            "height": 44,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "ios|360x800|dark|en|2": {
+      "safeArea": { "top": 59, "bottom": 34, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 328,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#191925",
+          "primary": "#6D3DFF",
+          "textPrimary": "#F7F5FF",
+          "textSecondary": "#B9B5C8"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "The Calendar screen is being prepared.",
+            "lines": 2,
+            "lineWidths": [328, 232],
+            "requiredHeight": 89.6,
+            "height": 89.6,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "ios|360x800|dark|zh-HK|1": {
+      "safeArea": { "top": 59, "bottom": 34, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 328,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#191925",
+          "primary": "#6D3DFF",
+          "textPrimary": "#F7F5FF",
+          "textSecondary": "#B9B5C8"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "日曆畫面正在準備中。",
+            "lines": 1,
+            "lineWidths": [192],
+            "requiredHeight": 22.4,
+            "height": 44,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "ios|360x800|dark|zh-HK|2": {
+      "safeArea": { "top": 59, "bottom": 34, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 328,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#191925",
+          "primary": "#6D3DFF",
+          "textPrimary": "#F7F5FF",
+          "textSecondary": "#B9B5C8"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "日曆畫面正在準備中。",
+            "lines": 2,
+            "lineWidths": [312, 64],
+            "requiredHeight": 89.6,
+            "height": 89.6,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "ios|390x844|light|en|1": {
+      "safeArea": { "top": 59, "bottom": 34, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 358,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#FFFFFF",
+          "primary": "#6D3CF3",
+          "textPrimary": "#15152D",
+          "textSecondary": "#667085"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "The Calendar screen is being prepared.",
+            "lines": 1,
+            "lineWidths": [284],
+            "requiredHeight": 22.4,
+            "height": 44,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "ios|390x844|light|en|2": {
+      "safeArea": { "top": 59, "bottom": 34, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 358,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#FFFFFF",
+          "primary": "#6D3CF3",
+          "textPrimary": "#15152D",
+          "textSecondary": "#667085"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "The Calendar screen is being prepared.",
+            "lines": 2,
+            "lineWidths": [328, 232],
+            "requiredHeight": 89.6,
+            "height": 89.6,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "ios|390x844|light|zh-HK|1": {
+      "safeArea": { "top": 59, "bottom": 34, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 358,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#FFFFFF",
+          "primary": "#6D3CF3",
+          "textPrimary": "#15152D",
+          "textSecondary": "#667085"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "日曆畫面正在準備中。",
+            "lines": 1,
+            "lineWidths": [192],
+            "requiredHeight": 22.4,
+            "height": 44,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "ios|390x844|light|zh-HK|2": {
+      "safeArea": { "top": 59, "bottom": 34, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 358,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#FFFFFF",
+          "primary": "#6D3CF3",
+          "textPrimary": "#15152D",
+          "textSecondary": "#667085"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "日曆畫面正在準備中。",
+            "lines": 2,
+            "lineWidths": [312, 64],
+            "requiredHeight": 89.6,
+            "height": 89.6,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "ios|390x844|dark|en|1": {
+      "safeArea": { "top": 59, "bottom": 34, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 358,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#191925",
+          "primary": "#6D3DFF",
+          "textPrimary": "#F7F5FF",
+          "textSecondary": "#B9B5C8"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "The Calendar screen is being prepared.",
+            "lines": 1,
+            "lineWidths": [284],
+            "requiredHeight": 22.4,
+            "height": 44,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "ios|390x844|dark|en|2": {
+      "safeArea": { "top": 59, "bottom": 34, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 358,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#191925",
+          "primary": "#6D3DFF",
+          "textPrimary": "#F7F5FF",
+          "textSecondary": "#B9B5C8"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "The Calendar screen is being prepared.",
+            "lines": 2,
+            "lineWidths": [328, 232],
+            "requiredHeight": 89.6,
+            "height": 89.6,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "ios|390x844|dark|zh-HK|1": {
+      "safeArea": { "top": 59, "bottom": 34, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 358,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#191925",
+          "primary": "#6D3DFF",
+          "textPrimary": "#F7F5FF",
+          "textSecondary": "#B9B5C8"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "日曆畫面正在準備中。",
+            "lines": 1,
+            "lineWidths": [192],
+            "requiredHeight": 22.4,
+            "height": 44,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "ios|390x844|dark|zh-HK|2": {
+      "safeArea": { "top": 59, "bottom": 34, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 358,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#191925",
+          "primary": "#6D3DFF",
+          "textPrimary": "#F7F5FF",
+          "textSecondary": "#B9B5C8"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "日曆畫面正在準備中。",
+            "lines": 2,
+            "lineWidths": [312, 64],
+            "requiredHeight": 89.6,
+            "height": 89.6,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "ios|393x852|light|en|1": {
+      "safeArea": { "top": 59, "bottom": 34, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 361,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#FFFFFF",
+          "primary": "#6D3CF3",
+          "textPrimary": "#15152D",
+          "textSecondary": "#667085"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "The Calendar screen is being prepared.",
+            "lines": 1,
+            "lineWidths": [284],
+            "requiredHeight": 22.4,
+            "height": 44,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "ios|393x852|light|en|2": {
+      "safeArea": { "top": 59, "bottom": 34, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 361,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#FFFFFF",
+          "primary": "#6D3CF3",
+          "textPrimary": "#15152D",
+          "textSecondary": "#667085"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "The Calendar screen is being prepared.",
+            "lines": 2,
+            "lineWidths": [328, 232],
+            "requiredHeight": 89.6,
+            "height": 89.6,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "ios|393x852|light|zh-HK|1": {
+      "safeArea": { "top": 59, "bottom": 34, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 361,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#FFFFFF",
+          "primary": "#6D3CF3",
+          "textPrimary": "#15152D",
+          "textSecondary": "#667085"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "日曆畫面正在準備中。",
+            "lines": 1,
+            "lineWidths": [192],
+            "requiredHeight": 22.4,
+            "height": 44,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "ios|393x852|light|zh-HK|2": {
+      "safeArea": { "top": 59, "bottom": 34, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 361,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#FFFFFF",
+          "primary": "#6D3CF3",
+          "textPrimary": "#15152D",
+          "textSecondary": "#667085"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "日曆畫面正在準備中。",
+            "lines": 2,
+            "lineWidths": [312, 64],
+            "requiredHeight": 89.6,
+            "height": 89.6,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "ios|393x852|dark|en|1": {
+      "safeArea": { "top": 59, "bottom": 34, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 361,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#191925",
+          "primary": "#6D3DFF",
+          "textPrimary": "#F7F5FF",
+          "textSecondary": "#B9B5C8"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "The Calendar screen is being prepared.",
+            "lines": 1,
+            "lineWidths": [284],
+            "requiredHeight": 22.4,
+            "height": 44,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "ios|393x852|dark|en|2": {
+      "safeArea": { "top": 59, "bottom": 34, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 361,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#191925",
+          "primary": "#6D3DFF",
+          "textPrimary": "#F7F5FF",
+          "textSecondary": "#B9B5C8"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "The Calendar screen is being prepared.",
+            "lines": 2,
+            "lineWidths": [328, 232],
+            "requiredHeight": 89.6,
+            "height": 89.6,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "ios|393x852|dark|zh-HK|1": {
+      "safeArea": { "top": 59, "bottom": 34, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 361,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#191925",
+          "primary": "#6D3DFF",
+          "textPrimary": "#F7F5FF",
+          "textSecondary": "#B9B5C8"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "日曆畫面正在準備中。",
+            "lines": 1,
+            "lineWidths": [192],
+            "requiredHeight": 22.4,
+            "height": 44,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "ios|393x852|dark|zh-HK|2": {
+      "safeArea": { "top": 59, "bottom": 34, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 361,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#191925",
+          "primary": "#6D3DFF",
+          "textPrimary": "#F7F5FF",
+          "textSecondary": "#B9B5C8"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "日曆畫面正在準備中。",
+            "lines": 2,
+            "lineWidths": [312, 64],
+            "requiredHeight": 89.6,
+            "height": 89.6,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "ios|412x915|light|en|1": {
+      "safeArea": { "top": 59, "bottom": 34, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 380,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#FFFFFF",
+          "primary": "#6D3CF3",
+          "textPrimary": "#15152D",
+          "textSecondary": "#667085"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "The Calendar screen is being prepared.",
+            "lines": 1,
+            "lineWidths": [284],
+            "requiredHeight": 22.4,
+            "height": 44,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "ios|412x915|light|en|2": {
+      "safeArea": { "top": 59, "bottom": 34, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 380,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#FFFFFF",
+          "primary": "#6D3CF3",
+          "textPrimary": "#15152D",
+          "textSecondary": "#667085"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "The Calendar screen is being prepared.",
+            "lines": 2,
+            "lineWidths": [328, 232],
+            "requiredHeight": 89.6,
+            "height": 89.6,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "ios|412x915|light|zh-HK|1": {
+      "safeArea": { "top": 59, "bottom": 34, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 380,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#FFFFFF",
+          "primary": "#6D3CF3",
+          "textPrimary": "#15152D",
+          "textSecondary": "#667085"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "日曆畫面正在準備中。",
+            "lines": 1,
+            "lineWidths": [192],
+            "requiredHeight": 22.4,
+            "height": 44,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "ios|412x915|light|zh-HK|2": {
+      "safeArea": { "top": 59, "bottom": 34, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 380,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#FFFFFF",
+          "primary": "#6D3CF3",
+          "textPrimary": "#15152D",
+          "textSecondary": "#667085"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "日曆畫面正在準備中。",
+            "lines": 2,
+            "lineWidths": [312, 64],
+            "requiredHeight": 89.6,
+            "height": 89.6,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "ios|412x915|dark|en|1": {
+      "safeArea": { "top": 59, "bottom": 34, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 380,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#191925",
+          "primary": "#6D3DFF",
+          "textPrimary": "#F7F5FF",
+          "textSecondary": "#B9B5C8"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "The Calendar screen is being prepared.",
+            "lines": 1,
+            "lineWidths": [284],
+            "requiredHeight": 22.4,
+            "height": 44,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "ios|412x915|dark|en|2": {
+      "safeArea": { "top": 59, "bottom": 34, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 380,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#191925",
+          "primary": "#6D3DFF",
+          "textPrimary": "#F7F5FF",
+          "textSecondary": "#B9B5C8"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "The Calendar screen is being prepared.",
+            "lines": 2,
+            "lineWidths": [328, 232],
+            "requiredHeight": 89.6,
+            "height": 89.6,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "ios|412x915|dark|zh-HK|1": {
+      "safeArea": { "top": 59, "bottom": 34, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 380,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#191925",
+          "primary": "#6D3DFF",
+          "textPrimary": "#F7F5FF",
+          "textSecondary": "#B9B5C8"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "日曆畫面正在準備中。",
+            "lines": 1,
+            "lineWidths": [192],
+            "requiredHeight": 22.4,
+            "height": 44,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "ios|412x915|dark|zh-HK|2": {
+      "safeArea": { "top": 59, "bottom": 34, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 380,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#191925",
+          "primary": "#6D3DFF",
+          "textPrimary": "#F7F5FF",
+          "textSecondary": "#B9B5C8"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "日曆畫面正在準備中。",
+            "lines": 2,
+            "lineWidths": [312, 64],
+            "requiredHeight": 89.6,
+            "height": 89.6,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "android|360x800|light|en|1": {
+      "safeArea": { "top": 24, "bottom": 24, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 328,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#FFFFFF",
+          "primary": "#6D3CF3",
+          "textPrimary": "#15152D",
+          "textSecondary": "#667085"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "The Calendar screen is being prepared.",
+            "lines": 1,
+            "lineWidths": [284],
+            "requiredHeight": 22.4,
+            "height": 44,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "android|360x800|light|en|2": {
+      "safeArea": { "top": 24, "bottom": 24, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 328,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#FFFFFF",
+          "primary": "#6D3CF3",
+          "textPrimary": "#15152D",
+          "textSecondary": "#667085"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "The Calendar screen is being prepared.",
+            "lines": 2,
+            "lineWidths": [328, 232],
+            "requiredHeight": 89.6,
+            "height": 89.6,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "android|360x800|light|zh-HK|1": {
+      "safeArea": { "top": 24, "bottom": 24, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 328,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#FFFFFF",
+          "primary": "#6D3CF3",
+          "textPrimary": "#15152D",
+          "textSecondary": "#667085"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "日曆畫面正在準備中。",
+            "lines": 1,
+            "lineWidths": [192],
+            "requiredHeight": 22.4,
+            "height": 44,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "android|360x800|light|zh-HK|2": {
+      "safeArea": { "top": 24, "bottom": 24, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 328,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#FFFFFF",
+          "primary": "#6D3CF3",
+          "textPrimary": "#15152D",
+          "textSecondary": "#667085"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "日曆畫面正在準備中。",
+            "lines": 2,
+            "lineWidths": [312, 64],
+            "requiredHeight": 89.6,
+            "height": 89.6,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "android|360x800|dark|en|1": {
+      "safeArea": { "top": 24, "bottom": 24, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 328,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#191925",
+          "primary": "#6D3DFF",
+          "textPrimary": "#F7F5FF",
+          "textSecondary": "#B9B5C8"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "The Calendar screen is being prepared.",
+            "lines": 1,
+            "lineWidths": [284],
+            "requiredHeight": 22.4,
+            "height": 44,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "android|360x800|dark|en|2": {
+      "safeArea": { "top": 24, "bottom": 24, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 328,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#191925",
+          "primary": "#6D3DFF",
+          "textPrimary": "#F7F5FF",
+          "textSecondary": "#B9B5C8"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "The Calendar screen is being prepared.",
+            "lines": 2,
+            "lineWidths": [328, 232],
+            "requiredHeight": 89.6,
+            "height": 89.6,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "android|360x800|dark|zh-HK|1": {
+      "safeArea": { "top": 24, "bottom": 24, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 328,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#191925",
+          "primary": "#6D3DFF",
+          "textPrimary": "#F7F5FF",
+          "textSecondary": "#B9B5C8"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "日曆畫面正在準備中。",
+            "lines": 1,
+            "lineWidths": [192],
+            "requiredHeight": 22.4,
+            "height": 44,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "android|360x800|dark|zh-HK|2": {
+      "safeArea": { "top": 24, "bottom": 24, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 328,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#191925",
+          "primary": "#6D3DFF",
+          "textPrimary": "#F7F5FF",
+          "textSecondary": "#B9B5C8"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "日曆畫面正在準備中。",
+            "lines": 2,
+            "lineWidths": [312, 64],
+            "requiredHeight": 89.6,
+            "height": 89.6,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "android|390x844|light|en|1": {
+      "safeArea": { "top": 24, "bottom": 24, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 358,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#FFFFFF",
+          "primary": "#6D3CF3",
+          "textPrimary": "#15152D",
+          "textSecondary": "#667085"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "The Calendar screen is being prepared.",
+            "lines": 1,
+            "lineWidths": [284],
+            "requiredHeight": 22.4,
+            "height": 44,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "android|390x844|light|en|2": {
+      "safeArea": { "top": 24, "bottom": 24, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 358,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#FFFFFF",
+          "primary": "#6D3CF3",
+          "textPrimary": "#15152D",
+          "textSecondary": "#667085"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "The Calendar screen is being prepared.",
+            "lines": 2,
+            "lineWidths": [328, 232],
+            "requiredHeight": 89.6,
+            "height": 89.6,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "android|390x844|light|zh-HK|1": {
+      "safeArea": { "top": 24, "bottom": 24, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 358,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#FFFFFF",
+          "primary": "#6D3CF3",
+          "textPrimary": "#15152D",
+          "textSecondary": "#667085"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "日曆畫面正在準備中。",
+            "lines": 1,
+            "lineWidths": [192],
+            "requiredHeight": 22.4,
+            "height": 44,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "android|390x844|light|zh-HK|2": {
+      "safeArea": { "top": 24, "bottom": 24, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 358,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#FFFFFF",
+          "primary": "#6D3CF3",
+          "textPrimary": "#15152D",
+          "textSecondary": "#667085"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "日曆畫面正在準備中。",
+            "lines": 2,
+            "lineWidths": [312, 64],
+            "requiredHeight": 89.6,
+            "height": 89.6,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "android|390x844|dark|en|1": {
+      "safeArea": { "top": 24, "bottom": 24, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 358,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#191925",
+          "primary": "#6D3DFF",
+          "textPrimary": "#F7F5FF",
+          "textSecondary": "#B9B5C8"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "The Calendar screen is being prepared.",
+            "lines": 1,
+            "lineWidths": [284],
+            "requiredHeight": 22.4,
+            "height": 44,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "android|390x844|dark|en|2": {
+      "safeArea": { "top": 24, "bottom": 24, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 358,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#191925",
+          "primary": "#6D3DFF",
+          "textPrimary": "#F7F5FF",
+          "textSecondary": "#B9B5C8"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "The Calendar screen is being prepared.",
+            "lines": 2,
+            "lineWidths": [328, 232],
+            "requiredHeight": 89.6,
+            "height": 89.6,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "android|390x844|dark|zh-HK|1": {
+      "safeArea": { "top": 24, "bottom": 24, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 358,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#191925",
+          "primary": "#6D3DFF",
+          "textPrimary": "#F7F5FF",
+          "textSecondary": "#B9B5C8"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "日曆畫面正在準備中。",
+            "lines": 1,
+            "lineWidths": [192],
+            "requiredHeight": 22.4,
+            "height": 44,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "android|390x844|dark|zh-HK|2": {
+      "safeArea": { "top": 24, "bottom": 24, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 358,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#191925",
+          "primary": "#6D3DFF",
+          "textPrimary": "#F7F5FF",
+          "textSecondary": "#B9B5C8"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "日曆畫面正在準備中。",
+            "lines": 2,
+            "lineWidths": [312, 64],
+            "requiredHeight": 89.6,
+            "height": 89.6,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "android|393x852|light|en|1": {
+      "safeArea": { "top": 24, "bottom": 24, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 361,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#FFFFFF",
+          "primary": "#6D3CF3",
+          "textPrimary": "#15152D",
+          "textSecondary": "#667085"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "The Calendar screen is being prepared.",
+            "lines": 1,
+            "lineWidths": [284],
+            "requiredHeight": 22.4,
+            "height": 44,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "android|393x852|light|en|2": {
+      "safeArea": { "top": 24, "bottom": 24, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 361,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#FFFFFF",
+          "primary": "#6D3CF3",
+          "textPrimary": "#15152D",
+          "textSecondary": "#667085"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "The Calendar screen is being prepared.",
+            "lines": 2,
+            "lineWidths": [328, 232],
+            "requiredHeight": 89.6,
+            "height": 89.6,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "android|393x852|light|zh-HK|1": {
+      "safeArea": { "top": 24, "bottom": 24, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 361,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#FFFFFF",
+          "primary": "#6D3CF3",
+          "textPrimary": "#15152D",
+          "textSecondary": "#667085"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "日曆畫面正在準備中。",
+            "lines": 1,
+            "lineWidths": [192],
+            "requiredHeight": 22.4,
+            "height": 44,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "android|393x852|light|zh-HK|2": {
+      "safeArea": { "top": 24, "bottom": 24, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 361,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#FFFFFF",
+          "primary": "#6D3CF3",
+          "textPrimary": "#15152D",
+          "textSecondary": "#667085"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "日曆畫面正在準備中。",
+            "lines": 2,
+            "lineWidths": [312, 64],
+            "requiredHeight": 89.6,
+            "height": 89.6,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "android|393x852|dark|en|1": {
+      "safeArea": { "top": 24, "bottom": 24, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 361,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#191925",
+          "primary": "#6D3DFF",
+          "textPrimary": "#F7F5FF",
+          "textSecondary": "#B9B5C8"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "The Calendar screen is being prepared.",
+            "lines": 1,
+            "lineWidths": [284],
+            "requiredHeight": 22.4,
+            "height": 44,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "android|393x852|dark|en|2": {
+      "safeArea": { "top": 24, "bottom": 24, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 361,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#191925",
+          "primary": "#6D3DFF",
+          "textPrimary": "#F7F5FF",
+          "textSecondary": "#B9B5C8"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "The Calendar screen is being prepared.",
+            "lines": 2,
+            "lineWidths": [328, 232],
+            "requiredHeight": 89.6,
+            "height": 89.6,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "android|393x852|dark|zh-HK|1": {
+      "safeArea": { "top": 24, "bottom": 24, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 361,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#191925",
+          "primary": "#6D3DFF",
+          "textPrimary": "#F7F5FF",
+          "textSecondary": "#B9B5C8"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "日曆畫面正在準備中。",
+            "lines": 1,
+            "lineWidths": [192],
+            "requiredHeight": 22.4,
+            "height": 44,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "android|393x852|dark|zh-HK|2": {
+      "safeArea": { "top": 24, "bottom": 24, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 361,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#191925",
+          "primary": "#6D3DFF",
+          "textPrimary": "#F7F5FF",
+          "textSecondary": "#B9B5C8"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "日曆畫面正在準備中。",
+            "lines": 2,
+            "lineWidths": [312, 64],
+            "requiredHeight": 89.6,
+            "height": 89.6,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "android|412x915|light|en|1": {
+      "safeArea": { "top": 24, "bottom": 24, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 380,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#FFFFFF",
+          "primary": "#6D3CF3",
+          "textPrimary": "#15152D",
+          "textSecondary": "#667085"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "The Calendar screen is being prepared.",
+            "lines": 1,
+            "lineWidths": [284],
+            "requiredHeight": 22.4,
+            "height": 44,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "android|412x915|light|en|2": {
+      "safeArea": { "top": 24, "bottom": 24, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 380,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#FFFFFF",
+          "primary": "#6D3CF3",
+          "textPrimary": "#15152D",
+          "textSecondary": "#667085"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "The Calendar screen is being prepared.",
+            "lines": 2,
+            "lineWidths": [328, 232],
+            "requiredHeight": 89.6,
+            "height": 89.6,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "android|412x915|light|zh-HK|1": {
+      "safeArea": { "top": 24, "bottom": 24, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 380,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#FFFFFF",
+          "primary": "#6D3CF3",
+          "textPrimary": "#15152D",
+          "textSecondary": "#667085"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "日曆畫面正在準備中。",
+            "lines": 1,
+            "lineWidths": [192],
+            "requiredHeight": 22.4,
+            "height": 44,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "android|412x915|light|zh-HK|2": {
+      "safeArea": { "top": 24, "bottom": 24, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 380,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#FFFFFF",
+          "primary": "#6D3CF3",
+          "textPrimary": "#15152D",
+          "textSecondary": "#667085"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "日曆畫面正在準備中。",
+            "lines": 2,
+            "lineWidths": [312, 64],
+            "requiredHeight": 89.6,
+            "height": 89.6,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "android|412x915|dark|en|1": {
+      "safeArea": { "top": 24, "bottom": 24, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 380,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#191925",
+          "primary": "#6D3DFF",
+          "textPrimary": "#F7F5FF",
+          "textSecondary": "#B9B5C8"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "The Calendar screen is being prepared.",
+            "lines": 1,
+            "lineWidths": [284],
+            "requiredHeight": 22.4,
+            "height": 44,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "android|412x915|dark|en|2": {
+      "safeArea": { "top": 24, "bottom": 24, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 380,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#191925",
+          "primary": "#6D3DFF",
+          "textPrimary": "#F7F5FF",
+          "textSecondary": "#B9B5C8"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "The Calendar screen is being prepared.",
+            "lines": 2,
+            "lineWidths": [328, 232],
+            "requiredHeight": 89.6,
+            "height": 89.6,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "android|412x915|dark|zh-HK|1": {
+      "safeArea": { "top": 24, "bottom": 24, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 380,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#191925",
+          "primary": "#6D3DFF",
+          "textPrimary": "#F7F5FF",
+          "textSecondary": "#B9B5C8"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "日曆畫面正在準備中。",
+            "lines": 1,
+            "lineWidths": [192],
+            "requiredHeight": 22.4,
+            "height": 44,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    },
+    "android|412x915|dark|zh-HK|2": {
+      "safeArea": { "top": 24, "bottom": 24, "left": 0, "right": 0 },
+      "screenPadding": 16,
+      "contentWidth": 380,
+      "tokens": {
+        "minTouchTarget": 44,
+        "screenPadding": 16,
+        "largeSectionSpacing": 24,
+        "colors": {
+          "surface": "#191925",
+          "primary": "#6D3DFF",
+          "textPrimary": "#F7F5FF",
+          "textSecondary": "#B9B5C8"
+        }
+      },
+      "typography": {
+        "body": { "fontSize": 16, "fontWeight": 500 },
+        "bodySmall": { "fontSize": 14, "fontWeight": 500 },
+        "headline": { "fontSize": 18, "fontWeight": 600 },
+        "title3": { "fontSize": 22, "fontWeight": 700 }
+      },
+      "primitives": {
+        "button": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 500 },
+          "wrapped": true,
+          "labelCase": {
+            "text": "日曆畫面正在準備中。",
+            "lines": 2,
+            "lineWidths": [312, 64],
+            "requiredHeight": 89.6,
+            "height": 89.6,
+            "fits": true
+          }
+        },
+        "iconButton": { "minWidth": 44, "minHeight": 44 },
+        "textField": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "typography": { "fontSize": 16, "fontWeight": 400 },
+          "paddingHorizontal": 12,
+          "paddingVertical": 12
+        },
+        "textArea": {
+          "minWidth": 44,
+          "minHeight": 120,
+          "typography": { "fontSize": 16, "fontWeight": 400 }
+        },
+        "row": {
+          "minWidth": 44,
+          "minHeight": 44,
+          "titleTypography": { "fontSize": 16, "fontWeight": 500 },
+          "detailTypography": { "fontSize": 14, "fontWeight": 400 }
+        },
+        "card": { "padding": 16, "radius": 18 },
+        "topBar": {
+          "minWidth": 44,
+          "minHeight": 52,
+          "titleTypography": { "fontSize": 22, "fontWeight": 700 },
+          "detailTypography": { "fontSize": 18, "fontWeight": 600 }
+        },
+        "sectionHeading": {
+          "typography": { "fontSize": 22, "fontWeight": 700 }
+        },
+        "screen": {
+          "paddingHorizontal": 16,
+          "edges": ["top", "left", "right", "bottom"]
+        }
+      }
+    }
+  }
+}
