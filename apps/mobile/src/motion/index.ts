@@ -29,4 +29,4 @@ export {
   type HapticIntent,
   type HapticsAdapter,
 } from "./haptics";
-export { expoHapticsAdapter } from "./expo-haptics";
+export { expoHapticsAdapter } from "./expo-haptics-native";

@@ -25,7 +25,12 @@ export type HapticIntent =
 
 /** The narrow platform boundary haptic providers implement. */
 export interface HapticsAdapter {
-  /** True when the platform/system can currently provide haptics. */
+  /**
+   * True when this adapter can invoke the platform haptic API. This is a
+   * synchronous platform-capability claim, not proof that the system will
+   * currently produce haptics: system settings are honored by the platform,
+   * and executions the system suppresses are silent no-ops.
+   */
   readonly supported: boolean;
   /** Fire one semantic haptic intent. Must never throw. */
   trigger(intent: HapticIntent): void;
@@ -68,7 +73,11 @@ export const noopHapticsAdapter: HapticsAdapter = {
 export class Haptics {
   constructor(private readonly adapter: HapticsAdapter) {}
 
-  /** True when the platform/system can currently provide haptics. */
+  /**
+   * True when the underlying adapter can invoke the platform haptic API
+   * (platform capability, not runtime availability; system settings are
+   * honored by the platform and suppressed executions are silent no-ops).
+   */
   get supported(): boolean {
     return this.adapter.supported;
   }
