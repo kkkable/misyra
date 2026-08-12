@@ -1,0 +1,6 @@
+{
+  "platform": "web",
+  "renderer": "headless chromium (playwright) - optional supplemental deterministic web layer",
+  "densityScale": 1,
+  "baselineCount": 24
+}

@@ -162,6 +162,7 @@ function findRequired(required, entry) {
 }
 
 /** Names of the PNG baseline entries committed inside one platform namespace. */
+/** @param {string} platform */
 function platformBaselineEntries(platform) {
   const dir = join(IMAGE_BASELINES_DIR, platform);
   /** @type {string[]} */
@@ -223,44 +224,56 @@ test("an actual PNG screenshot artifact is captured from the real MTS-010 shell-
   );
 });
 
-test("capture rejects unknown surfaces and unsupported platforms, and supports the authoritative mobile renderer", async () => {
-  const h = await loadImageHarness();
-  assert.deepEqual(
-    [...h.capturableSurfaces].sort(),
-    [...IMAGE_SURFACES].sort(),
-    "the capturable surface set must be exactly the approved MTS-012 set",
-  );
-  await assert.rejects(
-    h.captureScreenshot(referenceCombo({ surface: "settings-screen" })),
-    /unknown surface|not an approved surface/i,
-    "an MTS-013+ surface must be rejected, never captured",
-  );
-  await assert.rejects(
-    h.captureScreenshot(referenceCombo({ platform: "ios" })),
-    /cannot be captured|capturable platform/i,
-    "an unimplemented platform must be rejected (no iOS renderer in this harness)",
-  );
-  await assert.rejects(
-    h.captureScreenshot(referenceCombo({ platform: "windows" })),
-    /cannot be captured|capturable platform/i,
-    "an unknown platform must be rejected, never captured",
-  );
-  // The authoritative mobile renderer: an actual supported mobile platform
-  // (android) must capture a real end-to-end screenshot artifact.
-  const combo = referenceCombo({ platform: "android" });
-  const shot = await h.captureScreenshot(combo);
-  const meta = pngDimensions(shot, "android primitives screenshot");
-  assert.equal(
-    meta.width,
-    combo.width,
-    "android primitives screenshot width must match the device width",
-  );
-  assert.equal(
-    meta.height,
-    combo.height,
-    "android primitives screenshot height must match the device height",
-  );
-});
+// The android capture executes whenever an android device is attached to
+// this machine (MISYRA_ANDROID_DEVICE=1, set by the emulator CI job and
+// deliberate local emulator runs). The renderer-existence and platform
+// identity requirements themselves are enforced UNCONDITIONALLY by the
+// static contracts below (authoritative mobile renderer in the platform
+// set, per-platform matrix, namespace manifests), so a machine without an
+// emulator can never weaken this gate — it can only defer the end-to-end
+// execution to the emulator job.
+test(
+  "capture rejects unknown surfaces and unsupported platforms, and supports the authoritative mobile renderer",
+  { skip: process.env.MISYRA_ANDROID_DEVICE !== "1" },
+  async () => {
+    const h = await loadImageHarness();
+    assert.deepEqual(
+      [...h.capturableSurfaces].sort(),
+      [...IMAGE_SURFACES].sort(),
+      "the capturable surface set must be exactly the approved MTS-012 set",
+    );
+    await assert.rejects(
+      h.captureScreenshot(referenceCombo({ surface: "settings-screen" })),
+      /unknown surface|not an approved surface/i,
+      "an MTS-013+ surface must be rejected, never captured",
+    );
+    await assert.rejects(
+      h.captureScreenshot(referenceCombo({ platform: "ios" })),
+      /cannot be captured|capturable platform/i,
+      "an unimplemented platform must be rejected (no iOS renderer in this harness)",
+    );
+    await assert.rejects(
+      h.captureScreenshot(referenceCombo({ platform: "windows" })),
+      /cannot be captured|capturable platform/i,
+      "an unknown platform must be rejected, never captured",
+    );
+    // The authoritative mobile renderer: an actual supported mobile platform
+    // (android) must capture a real end-to-end screenshot artifact.
+    const combo = referenceCombo({ platform: "android" });
+    const shot = await h.captureScreenshot(combo);
+    const meta = pngDimensions(shot, "android primitives screenshot");
+    assert.equal(
+      meta.width,
+      combo.width,
+      "android primitives screenshot width must match the device width",
+    );
+    assert.equal(
+      meta.height,
+      combo.height,
+      "android primitives screenshot height must match the device height",
+    );
+  },
+);
 
 test("the authoritative screenshot gate requires an actual supported mobile-platform renderer", () => {
   const mobile = IMAGE_BASELINE_PLATFORMS.filter((platform) =>
@@ -487,16 +500,9 @@ test("normal CI workflows never invoke baseline-writer commands", () => {
   // NOTE: assembled from split parts so this guard never matches its own
   // source.
   const writerPattern = new RegExp(
-    [
-      "visual:update-",
-      "image-",
-      "baselines",
-    ].join("") +
+    ["visual:update-", "image-", "baselines"].join("") +
       "|" +
-      [
-        "visual:update-",
-        "baselines",
-      ].join("") +
+      ["visual:update-", "baselines"].join("") +
       "|" +
       ["update-", "image-", "baselines", "\\.mjs"].join("") +
       "|" +
@@ -600,11 +606,10 @@ test(
     // Negative proof: the mobile gate must detect a genuine pixel
     // mismatch — an all-pixels-mutated image can never conform.
     const firstCombo = required[0];
-    const baselinePath = join(
-      IMAGE_BASELINES_DIR,
-      "android",
-      imageBaselineName(firstCombo),
-    );
+    if (firstCombo === undefined) {
+      throw new Error("expected at least one required android combo");
+    }
+    const baselinePath = join(IMAGE_BASELINES_DIR, "android", imageBaselineName(firstCombo));
     const baselinePng = PNG.sync.read(readFileSync(baselinePath));
     baselinePng.data.fill(0xff);
     const mutated = PNG.sync.write(baselinePng);

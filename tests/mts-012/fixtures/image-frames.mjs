@@ -66,7 +66,7 @@ export const IMAGE_SURFACES = Object.freeze(["primitives", "shell-screen"]);
  * (headless chromium) today; the namespace is extensible.
  * @type {readonly string[]}
  */
-export const IMAGE_BASELINE_PLATFORMS = Object.freeze(["web"]);
+export const IMAGE_BASELINE_PLATFORMS = Object.freeze(["web", "android"]);
 
 /**
  * Directive-mandated minimum sizes for captured screenshots (§6.2

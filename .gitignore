@@ -40,3 +40,7 @@ pnpm-debug.log*
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Expo prebuild output (regenerated deterministically by CI / developers)
+apps/mobile/android/
+apps/mobile/ios/

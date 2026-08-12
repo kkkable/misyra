@@ -1,0 +1,6 @@
+{
+  "platform": "android",
+  "renderer": "android emulator framebuffer - actual supported mobile-platform renderer (android-35 google_apis x86_64, swiftshader, 1x density)",
+  "densityScale": 1,
+  "baselineCount": 24
+}
