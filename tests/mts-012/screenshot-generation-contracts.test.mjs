@@ -2,13 +2,26 @@
  * MTS-012 screenshot-generation layer — RED contracts.
  *
  * The visual-regression harness shipped in the first MTS-012 correction
- * round models layouts deterministically, but the COMMANDER DIRECTIVE
- * correction (2026-08-11T19:05:20Z, issue #4 comment 5257609976) requires
- * the missing capture layer: automated tests must render the REAL MTS-009
- * primitive inventory and the REAL MTS-010 shell-screen surface in
- * headless chromium, save deterministic PNG screenshot artifacts, compare
- * them against committed platform-separated baselines, and keep every
- * baseline update explicit.
+ * round models layouts deterministically, and the screenshot-generation
+ * layer (COMMANDER DIRECTIVE 2026-08-11T19:05:20Z, issue #4 comment
+ * 5257609976) renders the REAL MTS-009 primitive inventory and the REAL
+ * MTS-010 shell-screen surface in headless chromium, compares PNG artifacts
+ * against committed platform-separated baselines, and keeps every baseline
+ * update explicit.
+ *
+ * This file is the correction-round RED contract set for COMMANDER
+ * DIRECTIVE 2026-08-12T03:02:40Z (issue #4 comment 5261712846), which
+ * requires:
+ *
+ *  (A) Finding 1 — at least one ACTUAL supported mobile-platform renderer
+ *      (Android or iOS) must exist for pixel screenshot generation and
+ *      comparison, with the platform identity explicit in the baseline
+ *      path/metadata. The web/Chromium layer stays only as optional
+ *      supplemental deterministic coverage, never as the authoritative
+ *      mobile screenshot gate.
+ *  (B) Finding 2 — normal CI must never invoke baseline-writer/update
+ *      commands (visual:update-image-baselines or visual:update-baselines);
+ *      intentional baseline updates stay explicit and deliberate only.
  *
  * Contracts required by this file:
  *
@@ -18,37 +31,52 @@
  *     exact requested dimensions);
  *  3. an actual PNG screenshot artifact is captured from the real
  *     MTS-010 shell-screen surface;
- *  4. capture rejects unknown surfaces and non-capturable platforms
- *     (no MTS-013+ surface may be captured; no native-platform capture
- *     may pretend to be real);
- *  5. capture is byte-deterministic across repeated renders;
- *  6. the comparison step detects genuine visual differences and never
+ *  4. capture rejects unknown surfaces and unsupported platforms, and the
+ *     authoritative supported mobile-platform renderer (android) captures
+ *     end to end — no MTS-013+ surface may be captured, and no unimplemented
+ *     platform (ios today) may pretend to be real;
+ *  5. the authoritative screenshot gate requires at least one actual
+ *     supported mobile-platform renderer in the baseline platform set
+ *     (platform identity lives in the baseline namespace);
+ *  6. capture is byte-deterministic across repeated renders;
+ *  7. the comparison step detects genuine visual differences and never
  *     reports a difference for identical captures;
- *  7. committed image baselines cover exactly the directive-required
- *     matrix — 360×800 and 412×915, light and dark, English and zh-HK,
- *     default and large text — and every baseline is a valid PNG of the
- *     right dimensions;
- *  8. image baselines are platform-separated (namespace directory +
+ *  8. committed image baselines cover the directive-required matrix — 360×800
+ *     and 412×915, light and dark, English and zh-HK, default and large
+ *     text — for EVERY baseline platform, and every baseline is a valid PNG
+ *     of the right dimensions;
+ *  9. image baselines are platform-separated (namespace directory +
  *     deterministic file names; nothing outside a platform directory);
- *  9. image-baseline updates stay explicit: the standalone update script
+ * 10. every platform namespace carries explicit deterministic platform
+ *     identity metadata (renderer declaration);
+ * 11. image-baseline updates stay explicit: the standalone update script
  *     is the only writer; test and capture sources never rewrite accepted
  *     baselines;
- * 10. screenshot fixture sources stay deterministic and credential-free
+ * 12. normal CI workflows (push/pull_request-triggered) never invoke
+ *     baseline-writer commands;
+ * 13. screenshot fixture sources stay deterministic and credential-free
  *     and never smuggle in MTS-013+ behavior;
- * 11. fresh captures conform to the committed baselines within the
- *     approved tolerance on the Linux CI renderer (the canonical baseline
- *     renderer); other platforms verify structural determinism but skip
- *     pixel conformance because rasterization is platform-dependent.
+ * 14. fresh captures conform to the committed baselines within the
+ *     approved tolerance on the Linux CI web renderer (supplemental
+ *     deterministic coverage only — the web layer is NOT the authoritative
+ *     mobile screenshot gate); other platforms verify structural
+ *     determinism but skip pixel conformance because rasterization is
+ *     platform-dependent;
+ * 15. fresh ANDROID captures conform to the committed android baselines on
+ *     the authoritative mobile renderer whenever an emulator is present,
+ *     and the mobile gate proves a negative pixel mismatch is detected.
  *
- * The fixture data (matrix, naming rules) ships with the RED commit; the
- * capture logic lives in `./image-harness/` and does NOT exist at the RED
- * head, so every capture-dependent contract fails with
- * ERR_MODULE_NOT_FOUND for the intended missing-layer reason.
+ * The fixture data (matrix, naming rules) ships with the first RED commit;
+ * the capture logic lives in `./image-harness/`. At the correction RED
+ * head, only the web/Chromium renderer exists, so contracts 4, 5, 10, 12,
+ * and 15 fail for the intended missing-mobile-renderer / CI-writer
+ * reasons.
  */
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { after, test } from "node:test";
+import { PNG } from "pngjs";
 import { repoRoot, walkFiles } from "../toolchain/helpers.mjs";
 import {
   IMAGE_BASELINE_PLATFORMS,
@@ -62,6 +90,7 @@ const IMAGE_HARNESS_ENTRY = "./image-harness/capture.mjs";
 const IMAGE_BASELINES_DIR = join(repoRoot, "tests", "mts-012", "image-baselines");
 const MTS_012_DIR = join(repoRoot, "tests", "mts-012");
 const IMAGE_HARNESS_DIR = join(MTS_012_DIR, "image-harness");
+const WORKFLOWS_DIR = join(repoRoot, ".github", "workflows");
 
 /** @type {Promise<any> | undefined} */
 // Dynamic module (repo convention: real-module loads typed `any`; the
@@ -132,6 +161,19 @@ function findRequired(required, entry) {
   return combo;
 }
 
+/** Names of the PNG baseline entries committed inside one platform namespace. */
+function platformBaselineEntries(platform) {
+  const dir = join(IMAGE_BASELINES_DIR, platform);
+  /** @type {string[]} */
+  let entries;
+  try {
+    entries = readdirSync(dir);
+  } catch {
+    return [];
+  }
+  return entries.filter((entry) => entry.endsWith(".png"));
+}
+
 test("the image harness exposes a deterministic capture step", async () => {
   const h = await loadImageHarness();
   assert.equal(typeof h.captureScreenshot, "function", "captureScreenshot must be exported");
@@ -181,7 +223,7 @@ test("an actual PNG screenshot artifact is captured from the real MTS-010 shell-
   );
 });
 
-test("capture rejects unknown surfaces and non-capturable platforms", async () => {
+test("capture rejects unknown surfaces and unsupported platforms, and supports the authoritative mobile renderer", async () => {
   const h = await loadImageHarness();
   assert.deepEqual(
     [...h.capturableSurfaces].sort(),
@@ -196,12 +238,43 @@ test("capture rejects unknown surfaces and non-capturable platforms", async () =
   await assert.rejects(
     h.captureScreenshot(referenceCombo({ platform: "ios" })),
     /cannot be captured|capturable platform/i,
-    "a native-platform capture must be rejected (no native simulator in this harness)",
+    "an unimplemented platform must be rejected (no iOS renderer in this harness)",
   );
   await assert.rejects(
-    h.captureScreenshot(referenceCombo({ platform: "android" })),
+    h.captureScreenshot(referenceCombo({ platform: "windows" })),
     /cannot be captured|capturable platform/i,
-    "a native-platform capture must be rejected (no native simulator in this harness)",
+    "an unknown platform must be rejected, never captured",
+  );
+  // The authoritative mobile renderer: an actual supported mobile platform
+  // (android) must capture a real end-to-end screenshot artifact.
+  const combo = referenceCombo({ platform: "android" });
+  const shot = await h.captureScreenshot(combo);
+  const meta = pngDimensions(shot, "android primitives screenshot");
+  assert.equal(
+    meta.width,
+    combo.width,
+    "android primitives screenshot width must match the device width",
+  );
+  assert.equal(
+    meta.height,
+    combo.height,
+    "android primitives screenshot height must match the device height",
+  );
+});
+
+test("the authoritative screenshot gate requires an actual supported mobile-platform renderer", () => {
+  const mobile = IMAGE_BASELINE_PLATFORMS.filter((platform) =>
+    ["android", "ios"].includes(platform),
+  );
+  assert.ok(
+    mobile.length >= 1,
+    `IMAGE_BASELINE_PLATFORMS (${IMAGE_BASELINE_PLATFORMS.join(", ")}) must include at least one ` +
+      "actual supported mobile-platform renderer (android or ios): the web/Chromium layer is " +
+      "supplemental only and can never be the authoritative mobile screenshot gate",
+  );
+  assert.ok(
+    IMAGE_BASELINE_PLATFORMS.includes("android"),
+    "the authoritative mobile renderer must be android (the CI-capturable supported mobile platform)",
   );
 });
 
@@ -231,7 +304,7 @@ test("the comparison step detects genuine visual differences and never false-pos
   assert.equal(same, 0, "identical captures must have diff ratio exactly 0");
 });
 
-test("committed image baselines cover exactly the directive-required capture matrix", async () => {
+test("committed image baselines cover exactly the directive-required capture matrix for every platform", async () => {
   const required = requiredImageCombos();
   assert.equal(required.length, 24, "primitives (16) + shell-screen light (8) = 24 baselines");
   const sizes = new Set(IMAGE_SIZES.map((s) => `${s.width}x${s.height}`));
@@ -249,18 +322,15 @@ test("committed image baselines cover exactly the directive-required capture mat
     );
   }
 
-  let found = 0;
+  assert.ok(
+    IMAGE_BASELINE_PLATFORMS.length >= 2,
+    "baseline platforms must include the supplemental web renderer AND the authoritative mobile renderer",
+  );
   for (const platform of IMAGE_BASELINE_PLATFORMS) {
-    const dir = join(IMAGE_BASELINES_DIR, platform);
-    /** @type {string[]} */
-    let entries;
-    try {
-      entries = readdirSync(dir);
-    } catch {
-      entries = [];
-    }
+    const entries = platformBaselineEntries(platform);
+    let found = 0;
     for (const entry of entries) {
-      const file = join(dir, entry);
+      const file = join(IMAGE_BASELINES_DIR, platform, entry);
       const combo = findRequired(required, entry);
       const meta = pngDimensions(readFileSync(file), `${platform}/${entry}`);
       assert.equal(meta.width, combo.width, `${entry} width`);
@@ -273,8 +343,12 @@ test("committed image baselines cover exactly the directive-required capture mat
       );
       found += 1;
     }
+    assert.equal(
+      found,
+      required.length,
+      `platform ${platform} must cover the full required matrix (found ${found} of ${required.length} baselines)`,
+    );
   }
-  assert.equal(found, required.length, "every required baseline must be committed");
 });
 
 test("image baselines are platform-separated and deterministically named", async () => {
@@ -330,6 +404,35 @@ test("image baselines are platform-separated and deterministically named", async
   }
 });
 
+test("every platform namespace carries explicit deterministic platform identity metadata", () => {
+  for (const platform of IMAGE_BASELINE_PLATFORMS) {
+    const manifestPath = join(IMAGE_BASELINES_DIR, platform, "manifest.json");
+    const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+    assert.equal(
+      manifest.platform,
+      platform,
+      `${platform}/manifest.json must declare its platform identity`,
+    );
+    assert.ok(
+      typeof manifest.renderer === "string" && manifest.renderer.length > 0,
+      `${platform}/manifest.json must declare the deterministic renderer identity`,
+    );
+    assert.equal(
+      manifest.densityScale,
+      1,
+      `${platform}/manifest.json must declare physical-pixel-exact 1x captures`,
+    );
+    assert.ok(
+      Number.isInteger(manifest.baselineCount) && manifest.baselineCount > 0,
+      `${platform}/manifest.json must declare the committed baseline count`,
+    );
+    assert.ok(
+      !("timestamp" in manifest),
+      `${platform}/manifest.json must be deterministic (no timestamps)`,
+    );
+  }
+});
+
 test("image-baseline updates stay explicit — tests never rewrite accepted baselines", async () => {
   const h = await loadImageHarness();
   // (a) The explicit update workflow must exist as a standalone script and
@@ -367,6 +470,52 @@ test("image-baseline updates stay explicit — tests never rewrite accepted base
   assert.equal(typeof h.compareShots, "function");
 });
 
+test("normal CI workflows never invoke baseline-writer commands", () => {
+  /** @type {string[]} */
+  let workflowFiles;
+  try {
+    workflowFiles = readdirSync(WORKFLOWS_DIR).filter(
+      (name) => name.endsWith(".yml") || name.endsWith(".yaml"),
+    );
+  } catch (error) {
+    if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
+      assert.fail(".github/workflows must exist with the repository CI workflows");
+    }
+    throw error;
+  }
+  assert.ok(workflowFiles.length >= 1, "expected at least one CI workflow file");
+  // NOTE: assembled from split parts so this guard never matches its own
+  // source.
+  const writerPattern = new RegExp(
+    [
+      "visual:update-",
+      "image-",
+      "baselines",
+    ].join("") +
+      "|" +
+      [
+        "visual:update-",
+        "baselines",
+      ].join("") +
+      "|" +
+      ["update-", "image-", "baselines", "\\.mjs"].join("") +
+      "|" +
+      ["update-", "baselines", "\\.mjs"].join(""),
+  );
+  for (const name of workflowFiles) {
+    const source = readFileSync(join(WORKFLOWS_DIR, name), "utf8");
+    const normalCiTriggers = (source.match(/^\s{2}(push|pull_request):\s*$/gm) ?? []).length;
+    if (normalCiTriggers > 0) {
+      assert.ok(
+        !writerPattern.test(source),
+        `${name} is triggered by normal CI (push/pull_request) and must never invoke ` +
+          "baseline-writer/update commands; intentional baseline regeneration is an explicit " +
+          "developer/manual update workflow only",
+      );
+    }
+  }
+});
+
 test("screenshot fixture sources are deterministic, credential-free, and MTS-013-free", async () => {
   // Screenshots may only ever contain deterministic placeholder content:
   // no credentials, tokens, private keys, or device/native runtime data.
@@ -399,14 +548,15 @@ test("screenshot fixture sources are deterministic, credential-free, and MTS-013
 });
 
 test(
-  "fresh screenshots conform to the committed baselines (Linux renderer)",
+  "fresh screenshots conform to the committed baselines (supplemental web renderer)",
   { skip: process.platform === "win32" || process.platform === "darwin" },
   async () => {
-    // The committed baselines are rendered by the Linux CI chromium. On
-    // Linux this contract re-captures every combo and compares pixels:
-    // genuine visual drift fails the gate. Other platforms skip pixel
-    // conformance (rasterization differs by platform) but still verify
-    // structural determinism through contracts 1-10.
+    // The web baselines are rendered by the Linux CI chromium. This
+    // contract is SUPPLEMENTAL deterministic coverage only: the
+    // authoritative mobile screenshot gate is the android conformance
+    // contract below. Other platforms skip pixel conformance
+    // (rasterization differs by platform) but still verify structural
+    // determinism through contracts 1-13.
     const h = await loadImageHarness();
     const tolerance = 0.02;
     const required = requiredImageCombos();
@@ -420,5 +570,49 @@ test(
         `${imageBaselineName(combo)} drifted ${(ratio * 100).toFixed(2)}% from its committed baseline (tolerance ${(tolerance * 100).toFixed(0)}%)`,
       );
     }
+  },
+);
+
+test(
+  "fresh android captures conform to the committed android baselines (authoritative mobile gate)",
+  { skip: process.env.MISYRA_ANDROID_DEVICE !== "1" },
+  async () => {
+    // The android baselines are rendered inside the android-35 emulator,
+    // so pixel conformance is host-OS independent: it runs on any host
+    // that provides an emulator (CI Linux + developer machines), enabled
+    // explicitly through MISYRA_ANDROID_DEVICE=1 once the emulator with
+    // the harness APK is ready. This is the authoritative mobile
+    // screenshot gate — genuine visual drift on the actual mobile
+    // renderer fails the gate.
+    const h = await loadImageHarness();
+    const tolerance = 0.02;
+    const required = requiredImageCombos();
+    for (const combo of required) {
+      const fresh = await h.captureScreenshot({ ...combo, platform: "android" });
+      const baselinePath = join(IMAGE_BASELINES_DIR, "android", imageBaselineName(combo));
+      const baseline = readFileSync(baselinePath);
+      const ratio = h.compareShots(fresh, baseline);
+      assert.ok(
+        ratio <= tolerance,
+        `${imageBaselineName(combo)} drifted ${(ratio * 100).toFixed(2)}% from its committed android baseline (tolerance ${(tolerance * 100).toFixed(0)}%)`,
+      );
+    }
+    // Negative proof: the mobile gate must detect a genuine pixel
+    // mismatch — an all-pixels-mutated image can never conform.
+    const firstCombo = required[0];
+    const baselinePath = join(
+      IMAGE_BASELINES_DIR,
+      "android",
+      imageBaselineName(firstCombo),
+    );
+    const baselinePng = PNG.sync.read(readFileSync(baselinePath));
+    baselinePng.data.fill(0xff);
+    const mutated = PNG.sync.write(baselinePng);
+    const fresh = await h.captureScreenshot({ ...firstCombo, platform: "android" });
+    const ratio = h.compareShots(fresh, mutated);
+    assert.ok(
+      ratio > 0.5,
+      `the mobile gate must detect a negative pixel mismatch (mutated baseline diff ratio ${ratio.toFixed(4)})`,
+    );
   },
 );
