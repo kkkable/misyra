@@ -413,12 +413,20 @@ function openAndroidSession() {
               // the ack payload) can never release the capture.
             }
             const expectedScale = pending?.textScale === 2 ? 2 : 1;
+            // The app acks the actual pixel density ratio it rendered with
+            // (PixelRatio.get(); 1.0 at the harness's pinned 160dpi). Only a
+            // frame rendered at 1x density can release the capture: a fresh
+            // activity launched before the density override propagates
+            // reports a stale ratio (e.g. 2.625 at the AVD's 420dpi) and
+            // lays out the whole surface at a tiny logical width — a
+            // wrong-but-plausible poisoned frame.
             const matches =
               pending !== undefined &&
               ack.surface === pending.surface &&
               ack.mode === pending.mode &&
               ack.locale === pending.locale &&
-              Math.round(Number(ack.fontScale)) === expectedScale;
+              Math.round(Number(ack.fontScale)) === expectedScale &&
+              Math.round(Number(ack.scale)) === 1;
             if (matches) {
               const resolveReady = androidReadyResolver;
               androidReadyResolver = undefined;
@@ -475,6 +483,37 @@ function setAndroidLocale(locale) {
 }
 
 /**
+ * Pin the logical size and 1x density for a combo, then WAIT until the
+ * window manager actually reports the overrides: on the software-rendered
+ * CI emulator (no KVM) the display config change propagates asynchronously,
+ * and an activity launched before it settles renders at the stale density
+ * (e.g. the AVD's 420dpi) — a plausible-looking but poisoned frame. The
+ * ready-ack scale check below is the authoritative guard; this readback
+ * just avoids wasting relaunch cycles. The size/density report formats vary
+ * across Android versions ("360x800" vs "360 x 800"), so the matchers
+ * tolerate both.
+ * @param {string} size
+ */
+function setAndroidDisplayConfig(size) {
+  adb(["shell", "wm", "size", size]);
+  adb(["shell", "wm", "density", "160"]);
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    const sizeOut = adb(["shell", "wm", "size"]);
+    const densityOut = adb(["shell", "wm", "density"]);
+    const sizeOk = /Override size:\s*\d+\s*x\s*\d+/.test(sizeOut);
+    const densityOk = /Override density:\s*160/.test(densityOut);
+    if (sizeOk && densityOk) {
+      return;
+    }
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 2_000);
+  }
+  throw new Error(
+    `MTS-012 image harness: window manager did not report the requested display config ` +
+      `(${size} @ 160dpi) within 60s`,
+  );
+}
+
+/**
  * Capture one deterministic PNG of a REAL Misyra surface from the actual
  * Android framebuffer: pin the logical size and 1x density, the system text
  * scale, and the device locale; relaunch the harness activity so every
@@ -487,8 +526,7 @@ async function captureAndroidScreenshot(combo) {
   await openAndroidSession();
   const size = `${combo.width}x${combo.height}`;
   if (size !== androidLastSize) {
-    adb(["shell", "wm", "size", size]);
-    adb(["shell", "wm", "density", "160"]);
+    setAndroidDisplayConfig(size);
     androidLastSize = size;
   }
   const fontScale = combo.textScale === 2 ? "2.0" : "1.0";
@@ -499,6 +537,14 @@ async function captureAndroidScreenshot(combo) {
   if (combo.locale !== androidLastLocale) {
     setAndroidLocale(combo.locale);
     androidLastLocale = combo.locale;
+    // The locale switch restarts the framework (`adb shell stop/start`),
+    // which can briefly drop the applied display overrides even though the
+    // global settings persist. Forget the cached display state so the next
+    // capture re-applies `wm size`/`wm density` and waits for the window
+    // manager to report them again instead of relaunching into a stale
+    // density frame.
+    androidLastSize = undefined;
+    androidLastFontScale = undefined;
   }
   androidPendingConfig = {
     surface: combo.surface,

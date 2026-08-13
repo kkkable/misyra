@@ -70,13 +70,15 @@ function CaptureApp() {
                   method: "POST",
                   headers: { "content-type": "application/json" },
                   // Ack the exact config this entry rendered (including the
-                  // system font scale it observed) so the host only captures
-                  // frames committed for the requested combo.
+                  // system font scale and the pixel density ratio it
+                  // observed) so the host only captures frames committed for
+                  // the requested combo at the pinned 1x density.
                   body: JSON.stringify({
                     surface: nextConfig.surface,
                     mode: nextConfig.mode,
                     locale: nextConfig.locale,
                     fontScale: Math.round(PixelRatio.getFontScale()),
+                    scale: PixelRatio.get(),
                   }),
                 }).catch(() => {});
               }
