@@ -123,6 +123,12 @@ jobs:
       - name: Install Playwright Chromium (supplemental web layer)
         run: pnpm exec playwright install chromium
 
+      - name: Build workspace packages (harness bundle prerequisites)
+        # The harness APK's Metro bundle resolves the real
+        # @misyra/design-tokens and @misyra/localization packages, whose
+        # dist output must exist before Gradle bundles the JS.
+        run: pnpm build
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
