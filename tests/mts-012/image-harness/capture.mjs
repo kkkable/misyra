@@ -449,6 +449,15 @@ function openAndroidSession() {
  * @param {"en" | "zh-HK"} locale
  */
 function setAndroidLocale(locale) {
+  const target = locale === "en" ? "en-US" : "zh-HK";
+  const current = adb(["shell", "getprop", "persist.sys.locale"]).trim();
+  // A fresh emulator is already en-US even when persist.sys.locale is
+  // still empty; restarting the framework for an already-active locale is
+  // needless (a framework restart takes minutes on a software emulator)
+  // and would race the launch that follows.
+  if (current === target || (target === "en-US" && current === "")) {
+    return;
+  }
   if (locale === "en") {
     adb(["shell", "setprop", "persist.sys.locale", "en-US"]);
     adb(["shell", "setprop", "persist.sys.language", "en"]);
@@ -510,9 +519,11 @@ async function captureAndroidScreenshot(combo) {
     adb(["shell", "am", "force-stop", ANDROID_CAPTURE_PACKAGE]);
     // Right after a framework restart the activity manager can briefly
     // reject launches; poll the exact operation we need (bounded) instead
-    // of racing.
+    // of racing. GitHub-hosted emulator runners have no KVM, so a single
+    // `am start` can legitimately fail for minutes while the software
+    // emulator settles — budget generously (90 x 2s = 180s).
     let launched = false;
-    for (let startAttempt = 0; startAttempt < 30 && !launched; startAttempt += 1) {
+    for (let startAttempt = 0; startAttempt < 90 && !launched; startAttempt += 1) {
       try {
         adb(["shell", "am", "start", "-n", `${ANDROID_CAPTURE_PACKAGE}/.MainActivity`]);
         launched = true;
@@ -522,7 +533,7 @@ async function captureAndroidScreenshot(combo) {
     }
     if (!launched) {
       throw new Error(
-        `MTS-012 image harness: could not start ${ANDROID_CAPTURE_PACKAGE}/.MainActivity after 60s`,
+        `MTS-012 image harness: could not start ${ANDROID_CAPTURE_PACKAGE}/.MainActivity after 180s`,
       );
     }
     let readyTimer;
@@ -534,10 +545,10 @@ async function captureAndroidScreenshot(combo) {
           readyTimer = setTimeout(() => {
             rejectReady(
               new Error(
-                "MTS-012 image harness: android capture timed out waiting for a matching harness ready signal (60s)",
+                "MTS-012 image harness: android capture timed out waiting for a matching harness ready signal (120s)",
               ),
             );
-          }, 60_000);
+          }, 120_000);
         }),
       ]);
       signalled = true;
@@ -558,7 +569,9 @@ async function captureAndroidScreenshot(combo) {
     );
   }
   // One extra settled frame after the ready signal, then grab the buffer.
-  await new Promise((resolveSettle) => setTimeout(resolveSettle, 900));
+  // The software-rendered CI emulator (no KVM) commits frames slowly;
+  // give it more settle time than a hardware device needs.
+  await new Promise((resolveSettle) => setTimeout(resolveSettle, 1_500));
   return adbBinary(["exec-out", "screencap", "-p"]);
 }
 

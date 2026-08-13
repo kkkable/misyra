@@ -555,7 +555,16 @@ test("screenshot fixture sources are deterministic, credential-free, and MTS-013
 
 test(
   "fresh screenshots conform to the committed baselines (supplemental web renderer)",
-  { skip: process.platform === "win32" || process.platform === "darwin" },
+  {
+    skip:
+      process.platform === "win32" ||
+      process.platform === "darwin" ||
+      // The emulator job exists to enforce the authoritative android gate;
+      // the software emulator (no KVM) starves the host CPU and makes the
+      // supplemental web capture timing-flaky. Web conformance is enforced
+      // deterministically by the Linux toolchain job instead.
+      process.env.MISYRA_ANDROID_DEVICE === "1",
+  },
   async () => {
     // The web baselines are rendered by the Linux CI chromium. This
     // contract is SUPPLEMENTAL deterministic coverage only: the
