@@ -188,6 +188,11 @@ jobs:
           profile: pixel_2
           avd-name: misyra
           force-avd-creation: true
+          # ubuntu-latest runners do not grant the runner user /dev/kvm access,
+          # so the emulator falls back to software emulation (-accel off) and
+          # can take well over the 600s default to boot. Give it a generous
+          # margin; the boot wait polls adb and succeeds once the system is up.
+          emulator-boot-timeout: 1800
           emulator-options: -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect
           disable-animations: true
           script: |
