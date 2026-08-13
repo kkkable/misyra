@@ -97,6 +97,9 @@ jobs:
           profile: pixel_2
           avd-name: misyra
           force-avd-creation: true
+          # Same KVM-less runner constraint as the CI emulator job: the
+          # software emulator can take well over the 600s default to boot.
+          emulator-boot-timeout: 1800
           emulator-options: -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect
           disable-animations: true
           script: |
