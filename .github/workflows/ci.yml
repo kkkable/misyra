@@ -108,6 +108,21 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Free runner disk space for the Android build
+        shell: bash
+        run: |
+          # The MTS-012 emulator job stacks pnpm store + node_modules +
+          # Playwright Chromium + Android SDK/emulator/system image + Gradle
+          # build outputs on the ubuntu-latest runner. Remove the large
+          # pre-installed toolchains this job does not need so the release
+          # APK build cannot exhaust the runner disk.
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/share/swift
+          sudo rm -rf /usr/local/share/powershell
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          df -h /
+
       - name: Set up pnpm (pinned via packageManager)
         uses: pnpm/action-setup@v4
 
