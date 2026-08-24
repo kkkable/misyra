@@ -179,12 +179,6 @@ jobs:
       # framebuffer screenshots on a deterministic emulator and compares
       # them against the committed image-baselines/android namespace. It
       # never writes baselines (the explicit update workflow does).
-      #
-      # The dump line below additionally saves the exact fresh captures this
-      # runner produced (into the runner temp dir, uploaded as an artifact
-      # after the step): pure evidence for baseline-adoption review, in the
-      # same renderer the gate compares in. Nothing here writes committed
-      # baseline files.
       - name: Run MTS-012 mobile visual regression contracts on the emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -203,16 +197,7 @@ jobs:
           disable-animations: true
           script: |
             adb install -r apps/mobile/android/app/build/outputs/apk/release/app-release.apk
-            MISYRA_ANDROID_DEVICE=1 MISYRA_CAPTURE_DUMP="$RUNNER_TEMP/fresh-android-captures" node tests/mts-012/capture-fresh-images.mjs
             MISYRA_ANDROID_DEVICE=1 node --test tests/mts-012/*.test.mjs
-
-      - name: Upload fresh android captures for baseline-adoption review
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: fresh-android-captures
-          path: ${{ runner.temp }}/fresh-android-captures/
-          if-no-files-found: warn
 
   integration:
     name: Local-service integration
