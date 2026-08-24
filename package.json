@@ -60,6 +60,9 @@
     "yaml": "2.9.0"
   },
   "pnpm": {
+    "overrides": {
+      "nanoid": "3.3.18"
+    },
     "auditConfig": {
       "ignoreGhsas": [
         "GHSA-w3rx-r6r6-pgpr",
