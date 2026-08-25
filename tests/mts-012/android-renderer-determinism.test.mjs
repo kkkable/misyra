@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { after, test } from "node:test";
 
+import { repoRoot } from "../toolchain/helpers.mjs";
 import {
   captureScreenshot,
   closeCaptureEnvironment,
@@ -19,6 +22,35 @@ const FAILING_REFERENCE_COMBO = Object.freeze({
 
 after(async () => {
   await closeCaptureEnvironment();
+});
+
+test("the explicit baseline updater preserves android renderer provenance", () => {
+  const updater = readFileSync(
+    join(repoRoot, "tests", "mts-012", "update-image-baselines.mjs"),
+    "utf8",
+  );
+
+  assert.match(
+    updater,
+    /rendererFingerprint/,
+    "the explicit updater must write the rendererFingerprint instead of erasing provenance",
+  );
+  for (const field of [
+    "apiLevel",
+    "systemImage",
+    "arch",
+    "emulatorProfile",
+    "graphicsRenderer",
+    "kvmAcceleration",
+    "adbWaitForDevice",
+    "bootTimeoutSeconds",
+  ]) {
+    assert.match(
+      updater,
+      new RegExp(`\\b${field}\\b`),
+      `the explicit updater must preserve rendererFingerprint.${field}`,
+    );
+  }
 });
 
 test(
