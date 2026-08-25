@@ -8,6 +8,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   toolchain:
     name: Toolchain on ${{ matrix.os }}
@@ -180,7 +184,9 @@ jobs:
       - name: Build the release APK
         run: |
           cd apps/mobile/android
-          ./gradlew :app:assembleRelease --no-daemon
+          # CI validates only the x86_64 emulator, so avoid compiling unused
+          # ARM/x86 native variants while preserving the same release build.
+          ./gradlew :app:assembleRelease --no-daemon -PreactNativeArchitectures=x86_64
 
       # Read-only authoritative mobile gate: captures fresh android
       # framebuffer screenshots on a deterministic emulator and compares
