@@ -137,15 +137,18 @@ test(
 
     const firstSecondRatio = compareShots(first, second);
     const secondThirdRatio = compareShots(second, third);
+    const firstThirdRatio = compareShots(first, third);
     const firstSecondGeometry = diffGeometry(first, second);
     const secondThirdGeometry = diffGeometry(second, third);
+    const firstThirdGeometry = diffGeometry(first, third);
 
     assert.equal(
-      firstSecondRatio + secondThirdRatio,
+      firstSecondRatio + secondThirdRatio + firstThirdRatio,
       0,
       `three unchanged authoritative captures of primitives-360x800-light-zh-HK-1x must be pixel-identical (` +
         `first→second ${(firstSecondRatio * 100).toFixed(2)}% drift; ${geometryDetail(firstSecondGeometry)}; ` +
-        `second→third ${(secondThirdRatio * 100).toFixed(2)}% drift; ${geometryDetail(secondThirdGeometry)})`,
+        `second→third ${(secondThirdRatio * 100).toFixed(2)}% drift; ${geometryDetail(secondThirdGeometry)}; ` +
+        `first→third ${(firstThirdRatio * 100).toFixed(2)}% drift; ${geometryDetail(firstThirdGeometry)})`,
     );
   },
 );
