@@ -570,6 +570,7 @@ async function captureAndroidScreenshot(combo) {
   await openAndroidSession();
   const size = `${combo.width}x${combo.height}`;
   const fontScale = combo.textScale === 2 ? "2.0" : "1.0";
+  let requiresSettlingCapture = false;
 
   // Locale changes restart the Android framework. Apply that restart before
   // display size/density and font scale so this same capture — not merely the
@@ -579,6 +580,7 @@ async function captureAndroidScreenshot(combo) {
     androidLastLocale = combo.locale;
     androidLastSize = undefined;
     androidLastFontScale = undefined;
+    requiresSettlingCapture = true;
   }
   // Reassert runtime/SystemUI policy for every capture. This is deliberately
   // symmetric: the first capture after a locale restart and the unchanged
@@ -587,10 +589,12 @@ async function captureAndroidScreenshot(combo) {
   if (size !== androidLastSize) {
     setAndroidDisplayConfig(size);
     androidLastSize = size;
+    requiresSettlingCapture = true;
   }
   if (fontScale !== androidLastFontScale) {
     adb(["shell", "settings", "put", "system", "font_scale", fontScale]);
     androidLastFontScale = fontScale;
+    requiresSettlingCapture = true;
   }
   androidPendingConfig = {
     surface: combo.surface,
@@ -664,7 +668,20 @@ async function captureAndroidScreenshot(combo) {
   // The software-rendered CI emulator (no KVM) commits frames slowly;
   // give it more settle time than a hardware device needs.
   await new Promise((resolveSettle) => setTimeout(resolveSettle, 1_500));
-  return adbBinary(["exec-out", "screencap", "-p"]);
+  const screenshot = adbBinary(["exec-out", "screencap", "-p"]);
+
+  if (requiresSettlingCapture) {
+    // CI evidence on the authoritative emulator showed that the first full
+    // capture after a locale/size/density/font mutation can contain a
+    // transitional app layout, while the next two unchanged fresh-process
+    // captures are pixel-identical. Perform exactly one state-driven settling
+    // capture and discard it, then return a second fresh-process capture.
+    // This is intentionally NOT "retry until equal": persistent or alternating
+    // renderer drift remains visible to the strict determinism probe.
+    return captureAndroidScreenshot(combo);
+  }
+
+  return screenshot;
 }
 
 /**
