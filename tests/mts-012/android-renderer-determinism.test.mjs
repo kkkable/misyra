@@ -83,6 +83,7 @@ function diffGeometry(first, second) {
   };
 }
 
+/** @param {ReturnType<typeof diffGeometry>} geometry */
 function geometryDetail(geometry) {
   return geometry.differingPixels === 0
     ? "no differing-pixel bounds"
