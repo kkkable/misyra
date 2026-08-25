@@ -323,6 +323,34 @@ function waitForAndroidBoot() {
   );
 }
 
+/**
+ * Re-assert runtime-wide Android capture state. Locale changes restart the
+ * Android framework and SystemUI, so settings applied only when the session
+ * first opens are not enough to guarantee the next framebuffer has the same
+ * system-bar/window state. Calling this before every capture makes the first
+ * post-restart frame and subsequent frames use the same runtime policy.
+ */
+function applyAndroidRuntimeConfig() {
+  adb(["reverse", `tcp:${ANDROID_CAPTURE_PORT}`, `tcp:${ANDROID_CAPTURE_PORT}`]);
+  adb(["shell", "settings", "put", "global", "policy_control", "immersive.full=*"]);
+  adb(["shell", "settings", "put", "global", "window_animation_scale", "0"]);
+  adb(["shell", "settings", "put", "global", "transition_animation_scale", "0"]);
+  adb(["shell", "settings", "put", "global", "animator_duration_scale", "0"]);
+  adb(["shell", "svc", "power", "stayon", "true"]);
+  adb(["shell", "wm", "dismiss-keyguard"]);
+  const policyControl = adb(["shell", "settings", "get", "global", "policy_control"]).trim();
+  if (policyControl !== "immersive.full=*") {
+    throw new Error(
+      `MTS-012 image harness: immersive system-bar policy did not settle ` +
+        `(expected "immersive.full=*", got "${policyControl}")`,
+    );
+  }
+  // `settings put` is synchronous but SystemUI applies the changed policy on
+  // its own loop. Give that observer a bounded moment before the activity is
+  // launched so the ready signal cannot race a transitioning inset state.
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 500);
+}
+
 /** @type {import("node:http").Server | undefined} */
 let androidConfigServer;
 /** @type {Record<string, any> | undefined} */
@@ -353,13 +381,7 @@ function openAndroidSession() {
     // google_apis emulator images (CI and local) allow adb root.
     adb(["root"]);
     waitForAndroidBoot();
-    adb(["reverse", `tcp:${ANDROID_CAPTURE_PORT}`, `tcp:${ANDROID_CAPTURE_PORT}`]);
-    adb(["shell", "settings", "put", "global", "policy_control", "immersive.full=*"]);
-    adb(["shell", "settings", "put", "global", "window_animation_scale", "0"]);
-    adb(["shell", "settings", "put", "global", "transition_animation_scale", "0"]);
-    adb(["shell", "settings", "put", "global", "animator_duration_scale", "0"]);
-    adb(["shell", "svc", "power", "stayon", "true"]);
-    adb(["shell", "wm", "dismiss-keyguard"]);
+    applyAndroidRuntimeConfig();
     // Right after `adb root` the activity manager can briefly fail to
     // resolve activities even though `pm path android` answers; poll until
     // the harness activity resolves (bounded).
@@ -540,6 +562,10 @@ async function captureAndroidScreenshot(combo) {
     androidLastSize = undefined;
     androidLastFontScale = undefined;
   }
+  // Reassert runtime/SystemUI policy for every capture. This is deliberately
+  // symmetric: the first capture after a locale restart and the unchanged
+  // repeat capture must enter the activity from the same system-bar state.
+  applyAndroidRuntimeConfig();
   if (size !== androidLastSize) {
     setAndroidDisplayConfig(size);
     androidLastSize = size;
