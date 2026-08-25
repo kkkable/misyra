@@ -110,9 +110,7 @@ async function main() {
     const manifest = {
       platform,
       renderer: RENDERERS[platform],
-      ...(platform === "android"
-        ? { rendererFingerprint: ANDROID_RENDERER_FINGERPRINT }
-        : {}),
+      ...(platform === "android" ? { rendererFingerprint: ANDROID_RENDERER_FINGERPRINT } : {}),
       densityScale: 1,
       baselineCount: counts[platform],
     };
