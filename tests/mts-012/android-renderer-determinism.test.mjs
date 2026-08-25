@@ -3,6 +3,9 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { after, test } from "node:test";
 
+import pixelmatch from "pixelmatch";
+import { PNG } from "pngjs";
+
 import { repoRoot } from "../toolchain/helpers.mjs";
 import {
   captureScreenshot,
@@ -29,6 +32,56 @@ const RUN_ANDROID_DETERMINISM =
 after(async () => {
   await closeCaptureEnvironment();
 });
+
+/**
+ * Locate the pixels counted by the same pixelmatch threshold as compareShots.
+ * diffMask keeps unchanged pixels transparent, so the non-zero alpha bounds
+ * identify whether Android repeat drift is SystemUI/inset-shaped or content-local.
+ * @param {Buffer} first
+ * @param {Buffer} second
+ */
+function diffGeometry(first, second) {
+  const a = PNG.sync.read(first);
+  const b = PNG.sync.read(second);
+  assert.equal(a.width, b.width, "repeat captures must have the same width");
+  assert.equal(a.height, b.height, "repeat captures must have the same height");
+
+  const diff = Buffer.alloc(a.width * a.height * 4);
+  const differingPixels = pixelmatch(a.data, b.data, diff, a.width, a.height, {
+    threshold: 0.1,
+    diffMask: true,
+  });
+
+  if (differingPixels === 0) {
+    return { differingPixels, minX: null, minY: null, maxX: null, maxY: null, width: 0, height: 0 };
+  }
+
+  let minX = a.width;
+  let minY = a.height;
+  let maxX = -1;
+  let maxY = -1;
+  for (let y = 0; y < a.height; y += 1) {
+    for (let x = 0; x < a.width; x += 1) {
+      if (diff[(y * a.width + x) * 4 + 3] === 0) {
+        continue;
+      }
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x);
+      maxY = Math.max(maxY, y);
+    }
+  }
+
+  return {
+    differingPixels,
+    minX,
+    minY,
+    maxX,
+    maxY,
+    width: maxX - minX + 1,
+    height: maxY - minY + 1,
+  };
+}
 
 test("the explicit baseline updater preserves android renderer provenance", () => {
   const updater = readFileSync(
@@ -74,11 +127,16 @@ test(
     const first = await captureScreenshot(FAILING_REFERENCE_COMBO);
     const second = await captureScreenshot(FAILING_REFERENCE_COMBO);
     const ratio = compareShots(first, second);
+    const geometry = diffGeometry(first, second);
+    const geometryDetail =
+      geometry.differingPixels === 0
+        ? "no differing-pixel bounds"
+        : `diff bbox x=${geometry.minX}..${geometry.maxX}, y=${geometry.minY}..${geometry.maxY} (${geometry.width}x${geometry.height}), ${geometry.differingPixels} differing pixels`;
 
     assert.equal(
       ratio,
       0,
-      `two unchanged authoritative captures of primitives-360x800-light-zh-HK-1x must be pixel-identical (observed ${(ratio * 100).toFixed(2)}% drift)`,
+      `two unchanged authoritative captures of primitives-360x800-light-zh-HK-1x must be pixel-identical (observed ${(ratio * 100).toFixed(2)}% drift; ${geometryDetail})`,
     );
   },
 );
