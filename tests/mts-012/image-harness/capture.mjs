@@ -257,7 +257,6 @@ function validateCombo(combo) {
  * ephemeral (the Android app hardcodes it).
  */
 export const ANDROID_CAPTURE_PORT = 58321;
-
 /** Android application package produced by the expo prebuild (harness mode). */
 const ANDROID_CAPTURE_PACKAGE = "com.anonymous.misyra";
 
@@ -545,7 +544,7 @@ function setAndroidDisplayConfig(size) {
   adb(["shell", "wm", "density", "160"]);
   const [requestedWidth, requestedHeight] = size.split("x");
   const requestedSizePattern = new RegExp(
-    `Override size:\\s*${requestedWidth}\\s*x\\s*${requestedHeight}(?:\\s|$)`,
+    `Override size:\s*${requestedWidth}\s*x\s*${requestedHeight}(?:\s|$)`,
   );
   for (let attempt = 0; attempt < 30; attempt += 1) {
     const sizeOut = adb(["shell", "wm", "size"]);
