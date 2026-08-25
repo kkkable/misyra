@@ -331,24 +331,48 @@ function waitForAndroidBoot() {
  * post-restart frame and subsequent frames use the same runtime policy.
  */
 function applyAndroidRuntimeConfig() {
-  adb(["reverse", `tcp:${ANDROID_CAPTURE_PORT}`, `tcp:${ANDROID_CAPTURE_PORT}`]);
-  adb(["shell", "settings", "put", "global", "policy_control", "immersive.full=*"]);
-  adb(["shell", "settings", "put", "global", "window_animation_scale", "0"]);
-  adb(["shell", "settings", "put", "global", "transition_animation_scale", "0"]);
-  adb(["shell", "settings", "put", "global", "animator_duration_scale", "0"]);
-  adb(["shell", "svc", "power", "stayon", "true"]);
-  adb(["shell", "wm", "dismiss-keyguard"]);
-  const policyControl = adb(["shell", "settings", "get", "global", "policy_control"]).trim();
-  if (policyControl !== "immersive.full=*") {
-    throw new Error(
-      `MTS-012 image harness: immersive system-bar policy did not settle ` +
-        `(expected "immersive.full=*", got "${policyControl}")`,
-    );
+  let lastError;
+  for (let attempt = 0; attempt < 60; attempt += 1) {
+    try {
+      adb(["reverse", `tcp:${ANDROID_CAPTURE_PORT}`, `tcp:${ANDROID_CAPTURE_PORT}`]);
+      adb(["shell", "settings", "put", "global", "policy_control", "immersive.full=*"]);
+      adb(["shell", "settings", "put", "global", "window_animation_scale", "0"]);
+      adb(["shell", "settings", "put", "global", "transition_animation_scale", "0"]);
+      adb(["shell", "settings", "put", "global", "animator_duration_scale", "0"]);
+      adb(["shell", "svc", "power", "stayon", "true"]);
+      adb(["shell", "wm", "dismiss-keyguard"]);
+      const policyControl = adb([
+        "shell",
+        "settings",
+        "get",
+        "global",
+        "policy_control",
+      ]).trim();
+      if (policyControl !== "immersive.full=*") {
+        throw new Error(
+          `MTS-012 image harness: immersive system-bar policy did not settle ` +
+            `(expected "immersive.full=*", got "${policyControl}")`,
+        );
+      }
+      // `settings put` is synchronous but SystemUI applies the changed policy
+      // on its own loop. Give that observer a bounded moment before launching
+      // the activity so the ready signal cannot race transitioning insets.
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 500);
+      return;
+    } catch (cause) {
+      lastError = cause;
+      // After adb root or a framework locale restart, `pm` may already answer
+      // while Binder services such as `settings`/`window` are still being
+      // registered. All commands above are idempotent, so retry the complete
+      // runtime policy until the services actually accept it.
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 2_000);
+    }
   }
-  // `settings put` is synchronous but SystemUI applies the changed policy on
-  // its own loop. Give that observer a bounded moment before the activity is
-  // launched so the ready signal cannot race a transitioning inset state.
-  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 500);
+  const detail = lastError instanceof Error ? lastError.message : String(lastError);
+  throw new Error(
+    `MTS-012 image harness: android runtime/SystemUI configuration did not become ready ` +
+      `within 120s (${detail})`,
+  );
 }
 
 /** @type {import("node:http").Server | undefined} */
