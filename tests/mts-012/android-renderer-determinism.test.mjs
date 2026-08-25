@@ -53,9 +53,22 @@ test("the explicit baseline updater preserves android renderer provenance", () =
   }
 });
 
+test("android CI runs the determinism probe as a dedicated serialized command", () => {
+  const ci = readFileSync(join(repoRoot, ".github", "workflows", "ci.yml"), "utf8");
+  assert.match(
+    ci,
+    /MISYRA_ANDROID_DEVICE=1 MISYRA_ANDROID_DETERMINISM=1 node --test tests\/mts-012\/android-renderer-determinism\.test\.mjs/,
+    "the emulator job must run the repeated-capture probe separately so no second test process drives the same ADB device concurrently",
+  );
+});
+
 test(
   "the authoritative android renderer repeats the previously failing capture deterministically",
-  { skip: process.env.MISYRA_ANDROID_DEVICE !== "1" },
+  {
+    skip:
+      process.env.MISYRA_ANDROID_DEVICE !== "1" ||
+      process.env.MISYRA_ANDROID_DETERMINISM !== "1",
+  },
   async () => {
     const first = await captureScreenshot(FAILING_REFERENCE_COMBO);
     const second = await captureScreenshot(FAILING_REFERENCE_COMBO);
