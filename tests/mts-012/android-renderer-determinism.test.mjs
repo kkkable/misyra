@@ -83,6 +83,12 @@ function diffGeometry(first, second) {
   };
 }
 
+function geometryDetail(geometry) {
+  return geometry.differingPixels === 0
+    ? "no differing-pixel bounds"
+    : `diff bbox x=${geometry.minX}..${geometry.maxX}, y=${geometry.minY}..${geometry.maxY} (${geometry.width}x${geometry.height}), ${geometry.differingPixels} differing pixels`;
+}
+
 test("the explicit baseline updater preserves android renderer provenance", () => {
   const updater = readFileSync(
     join(repoRoot, "tests", "mts-012", "update-image-baselines.mjs"),
@@ -126,17 +132,19 @@ test(
   async () => {
     const first = await captureScreenshot(FAILING_REFERENCE_COMBO);
     const second = await captureScreenshot(FAILING_REFERENCE_COMBO);
-    const ratio = compareShots(first, second);
-    const geometry = diffGeometry(first, second);
-    const geometryDetail =
-      geometry.differingPixels === 0
-        ? "no differing-pixel bounds"
-        : `diff bbox x=${geometry.minX}..${geometry.maxX}, y=${geometry.minY}..${geometry.maxY} (${geometry.width}x${geometry.height}), ${geometry.differingPixels} differing pixels`;
+    const third = await captureScreenshot(FAILING_REFERENCE_COMBO);
+
+    const firstSecondRatio = compareShots(first, second);
+    const secondThirdRatio = compareShots(second, third);
+    const firstSecondGeometry = diffGeometry(first, second);
+    const secondThirdGeometry = diffGeometry(second, third);
 
     assert.equal(
-      ratio,
+      firstSecondRatio + secondThirdRatio,
       0,
-      `two unchanged authoritative captures of primitives-360x800-light-zh-HK-1x must be pixel-identical (observed ${(ratio * 100).toFixed(2)}% drift; ${geometryDetail})`,
+      `three unchanged authoritative captures of primitives-360x800-light-zh-HK-1x must be pixel-identical (` +
+        `first→second ${(firstSecondRatio * 100).toFixed(2)}% drift; ${geometryDetail(firstSecondGeometry)}; ` +
+        `second→third ${(secondThirdRatio * 100).toFixed(2)}% drift; ${geometryDetail(secondThirdGeometry)})`,
     );
   },
 );
