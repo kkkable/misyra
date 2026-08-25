@@ -341,13 +341,7 @@ function applyAndroidRuntimeConfig() {
       adb(["shell", "settings", "put", "global", "animator_duration_scale", "0"]);
       adb(["shell", "svc", "power", "stayon", "true"]);
       adb(["shell", "wm", "dismiss-keyguard"]);
-      const policyControl = adb([
-        "shell",
-        "settings",
-        "get",
-        "global",
-        "policy_control",
-      ]).trim();
+      const policyControl = adb(["shell", "settings", "get", "global", "policy_control"]).trim();
       if (policyControl !== "immersive.full=*") {
         throw new Error(
           `MTS-012 image harness: immersive system-bar policy did not settle ` +
