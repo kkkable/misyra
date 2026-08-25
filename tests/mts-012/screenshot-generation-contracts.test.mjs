@@ -77,7 +77,7 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { after, test } from "node:test";
 import { PNG } from "pngjs";
-import { repoRoot, walkFiles } from "../toolchain/helpers.mjs";
+import { readText, repoRoot, walkFiles } from "../toolchain/helpers.mjs";
 import {
   IMAGE_BASELINE_PLATFORMS,
   IMAGE_SIZES,
@@ -444,6 +444,183 @@ test("every platform namespace carries explicit deterministic platform identity 
       `${platform}/manifest.json must be deterministic (no timestamps)`,
     );
   }
+});
+
+// The android baseline namespace is the AUTHORITATIVE mobile screenshot
+// gate; its pixel baselines only remain valid while the renderer that
+// produced them is exactly the renderer the gate compares in. The
+// directive (CORRECTION_REQUIRED 2026-08-25T10:42:41Z, issue #4) requires
+// the manifest to bind baselines to the relevant deterministic renderer
+// configuration, AND the ci.yml emulator job and the explicit
+// update-image-baselines.yml workflow to use the same effective renderer
+// inputs — so a future KVM/GPU/system-image change is forced to surface
+// in the manifest rather than silently re-invalidating the baselines.
+const REQUIRED_ANDROID_RENDERER_FIELDS = Object.freeze([
+  "apiLevel",
+  "systemImage",
+  "arch",
+  "emulatorProfile",
+  "graphicsRenderer",
+  "kvmAcceleration",
+  "adbWaitForDevice",
+  "bootTimeoutSeconds",
+]);
+
+/** @param {Record<string, unknown>} fingerprint */
+function assertAndroidRendererFingerprint(fingerprint) {
+  assert.equal(
+    typeof fingerprint,
+    "object",
+    "android/manifest.json must declare a rendererFingerprint object",
+  );
+  for (const field of REQUIRED_ANDROID_RENDERER_FIELDS) {
+    assert.ok(
+      field in fingerprint,
+      `android/manifest.json rendererFingerprint must include "${field}" (directive 2026-08-25T10:42:41Z)`,
+    );
+    const value = fingerprint[field];
+    assert.notEqual(
+      value,
+      undefined,
+      `android/manifest.json rendererFingerprint.${field} must be defined`,
+    );
+    assert.notEqual(
+      value,
+      null,
+      `android/manifest.json rendererFingerprint.${field} must not be null`,
+    );
+    assert.notEqual(
+      value,
+      "",
+      `android/manifest.json rendererFingerprint.${field} must not be empty`,
+    );
+  }
+}
+
+/**
+ * Read the kotlin/yaml block that declares the emulator job's inputs in a
+ * workflow file. Returns the value of `script:`, plus the literal strings
+ * for api-level/arch/profile/emulator-options/emulator-boot-timeout, so a
+ * test can assert that two workflows use the same effective renderer.
+ * @param {string} workflowPath
+ */
+function readEmulatorJobBlock(workflowPath) {
+  const text = readText(workflowPath);
+  /** @param {string} input @param {RegExp} re */
+  const firstMatch = (input, re) => {
+    const m = input.match(re);
+    return m && m[1] !== undefined ? m[1] : null;
+  };
+  /** @type {Record<string, string | boolean | number | null>} */
+  const fields = {
+    apiLevel: firstMatch(text, /\n\s+api-level:\s*(\S+)/),
+    arch: firstMatch(text, /\n\s+arch:\s*(\S+)/),
+    profile: firstMatch(text, /\n\s+profile:\s*(\S+)/),
+    avdName: firstMatch(text, /\n\s+avd-name:\s*(\S+)/),
+    emulatorOptions: firstMatch(text, /\n\s+emulator-options:\s*(\S.+)/),
+    emulatorBootTimeout: Number(firstMatch(text, /\n\s+emulator-boot-timeout:\s*(\d+)/)) || null,
+    scriptAdbWait: /^\s*adb wait-for-device\s*$/m.test(text),
+    hasKvmUdevRule: /99-kvm4all\.rules/.test(text),
+    hasKvmChmod: /chmod 666 \/dev\/kvm/.test(text),
+  };
+  return fields;
+}
+
+test("android baselines carry a directive-required renderer fingerprint", () => {
+  const manifestPath = join(IMAGE_BASELINES_DIR, "android", "manifest.json");
+  const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+  assertAndroidRendererFingerprint(
+    /** @type {Record<string, unknown>} */ (manifest.rendererFingerprint ?? {}),
+  );
+  // The human-readable `renderer` string must mention the platform/api
+  // pair and the graphics backend, so an out-of-band change is visible at
+  // a glance without parsing structured fields.
+  const renderer = String(manifest.renderer);
+  assert.match(renderer, /android-35/, "android renderer must declare the API level");
+  assert.match(
+    renderer,
+    /swiftshader|gfxstream/,
+    "android renderer must declare the graphics backend",
+  );
+  assert.match(
+    renderer,
+    /1x density|160(dpi)?/,
+    "android renderer must declare the pinned 1x density",
+  );
+});
+
+test("the authoritative android CI job and the explicit update workflow use identical renderer inputs", () => {
+  const ci = readEmulatorJobBlock(join(repoRoot, ".github", "workflows", "ci.yml"));
+  const updater = readEmulatorJobBlock(
+    join(repoRoot, ".github", "workflows", "update-image-baselines.yml"),
+  );
+  // The directive requires "same effective renderer inputs" between the
+  // authoritative gate and the explicit update path. Everything below is
+  // a renderer input (not a host policy choice), so they MUST match
+  // exactly — a future change in one without the other would silently
+  // invalidate the baselines.
+  assert.equal(ci.apiLevel, updater.apiLevel, "api-level must match");
+  assert.equal(ci.arch, updater.arch, "arch must match");
+  assert.equal(ci.profile, updater.profile, "emulator profile must match");
+  assert.equal(ci.avdName, updater.avdName, "AVD name must match");
+  assert.equal(ci.emulatorOptions, updater.emulatorOptions, "emulator-options must match");
+  assert.equal(
+    ci.emulatorBootTimeout,
+    updater.emulatorBootTimeout,
+    "emulator-boot-timeout must match",
+  );
+  assert.equal(
+    ci.scriptAdbWait,
+    updater.scriptAdbWait,
+    "adb wait-for-device usage must match between the gate and the updater",
+  );
+  assert.equal(
+    ci.hasKvmUdevRule,
+    updater.hasKvmUdevRule,
+    "KVM udev unblock must be present in BOTH the gate and the updater (or in neither)",
+  );
+  assert.equal(
+    ci.hasKvmChmod,
+    updater.hasKvmChmod,
+    "/dev/kvm chmod must be present in BOTH the gate and the updater (or in neither)",
+  );
+});
+
+test("the android renderer fingerprint manifest matches the renderer inputs in both authoritative workflows", () => {
+  const manifestPath = join(IMAGE_BASELINES_DIR, "android", "manifest.json");
+  const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+  const fingerprint = /** @type {Record<string, string | boolean | number>} */ (
+    manifest.rendererFingerprint
+  );
+  const ci = readEmulatorJobBlock(join(repoRoot, ".github", "workflows", "ci.yml"));
+  const updater = readEmulatorJobBlock(
+    join(repoRoot, ".github", "workflows", "update-image-baselines.yml"),
+  );
+  // The fingerprint must reflect the actual ci.yml/updater values
+  // byte-for-byte, so a workflow change without a manifest update fails
+  // this contract at the gate and a baseline adoption without a manifest
+  // update fails it at the explicit-update step.
+  /** @type {Record<string, string | number | boolean | null>} */
+  const expected = {
+    apiLevel: ci.apiLevel ?? null,
+    systemImage: `android-${ci.apiLevel ?? "?"};google_apis;${ci.arch ?? "?"}`,
+    arch: ci.arch ?? null,
+    emulatorProfile: ci.profile ?? null,
+    graphicsRenderer: String(ci.emulatorOptions ?? "").match(/-gpu\s+(\S+)/)?.[1] ?? null,
+    kvmAcceleration: Boolean(ci.hasKvmUdevRule && ci.hasKvmChmod),
+    adbWaitForDevice: Boolean(ci.scriptAdbWait),
+    bootTimeoutSeconds: typeof ci.emulatorBootTimeout === "number" ? ci.emulatorBootTimeout : null,
+  };
+  for (const [key, value] of Object.entries(expected)) {
+    assert.deepEqual(
+      fingerprint[key],
+      value,
+      `android rendererFingerprint.${key} must match the authoritative workflow (got ${JSON.stringify(fingerprint[key])}, expected ${JSON.stringify(value)})`,
+    );
+  }
+  // Cross-workflow parity captured by the same values; not duplicated here.
+  assert.equal(ci.apiLevel, updater.apiLevel);
+  assert.equal(ci.arch, updater.arch);
 });
 
 test("image-baseline updates stay explicit — tests never rewrite accepted baselines", async () => {
