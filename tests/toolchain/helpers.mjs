@@ -21,13 +21,14 @@ export function readJson(relativePath) {
 }
 
 /**
- * Read a text file relative to the repository root.
+ * Read a text file relative to the repository root, or from an already
+ * absolute path supplied by a focused contract.
  *
  * @param {string} relativePath
  * @returns {string}
  */
 export function readText(relativePath) {
-  return readFileSync(join(repoRoot, relativePath), "utf8");
+  return readFileSync(resolve(repoRoot, relativePath), "utf8");
 }
 
 /**
