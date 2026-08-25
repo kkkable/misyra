@@ -43,7 +43,30 @@ const BASELINE_ROOT = join(repoRoot, "tests", "mts-012", "image-baselines");
 const RENDERERS = Object.freeze({
   web: "headless chromium (playwright) - optional supplemental deterministic web layer",
   android:
-    "android emulator framebuffer - actual supported mobile-platform renderer (android-35 google_apis x86_64, swiftshader, 1x density)",
+    "android emulator framebuffer - actual supported mobile-platform renderer (android-35 google_apis x86_64, pixel_2, swiftshader_indirect, 160dpi / 1x density, KVM)",
+});
+
+/**
+ * Authoritative Android renderer provenance. Keep this aligned with both the
+ * normal CI Android job and the explicit update workflow; the contracts fail
+ * if either workflow drifts from this fingerprint.
+ */
+const ANDROID_RENDERER_FINGERPRINT = Object.freeze({
+  apiLevel: "35",
+  systemImage: "android-35;google_apis;x86_64",
+  arch: "x86_64",
+  emulatorProfile: "pixel_2",
+  avdName: "misyra",
+  graphicsRenderer: "swiftshader_indirect",
+  kvmAcceleration: true,
+  adbWaitForDevice: true,
+  bootTimeoutSeconds: 600,
+  densityDpi: 160,
+  platformNamespace: "android",
+  logicalCaptureSizes: Object.freeze(["360x800", "412x915"]),
+  locales: Object.freeze(["en", "zh-HK"]),
+  appearances: Object.freeze(["light", "dark"]),
+  textScales: Object.freeze([1, 2]),
 });
 
 async function main() {
@@ -87,6 +110,9 @@ async function main() {
     const manifest = {
       platform,
       renderer: RENDERERS[platform],
+      ...(platform === "android"
+        ? { rendererFingerprint: ANDROID_RENDERER_FINGERPRINT }
+        : {}),
       densityScale: 1,
       baselineCount: counts[platform],
     };
