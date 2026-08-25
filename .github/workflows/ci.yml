@@ -201,6 +201,7 @@ jobs:
           script: |
             adb wait-for-device
             adb install -r apps/mobile/android/app/build/outputs/apk/release/app-release.apk
+            MISYRA_ANDROID_DEVICE=1 MISYRA_ANDROID_DETERMINISM=1 node --test tests/mts-012/android-renderer-determinism.test.mjs
             MISYRA_ANDROID_DEVICE=1 node --test tests/mts-012/*.test.mjs
 
   integration:
