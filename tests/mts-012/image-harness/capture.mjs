@@ -497,10 +497,14 @@ function setAndroidLocale(locale) {
 function setAndroidDisplayConfig(size) {
   adb(["shell", "wm", "size", size]);
   adb(["shell", "wm", "density", "160"]);
+  const [requestedWidth, requestedHeight] = size.split("x");
+  const requestedSizePattern = new RegExp(
+    `Override size:\\s*${requestedWidth}\\s*x\\s*${requestedHeight}(?:\\s|$)`,
+  );
   for (let attempt = 0; attempt < 30; attempt += 1) {
     const sizeOut = adb(["shell", "wm", "size"]);
     const densityOut = adb(["shell", "wm", "density"]);
-    const sizeOk = /Override size:\s*\d+\s*x\s*\d+/.test(sizeOut);
+    const sizeOk = requestedSizePattern.test(sizeOut);
     const densityOk = /Override density:\s*160/.test(densityOut);
     if (sizeOk && densityOk) {
       return;
@@ -525,26 +529,24 @@ function setAndroidDisplayConfig(size) {
 async function captureAndroidScreenshot(combo) {
   await openAndroidSession();
   const size = `${combo.width}x${combo.height}`;
+  const fontScale = combo.textScale === 2 ? "2.0" : "1.0";
+
+  // Locale changes restart the Android framework. Apply that restart before
+  // display size/density and font scale so this same capture — not merely the
+  // next one — is rendered with the complete requested device configuration.
+  if (combo.locale !== androidLastLocale) {
+    setAndroidLocale(combo.locale);
+    androidLastLocale = combo.locale;
+    androidLastSize = undefined;
+    androidLastFontScale = undefined;
+  }
   if (size !== androidLastSize) {
     setAndroidDisplayConfig(size);
     androidLastSize = size;
   }
-  const fontScale = combo.textScale === 2 ? "2.0" : "1.0";
   if (fontScale !== androidLastFontScale) {
     adb(["shell", "settings", "put", "system", "font_scale", fontScale]);
     androidLastFontScale = fontScale;
-  }
-  if (combo.locale !== androidLastLocale) {
-    setAndroidLocale(combo.locale);
-    androidLastLocale = combo.locale;
-    // The locale switch restarts the framework (`adb shell stop/start`),
-    // which can briefly drop the applied display overrides even though the
-    // global settings persist. Forget the cached display state so the next
-    // capture re-applies `wm size`/`wm density` and waits for the window
-    // manager to report them again instead of relaunching into a stale
-    // density frame.
-    androidLastSize = undefined;
-    androidLastFontScale = undefined;
   }
   androidPendingConfig = {
     surface: combo.surface,
