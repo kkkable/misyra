@@ -10,6 +10,7 @@ const CI_WORKFLOW = join(WORKFLOWS_DIR, "ci.yml");
 const UPDATE_WORKFLOW = join(WORKFLOWS_DIR, "update-image-baselines.yml");
 const BASELINE_WRITER = join(repoRoot, "tests", "mts-012", "update-image-baselines.mjs");
 
+/** @param {string} workflowPath */
 function emulatorBuild(workflowPath) {
   const source = readText(workflowPath);
   return source.match(/^\s*emulator-build:\s*(\d+)\s*$/m)?.[1] ?? null;
