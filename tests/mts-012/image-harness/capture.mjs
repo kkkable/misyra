@@ -385,17 +385,12 @@ let androidLastRenderedConfigKey;
 /** @type {Promise<void> | undefined} */
 let androidSessionPromise;
 
-/**
- * Return whether the harness activity that produced the last acknowledged
- * frame is still foreground.
- */
 function isAndroidCaptureActivityResumed() {
   try {
     const activities = adb(["shell", "dumpsys", "activity", "activities"]);
-    return (
-      /mResumedActivity|topResumedActivity/.test(activities) &&
-      activities.includes(ANDROID_CAPTURE_PACKAGE)
-    );
+    const hasResumedMarker =
+      activities.includes("mResumedActivity") || activities.includes("topResumedActivity");
+    return hasResumedMarker && activities.includes(ANDROID_CAPTURE_PACKAGE);
   } catch {
     return false;
   }
@@ -577,13 +572,13 @@ async function captureAndroidScreenshot(combo) {
   await openAndroidSession();
   const size = `${combo.width}x${combo.height}`;
   const fontScale = combo.textScale === 2 ? "2.0" : "1.0";
-  const configKey = [
-    combo.surface,
-    combo.appearance,
-    combo.locale,
-    combo.textScale,
+  const configKey = JSON.stringify({
+    surface: combo.surface,
+    appearance: combo.appearance,
+    locale: combo.locale,
+    textScale: combo.textScale,
     size,
-  ].join("|");
+  });
   let requiresSettlingCapture = false;
 
   // Locale changes restart the Android framework. Apply that restart before
@@ -621,8 +616,10 @@ async function captureAndroidScreenshot(combo) {
   // activity is still foreground, do not cold-relaunch React Native merely
   // to take another screenshot: the determinism probe should compare fresh
   // framebuffer reads of the same settled UI, not process-start timing.
-  if (androidLastRenderedConfigKey === configKey && isAndroidCaptureActivityResumed()) {
-    return adbBinary(["exec-out", "screencap", "-p"]);
+  if (androidLastRenderedConfigKey === configKey) {
+    if (isAndroidCaptureActivityResumed()) {
+      return adbBinary(["exec-out", "screencap", "-p"]);
+    }
   }
 
   androidPendingConfig = {
