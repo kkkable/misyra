@@ -286,6 +286,20 @@ function adbBinary(args) {
   return execFileSync(resolveAdb(), args, { stdio: "pipe", maxBuffer: 32 * 1024 * 1024 });
 }
 
+/** @param {number} ms */
+function sleep(ms) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
+/** @param {string} service */
+function isAndroidServiceReady(service) {
+  try {
+    return /\bfound\b/.test(adb(["shell", "service", "check", service]));
+  } catch {
+    return false;
+  }
+}
+
 function requireAndroidDevice() {
   const attached = adb(["devices"])
     .split(/\r?\n/)
@@ -300,26 +314,28 @@ function requireAndroidDevice() {
 
 function waitForAndroidBoot() {
   adb(["wait-for-device"]);
+  let lastBootCompleted = "";
   for (let attempt = 0; attempt < 180; attempt += 1) {
-    if (adb(["shell", "getprop", "sys.boot_completed"]).trim() === "1") {
-      break;
-    }
-    // Synchronous sleep (execFileSync context) via Atomics.wait.
-    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 1_000);
-  }
-  // sys.boot_completed=1 fires while the activity/package managers are still
-  // coming up after a framework restart; wait until `pm` answers so the
-  // subsequent activity-start commands cannot race the boot.
-  for (let attempt = 0; attempt < 120; attempt += 1) {
     try {
-      adb(["shell", "pm", "path", "android"]);
-      return;
+      lastBootCompleted = adb(["shell", "getprop", "sys.boot_completed"]).trim();
+      const frameworkReady =
+        isAndroidServiceReady("package") &&
+        isAndroidServiceReady("activity") &&
+        isAndroidServiceReady("window");
+      if (lastBootCompleted === "1" && frameworkReady) {
+        // PackageManager can lag the Binder service registration slightly;
+        // prove the concrete operation the harness needs also succeeds.
+        adb(["shell", "pm", "path", "android"]);
+        return;
+      }
     } catch {
-      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 1_000);
+      // Framework/system_server is still rebuilding. Retry below.
     }
+    sleep(1_000);
   }
   throw new Error(
-    "MTS-012 image harness: android package manager did not become ready within 120s",
+    `MTS-012 image harness: android framework services did not become ready within 180s ` +
+      `(sys.boot_completed="${lastBootCompleted}")`,
   );
 }
 
@@ -350,7 +366,7 @@ function applyAndroidRuntimeConfig() {
       // `settings put` is synchronous but SystemUI applies the changed policy
       // on its own loop. Give that observer a bounded moment before launching
       // the activity so the ready signal cannot race transitioning insets.
-      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 500);
+      sleep(500);
       return;
     } catch (cause) {
       lastError = cause;
@@ -358,7 +374,7 @@ function applyAndroidRuntimeConfig() {
       // while Binder services such as `settings`/`window` are still being
       // registered. All commands above are idempotent, so retry the complete
       // runtime policy until the services actually accept it.
-      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 2_000);
+      sleep(2_000);
     }
   }
   const detail = lastError instanceof Error ? lastError.message : String(lastError);
@@ -428,7 +444,7 @@ function openAndroidSession() {
       if (resolvedActivity.includes(`${ANDROID_CAPTURE_PACKAGE}/.MainActivity`)) {
         break;
       }
-      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 2_000);
+      sleep(2_000);
     }
     if (!resolvedActivity.includes(`${ANDROID_CAPTURE_PACKAGE}/.MainActivity`)) {
       throw new Error(
@@ -523,6 +539,12 @@ function setAndroidLocale(locale) {
     adb(["shell", "setprop", "persist.sys.region", "HK"]);
   }
   adb(["shell", "stop"]);
+  // Do not let the previous boot's stale "1" satisfy the readiness gate
+  // while system_server is rebuilding after the locale framework restart.
+  adb(["shell", "setprop", "sys.boot_completed", "0"]);
+  // Android's documented locale-switch sequence includes a bounded pause
+  // between framework stop/start; without it CI can race service teardown.
+  sleep(5_000);
   adb(["shell", "start"]);
   waitForAndroidBoot();
 }
@@ -536,25 +558,41 @@ function setAndroidLocale(locale) {
  * @param {string} size
  */
 function setAndroidDisplayConfig(size) {
-  adb(["shell", "wm", "size", size]);
-  adb(["shell", "wm", "density", "160"]);
   const [requestedWidth, requestedHeight] = size.split("x");
   const requestedSizePattern = new RegExp(
     `Override size:\\s*${requestedWidth}\\s*x\\s*${requestedHeight}(?:\\s|$)`,
   );
-  for (let attempt = 0; attempt < 30; attempt += 1) {
-    const sizeOut = adb(["shell", "wm", "size"]);
-    const densityOut = adb(["shell", "wm", "density"]);
-    const sizeOk = requestedSizePattern.test(sizeOut);
-    const densityOk = /Override density:\s*160/.test(densityOut);
-    if (sizeOk && densityOk) {
-      return;
+  let lastError;
+  for (let attempt = 0; attempt < 60; attempt += 1) {
+    try {
+      if (!isAndroidServiceReady("window")) {
+        throw new Error("WindowManager Binder service is not ready");
+      }
+      // Writes are inside the retry loop deliberately: the failure that
+      // triggered this correction occurred on the first `wm size` write,
+      // before the old readback-only retry loop could run.
+      adb(["shell", "wm", "size", size]);
+      adb(["shell", "wm", "density", "160"]);
+      const sizeOut = adb(["shell", "wm", "size"]);
+      const densityOut = adb(["shell", "wm", "density"]);
+      const sizeOk = requestedSizePattern.test(sizeOut);
+      const densityOk = /Override density:\s*160/.test(densityOut);
+      if (sizeOk && densityOk) {
+        return;
+      }
+      lastError = new Error(
+        `WindowManager readback did not settle (size=${JSON.stringify(sizeOut.trim())}, ` +
+          `density=${JSON.stringify(densityOut.trim())})`,
+      );
+    } catch (cause) {
+      lastError = cause;
     }
-    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 2_000);
+    sleep(1_000);
   }
+  const detail = lastError instanceof Error ? lastError.message : String(lastError);
   throw new Error(
-    `MTS-012 image harness: window manager did not report the requested display config ` +
-      `(${size} @ 160dpi) within 60s`,
+    `MTS-012 image harness: window manager did not accept/report the requested display config ` +
+      `(${size} @ 160dpi) within 60s (${detail})`,
   );
 }
 
@@ -647,7 +685,7 @@ async function captureAndroidScreenshot(combo) {
         adb(["shell", "am", "start", "-n", `${ANDROID_CAPTURE_PACKAGE}/.MainActivity`]);
         launched = true;
       } catch {
-        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 2_000);
+        sleep(2_000);
       }
     }
     if (!launched) {
