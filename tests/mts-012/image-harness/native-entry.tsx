@@ -18,7 +18,7 @@
  */
 import { useEffect, useState } from "react";
 import { PixelRatio, StyleSheet, Text, View } from "react-native";
-import { SafeAreaProvider } from "react-native-safe-area-context";
+import { SafeAreaProvider, initialWindowMetrics } from "react-native-safe-area-context";
 import { registerRootComponent } from "expo";
 
 import { PrimitivesSurface } from "./fixtures/primitives-surface";
@@ -107,7 +107,7 @@ function CaptureApp() {
     return <View style={styles.fill} />;
   }
   return (
-    <SafeAreaProvider>
+    <SafeAreaProvider initialMetrics={initialWindowMetrics}>
       {config.surface === "shell-screen" ? (
         <ShellScreenSurface />
       ) : (
