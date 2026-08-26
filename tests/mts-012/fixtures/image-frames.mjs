@@ -30,6 +30,11 @@
  *   model dark layouts for the shell (layout contracts, not pixels).
  * - Text scales reuse the approved manifest scales: 1 (default) and 2
  *   (large text).
+ * - Capture order is deterministic and locale-major. Android changes the
+ *   device locale by restarting the framework, so every consumer of this
+ *   matrix must finish one locale before moving to the next. This makes
+ *   baseline generation and verification enter each fixture from the same
+ *   device-state transition instead of silently depending on loop nesting.
  */
 import { join } from "node:path";
 
@@ -83,16 +88,21 @@ export const IMAGE_SIZES = Object.freeze([
  * - primitives: every size × appearance × locale × text scale (16);
  * - shell-screen: every size × locale × text scale at light (8), because
  *   the REAL PlaceholderScreen renders an appearance-independent palette.
+ *
+ * Locale is intentionally the outermost dimension. Android applies locale
+ * through a framework restart, so this canonical order groups all English
+ * captures before all zh-HK captures. Baseline generation and verification
+ * therefore exercise the exact same Android state-transition sequence.
  * @returns {{ surface: string; width: number; height: number; appearance: string; locale: string; textScale: number }[]}
  */
 export function requiredImageCombos() {
   /** @type {{ surface: string; width: number; height: number; appearance: string; locale: string; textScale: number }[]} */
   const combos = [];
-  for (const surface of IMAGE_SURFACES) {
-    const appearances = surface === "shell-screen" ? ["light"] : APPEARANCES;
-    for (const size of IMAGE_SIZES) {
-      for (const appearance of appearances) {
-        for (const locale of LOCALES) {
+  for (const locale of LOCALES) {
+    for (const surface of IMAGE_SURFACES) {
+      const appearances = surface === "shell-screen" ? ["light"] : APPEARANCES;
+      for (const size of IMAGE_SIZES) {
+        for (const appearance of appearances) {
           for (const textScale of TEXT_SCALES) {
             combos.push({
               surface,
