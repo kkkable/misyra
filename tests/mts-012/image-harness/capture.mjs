@@ -54,7 +54,7 @@ export const capturableSurfaces = Object.freeze(["primitives", "shell-screen"]);
 /**
  * Build a workspace package's dist on demand with the same script CI uses.
  * @param {string} entry dist entry file to check.
- * @param {string} packageRoot package directory containing scripts/build.mjs.
+ * @param {string} packageRoot directory containing scripts/build.mjs.
  */
 function ensureBuilt(entry, packageRoot) {
   if (existsSync(entry)) {
@@ -469,10 +469,24 @@ function openAndroidSession() {
     // google_apis emulator images (CI and local) allow adb root.
     adb(["root"]);
     waitForAndroidBoot();
+
+    // Dedicated Android test commands run as separate Node processes but share
+    // one emulator. The previous process can therefore leave persistent device
+    // locale/framework state behind even though every in-memory `androidLast*`
+    // cache starts empty. Normalize the REAL device to the matrix's canonical
+    // entry locale before trusting process-local bookkeeping. The first combo
+    // still owns its requested display size/font scale below, so this reset is
+    // limited to the only state mutation that restarts the Android framework.
+    setAndroidLocale("en");
+    androidLastLocale = "en";
+    androidLastSize = undefined;
+    androidLastFontScale = undefined;
+    androidLastRenderedConfigKey = undefined;
+
     applyAndroidRuntimeConfig();
-    // Right after `adb root` the activity manager can briefly fail to
-    // resolve activities even though `pm path android` answers; poll until
-    // the harness activity resolves (bounded).
+    // Right after `adb root` or the canonical locale restart, the activity
+    // manager can briefly fail to resolve activities even though `pm path
+    // android` answers; poll until the harness activity resolves (bounded).
     let resolvedActivity = "";
     for (let attempt = 0; attempt < 30; attempt += 1) {
       resolvedActivity = adb([
