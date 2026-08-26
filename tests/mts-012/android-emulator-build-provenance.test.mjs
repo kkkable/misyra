@@ -5,42 +5,33 @@ import { test } from "node:test";
 import { readText, repoRoot } from "../toolchain/helpers.mjs";
 
 const EXPECTED_EMULATOR_BUILD = "15917651";
-const EXPECTED_EMULATOR_VERSION = "37.1.11";
+const WORKFLOWS_DIR = join(repoRoot, ".github", "workflows");
+const CI_WORKFLOW = join(WORKFLOWS_DIR, "ci.yml");
+const UPDATE_WORKFLOW = join(WORKFLOWS_DIR, "update-image-baselines.yml");
+const BASELINE_WRITER = join(
+  repoRoot,
+  "tests",
+  "mts-012",
+  "update-image-baselines.mjs",
+);
 
 function emulatorBuild(workflowPath) {
   const source = readText(workflowPath);
-  return (
-    source.match(/\nemulator-build:\s*(\d+)/)?.[1] ??
-    source.match(/\n\s+emulator-build:\s*(\d+)/)?.[1] ??
-    null
-  );
+  return source.match(/^\s*emulator-build:\s*(\d+)\s*$/m)?.[1] ?? null;
 }
 
-test("authoritative android workflows pin the same emulator binary build", () => {
-  const ci = emulatorBuild(join(repoRoot, ".github", "workflows", "ci.yml"));
-  const updater = emulatorBuild(
-    join(repoRoot, ".github", "workflows", "update-image-baselines.yml"),
-  );
+test("android workflows pin the emulator build", () => {
+  const ci = emulatorBuild(CI_WORKFLOW);
+  const updater = emulatorBuild(UPDATE_WORKFLOW);
 
-  assert.equal(ci, EXPECTED_EMULATOR_BUILD, "CI must pin the approved emulator build");
-  assert.equal(
-    updater,
-    EXPECTED_EMULATOR_BUILD,
-    "the explicit baseline updater must pin the approved emulator build",
-  );
-  assert.equal(ci, updater, "CI and baseline updater emulator builds must remain identical");
+  assert.equal(ci, EXPECTED_EMULATOR_BUILD);
+  assert.equal(updater, EXPECTED_EMULATOR_BUILD);
+  assert.equal(ci, updater);
 });
 
-test("the explicit baseline writer records the pinned emulator build", () => {
-  const updater = readText(
-    join(repoRoot, "tests", "mts-012", "update-image-baselines.mjs"),
-  );
+test("baseline writer records the emulator build", () => {
+  const source = readText(BASELINE_WRITER);
 
-  assert.match(
-    updater,
-    new RegExp(
-      `emulatorVersion:\\s*[\"']${EXPECTED_EMULATOR_VERSION.replaceAll(".", "\\.")}[\"']`,
-    ),
-  );
-  assert.match(updater, new RegExp(`emulatorBuild:\\s*${EXPECTED_EMULATOR_BUILD}`));
+  assert.match(source, /emulatorVersion:\s*"37\.1\.11"/);
+  assert.match(source, /emulatorBuild:\s*15917651/);
 });
