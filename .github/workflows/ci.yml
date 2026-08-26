@@ -201,6 +201,7 @@ jobs:
           profile: pixel_2
           avd-name: misyra
           force-avd-creation: true
+          emulator-build: 15917651
           emulator-boot-timeout: 600
           emulator-options: -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect
           disable-animations: true
