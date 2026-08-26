@@ -9,9 +9,11 @@ const EXPECTED_EMULATOR_VERSION = "37.1.11";
 
 function emulatorBuild(workflowPath) {
   const source = readText(workflowPath);
-  return source.match(/\nemulator-build:\s*(\d+)/)?.[1] ??
+  return (
+    source.match(/\nemulator-build:\s*(\d+)/)?.[1] ??
     source.match(/\n\s+emulator-build:\s*(\d+)/)?.[1] ??
-    null;
+    null
+  );
 }
 
 test("authoritative android workflows pin the same emulator binary build", () => {
@@ -30,11 +32,15 @@ test("authoritative android workflows pin the same emulator binary build", () =>
 });
 
 test("the explicit baseline writer records the pinned emulator build", () => {
-  const updater = readText(join(repoRoot, "tests", "mts-012", "update-image-baselines.mjs"));
+  const updater = readText(
+    join(repoRoot, "tests", "mts-012", "update-image-baselines.mjs"),
+  );
 
   assert.match(
     updater,
-    new RegExp(`emulatorVersion:\\s*[\"']${EXPECTED_EMULATOR_VERSION.replaceAll(".", "\\.")}[\"']`),
+    new RegExp(
+      `emulatorVersion:\\s*[\"']${EXPECTED_EMULATOR_VERSION.replaceAll(".", "\\.")}[\"']`,
+    ),
   );
   assert.match(updater, new RegExp(`emulatorBuild:\\s*${EXPECTED_EMULATOR_BUILD}`));
 });
