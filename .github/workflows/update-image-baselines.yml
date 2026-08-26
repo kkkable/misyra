@@ -8,15 +8,33 @@ name: Update image baselines (explicit manual workflow)
 # `visual:update-image-baselines` writer for the web + android namespaces,
 # and uploads the regenerated baselines as an artifact. A developer or the
 # Implementation Worker then reviews the diff and commits it deliberately.
+#
+# workflow_dispatch becomes the normal manual entry point after this file is
+# on the default branch. Before PR #14 merges, GitHub cannot dispatch a
+# branch-only workflow_dispatch workflow, so a submitted PR review containing
+# the exact `/update-image-baselines` command provides the explicit pre-merge
+# entry point. That path is same-repository only and limited to trusted
+# repository associations; it is never a push/pull_request CI writer path.
 
 on:
   workflow_dispatch:
+  pull_request_review:
+    types: [submitted]
 
 permissions:
   contents: read
 
 jobs:
   regenerate:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event_name == 'pull_request_review' &&
+        github.event.review.state == 'commented' &&
+        github.event.review.body == '/update-image-baselines' &&
+        github.event.pull_request.head.repo.full_name == github.repository &&
+        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.review.author_association)
+      )
     name: Regenerate MTS-012 image baselines (web + android)
     runs-on: ubuntu-latest
     steps:
