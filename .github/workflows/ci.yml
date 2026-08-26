@@ -216,8 +216,13 @@ jobs:
             until adb shell wm size >/dev/null 2>&1; do sleep 1; done
             until adb shell settings get global policy_control >/dev/null 2>&1; do sleep 1; done
             adb install -r apps/mobile/android/app/build/outputs/apk/release/app-release.apk
-            MISYRA_ANDROID_DEVICE=1 MISYRA_ANDROID_DETERMINISM=1 node --test tests/mts-012/android-renderer-determinism.test.mjs
+            # Compare against accepted baselines while the emulator is still in
+            # the same fresh lifecycle used by the explicit baseline updater.
+            # The dedicated zh-HK determinism probe intentionally runs second:
+            # it mutates persistent locale/framework state and must not alter the
+            # lifecycle from which the authoritative baseline matrix is entered.
             MISYRA_ANDROID_DEVICE=1 node --test tests/mts-012/*.test.mjs
+            MISYRA_ANDROID_DEVICE=1 MISYRA_ANDROID_DETERMINISM=1 node --test tests/mts-012/android-renderer-determinism.test.mjs
 
   integration:
     name: Local-service integration
