@@ -291,6 +291,48 @@ function sleep(ms) {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 }
 
+/**
+ * Qualify the first framebuffer returned after a cold launch/config change.
+ * The harness ready ack proves React rendered the requested state, but Android
+ * SystemUI/compositor work can still change a few pixels after that ack. A
+ * capture is qualified only after three consecutive decoded framebuffers are
+ * pixel-identical. This check is bounded and applies only to the transition
+ * frame; unchanged subsequent captures remain direct fresh screencaps so the
+ * external strict determinism probe still exposes any later/persistent drift.
+ */
+function captureStableAndroidFramebuffer() {
+  const maximumSamples = 8;
+  const requiredStableSamples = 3;
+  let previousBuffer = adbBinary(["exec-out", "screencap", "-p"]);
+  let previous = PNG.sync.read(previousBuffer);
+  let stableSamples = 1;
+
+  for (let sample = 1; sample < maximumSamples; sample += 1) {
+    // Poll on separate presentation opportunities; equality, not elapsed time,
+    // is the readiness signal.
+    sleep(250);
+    const currentBuffer = adbBinary(["exec-out", "screencap", "-p"]);
+    const current = PNG.sync.read(currentBuffer);
+    const sameDimensions = current.width === previous.width && current.height === previous.height;
+    const samePixels = sameDimensions && current.data.equals(previous.data);
+    if (samePixels) {
+      stableSamples += 1;
+      if (stableSamples >= requiredStableSamples) {
+        return currentBuffer;
+      }
+    } else {
+      stableSamples = 1;
+    }
+    previousBuffer = currentBuffer;
+    previous = current;
+  }
+
+  throw new Error(
+    `MTS-012 image harness: android framebuffer did not reach three consecutive pixel-identical ` +
+      `samples within ${maximumSamples} captures after the matching ready signal`,
+  );
+}
+
 /** @param {string} service */
 function isAndroidServiceReady(service) {
   try {
@@ -726,21 +768,12 @@ async function captureAndroidScreenshot(combo) {
         `${combo.textScale}x after 5 relaunches`,
     );
   }
-  // The ready signal is state-based correctness. This short bounded settle
-  // only gives the emulator compositor one additional frame before screencap;
-  // it is not used to infer readiness.
-  await new Promise((resolveSettle) => setTimeout(resolveSettle, 1_500));
-  const screenshot = adbBinary(["exec-out", "screencap", "-p"]);
 
-  if (requiresSettlingCapture) {
-    // Discard exactly one framebuffer after device-level mutations, then take
-    // a second fresh framebuffer read from the same acknowledged foreground
-    // surface. This is intentionally NOT retry-until-equal: persistent pixel
-    // drift remains visible to the strict determinism probe and 2% gate.
-    return captureAndroidScreenshot(combo);
-  }
-
-  return screenshot;
+  // The app-level ready ack proves requested state; this bounded pixel fixed-
+  // point proves the cold-launch/config transition has also finished presenting
+  // before the first framebuffer is exposed to callers. Unchanged later calls
+  // above remain unqualified direct reads so strict determinism is not masked.
+  return captureStableAndroidFramebuffer();
 }
 
 /**
