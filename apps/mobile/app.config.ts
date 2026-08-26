@@ -7,8 +7,11 @@
  * MISYRA_HARNESS_BUILD=1 additionally prepares the MTS-012 image-harness
  * android build: it allows cleartext loopback traffic so the harness entry
  * (tests/mts-012/image-harness/native-entry.tsx) can fetch the capture
- * configuration from the host over `adb reverse` (127.0.0.1). Normal product
- * builds never set the flag, so the product manifest stays unchanged.
+ * configuration from the host over `adb reverse` (127.0.0.1), and starts the
+ * harness Activity with the Android status bar hidden so time/device-dependent
+ * SystemUI icons cannot race the first authoritative framebuffer capture.
+ * Normal product builds never set the flag, so the product manifest/status-bar
+ * configuration stays unchanged.
  */
 import type { ExpoConfig } from "expo/config";
 import { withAndroidManifest, type ConfigPlugin } from "expo/config-plugins";
@@ -41,6 +44,14 @@ const config: ExpoConfig = {
     ? {
         android: {
           package: "com.anonymous.misyra",
+        },
+        // The authoritative Android screenshot gate captures the complete
+        // framebuffer. Hide the status bar at native Activity startup rather
+        // than relying only on the asynchronous global immersive-policy path;
+        // otherwise freshly restarted SystemUI can expose right-side status
+        // icons for the first capture and disappear by the next one.
+        androidStatusBar: {
+          hidden: true,
         },
       }
     : {}),
