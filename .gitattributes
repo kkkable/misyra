@@ -1,3 +1,0 @@
-# Normalize all text files to LF so Windows and Linux contributors,
-# local tooling, and CI see identical content (MTS-001 criterion 7).
-* text=auto eol=lf
