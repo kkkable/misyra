@@ -385,7 +385,10 @@ let androidLastRenderedConfigKey;
 /** @type {Promise<void> | undefined} */
 let androidSessionPromise;
 
-/** Return whether the harness activity that produced the last acknowledged frame is still foreground. */
+/**
+ * Return whether the harness activity that produced the last acknowledged
+ * frame is still foreground.
+ */
 function isAndroidCaptureActivityResumed() {
   try {
     const activities = adb(["shell", "dumpsys", "activity", "activities"]);
