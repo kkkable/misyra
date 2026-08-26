@@ -5,8 +5,7 @@ import { test } from "node:test";
 
 import { repoRoot } from "../toolchain/helpers.mjs";
 
-const FULL_ANDROID_MATRIX_COMMAND =
-  "MISYRA_ANDROID_DEVICE=1 node --test tests/mts-012/*.test.mjs";
+const FULL_ANDROID_MATRIX_COMMAND = "MISYRA_ANDROID_DEVICE=1 node --test tests/mts-012/*.test.mjs";
 const ANDROID_DETERMINISM_COMMAND =
   "MISYRA_ANDROID_DEVICE=1 MISYRA_ANDROID_DETERMINISM=1 node --test tests/mts-012/android-renderer-determinism.test.mjs";
 
