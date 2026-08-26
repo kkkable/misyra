@@ -1,4 +1,0 @@
-{
-  "extends": "@misyra/typescript-config/strict-base.json",
-  "include": ["src"]
-}

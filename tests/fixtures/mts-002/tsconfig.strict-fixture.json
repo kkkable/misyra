@@ -1,8 +1,0 @@
-{
-  "extends": "@misyra/typescript-config/strict-base.json",
-  "compilerOptions": {
-    "noEmit": true,
-    "types": ["node"]
-  },
-  "include": ["strict/strict-violation.ts"]
-}
