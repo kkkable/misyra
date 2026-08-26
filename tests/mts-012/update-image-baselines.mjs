@@ -43,7 +43,7 @@ const BASELINE_ROOT = join(repoRoot, "tests", "mts-012", "image-baselines");
 const RENDERERS = Object.freeze({
   web: "headless chromium (playwright) - optional supplemental deterministic web layer",
   android:
-    "android emulator framebuffer - actual supported mobile-platform renderer (android-35 google_apis x86_64, pixel_2, swiftshader_indirect, 160dpi / 1x density, KVM)",
+    "android emulator framebuffer - actual supported mobile-platform renderer (emulator 37.1.11 build 15917651, android-35 google_apis x86_64, pixel_2, swiftshader_indirect, 160dpi / 1x density, KVM)",
 });
 
 /**
@@ -55,6 +55,8 @@ const ANDROID_RENDERER_FINGERPRINT = Object.freeze({
   apiLevel: "35",
   systemImage: "android-35;google_apis;x86_64",
   arch: "x86_64",
+  emulatorVersion: "37.1.11",
+  emulatorBuild: 15917651,
   emulatorProfile: "pixel_2",
   avdName: "misyra",
   graphicsRenderer: "swiftshader_indirect",
