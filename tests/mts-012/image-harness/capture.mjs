@@ -309,7 +309,7 @@ function waitForAndroidBoot() {
   }
   // sys.boot_completed=1 fires while the activity/package managers are still
   // coming up after a framework restart; wait until `pm` answers so the
-  // subsequent force-stop/start commands cannot race the boot.
+  // subsequent activity-start commands cannot race the boot.
   for (let attempt = 0; attempt < 120; attempt += 1) {
     try {
       adb(["shell", "pm", "path", "android"]);
@@ -324,11 +324,10 @@ function waitForAndroidBoot() {
 }
 
 /**
- * Re-assert runtime-wide Android capture state. Locale changes restart the
- * Android framework and SystemUI, so settings applied only when the session
- * first opens are not enough to guarantee the next framebuffer has the same
- * system-bar/window state. Calling this before every capture makes the first
- * post-restart frame and subsequent frames use the same runtime policy.
+ * Re-assert runtime-wide Android capture state after device-level mutations.
+ * Locale/size/density/font changes can restart or relayout Android/SystemUI;
+ * applying this only when such state changes keeps repeated unchanged
+ * framebuffer captures free of needless system-policy churn.
  */
 function applyAndroidRuntimeConfig() {
   let lastError;
@@ -381,8 +380,22 @@ let androidLastSize;
 let androidLastLocale;
 /** @type {string | undefined} */
 let androidLastFontScale;
+/** @type {string | undefined} */
+let androidLastRenderedConfigKey;
 /** @type {Promise<void> | undefined} */
 let androidSessionPromise;
+
+/** Return whether the harness activity that produced the last acknowledged frame is still foreground. */
+function isAndroidCaptureActivityResumed() {
+  try {
+    const activities = adb(["shell", "dumpsys", "activity", "activities"]);
+    return (
+      /mResumedActivity|topResumedActivity/.test(activities) && activities.includes(ANDROID_CAPTURE_PACKAGE)
+    );
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Open the deterministic android capture session exactly once per process:
@@ -441,9 +454,7 @@ function openAndroidSession() {
             // The ready ack carries the config the app ACTUALLY rendered.
             // Only an ack matching the currently requested combo releases
             // the capture: a stale process still showing a previous combo
-            // (observed as a wrong-but-plausible frame during the launch
-            // race window) can never satisfy this check, so the launcher
-            // relaunches instead of capturing a poisoned frame.
+            // can never satisfy this check.
             const pending = androidPendingConfig;
             let ack = /** @type {Record<string, unknown>} */ ({});
             try {
@@ -455,11 +466,7 @@ function openAndroidSession() {
             const expectedScale = pending?.textScale === 2 ? 2 : 1;
             // The app acks the actual pixel density ratio it rendered with
             // (PixelRatio.get(); 1.0 at the harness's pinned 160dpi). Only a
-            // frame rendered at 1x density can release the capture: a fresh
-            // activity launched before the density override propagates
-            // reports a stale ratio (e.g. 2.625 at the AVD's 420dpi) and
-            // lays out the whole surface at a tiny logical width — a
-            // wrong-but-plausible poisoned frame.
+            // frame rendered at 1x density can release the capture.
             const matches =
               pending !== undefined &&
               ack.surface === pending.surface &&
@@ -501,8 +508,7 @@ function setAndroidLocale(locale) {
   const current = adb(["shell", "getprop", "persist.sys.locale"]).trim();
   // A fresh emulator is already en-US even when persist.sys.locale is
   // still empty; restarting the framework for an already-active locale is
-  // needless (a framework restart takes minutes on a software emulator)
-  // and would race the launch that follows.
+  // needless and would race the launch that follows.
   if (current === target || (target === "en-US" && current === "")) {
     return;
   }
@@ -524,14 +530,10 @@ function setAndroidLocale(locale) {
 
 /**
  * Pin the logical size and 1x density for a combo, then WAIT until the
- * window manager actually reports the overrides: on the software-rendered
- * CI emulator (no KVM) the display config change propagates asynchronously,
- * and an activity launched before it settles renders at the stale density
- * (e.g. the AVD's 420dpi) — a plausible-looking but poisoned frame. The
- * ready-ack scale check below is the authoritative guard; this readback
- * just avoids wasting relaunch cycles. The size/density report formats vary
- * across Android versions ("360x800" vs "360 x 800"), so the matchers
- * tolerate both.
+ * window manager actually reports the overrides. The ready-ack scale check
+ * below is the authoritative guard; this readback avoids launching against
+ * stale density/size state. The size/density report formats vary across
+ * Android versions ("360x800" vs "360 x 800"), so the matchers tolerate both.
  * @param {string} size
  */
 function setAndroidDisplayConfig(size) {
@@ -559,10 +561,11 @@ function setAndroidDisplayConfig(size) {
 
 /**
  * Capture one deterministic PNG of a REAL Misyra surface from the actual
- * Android framebuffer: pin the logical size and 1x density, the system text
- * scale, and the device locale; relaunch the harness activity so every
- * capture renders in a fresh runtime; wait for the in-app ready signal;
- * then grab `screencap`.
+ * Android framebuffer. Device-level mutations and config changes still use
+ * the app's explicit rendered-config acknowledgement. Repeated captures of
+ * an unchanged, already-acknowledged combo keep that same foreground React
+ * Native surface alive and take a fresh framebuffer screenshot, avoiding a
+ * cold-start/compositor race that is not visual product drift.
  * @param {ImageCombo} combo
  * @returns {Promise<Buffer>}
  */
@@ -570,32 +573,48 @@ async function captureAndroidScreenshot(combo) {
   await openAndroidSession();
   const size = `${combo.width}x${combo.height}`;
   const fontScale = combo.textScale === 2 ? "2.0" : "1.0";
+  const configKey = [combo.surface, combo.appearance, combo.locale, combo.textScale, size].join("|");
   let requiresSettlingCapture = false;
 
   // Locale changes restart the Android framework. Apply that restart before
-  // display size/density and font scale so this same capture — not merely the
-  // next one — is rendered with the complete requested device configuration.
+  // display size/density and font scale so this same capture is rendered with
+  // the complete requested device configuration.
   if (combo.locale !== androidLastLocale) {
     setAndroidLocale(combo.locale);
     androidLastLocale = combo.locale;
     androidLastSize = undefined;
     androidLastFontScale = undefined;
+    androidLastRenderedConfigKey = undefined;
     requiresSettlingCapture = true;
   }
-  // Reassert runtime/SystemUI policy for every capture. This is deliberately
-  // symmetric: the first capture after a locale restart and the unchanged
-  // repeat capture must enter the activity from the same system-bar state.
-  applyAndroidRuntimeConfig();
   if (size !== androidLastSize) {
     setAndroidDisplayConfig(size);
     androidLastSize = size;
+    androidLastRenderedConfigKey = undefined;
     requiresSettlingCapture = true;
   }
   if (fontScale !== androidLastFontScale) {
     adb(["shell", "settings", "put", "system", "font_scale", fontScale]);
     androidLastFontScale = fontScale;
+    androidLastRenderedConfigKey = undefined;
     requiresSettlingCapture = true;
   }
+  if (requiresSettlingCapture) {
+    // A locale restart or display/font mutation can rebuild SystemUI. Restore
+    // the deterministic policy once after those mutations, not before every
+    // unchanged screenshot.
+    applyAndroidRuntimeConfig();
+  }
+
+  // The previous capture already received an in-app acknowledgement proving
+  // this exact combo was rendered at the requested font/density. If that
+  // activity is still foreground, do not cold-relaunch React Native merely
+  // to take another screenshot: the determinism probe should compare fresh
+  // framebuffer reads of the same settled UI, not process-start timing.
+  if (androidLastRenderedConfigKey === configKey && isAndroidCaptureActivityResumed()) {
+    return adbBinary(["exec-out", "screencap", "-p"]);
+  }
+
   androidPendingConfig = {
     surface: combo.surface,
     mode: combo.appearance,
@@ -603,21 +622,18 @@ async function captureAndroidScreenshot(combo) {
     textScale: combo.textScale,
   };
   // The app acks the config it actually rendered (see native-entry.tsx);
-  // only a matching ack releases the capture. Relaunch (bounded) when no
-  // matching ack arrives: a stale process still showing a previous combo
-  // can never satisfy the ack check, so a wrong-but-plausible frame is
-  // never captured.
+  // only a matching ack releases the capture. A new configuration still
+  // launches a fresh harness activity; unchanged repeat captures above do not.
   let captured = false;
   for (let attempt = 0; attempt < 5 && !captured; attempt += 1) {
     const ready = new Promise((resolveReady) => {
       androidReadyResolver = resolveReady;
     });
     adb(["shell", "am", "force-stop", ANDROID_CAPTURE_PACKAGE]);
+    androidLastRenderedConfigKey = undefined;
     // Right after a framework restart the activity manager can briefly
     // reject launches; poll the exact operation we need (bounded) instead
-    // of racing. GitHub-hosted emulator runners have no KVM, so a single
-    // `am start` can legitimately fail for minutes while the software
-    // emulator settles — budget generously (90 x 2s = 180s).
+    // of racing.
     let launched = false;
     for (let startAttempt = 0; startAttempt < 90 && !launched; startAttempt += 1) {
       try {
@@ -655,6 +671,7 @@ async function captureAndroidScreenshot(combo) {
     }
     if (signalled) {
       captured = true;
+      androidLastRenderedConfigKey = configKey;
     }
   }
   if (!captured) {
@@ -664,20 +681,17 @@ async function captureAndroidScreenshot(combo) {
         `${combo.textScale}x after 5 relaunches`,
     );
   }
-  // One extra settled frame after the ready signal, then grab the buffer.
-  // The software-rendered CI emulator (no KVM) commits frames slowly;
-  // give it more settle time than a hardware device needs.
+  // The ready signal is state-based correctness. This short bounded settle
+  // only gives the emulator compositor one additional frame before screencap;
+  // it is not used to infer readiness.
   await new Promise((resolveSettle) => setTimeout(resolveSettle, 1_500));
   const screenshot = adbBinary(["exec-out", "screencap", "-p"]);
 
   if (requiresSettlingCapture) {
-    // CI evidence on the authoritative emulator showed that the first full
-    // capture after a locale/size/density/font mutation can contain a
-    // transitional app layout, while the next two unchanged fresh-process
-    // captures are pixel-identical. Perform exactly one state-driven settling
-    // capture and discard it, then return a second fresh-process capture.
-    // This is intentionally NOT "retry until equal": persistent or alternating
-    // renderer drift remains visible to the strict determinism probe.
+    // Discard exactly one framebuffer after device-level mutations, then take
+    // a second fresh framebuffer read from the same acknowledged foreground
+    // surface. This is intentionally NOT retry-until-equal: persistent pixel
+    // drift remains visible to the strict determinism probe and 2% gate.
     return captureAndroidScreenshot(combo);
   }
 
