@@ -206,6 +206,14 @@ jobs:
           disable-animations: true
           script: |
             adb wait-for-device
+            # Root adbd before the harness starts. On google_apis images this
+            # restarts adbd and can temporarily leave WindowManager unavailable;
+            # wait for the exact services the harness will mutate so its own
+            # subsequent `adb root` is a no-op rather than another boot race.
+            adb root
+            adb wait-for-device
+            until adb shell wm size >/dev/null 2>&1; do sleep 1; done
+            until adb shell settings get global policy_control >/dev/null 2>&1; do sleep 1; done
             adb install -r apps/mobile/android/app/build/outputs/apk/release/app-release.apk
             MISYRA_ANDROID_DEVICE=1 MISYRA_ANDROID_DETERMINISM=1 node --test tests/mts-012/android-renderer-determinism.test.mjs
             MISYRA_ANDROID_DEVICE=1 node --test tests/mts-012/*.test.mjs
