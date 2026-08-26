@@ -390,7 +390,8 @@ function isAndroidCaptureActivityResumed() {
   try {
     const activities = adb(["shell", "dumpsys", "activity", "activities"]);
     return (
-      /mResumedActivity|topResumedActivity/.test(activities) && activities.includes(ANDROID_CAPTURE_PACKAGE)
+      /mResumedActivity|topResumedActivity/.test(activities) &&
+      activities.includes(ANDROID_CAPTURE_PACKAGE)
     );
   } catch {
     return false;
@@ -573,7 +574,13 @@ async function captureAndroidScreenshot(combo) {
   await openAndroidSession();
   const size = `${combo.width}x${combo.height}`;
   const fontScale = combo.textScale === 2 ? "2.0" : "1.0";
-  const configKey = [combo.surface, combo.appearance, combo.locale, combo.textScale, size].join("|");
+  const configKey = [
+    combo.surface,
+    combo.appearance,
+    combo.locale,
+    combo.textScale,
+    size,
+  ].join("|");
   let requiresSettlingCapture = false;
 
   // Locale changes restart the Android framework. Apply that restart before
@@ -611,7 +618,10 @@ async function captureAndroidScreenshot(combo) {
   // activity is still foreground, do not cold-relaunch React Native merely
   // to take another screenshot: the determinism probe should compare fresh
   // framebuffer reads of the same settled UI, not process-start timing.
-  if (androidLastRenderedConfigKey === configKey && isAndroidCaptureActivityResumed()) {
+  if (
+    androidLastRenderedConfigKey === configKey &&
+    isAndroidCaptureActivityResumed()
+  ) {
     return adbBinary(["exec-out", "screencap", "-p"]);
   }
 
