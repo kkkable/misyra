@@ -109,6 +109,12 @@ jobs:
           disable-animations: true
           script: |
             adb wait-for-device
+            # Keep the explicit baseline writer on the same rooted, settled
+            # emulator lifecycle as the authoritative CI comparison gate.
+            adb root
+            adb wait-for-device
+            until adb shell wm size >/dev/null 2>&1; do sleep 1; done
+            until adb shell settings get global policy_control >/dev/null 2>&1; do sleep 1; done
             adb install -r apps/mobile/android/app/build/outputs/apk/release/app-release.apk
             MISYRA_ANDROID_DEVICE=1 pnpm visual:update-image-baselines
 
