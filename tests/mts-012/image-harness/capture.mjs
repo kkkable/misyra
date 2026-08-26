@@ -618,10 +618,7 @@ async function captureAndroidScreenshot(combo) {
   // activity is still foreground, do not cold-relaunch React Native merely
   // to take another screenshot: the determinism probe should compare fresh
   // framebuffer reads of the same settled UI, not process-start timing.
-  if (
-    androidLastRenderedConfigKey === configKey &&
-    isAndroidCaptureActivityResumed()
-  ) {
+  if (androidLastRenderedConfigKey === configKey && isAndroidCaptureActivityResumed()) {
     return adbBinary(["exec-out", "screencap", "-p"]);
   }
 
