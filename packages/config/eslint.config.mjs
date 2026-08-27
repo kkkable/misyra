@@ -8,6 +8,7 @@ export const typeAwareParserOptions = Object.freeze({
   onUnsupportedTypeScriptVersion: 'error',
 });
 
+/** @type {Readonly<import('eslint').Linter.RulesRecord>} */
 export const packageBoundaryRules = Object.freeze({
   'no-restricted-imports': [
     'error',
