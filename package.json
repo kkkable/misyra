@@ -17,6 +17,12 @@
     "validate:infra": "turbo run validate:infra"
   },
   "devDependencies": {
-    "turbo": "2.10.12"
+    "@eslint/js": "10.9.0",
+    "eslint": "10.9.0",
+    "prettier": "3.9.6",
+    "turbo": "2.10.12",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.68.0",
+    "vitest": "4.1.11"
   }
 }
