@@ -1,0 +1,22 @@
+{
+  "name": "misyra",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "pnpm@10.34.5",
+  "engines": {
+    "node": ">=24 <25",
+    "pnpm": "10.34.5"
+  },
+  "scripts": {
+    "format": "turbo run format",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "node --test tests/mts-001/*.test.mjs && turbo run test",
+    "build": "turbo run build",
+    "audit": "pnpm audit --audit-level high",
+    "validate:infra": "turbo run validate:infra"
+  },
+  "devDependencies": {
+    "turbo": "2.10.12"
+  }
+}
