@@ -8,20 +8,23 @@ export const typeAwareParserOptions = Object.freeze({
   onUnsupportedTypeScriptVersion: 'error',
 });
 
+/** @type {import('eslint').Linter.RuleEntry} */
+const noRestrictedImportsRule = [
+  'error',
+  {
+    patterns: [
+      {
+        group: ['@misyra/*/src/**', '@misyra/*/src/*'],
+        message:
+          'Cross-package deep imports are forbidden. Import only from explicit package exports.',
+      },
+    ],
+  },
+];
+
 /** @type {Readonly<import('eslint').Linter.RulesRecord>} */
 export const packageBoundaryRules = Object.freeze({
-  'no-restricted-imports': [
-    'error',
-    {
-      patterns: [
-        {
-          group: ['@misyra/*/src/**', '@misyra/*/src/*'],
-          message:
-            'Cross-package deep imports are forbidden. Import only from explicit package exports.',
-        },
-      ],
-    },
-  ],
+  'no-restricted-imports': noRestrictedImportsRule,
 });
 
 const strictTypeChecked = tseslint.configs.strictTypeChecked.map((config) => ({
