@@ -1,7 +1,11 @@
 {
   "extends": "../../packages/config/tsconfig/base.json",
   "compilerOptions": {
-    "jsx": "react-jsx"
+    "allowSyntheticDefaultImports": true,
+    "jsx": "react-jsx",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "target": "ES2022"
   },
   "include": ["app/**/*.ts", "app/**/*.tsx"]
 }
