@@ -1,0 +1,66 @@
+name: MTS-001 Temporary Verification
+
+on:
+  push:
+    branches:
+      - chore/mts-001-monorepo-bootstrap
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Activate pnpm 10.34.5
+        shell: bash
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.34.5 --activate
+          node --version
+          corepack --version
+          pnpm --version
+
+      - name: Install
+        run: pnpm install
+
+      - name: Test
+        run: pnpm test
+
+      - name: Format
+        run: pnpm format
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Build
+        run: pnpm build
+
+      - name: Audit
+        run: pnpm audit --audit-level high
+
+      - name: Validate infrastructure
+        run: pnpm validate:infra
+
+      - name: Capture lockfile and working tree
+        if: always()
+        shell: bash
+        run: |
+          echo '--- git status --short ---'
+          git status --short
+          if [ -f pnpm-lock.yaml ]; then
+            echo '--- pnpm-lock.yaml BEGIN ---'
+            cat pnpm-lock.yaml
+            echo '--- pnpm-lock.yaml END ---'
+          fi
