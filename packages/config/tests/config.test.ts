@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import eslintConfig, {
-  packageBoundaryRules,
-  typeAwareParserOptions,
-} from '../eslint.config.mjs';
+import eslintConfig, { packageBoundaryRules, typeAwareParserOptions } from '../eslint.config.mjs';
 import prettierConfig from '../prettier.config.mjs';
 import vitestConfig from '../vitest.config.mjs';
 
