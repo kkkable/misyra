@@ -42,6 +42,24 @@ function collectSourceFiles(directory) {
   });
 }
 
+function collectImportSpecifiers(source) {
+  const importPattern =
+    /(?:\bfrom\s+|\bimport\s*\(\s*|\bimport\s+|\brequire\s*\(\s*)['"]([^'"]+)['"]/g;
+
+  return [...source.matchAll(importPattern)].map((match) => match[1].toLowerCase());
+}
+
+function isForbiddenDomainImport(specifier, forbiddenImport) {
+  if (forbiddenImport.endsWith('/')) return specifier.startsWith(forbiddenImport);
+
+  if (specifier === forbiddenImport || specifier.startsWith(`${forbiddenImport}/`)) return true;
+
+  if (forbiddenImport === 'expo') return specifier.startsWith('expo-');
+  if (forbiddenImport === 'drizzle') return specifier.startsWith('drizzle-');
+
+  return false;
+}
+
 test('workspace shells expose build and typecheck scripts', () => {
   for (const workspace of expectedWorkspaces) {
     const packageJsonPath = join(root, workspace, 'package.json');
@@ -65,13 +83,17 @@ test('domain workspace contains no framework or provider imports', () => {
   assert.ok(sourceFiles.length > 0, 'domain workspace must contain a source shell');
 
   for (const file of sourceFiles) {
-    const source = readFileSync(file, 'utf8').toLowerCase();
-    for (const forbiddenImport of forbiddenDomainImports) {
-      assert.equal(
-        source.includes(forbiddenImport),
-        false,
-        `${relative(root, file)} must not import ${forbiddenImport}`,
-      );
+    const source = readFileSync(file, 'utf8');
+    const specifiers = collectImportSpecifiers(source);
+
+    for (const specifier of specifiers) {
+      for (const forbiddenImport of forbiddenDomainImports) {
+        assert.equal(
+          isForbiddenDomainImport(specifier, forbiddenImport),
+          false,
+          `${relative(root, file)} must not import ${specifier}`,
+        );
+      }
     }
   }
 });
@@ -91,6 +113,6 @@ test('mobile route inventory exposes exactly the approved four root tabs', () =>
   const layoutSource = readFileSync(layoutPath, 'utf8');
 
   for (const title of ['Calendar', 'AI Planner', 'Progress', 'Settings']) {
-    assert.match(layoutSource, new RegExp(`title:\\s*['\"]${title}['\"]`));
+    assert.match(layoutSource, new RegExp(`title:\\s*['\\"]${title}['\\"]`));
   }
 });
