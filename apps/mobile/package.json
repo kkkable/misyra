@@ -1,0 +1,21 @@
+{
+  "name": "@misyra/mobile",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "expo-router/entry",
+  "scripts": {
+    "build": "tsc --project ./tsconfig.json --noEmit",
+    "format": "prettier --check . --config ../../packages/config/prettier.config.mjs",
+    "lint": "eslint . --config ../../packages/config/eslint.config.mjs",
+    "start": "expo start --dev-client",
+    "typecheck": "tsc --project ./tsconfig.json --noEmit",
+    "test": "vitest run --config ../../packages/config/vitest.config.mjs"
+  },
+  "dependencies": {
+    "expo": "57.0.0",
+    "expo-router": "7.0.0",
+    "react": "19.2.3",
+    "react-native": "0.86.0"
+  }
+}
