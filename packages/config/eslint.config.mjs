@@ -1,6 +1,8 @@
 import eslint from '@eslint/js';
 import tseslint from 'typescript-eslint';
 
+const typescriptFiles = ['**/*.ts', '**/*.tsx'];
+
 export const typeAwareParserOptions = Object.freeze({
   projectService: true,
   onUnsupportedTypeScriptVersion: 'error',
@@ -21,14 +23,19 @@ export const packageBoundaryRules = Object.freeze({
   ],
 });
 
+const strictTypeChecked = tseslint.configs.strictTypeChecked.map((config) => ({
+  ...config,
+  files: typescriptFiles,
+}));
+
 export default tseslint.config(
   {
     ignores: ['coverage/**', 'dist/**', 'node_modules/**'],
   },
   eslint.configs.recommended,
-  ...tseslint.configs.strictTypeChecked,
+  ...strictTypeChecked,
   {
-    files: ['**/*.ts', '**/*.tsx'],
+    files: typescriptFiles,
     languageOptions: {
       parserOptions: typeAwareParserOptions,
     },
