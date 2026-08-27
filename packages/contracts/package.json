@@ -1,0 +1,16 @@
+{
+  "name": "@misyra/contracts",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc --project ./tsconfig.json --noEmit",
+    "format": "prettier --check . --config ../config/prettier.config.mjs",
+    "lint": "eslint . --config ../config/eslint.config.mjs",
+    "typecheck": "tsc --project ./tsconfig.json --noEmit",
+    "test": "vitest run --config ../config/vitest.config.mjs"
+  }
+}
