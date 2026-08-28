@@ -2,6 +2,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createApiServer } from './index.js';
 
+function parseJson(body: string): unknown {
+  return JSON.parse(body) as unknown;
+}
+
 describe('API health and readiness routes', () => {
   const servers: Array<ReturnType<typeof createApiServer>> = [];
 
@@ -44,10 +48,14 @@ describe('API health and readiness routes', () => {
     const live = await server.inject({ method: 'GET', url: '/health/live' });
     const ready = await server.inject({ method: 'GET', url: '/health/ready' });
 
-    expect({ live: live.body, ready: ready.body }).toMatchInlineSnapshot(`
+    expect({ live: parseJson(live.body), ready: parseJson(ready.body) }).toMatchInlineSnapshot(`
       {
-        "live": "{\"status\":\"ok\"}",
-        "ready": "{\"status\":\"not_ready\"}",
+        "live": {
+          "status": "ok",
+        },
+        "ready": {
+          "status": "not_ready",
+        },
       }
     `);
     expect(`${live.body}${ready.body}`).not.toContain('secret');

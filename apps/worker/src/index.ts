@@ -1,4 +1,4 @@
-import { createServer, type ServerResponse } from 'node:http';
+import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { connect } from 'node:net';
 import { pathToFileURL } from 'node:url';
 
@@ -61,29 +61,37 @@ function sendJson(response: ServerResponse, statusCode: number, payload: object)
   response.end(JSON.stringify(payload));
 }
 
+async function handleHealthRequest(
+  request: IncomingMessage,
+  response: ServerResponse,
+  readiness: ReadinessCheck,
+) {
+  if (request.method === 'GET' && request.url === '/health/live') {
+    sendJson(response, 200, { status: 'ok' });
+    return;
+  }
+
+  if (request.method === 'GET' && request.url === '/health/ready') {
+    let ready: boolean;
+
+    try {
+      ready = await readiness();
+    } catch {
+      ready = false;
+    }
+
+    sendJson(response, ready ? 200 : 503, { status: ready ? 'ready' : 'not_ready' });
+    return;
+  }
+
+  sendJson(response, 404, { status: 'not_found' });
+}
+
 export function createWorkerHealthServer(options: WorkerHealthOptions = {}) {
   const readiness = options.readiness ?? createLocalReadinessCheck();
 
-  return createServer(async (request, response) => {
-    if (request.method === 'GET' && request.url === '/health/live') {
-      sendJson(response, 200, { status: 'ok' });
-      return;
-    }
-
-    if (request.method === 'GET' && request.url === '/health/ready') {
-      let ready: boolean;
-
-      try {
-        ready = await readiness();
-      } catch {
-        ready = false;
-      }
-
-      sendJson(response, ready ? 200 : 503, { status: ready ? 'ready' : 'not_ready' });
-      return;
-    }
-
-    sendJson(response, 404, { status: 'not_found' });
+  return createServer((request, response) => {
+    void handleHealthRequest(request, response, readiness);
   });
 }
 

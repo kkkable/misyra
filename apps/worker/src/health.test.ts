@@ -2,6 +2,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createWorkerHealthServer } from './index.js';
 
+function parseJson(body: string): unknown {
+  return JSON.parse(body) as unknown;
+}
+
 async function listen(server: ReturnType<typeof createWorkerHealthServer>) {
   await new Promise<void>((resolve, reject) => {
     server.once('error', reject);
@@ -16,7 +20,7 @@ async function listen(server: ReturnType<typeof createWorkerHealthServer>) {
     throw new Error('worker health server did not expose an address');
   }
 
-  return `http://127.0.0.1:${address.port}`;
+  return `http://127.0.0.1:${String(address.port)}`;
 }
 
 describe('worker health observability', () => {
@@ -68,14 +72,19 @@ describe('worker health observability', () => {
 
     const live = await fetch(`${origin}/health/live`);
     const ready = await fetch(`${origin}/health/ready`);
-    const payload = { live: await live.text(), ready: await ready.text() };
+    const liveBody = await live.text();
+    const readyBody = await ready.text();
 
-    expect(payload).toMatchInlineSnapshot(`
+    expect({ live: parseJson(liveBody), ready: parseJson(readyBody) }).toMatchInlineSnapshot(`
       {
-        "live": "{\"status\":\"ok\"}",
-        "ready": "{\"status\":\"ready\"}",
+        "live": {
+          "status": "ok",
+        },
+        "ready": {
+          "status": "ready",
+        },
       }
     `);
-    expect(JSON.stringify(payload)).not.toContain('worker-super-secret');
+    expect(`${liveBody}${readyBody}`).not.toContain('worker-super-secret');
   });
 });
