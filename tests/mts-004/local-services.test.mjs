@@ -76,6 +76,11 @@ test("reset requires explicit confirmation before touching local state", () => {
   assert.match(result.stderr, /Re-run with --yes/);
 });
 
+test("reset stays within the declared local service boundary", () => {
+  const serviceScript = readFileSync(serviceScriptPath, "utf8");
+  assert.doesNotMatch(serviceScript, /--remove-orphans/);
+});
+
 const runIntegration = process.env.MTS004_INTEGRATION === "1";
 
 test(
