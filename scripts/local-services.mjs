@@ -101,7 +101,7 @@ async function main() {
           "Reset removes only the named local PostgreSQL and Azurite volumes. Re-run with --yes to confirm intentional local data reset.",
         );
       }
-      runDocker(["compose", "down", "--volumes", "--remove-orphans"]);
+      runDocker(["compose", "down", "--volumes"]);
       console.log("Local PostgreSQL and Azurite state reset completed.");
       break;
     default:
