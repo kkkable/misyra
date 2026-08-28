@@ -76,9 +76,34 @@ test("reset requires explicit confirmation before touching local state", () => {
   assert.match(result.stderr, /Re-run with --yes/);
 });
 
-test("reset stays within the declared local service boundary", () => {
+test("local service commands pin the Compose file and project boundary", () => {
   const serviceScript = readFileSync(serviceScriptPath, "utf8");
+
+  assert.match(serviceScript, /const composePath = join\(root, "compose\.yaml"\)/);
+  assert.match(serviceScript, /"--file",\s*composePath/);
+  assert.match(serviceScript, /"--project-name",\s*"misyra-local"/);
   assert.doesNotMatch(serviceScript, /--remove-orphans/);
+});
+
+test("health verifies PostgreSQL with an authenticated query", () => {
+  const serviceScript = readFileSync(serviceScriptPath, "utf8");
+
+  assert.match(serviceScript, /\bpsql\b/);
+  assert.match(serviceScript, /SELECT 1/);
+  assert.doesNotMatch(serviceScript, /pg_isready/);
+});
+
+test("environment template makes client endpoint overrides explicit", () => {
+  const envTemplate = readFileSync(envTemplatePath, "utf8");
+
+  assert.match(
+    envTemplate,
+    /When changing POSTGRES_(?:DB|USER|PASSWORD|PORT).*update DATABASE_URL/i,
+  );
+  assert.match(
+    envTemplate,
+    /When changing AZURITE_.*update AZURE_STORAGE_CONNECTION_STRING/i,
+  );
 });
 
 const runIntegration = process.env.MTS004_INTEGRATION === "1";
