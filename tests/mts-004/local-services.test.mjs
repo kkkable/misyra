@@ -79,7 +79,10 @@ test("reset requires explicit confirmation before touching local state", () => {
 test("local service commands pin the Compose file and project boundary", () => {
   const serviceScript = readFileSync(serviceScriptPath, "utf8");
 
-  assert.match(serviceScript, /const composePath = join\(root, "compose\.yaml"\)/);
+  assert.match(
+    serviceScript,
+    /const composePath = join\(root, "compose\.yaml"\)/,
+  );
   assert.match(serviceScript, /"--file",\s*composePath/);
   assert.match(serviceScript, /"--project-name",\s*"misyra-local"/);
   assert.doesNotMatch(serviceScript, /--remove-orphans/);
