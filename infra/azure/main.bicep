@@ -67,6 +67,7 @@ module data './modules/data.bicep' = {
     containerRegistrySkuName: skuNames.containerRegistry
     enablePrivateNetworking: enablePrivateNetworking
     allowPublicDataPlaneAccess: allowPublicDataPlaneAccess
+    privateEndpointSubnetId: network.outputs.privateEndpointsSubnetId
     postgresqlAdministratorLogin: postgresqlAdministratorLogin
     postgresqlAdministratorPassword: postgresqlAdministratorPassword
   }
@@ -103,4 +104,3 @@ output containerRegistryName string = resourceNames.containerRegistry
 output logAnalyticsWorkspaceName string = resourceNames.logAnalyticsWorkspace
 output applicationInsightsName string = resourceNames.applicationInsights
 output containerRegistryLoginServer string = data.outputs.containerRegistryLoginServer
-output applicationInsightsConnectionString string = observability.outputs.applicationInsightsConnectionString

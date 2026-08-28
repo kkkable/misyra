@@ -9,6 +9,7 @@ param serviceBusSkuName string
 param containerRegistrySkuName string
 param enablePrivateNetworking bool
 param allowPublicDataPlaneAccess bool
+param privateEndpointSubnetId string
 param postgresqlAdministratorLogin string
 
 @secure()
@@ -146,6 +147,111 @@ resource containerRegistry 'Microsoft.ContainerRegistry/registries@2023-07-01' =
   properties: {
     adminUserEnabled: false
     publicNetworkAccess: publicNetworkAccess
+  }
+}
+
+resource postgresqlPrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-05-01' = if (enablePrivateNetworking) {
+  name: '${postgresqlServerName}-pe'
+  location: location
+  properties: {
+    subnet: {
+      id: privateEndpointSubnetId
+    }
+    privateLinkServiceConnections: [
+      {
+        name: 'postgresql'
+        properties: {
+          privateLinkServiceId: postgresql.id
+          groupIds: [
+            'postgresqlServer'
+          ]
+        }
+      }
+    ]
+  }
+}
+
+resource serviceBusPrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-05-01' = if (enablePrivateNetworking) {
+  name: '${serviceBusNamespaceName}-pe'
+  location: location
+  properties: {
+    subnet: {
+      id: privateEndpointSubnetId
+    }
+    privateLinkServiceConnections: [
+      {
+        name: 'service-bus'
+        properties: {
+          privateLinkServiceId: serviceBus.id
+          groupIds: [
+            'namespace'
+          ]
+        }
+      }
+    ]
+  }
+}
+
+resource blobPrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-05-01' = if (enablePrivateNetworking) {
+  name: '${storageAccountName}-blob-pe'
+  location: location
+  properties: {
+    subnet: {
+      id: privateEndpointSubnetId
+    }
+    privateLinkServiceConnections: [
+      {
+        name: 'blob'
+        properties: {
+          privateLinkServiceId: storage.id
+          groupIds: [
+            'blob'
+          ]
+        }
+      }
+    ]
+  }
+}
+
+resource keyVaultPrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-05-01' = if (enablePrivateNetworking) {
+  name: '${keyVaultName}-pe'
+  location: location
+  properties: {
+    subnet: {
+      id: privateEndpointSubnetId
+    }
+    privateLinkServiceConnections: [
+      {
+        name: 'vault'
+        properties: {
+          privateLinkServiceId: keyVault.id
+          groupIds: [
+            'vault'
+          ]
+        }
+      }
+    ]
+  }
+}
+
+resource containerRegistryPrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-05-01' = if (enablePrivateNetworking) {
+  name: '${containerRegistryName}-pe'
+  location: location
+  properties: {
+    subnet: {
+      id: privateEndpointSubnetId
+    }
+    privateLinkServiceConnections: [
+      {
+        name: 'registry'
+        properties: {
+          privateLinkServiceId: containerRegistry.id
+          groupIds: [
+            'registry'
+          ]
+        }
+      }
+    ]
   }
 }
 
