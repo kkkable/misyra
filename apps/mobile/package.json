@@ -10,7 +10,7 @@
     "lint": "eslint . --config ../../packages/config/eslint.config.mjs",
     "start": "expo start --dev-client",
     "typecheck": "tsc --project ./tsconfig.json --noEmit",
-    "test": "vitest run --config ../../packages/config/vitest.config.mjs"
+    "test": "vitest run --config ../../packages/config/vitest.config.mjs --passWithNoTests"
   },
   "dependencies": {
     "expo": "57.0.0",

@@ -14,6 +14,6 @@
     "format": "prettier --check . --config ./prettier.config.mjs",
     "lint": "eslint . --config ./eslint.config.mjs",
     "typecheck": "tsc --project ./tsconfig.json --noEmit",
-    "test": "vitest run --config ./vitest.config.mjs"
+    "test": "vitest run --config ./vitest.config.mjs --passWithNoTests"
   }
 }

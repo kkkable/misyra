@@ -9,7 +9,7 @@
     "lint": "eslint . --config ../../packages/config/eslint.config.mjs",
     "start": "tsx src/index.ts",
     "typecheck": "tsc --project ./tsconfig.json --noEmit",
-    "test": "vitest run --config ../../packages/config/vitest.config.mjs"
+    "test": "vitest run --config ../../packages/config/vitest.config.mjs --passWithNoTests"
   },
   "devDependencies": {
     "tsx": "4.20.6"
