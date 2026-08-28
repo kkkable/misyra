@@ -10,6 +10,7 @@
     "./vitest": "./vitest.config.mjs"
   },
   "scripts": {
+    "build": "tsc --project ./tsconfig.json --noEmit",
     "format": "prettier --check . --config ./prettier.config.mjs",
     "lint": "eslint . --config ./eslint.config.mjs",
     "typecheck": "tsc --project ./tsconfig.json --noEmit",
