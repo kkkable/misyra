@@ -1,9 +1,17 @@
 import { spawnSync } from "node:child_process";
 import process from "node:process";
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
+const composePath = join(root, "compose.yaml");
+const composeArgs = [
+  "compose",
+  "--file",
+  composePath,
+  "--project-name",
+  "misyra-local",
+];
 const command = process.argv[2];
 const yes = process.argv.includes("--yes");
 
@@ -39,21 +47,24 @@ function runDocker(args, { capture = false } = {}) {
   return result;
 }
 
+function runCompose(args, options) {
+  return runDocker([...composeArgs, ...args], options);
+}
+
 async function checkHealth() {
-  runDocker(
+  runCompose(
     [
-      "compose",
       "exec",
       "-T",
       "postgres",
       "sh",
       "-lc",
-      'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"',
+      'PGPASSWORD="$POSTGRES_PASSWORD" psql -h 127.0.0.1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atqc "SELECT 1"',
     ],
     { capture: true },
   );
 
-  const portResult = runDocker(["compose", "port", "azurite", "10000"], {
+  const portResult = runCompose(["port", "azurite", "10000"], {
     capture: true,
   });
   const published = portResult.stdout.trim().split(/\r?\n/)[0] ?? "";
@@ -89,7 +100,7 @@ async function checkHealth() {
 async function main() {
   switch (command) {
     case "up":
-      runDocker(["compose", "up", "-d", "--wait"]);
+      runCompose(["up", "-d", "--wait"]);
       await checkHealth();
       break;
     case "health":
@@ -101,7 +112,7 @@ async function main() {
           "Reset removes only the named local PostgreSQL and Azurite volumes. Re-run with --yes to confirm intentional local data reset.",
         );
       }
-      runDocker(["compose", "down", "--volumes"]);
+      runCompose(["down", "--volumes"]);
       console.log("Local PostgreSQL and Azurite state reset completed.");
       break;
     default:
