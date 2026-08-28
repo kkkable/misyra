@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
@@ -34,10 +34,36 @@ test('compose defines healthy local PostgreSQL 18 and Azurite services', () => {
   assert.doesNotMatch(compose, /azure-storage\/azurite:latest/);
   assert.match(compose, /misyra-postgres-data/);
   assert.match(compose, /misyra-azurite-data/);
+  assert.match(compose, /127\.0\.0\.1:\$\{POSTGRES_PORT:-5432\}:5432/);
+  assert.match(compose, /127\.0\.0\.1:\$\{AZURITE_BLOB_PORT:-10000\}:10000/);
+  assert.match(compose, /127\.0\.0\.1:\$\{AZURITE_QUEUE_PORT:-10001\}:10001/);
+  assert.match(compose, /127\.0\.0\.1:\$\{AZURITE_TABLE_PORT:-10002\}:10002/);
 
   assert.match(envTemplate, /^DATABASE_URL=postgresql:\/\/misyra:/m);
   assert.match(envTemplate, /^AZURE_STORAGE_CONNECTION_STRING=UseDevelopmentStorage=true$/m);
   assert.doesNotMatch(envTemplate, /prod(?:uction)?[-_.]/i);
+});
+
+test('health command fails clearly when Docker is unavailable', () => {
+  const result = spawnSync(process.execPath, [serviceScriptPath, 'health'], {
+    cwd: root,
+    encoding: 'utf8',
+    env: { ...process.env, PATH: '' },
+  });
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /Docker CLI is unavailable/);
+});
+
+test('reset requires explicit confirmation before touching local state', () => {
+  const result = spawnSync(process.execPath, [serviceScriptPath, 'reset'], {
+    cwd: root,
+    encoding: 'utf8',
+    env: process.env,
+  });
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /Re-run with --yes/);
 });
 
 const runIntegration = process.env.MTS004_INTEGRATION === '1';
