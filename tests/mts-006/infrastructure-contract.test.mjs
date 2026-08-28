@@ -128,6 +128,41 @@ test("resource names are supplied through the parameter contract rather than fix
   }
 });
 
+test("GATE-D cost and capacity choices remain parameterized shape inputs", () => {
+  const main = read(mainPath);
+  const data = read(join(azureRoot, "modules", "data.bicep"));
+  const compute = read(join(azureRoot, "modules", "compute.bicep"));
+  const observability = read(join(azureRoot, "modules", "observability.bicep"));
+  const fields = [
+    "postgresqlSkuTier",
+    "postgresqlStorageSizeGb",
+    "storageAccountSkuName",
+    "keyVaultSkuName",
+    "containerCpu",
+    "containerMemory",
+    "minReplicas",
+    "maxReplicas",
+    "logAnalyticsRetentionDays",
+  ];
+
+  assert.match(main, /param\s+capacitySettings\s+object/);
+  for (const field of fields) {
+    assert.match(main, new RegExp(`capacitySettings\\.${field}\\b`));
+  }
+  for (const path of Object.values(parameterFiles)) {
+    assert.match(read(path), /param\s+capacitySettings\s*=\s*\{/);
+  }
+
+  assert.doesNotMatch(data, /tier\s*:\s*['"]Burstable['"]/);
+  assert.doesNotMatch(data, /storageSizeGB\s*:\s*\d+/);
+  assert.doesNotMatch(data, /name\s*:\s*['"]Standard_LRS['"]/);
+  assert.doesNotMatch(data, /name\s*:\s*['"]standard['"]/);
+  assert.doesNotMatch(compute, /memory\s*:\s*['"]1Gi['"]/);
+  assert.doesNotMatch(compute, /minReplicas\s*:\s*\d+/);
+  assert.doesNotMatch(compute, /maxReplicas\s*:\s*\d+/);
+  assert.doesNotMatch(observability, /retentionInDays\s*:\s*\d+/);
+});
+
 test("infrastructure validation uses a real Bicep compiler without writing deployment artifacts", () => {
   const packageJson = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
   const validator = read(validatorPath);
