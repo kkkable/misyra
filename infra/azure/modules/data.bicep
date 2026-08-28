@@ -1,0 +1,157 @@
+param location string
+param postgresqlServerName string
+param serviceBusNamespaceName string
+param storageAccountName string
+param keyVaultName string
+param containerRegistryName string
+param postgresqlSkuName string
+param serviceBusSkuName string
+param containerRegistrySkuName string
+param enablePrivateNetworking bool
+param allowPublicDataPlaneAccess bool
+param postgresqlAdministratorLogin string
+
+@secure()
+param postgresqlAdministratorPassword string
+
+var publicNetworkAccess = enablePrivateNetworking || !allowPublicDataPlaneAccess ? 'Disabled' : 'Enabled'
+
+resource postgresql 'Microsoft.DBforPostgreSQL/flexibleServers@2024-08-01' = {
+  name: postgresqlServerName
+  location: location
+  sku: {
+    name: postgresqlSkuName
+    tier: 'Burstable'
+  }
+  properties: {
+    version: '18'
+    administratorLogin: postgresqlAdministratorLogin
+    administratorLoginPassword: postgresqlAdministratorPassword
+    storage: {
+      storageSizeGB: 32
+    }
+    network: {
+      publicNetworkAccess: publicNetworkAccess
+    }
+    highAvailability: {
+      mode: 'Disabled'
+    }
+  }
+}
+
+resource serviceBus 'Microsoft.ServiceBus/namespaces@2022-10-01-preview' = {
+  name: serviceBusNamespaceName
+  location: location
+  sku: {
+    name: serviceBusSkuName
+  }
+  properties: {
+    publicNetworkAccess: publicNetworkAccess
+    minimumTlsVersion: '1.2'
+    disableLocalAuth: true
+  }
+}
+
+resource storage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
+  name: storageAccountName
+  location: location
+  kind: 'StorageV2'
+  sku: {
+    name: 'Standard_LRS'
+  }
+  properties: {
+    allowBlobPublicAccess: false
+    allowSharedKeyAccess: false
+    supportsHttpsTrafficOnly: true
+    minimumTlsVersion: 'TLS1_2'
+    publicNetworkAccess: publicNetworkAccess
+  }
+}
+
+resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2023-05-01' = {
+  parent: storage
+  name: 'default'
+  properties: {
+    deleteRetentionPolicy: {
+      enabled: false
+    }
+    containerDeleteRetentionPolicy: {
+      enabled: false
+    }
+  }
+}
+
+resource evidenceWorking 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
+  parent: blobService
+  name: 'evidence-working'
+  properties: {
+    publicAccess: 'None'
+  }
+}
+
+resource storyWorking 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
+  parent: blobService
+  name: 'story-working'
+  properties: {
+    publicAccess: 'None'
+  }
+}
+
+resource plannerWorking 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
+  parent: blobService
+  name: 'planner-working'
+  properties: {
+    publicAccess: 'None'
+  }
+}
+
+resource styleReferences 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
+  parent: blobService
+  name: 'style-references'
+  properties: {
+    publicAccess: 'None'
+  }
+}
+
+resource feedbackRetained 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
+  parent: blobService
+  name: 'feedback-retained'
+  properties: {
+    publicAccess: 'None'
+  }
+}
+
+resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
+  name: keyVaultName
+  location: location
+  properties: {
+    tenantId: subscription().tenantId
+    sku: {
+      family: 'A'
+      name: 'standard'
+    }
+    accessPolicies: []
+    enableRbacAuthorization: true
+    enablePurgeProtection: true
+    publicNetworkAccess: publicNetworkAccess
+  }
+}
+
+resource containerRegistry 'Microsoft.ContainerRegistry/registries@2023-07-01' = {
+  name: containerRegistryName
+  location: location
+  sku: {
+    name: containerRegistrySkuName
+  }
+  properties: {
+    adminUserEnabled: false
+    publicNetworkAccess: publicNetworkAccess
+  }
+}
+
+output postgresqlServerId string = postgresql.id
+output serviceBusNamespaceId string = serviceBus.id
+output storageAccountId string = storage.id
+output keyVaultId string = keyVault.id
+output containerRegistryId string = containerRegistry.id
+output containerRegistryLoginServer string = containerRegistry.properties.loginServer
