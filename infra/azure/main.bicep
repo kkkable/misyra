@@ -16,6 +16,9 @@ param resourceNames object
 @description('Environment-specific cost/SKU choices. Values remain externally approved deployment configuration.')
 param skuNames object
 
+@description('Compilation-only capacity shape. GATE-D budget/capacity values must replace these placeholders before any approved deployment.')
+param capacitySettings object
+
 @description('Represent private production data-plane boundaries without performing a deployment.')
 param enablePrivateNetworking bool = false
 
@@ -50,6 +53,7 @@ module observability './modules/observability.bicep' = {
     logAnalyticsWorkspaceName: resourceNames.logAnalyticsWorkspace
     applicationInsightsName: resourceNames.applicationInsights
     logAnalyticsSkuName: skuNames.logAnalytics
+    logAnalyticsRetentionDays: capacitySettings.logAnalyticsRetentionDays
   }
 }
 
@@ -63,7 +67,12 @@ module data './modules/data.bicep' = {
     keyVaultName: resourceNames.keyVault
     containerRegistryName: resourceNames.containerRegistry
     postgresqlSkuName: skuNames.postgresql
+    postgresqlSkuTier: capacitySettings.postgresqlSkuTier
+    postgresqlStorageSizeGb: capacitySettings.postgresqlStorageSizeGb
+    postgresqlHighAvailabilityMode: capacitySettings.postgresqlHighAvailabilityMode
     serviceBusSkuName: skuNames.serviceBus
+    storageAccountSkuName: capacitySettings.storageAccountSkuName
+    keyVaultSkuName: capacitySettings.keyVaultSkuName
     containerRegistrySkuName: skuNames.containerRegistry
     enablePrivateNetworking: enablePrivateNetworking
     allowPublicDataPlaneAccess: allowPublicDataPlaneAccess
@@ -85,6 +94,10 @@ module compute './modules/compute.bicep' = {
     containerAppsSubnetId: network.outputs.containerAppsSubnetId
     apiImage: apiImage
     workerImage: workerImage
+    containerCpu: capacitySettings.containerCpu
+    containerMemory: capacitySettings.containerMemory
+    minReplicas: capacitySettings.minReplicas
+    maxReplicas: capacitySettings.maxReplicas
   }
 }
 

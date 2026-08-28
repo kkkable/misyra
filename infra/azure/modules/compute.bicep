@@ -7,6 +7,10 @@ param repairJobName string
 param containerAppsSubnetId string
 param apiImage string
 param workerImage string
+param containerCpu string
+param containerMemory string
+param minReplicas string
+param maxReplicas string
 
 resource environment 'Microsoft.App/managedEnvironments@2024-03-01' = {
   name: containerAppsEnvironmentName
@@ -41,14 +45,14 @@ resource api 'Microsoft.App/containerApps@2024-03-01' = {
           name: 'api'
           image: apiImage
           resources: {
-            cpu: json('0.5')
-            memory: '1Gi'
+            cpu: json(containerCpu)
+            memory: containerMemory
           }
         }
       ]
       scale: {
-        minReplicas: 0
-        maxReplicas: 2
+        minReplicas: int(minReplicas)
+        maxReplicas: int(maxReplicas)
       }
     }
   }
@@ -71,14 +75,14 @@ resource worker 'Microsoft.App/containerApps@2024-03-01' = {
           name: 'worker'
           image: workerImage
           resources: {
-            cpu: json('0.5')
-            memory: '1Gi'
+            cpu: json(containerCpu)
+            memory: containerMemory
           }
         }
       ]
       scale: {
-        minReplicas: 0
-        maxReplicas: 2
+        minReplicas: int(minReplicas)
+        maxReplicas: int(maxReplicas)
       }
     }
   }
@@ -112,8 +116,8 @@ resource cleanupJob 'Microsoft.App/jobs@2024-03-01' = {
             'cleanup'
           ]
           resources: {
-            cpu: json('0.5')
-            memory: '1Gi'
+            cpu: json(containerCpu)
+            memory: containerMemory
           }
         }
       ]
@@ -149,8 +153,8 @@ resource repairJob 'Microsoft.App/jobs@2024-03-01' = {
             'repair'
           ]
           resources: {
-            cpu: json('0.5')
-            memory: '1Gi'
+            cpu: json(containerCpu)
+            memory: containerMemory
           }
         }
       ]

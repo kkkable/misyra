@@ -5,7 +5,12 @@ param storageAccountName string
 param keyVaultName string
 param containerRegistryName string
 param postgresqlSkuName string
+param postgresqlSkuTier string
+param postgresqlStorageSizeGb string
+param postgresqlHighAvailabilityMode string
 param serviceBusSkuName string
+param storageAccountSkuName string
+param keyVaultSkuName string
 param containerRegistrySkuName string
 param enablePrivateNetworking bool
 param allowPublicDataPlaneAccess bool
@@ -22,20 +27,20 @@ resource postgresql 'Microsoft.DBforPostgreSQL/flexibleServers@2024-08-01' = {
   location: location
   sku: {
     name: postgresqlSkuName
-    tier: 'Burstable'
+    tier: postgresqlSkuTier
   }
   properties: {
     version: '18'
     administratorLogin: postgresqlAdministratorLogin
     administratorLoginPassword: postgresqlAdministratorPassword
     storage: {
-      storageSizeGB: 32
+      storageSizeGB: int(postgresqlStorageSizeGb)
     }
     network: {
       publicNetworkAccess: publicNetworkAccess
     }
     highAvailability: {
-      mode: 'Disabled'
+      mode: postgresqlHighAvailabilityMode
     }
   }
 }
@@ -58,7 +63,7 @@ resource storage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   location: location
   kind: 'StorageV2'
   sku: {
-    name: 'Standard_LRS'
+    name: storageAccountSkuName
   }
   properties: {
     allowBlobPublicAccess: false
@@ -129,7 +134,7 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
     tenantId: subscription().tenantId
     sku: {
       family: 'A'
-      name: 'standard'
+      name: keyVaultSkuName
     }
     accessPolicies: []
     enableRbacAuthorization: true

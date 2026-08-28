@@ -2,12 +2,13 @@ param location string
 param logAnalyticsWorkspaceName string
 param applicationInsightsName string
 param logAnalyticsSkuName string
+param logAnalyticsRetentionDays string
 
 resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
   name: logAnalyticsWorkspaceName
   location: location
   properties: {
-    retentionInDays: 30
+    retentionInDays: int(logAnalyticsRetentionDays)
     features: {
       enableLogAccessUsingOnlyResourcePermissions: true
     }
