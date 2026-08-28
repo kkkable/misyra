@@ -26,9 +26,15 @@ function probeTcp(port: number) {
       resolve(ready);
     };
 
-    socket.once('connect', () => finish(true));
-    socket.once('error', () => finish(false));
-    socket.setTimeout(1_000, () => finish(false));
+    socket.once('connect', () => {
+      finish(true);
+    });
+    socket.once('error', () => {
+      finish(false);
+    });
+    socket.setTimeout(1_000, () => {
+      finish(false);
+    });
   });
 }
 
@@ -50,17 +56,13 @@ export function createApiServer(options: ApiServerOptions = {}) {
   const readiness = options.readiness ?? createLocalReadinessCheck();
   const server = Fastify({ logger: false });
 
-  server.get('/health/live', async () => ({ status: 'ok' as const }));
+  server.get('/health/live', () => ({ status: 'ok' as const }));
   server.get('/health/ready', async (_request, reply) => {
-    let ready = false;
-
     try {
-      ready = await readiness();
+      if (!(await readiness())) {
+        return reply.code(503).send({ status: 'not_ready' as const });
+      }
     } catch {
-      ready = false;
-    }
-
-    if (!ready) {
       return reply.code(503).send({ status: 'not_ready' as const });
     }
 
