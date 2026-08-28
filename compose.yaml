@@ -8,11 +8,12 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-misyra}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-misyra-local-only}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - misyra-postgres-data:/var/lib/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      test:
+        ["CMD-SHELL", 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
       interval: 2s
       timeout: 3s
       retries: 15
@@ -31,9 +32,9 @@ services:
       - --location
       - /data
     ports:
-      - "${AZURITE_BLOB_PORT:-10000}:10000"
-      - "${AZURITE_QUEUE_PORT:-10001}:10001"
-      - "${AZURITE_TABLE_PORT:-10002}:10002"
+      - "127.0.0.1:${AZURITE_BLOB_PORT:-10000}:10000"
+      - "127.0.0.1:${AZURITE_QUEUE_PORT:-10001}:10001"
+      - "127.0.0.1:${AZURITE_TABLE_PORT:-10002}:10002"
     volumes:
       - misyra-azurite-data:/data
     healthcheck:
