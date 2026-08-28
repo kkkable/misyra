@@ -58,11 +58,15 @@ export function createApiServer(options: ApiServerOptions = {}) {
 
   server.get('/health/live', () => ({ status: 'ok' as const }));
   server.get('/health/ready', async (_request, reply) => {
+    let ready: boolean;
+
     try {
-      if (!(await readiness())) {
-        return reply.code(503).send({ status: 'not_ready' as const });
-      }
+      ready = await readiness();
     } catch {
+      ready = false;
+    }
+
+    if (!ready) {
       return reply.code(503).send({ status: 'not_ready' as const });
     }
 
