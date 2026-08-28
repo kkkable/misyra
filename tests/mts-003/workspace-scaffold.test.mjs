@@ -116,3 +116,12 @@ test('mobile route inventory exposes exactly the approved four root tabs', () =>
     assert.match(layoutSource, new RegExp(`title:\\s*['\\"]${title}['\\"]`));
   }
 });
+
+test('node service entry guards convert filesystem paths with pathToFileURL', () => {
+  for (const sourcePath of ['apps/api/src/index.ts', 'apps/worker/src/index.ts']) {
+    const source = readFileSync(join(root, sourcePath), 'utf8');
+    assert.match(source, /import\s*\{\s*pathToFileURL\s*\}\s*from\s*['"]node:url['"]/);
+    assert.match(source, /pathToFileURL\(process\.argv\[1\]\)\.href/);
+    assert.doesNotMatch(source, /new URL\(process\.argv\[1\],\s*['"]file:['"]\)/);
+  }
+});
