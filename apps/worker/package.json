@@ -1,0 +1,17 @@
+{
+  "name": "@misyra/worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc --project ./tsconfig.json --noEmit",
+    "format": "prettier --check . --config ../../packages/config/prettier.config.mjs",
+    "lint": "eslint . --config ../../packages/config/eslint.config.mjs",
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --project ./tsconfig.json --noEmit",
+    "test": "vitest run --config ../../packages/config/vitest.config.mjs --passWithNoTests"
+  },
+  "devDependencies": {
+    "tsx": "4.20.6"
+  }
+}

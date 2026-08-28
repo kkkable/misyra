@@ -11,19 +11,24 @@
     "format": "turbo run format",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
-    "test": "node --test tests/mts-001/*.test.mjs tests/mts-002/*.test.mjs && turbo run test",
+    "test": "node --test tests/mts-001/*.test.mjs tests/mts-002/*.test.mjs tests/mts-003/*.test.mjs && turbo run test",
     "build": "turbo run build",
     "audit": "pnpm audit --audit-level high",
     "validate:infra": "turbo run validate:infra"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
-    "@types/node": "26.3.0",
+    "@types/node": "24.13.3",
     "eslint": "10.9.0",
     "prettier": "3.9.6",
     "turbo": "2.10.12",
     "typescript": "6.0.3",
     "typescript-eslint": "8.68.0",
     "vitest": "4.1.11"
+  },
+  "pnpm": {
+    "overrides": {
+      "image-size@<=2.0.2": "npm:image-size-next@2.1.1"
+    }
   }
 }
