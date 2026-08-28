@@ -80,19 +80,29 @@ test("the Bicep modules represent the approved Azure server topology", () => {
   }
 });
 
-test("production data and secret boundaries are explicit and least-privilege shaped", () => {
+test("production data and secret boundaries are explicit, connected, and least-privilege shaped", () => {
+  const main = read(mainPath);
   const data = read(join(azureRoot, "modules", "data.bicep"));
   const network = read(join(azureRoot, "modules", "network.bicep"));
   const compute = read(join(azureRoot, "modules", "compute.bicep"));
+  const observability = read(join(azureRoot, "modules", "observability.bicep"));
 
   assert.match(data, /allowBlobPublicAccess\s*:\s*false/);
   assert.match(data, /enableRbacAuthorization\s*:\s*true/);
   assert.match(data, /publicNetworkAccess\s*:/);
   assert.match(data, /enablePrivateNetworking/);
+  assert.match(data, /Microsoft\.Network\/privateEndpoints/);
+  assert.match(data, /privateEndpointSubnetId/);
+  for (const groupId of ["blob", "vault", "namespace", "registry", "postgresqlServer"]) {
+    assert.match(data, new RegExp(`['"]${groupId}['"]`));
+  }
+  assert.match(main, /privateEndpointSubnetId\s*:\s*network\.outputs\.privateEndpointsSubnetId/);
   assert.match(network, /Microsoft\.Network\/virtualNetworks/);
   assert.match(network, /privateEndpointNetworkPolicies\s*:\s*['"]Disabled['"]/);
   assert.match(compute, /identity\s*:\s*\{[\s\S]*type\s*:\s*['"]SystemAssigned['"]/);
   assert.doesNotMatch(data, /accessPolicies\s*:\s*\[(?!\s*\])/);
+  assert.doesNotMatch(main, /output\s+\w*ConnectionString\b/i);
+  assert.doesNotMatch(observability, /output\s+\w*ConnectionString\b/i);
 });
 
 test("resource names are supplied through the parameter contract rather than fixed production identifiers", () => {
