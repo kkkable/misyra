@@ -96,7 +96,9 @@ export function createWorkerHealthServer(options: WorkerHealthOptions = {}) {
 }
 
 export function startWorker(options: WorkerStartOptions = {}) {
-  const healthServer = createWorkerHealthServer({ readiness: options.readiness });
+  const healthServer = createWorkerHealthServer(
+    options.readiness ? { readiness: options.readiness } : {},
+  );
   const host = options.host ?? '127.0.0.1';
   const port = options.port ?? resolvePort(process.env.WORKER_HEALTH_PORT, 3001);
 
