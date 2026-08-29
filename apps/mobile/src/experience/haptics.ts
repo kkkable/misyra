@@ -68,14 +68,17 @@ export function createFakeHapticDriver({ available }: { available: boolean }) {
 
   const driver: HapticDriver = {
     isAvailable: () => available,
-    selection: async () => {
+    selection: () => {
       events.push('selection');
+      return Promise.resolve();
     },
-    impact: async (style) => {
+    impact: (style) => {
       events.push(`impact:${style}`);
+      return Promise.resolve();
     },
-    notification: async (type) => {
+    notification: (type) => {
       events.push(`notification:${type}`);
+      return Promise.resolve();
     },
   };
 
