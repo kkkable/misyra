@@ -1,5 +1,3 @@
-import { readFile } from 'node:fs/promises';
-
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -13,10 +11,8 @@ import {
   surfaceContract,
 } from './contracts.js';
 
-const loadSnapshot = async (name: string): Promise<unknown> =>
-  JSON.parse(
-    await readFile(new URL(`./__snapshots__/${name}.json`, import.meta.url), 'utf8'),
-  ) as unknown;
+import darkLargeTextSnapshot from './__snapshots__/dark-large-text.json';
+import lightSnapshot from './__snapshots__/light.json';
 
 describe('MTS-009 foundational primitive inventory', () => {
   it('covers the approved foundational component boundary without later-ticket navigation or feature widgets', () => {
@@ -145,11 +141,11 @@ describe('MTS-009 accessibility contracts', () => {
 });
 
 describe('MTS-009 deterministic visual and large-text snapshots', () => {
-  it('matches the approved light-mode baseline', async () => {
-    expect(primitiveSnapshot('light', 1)).toEqual(await loadSnapshot('light'));
+  it('matches the approved light-mode baseline', () => {
+    expect(primitiveSnapshot('light', 1)).toEqual(lightSnapshot);
   });
 
-  it('keeps critical actions wrapping and non-clipping at a large text scale in dark mode', async () => {
-    expect(primitiveSnapshot('dark', 2)).toEqual(await loadSnapshot('dark-large-text'));
+  it('keeps critical actions wrapping and non-clipping at a large text scale in dark mode', () => {
+    expect(primitiveSnapshot('dark', 2)).toEqual(darkLargeTextSnapshot);
   });
 });

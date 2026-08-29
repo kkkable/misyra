@@ -2,7 +2,6 @@ import { useState, type ReactNode } from 'react';
 import {
   Modal,
   Pressable,
-  SafeAreaView,
   StyleSheet,
   Switch,
   Text,
@@ -53,27 +52,42 @@ export function Screen({ children, colorScheme, accessibilityLabel, testID }: Co
   );
 }
 
+export interface SafeAreaInsets {
+  readonly top: number;
+  readonly right: number;
+  readonly bottom: number;
+  readonly left: number;
+}
+
+export interface SafeAreaScreenProps extends ContainerProps {
+  readonly safeAreaInsets: SafeAreaInsets;
+}
+
 export function SafeAreaScreen({
   children,
   colorScheme,
   accessibilityLabel,
+  safeAreaInsets,
   testID,
-}: ContainerProps) {
+}: SafeAreaScreenProps) {
   const colors = themeColors(colorScheme);
   return (
-    <SafeAreaView
+    <View
       accessibilityLabel={accessibilityLabel}
       style={[
         styles.screen,
         {
           backgroundColor: colors.canvas,
-          paddingHorizontal: layout.screenHorizontalPadding,
+          paddingBottom: safeAreaInsets.bottom,
+          paddingLeft: safeAreaInsets.left + layout.screenHorizontalPadding,
+          paddingRight: safeAreaInsets.right + layout.screenHorizontalPadding,
+          paddingTop: safeAreaInsets.top,
         },
       ]}
       testID={testID}
     >
       {children}
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -365,7 +379,7 @@ export function TextArea(props: TextAreaProps) {
 
 interface RowTextProps extends ThemedProps {
   readonly label: string;
-  readonly detail?: string;
+  readonly detail?: string | undefined;
   readonly disabled?: boolean;
 }
 
@@ -427,7 +441,9 @@ export function ToggleRow({
       accessibilityRole="switch"
       accessibilityState={{ checked: value, disabled }}
       disabled={disabled}
-      onPress={() => onValueChange(!value)}
+      onPress={() => {
+        onValueChange(!value);
+      }}
       style={[
         styles.row,
         {
@@ -596,7 +612,7 @@ export function BottomSheet({
           accessibilityLabel={dismissAccessibilityLabel}
           accessibilityRole="button"
           onPress={onDismiss}
-          style={[styles.modalBackdrop, { backgroundColor: overlay.backdropColor }]}
+          style={[StyleSheet.absoluteFill, { backgroundColor: overlay.backdropColor }]}
         />
         <View
           accessibilityLabel={accessibilityLabel}
@@ -932,9 +948,6 @@ const styles = StyleSheet.create({
   modalRoot: {
     flex: 1,
     justifyContent: 'flex-end',
-  },
-  modalBackdrop: {
-    ...StyleSheet.absoluteFillObject,
   },
   sheet: {
     borderWidth: StyleSheet.hairlineWidth,

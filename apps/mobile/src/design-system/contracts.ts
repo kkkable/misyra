@@ -180,10 +180,9 @@ export const surfaceContract = (
 ) => {
   const colors = themeColors(colorScheme);
   const selected = state.selected === true;
-  const elevated = kind === 'sheet' || kind === 'dialog' || kind === 'card' || kind === 'toast';
 
   return {
-    backgroundColor: elevated ? colors.surfaceRaised : colors.surface,
+    backgroundColor: colors.surfaceRaised,
     borderColor: selected ? colors.focusRing : colors.border,
     radius: kind === 'sheet' || kind === 'dialog' ? radius.lg : radius.md,
     selected,
