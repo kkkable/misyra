@@ -77,6 +77,9 @@ export function assertComparableFixtures(captureFixture, baselineFixture) {
   if (captureFixture.platform !== baselineFixture.platform) {
     throw new Error('Visual comparison requires fixtures from the same platform.');
   }
+  if (captureFixture.key !== baselineFixture.key) {
+    throw new Error('Visual comparison requires matching fixture identity.');
+  }
 }
 
 function assertMatchingCapture(capture, fixture) {
