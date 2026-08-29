@@ -80,6 +80,9 @@ export function assertComparableFixtures(captureFixture, baselineFixture) {
 }
 
 function assertMatchingCapture(capture, fixture) {
+  if (capture.fixtureKey !== fixture.key) {
+    throw new Error('Capture fixture identity must match its fixture.');
+  }
   if (capture.platform !== fixture.platform) {
     throw new Error('Capture platform must match its fixture platform.');
   }
@@ -103,6 +106,7 @@ export async function captureFixture({ driver, fixture, outputDirectory }) {
   }
 
   const capture = {
+    fixtureKey: fixture.key,
     height: screenshot.height,
     platform: fixture.platform,
     width: screenshot.width,
