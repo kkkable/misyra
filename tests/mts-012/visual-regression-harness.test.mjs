@@ -90,6 +90,7 @@ test('MTS-012 screenshot generation smoke writes a valid PNG at the requested de
     assert.equal(capture.width, 360);
     assert.equal(capture.height, 800);
     assert.equal(capture.platform, 'android');
+    assert.equal(capture.fixtureKey, fixture.key);
     assert.match(capture.path, /android/);
   } finally {
     await rm(outputDirectory, { recursive: true, force: true });
@@ -108,20 +109,37 @@ test('MTS-012 baseline guard requires explicit intent and never compares across 
   } = await import('../../scripts/visual-regression.mjs');
 
   const androidFixture = visualFixtureMatrix.find(
-    ({ platform, surface, viewport }) =>
+    ({ locale, platform, surface, textSize, theme, viewport }) =>
       platform === 'android' &&
       surface === 'calendar' &&
       viewport.width === 412 &&
-      viewport.height === 915,
+      viewport.height === 915 &&
+      theme === 'light' &&
+      locale === 'en' &&
+      textSize === 'default',
+  );
+  const otherAndroidFixture = visualFixtureMatrix.find(
+    ({ locale, platform, surface, textSize, theme, viewport }) =>
+      platform === 'android' &&
+      surface === 'calendar' &&
+      viewport.width === 412 &&
+      viewport.height === 915 &&
+      theme === 'dark' &&
+      locale === 'en' &&
+      textSize === 'default',
   );
   const iosFixture = visualFixtureMatrix.find(
-    ({ platform, surface, viewport }) =>
+    ({ locale, platform, surface, textSize, theme, viewport }) =>
       platform === 'ios' &&
       surface === 'calendar' &&
       viewport.width === 412 &&
-      viewport.height === 915,
+      viewport.height === 915 &&
+      theme === 'light' &&
+      locale === 'en' &&
+      textSize === 'default',
   );
   assert.ok(androidFixture);
+  assert.ok(otherAndroidFixture);
   assert.ok(iosFixture);
 
   assert.doesNotThrow(() => assertComparableFixtures(androidFixture, androidFixture));
@@ -158,6 +176,17 @@ test('MTS-012 baseline guard requires explicit intent and never compares across 
       /reason/i,
     );
 
+    await assert.rejects(
+      updateBaseline({
+        capture,
+        fixture: otherAndroidFixture,
+        repositoryRoot: root,
+        allowUpdate: true,
+        reason: 'intentional token update',
+      }),
+      /fixture identity/i,
+    );
+
     const androidBaseline = baselinePathFor(root, androidFixture);
     const iosBaseline = baselinePathFor(root, iosFixture);
     assert.match(androidBaseline, /baselines[/\\]android[/\\]/);
@@ -182,6 +211,16 @@ test('MTS-012 baseline guard requires explicit intent and never compares across 
         repositoryRoot: root,
       }),
       /same platform/i,
+    );
+
+    await assert.rejects(
+      compareCaptureToBaseline({
+        capture,
+        captureFixture: otherAndroidFixture,
+        baselineFixture: otherAndroidFixture,
+        repositoryRoot: root,
+      }),
+      /fixture identity/i,
     );
 
     const matchingComparison = await compareCaptureToBaseline({
