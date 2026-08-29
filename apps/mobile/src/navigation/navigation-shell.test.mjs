@@ -1,5 +1,5 @@
 import { readdirSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, URL } from 'node:url';
 
 import { createElement } from 'react';
 import { act, create } from 'react-test-renderer';
