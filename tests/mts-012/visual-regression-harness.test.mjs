@@ -64,9 +64,8 @@ test('MTS-012 fixture inventory covers approved surfaces and required visual axe
 });
 
 test('MTS-012 screenshot generation smoke writes a valid PNG at the requested device size', async () => {
-  const { captureFixture, createDeterministicScreenshotDriver, visualFixtureMatrix } = await import(
-    '../../scripts/visual-regression.mjs'
-  );
+  const { captureFixture, createDeterministicScreenshotDriver, visualFixtureMatrix } =
+    await import('../../scripts/visual-regression.mjs');
 
   const fixture = visualFixtureMatrix.find(
     ({ platform, surface, viewport }) =>
