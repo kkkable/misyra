@@ -88,6 +88,10 @@ function assertMatchingCapture(capture, fixture) {
   }
 }
 
+function sha256(image) {
+  return createHash('sha256').update(image).digest('hex');
+}
+
 export async function captureFixture({ driver, fixture, outputDirectory }) {
   if (!driver || typeof driver.capture !== 'function') {
     throw new TypeError('A screenshot driver with capture(fixture) is required.');
@@ -112,6 +116,31 @@ export async function captureFixture({ driver, fixture, outputDirectory }) {
   return Object.freeze({ ...capture, path: capturePath });
 }
 
+export async function compareCaptureToBaseline({
+  baselineFixture,
+  capture,
+  captureFixture,
+  repositoryRoot,
+}) {
+  assertComparableFixtures(captureFixture, baselineFixture);
+  assertMatchingCapture(capture, captureFixture);
+
+  const baselinePath = baselinePathFor(repositoryRoot, baselineFixture);
+  const [captureImage, baselineImage] = await Promise.all([
+    readFile(capture.path),
+    readFile(baselinePath),
+  ]);
+  const captureSha256 = sha256(captureImage);
+  const baselineSha256 = sha256(baselineImage);
+
+  return Object.freeze({
+    baselinePath,
+    baselineSha256,
+    captureSha256,
+    matches: captureSha256 === baselineSha256,
+  });
+}
+
 export async function updateBaseline({ allowUpdate, capture, fixture, reason, repositoryRoot }) {
   if (allowUpdate !== true) {
     throw new Error('Explicit baseline update approval is required.');
@@ -129,7 +158,7 @@ export async function updateBaseline({ allowUpdate, capture, fixture, reason, re
   return Object.freeze({
     baselinePath,
     reason: reason.trim(),
-    sha256: createHash('sha256').update(image).digest('hex'),
+    sha256: sha256(image),
   });
 }
 
