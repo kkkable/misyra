@@ -1,28 +1,39 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { URL } from 'node:url';
 
-const screenFiles = [
-  'apps/mobile/app/_layout.tsx',
-  'apps/mobile/app/(tabs)/_layout.tsx',
-  'apps/mobile/app/(tabs)/ai-planner.tsx',
-  'apps/mobile/app/(tabs)/index.tsx',
-  'apps/mobile/app/(tabs)/progress.tsx',
-  'apps/mobile/app/(tabs)/settings.tsx',
-];
-
+const mobileAppRoot = new URL('../../apps/mobile/app/', import.meta.url);
 const colourLiteralPattern = /#[0-9a-fA-F]{3,8}\b|\brgba?\s*\(/g;
+
+const collectRouteFiles = async (directoryUrl) => {
+  const entries = await readdir(directoryUrl, { withFileTypes: true });
+  const files = [];
+
+  for (const entry of entries) {
+    if (entry.isDirectory()) {
+      const nestedDirectoryUrl = new URL(`${entry.name}/`, directoryUrl);
+      const nestedFiles = await collectRouteFiles(nestedDirectoryUrl);
+      files.push(...nestedFiles);
+      continue;
+    }
+
+    if (entry.name.endsWith('.ts') || entry.name.endsWith('.tsx')) {
+      files.push(new URL(entry.name, directoryUrl));
+    }
+  }
+
+  return files;
+};
 
 test('MTS-008 mobile screens contain no hard-coded colours', async () => {
   const violations = [];
 
-  for (const path of screenFiles) {
-    const fileUrl = new URL(`../../${path}`, import.meta.url);
+  for (const fileUrl of await collectRouteFiles(mobileAppRoot)) {
     const source = await readFile(fileUrl, 'utf8');
 
     for (const match of source.matchAll(colourLiteralPattern)) {
-      violations.push(`${path}: ${match[0]}`);
+      violations.push(`${fileUrl.pathname}: ${match[0]}`);
     }
   }
 
