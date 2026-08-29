@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { Buffer } from 'node:buffer';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -100,6 +100,7 @@ test('MTS-012 baseline guard requires explicit intent and never compares across 
   const {
     assertComparableFixtures,
     baselinePathFor,
+    compareCaptureToBaseline,
     createDeterministicScreenshotDriver,
     captureFixture,
     updateBaseline,
@@ -172,6 +173,39 @@ test('MTS-012 baseline guard requires explicit intent and never compares across 
     });
     assert.equal(result.baselinePath, androidBaseline);
     assert.match(result.sha256, /^[a-f0-9]{64}$/);
+
+    await assert.rejects(
+      compareCaptureToBaseline({
+        capture,
+        captureFixture: androidFixture,
+        baselineFixture: iosFixture,
+        repositoryRoot: root,
+      }),
+      /same platform/i,
+    );
+
+    const matchingComparison = await compareCaptureToBaseline({
+      capture,
+      captureFixture: androidFixture,
+      baselineFixture: androidFixture,
+      repositoryRoot: root,
+    });
+    assert.equal(matchingComparison.matches, true);
+    assert.equal(matchingComparison.baselinePath, androidBaseline);
+    assert.match(matchingComparison.captureSha256, /^[a-f0-9]{64}$/);
+    assert.equal(matchingComparison.captureSha256, matchingComparison.baselineSha256);
+
+    const originalCapture = await readFile(capture.path);
+    await writeFile(capture.path, Buffer.concat([originalCapture, Buffer.from([0x00])]));
+
+    const changedComparison = await compareCaptureToBaseline({
+      capture,
+      captureFixture: androidFixture,
+      baselineFixture: androidFixture,
+      repositoryRoot: root,
+    });
+    assert.equal(changedComparison.matches, false);
+    assert.notEqual(changedComparison.captureSha256, changedComparison.baselineSha256);
   } finally {
     await rm(root, { recursive: true, force: true });
     await rm(captures, { recursive: true, force: true });
