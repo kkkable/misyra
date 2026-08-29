@@ -136,7 +136,9 @@ function assertIntegerInRange(
   label: string,
 ): void {
   if (!Number.isInteger(value) || value < minimum || value > maximum) {
-    throw new RangeError(`${label} must be an integer from ${minimum} to ${maximum}.`);
+    throw new RangeError(
+      `${label} must be an integer from ${String(minimum)} to ${String(maximum)}.`,
+    );
   }
 }
 
