@@ -1,21 +1,21 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  createMissionOccurrence,
-  createMissionSeries,
-  createOneTimeMission,
-  type MissionOccurrence,
-  type MissionSeries,
-} from './index.js';
-
-type Equal<Left, Right> =
-  (<Value>() => Value extends Left ? 1 : 2) extends <Value>() => Value extends Right ? 1 : 2
-    ? true
-    : false;
-
+type DomainModule = typeof import('./index.js');
+type RequiredFactoryName =
+  | 'createMissionSeries'
+  | 'createMissionOccurrence'
+  | 'createOneTimeMission';
+type FactoryReturn<Name extends string> = DomainModule extends Record<Name, infer Factory>
+  ? Factory extends (...args: infer _Arguments) => infer Result
+    ? Result
+    : never
+  : never;
 type OccurrenceOnlyStateKey =
-  'completionState' | 'evidenceState' | 'rewardEligibility' | 'rewardIssuance' | 'storyState';
-
+  | 'completionState'
+  | 'evidenceState'
+  | 'rewardEligibility'
+  | 'rewardIssuance'
+  | 'storyState';
 type RequiredOccurrenceStateKey =
   | 'scheduleState'
   | OccurrenceOnlyStateKey
@@ -23,19 +23,33 @@ type RequiredOccurrenceStateKey =
   | 'fieldOwnership'
   | 'synchronizationState'
   | 'deletionState';
+type SeriesReturn = FactoryReturn<'createMissionSeries'>;
+type OccurrenceReturn = FactoryReturn<'createMissionOccurrence'>;
+type OneTimeReturn = FactoryReturn<'createOneTimeMission'>;
+type OneTimeRecurrence = OneTimeReturn extends { series: { recurrence: infer Recurrence } }
+  ? Recurrence
+  : never;
 
-const seriesOwnsNoOccurrenceState: Equal<
-  Extract<keyof MissionSeries, OccurrenceOnlyStateKey>,
-  never
-> = true;
-const occurrenceOwnsEveryStateDimension: Equal<
-  Exclude<RequiredOccurrenceStateKey, keyof MissionOccurrence>,
-  never
-> = true;
-const oneTimeSeriesIsStaticallyNonrecurring: Equal<
-  ReturnType<typeof createOneTimeMission>['series']['recurrence'],
-  null
-> = true;
+const requiredFactoriesExist: Exclude<RequiredFactoryName, keyof DomainModule> extends never
+  ? true
+  : false = true;
+const seriesOwnsNoOccurrenceState: [SeriesReturn] extends [never]
+  ? false
+  : Extract<keyof SeriesReturn, OccurrenceOnlyStateKey> extends never
+    ? true
+    : false = true;
+const occurrenceOwnsEveryStateDimension: [OccurrenceReturn] extends [never]
+  ? false
+  : Exclude<RequiredOccurrenceStateKey, keyof OccurrenceReturn> extends never
+    ? true
+    : false = true;
+const oneTimeSeriesIsStaticallyNonrecurring: [OneTimeRecurrence] extends [never]
+  ? false
+  : [OneTimeRecurrence] extends [null]
+    ? [null] extends [OneTimeRecurrence]
+      ? true
+      : false
+    : false = true;
 
 const validStates = {
   scheduleState: 'scheduled',
@@ -61,57 +75,94 @@ const validSchedule = {
   estimatedEffortMinutes: null,
 } as const;
 
+type DomainFactory = (input: Record<string, unknown>) => unknown;
+
+function requireFactory(module: Record<string, unknown>, name: RequiredFactoryName): DomainFactory {
+  const factory = module[name];
+  if (typeof factory !== 'function') {
+    throw new TypeError(`Missing required domain factory: ${name}`);
+  }
+  return factory as DomainFactory;
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new TypeError('Expected a domain record.');
+  }
+  return value as Record<string, unknown>;
+}
+
+async function loadFactories() {
+  const module = (await import('./index.js')) as Record<string, unknown>;
+  return {
+    createMissionSeries: requireFactory(module, 'createMissionSeries'),
+    createMissionOccurrence: requireFactory(module, 'createMissionOccurrence'),
+    createOneTimeMission: requireFactory(module, 'createOneTimeMission'),
+  };
+}
+
 describe('MTS-013 mission series and occurrence contract', () => {
   it('keeps the required type-level separation and independent state dimensions', () => {
+    expect(requiredFactoriesExist).toBe(true);
     expect(seriesOwnsNoOccurrenceState).toBe(true);
     expect(occurrenceOwnsEveryStateDimension).toBe(true);
     expect(oneTimeSeriesIsStaticallyNonrecurring).toBe(true);
   });
 
-  it('creates one-time missions as a nonrecurring series plus one stable occurrence', () => {
-    const mission = createOneTimeMission({
-      series: {
-        id: '11111111-1111-4111-8111-111111111111',
-        title: 'Pay rent',
-      },
-      occurrence: {
-        id: '22222222-2222-4222-8222-222222222222',
-        schedule: validSchedule,
-        ...validStates,
-      },
-    });
+  it('creates one-time missions as a nonrecurring series plus one stable occurrence', async () => {
+    const { createOneTimeMission } = await loadFactories();
+    const mission = asRecord(
+      createOneTimeMission({
+        series: {
+          id: '11111111-1111-4111-8111-111111111111',
+          title: 'Pay rent',
+        },
+        occurrence: {
+          id: '22222222-2222-4222-8222-222222222222',
+          schedule: validSchedule,
+          ...validStates,
+        },
+      }),
+    );
+    const series = asRecord(mission.series);
+    const occurrence = asRecord(mission.occurrence);
 
-    expect(mission.series).toMatchObject({
+    expect(series).toMatchObject({
       id: '11111111-1111-4111-8111-111111111111',
       title: 'Pay rent',
       recurrence: null,
     });
-    expect(mission.occurrence.seriesId).toBe(mission.series.id);
-    expect(mission.occurrence.id).toBe('22222222-2222-4222-8222-222222222222');
-    expect(mission.series).not.toHaveProperty('completionState');
-    expect(mission.series).not.toHaveProperty('evidenceState');
-    expect(mission.series).not.toHaveProperty('rewardEligibility');
-    expect(mission.series).not.toHaveProperty('rewardIssuance');
-    expect(mission.series).not.toHaveProperty('storyState');
+    expect(occurrence.seriesId).toBe(series.id);
+    expect(occurrence.id).toBe('22222222-2222-4222-8222-222222222222');
+    expect(series).not.toHaveProperty('completionState');
+    expect(series).not.toHaveProperty('evidenceState');
+    expect(series).not.toHaveProperty('rewardEligibility');
+    expect(series).not.toHaveProperty('rewardIssuance');
+    expect(series).not.toHaveProperty('storyState');
   });
 
-  it('keeps completion, evidence, reward, and Story state on the occurrence only', () => {
-    const series = createMissionSeries({
-      id: '33333333-3333-4333-8333-333333333333',
-      title: 'Study Korean',
-      recurrence: null,
-    });
-    const occurrence = createMissionOccurrence({
-      id: '44444444-4444-4444-8444-444444444444',
-      seriesId: series.id,
-      schedule: validSchedule,
-      ...validStates,
-      completionState: 'completed',
-      evidenceState: 'accepted',
-      rewardEligibility: 'eligible',
-      rewardIssuance: 'issued',
-      storyState: 'draft',
-    });
+  it('keeps completion, evidence, reward, and Story state on the occurrence only', async () => {
+    const { createMissionOccurrence, createMissionSeries } = await loadFactories();
+    const series = asRecord(
+      createMissionSeries({
+        id: '33333333-3333-4333-8333-333333333333',
+        title: 'Study Korean',
+        recurrence: null,
+      }),
+    );
+    const occurrence = asRecord(
+      createMissionOccurrence({
+        id: '44444444-4444-4444-8444-444444444444',
+        seriesId: series.id,
+        schedule: validSchedule,
+        ...validStates,
+        completionState: 'completed',
+        evidenceState: 'accepted',
+        rewardEligibility: 'eligible',
+        rewardIssuance: 'issued',
+        storyState: 'draft',
+      }),
+    );
 
     expect(occurrence).toMatchObject({
       seriesId: series.id,
@@ -128,7 +179,9 @@ describe('MTS-013 mission series and occurrence contract', () => {
     });
   });
 
-  it('rejects invalid identifiers, blank titles, invalid schedules, and invalid state dimensions', () => {
+  it('rejects invalid identifiers, blank titles, invalid schedules, and invalid state dimensions', async () => {
+    const { createMissionOccurrence, createMissionSeries } = await loadFactories();
+
     expect(() =>
       createMissionSeries({ id: 'not-a-uuid', title: 'Valid title', recurrence: null }),
     ).toThrow(/series id/i);
@@ -153,7 +206,7 @@ describe('MTS-013 mission series and occurrence contract', () => {
         seriesId: '55555555-5555-4555-8555-555555555555',
         schedule: validSchedule,
         ...validStates,
-        completionState: 'everything-at-once' as never,
+        completionState: 'everything-at-once',
       }),
     ).toThrow(/completion state/i);
   });
