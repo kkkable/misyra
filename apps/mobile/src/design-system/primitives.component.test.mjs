@@ -2,20 +2,33 @@ import { createElement } from 'react';
 import { act, create } from 'react-test-renderer';
 import { describe, expect, it, vi } from 'vitest';
 
-vi.mock('react-native', () => ({
-  Modal: 'Modal',
-  Pressable: 'Pressable',
-  ScrollView: 'ScrollView',
-  StyleSheet: {
-    absoluteFill: { bottom: 0, left: 0, position: 'absolute', right: 0, top: 0 },
-    create: (styles) => styles,
-    hairlineWidth: 1,
-  },
-  Switch: 'Switch',
-  Text: 'Text',
-  TextInput: 'TextInput',
-  View: 'View',
-}));
+globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+
+vi.mock('react-native', async () => {
+  const { createElement: createReactElement } = await import('react');
+
+  const Pressable = ({ children, ...props }) =>
+    createReactElement(
+      'Pressable',
+      props,
+      typeof children === 'function' ? children({ pressed: false }) : children,
+    );
+
+  return {
+    Modal: 'Modal',
+    Pressable,
+    ScrollView: 'ScrollView',
+    StyleSheet: {
+      absoluteFill: { bottom: 0, left: 0, position: 'absolute', right: 0, top: 0 },
+      create: (styles) => styles,
+      hairlineWidth: 1,
+    },
+    Switch: 'Switch',
+    Text: 'Text',
+    TextInput: 'TextInput',
+    View: 'View',
+  };
+});
 
 import {
   BottomSheet,
