@@ -6,5 +6,7 @@ import { MotionPreferenceProvider } from './reduce-motion.js';
 export function SystemMotionPreferenceProvider({ children }: PropsWithChildren) {
   const reduceMotion = useReducedMotion();
 
-  return <MotionPreferenceProvider reduceMotion={reduceMotion}>{children}</MotionPreferenceProvider>;
+  return (
+    <MotionPreferenceProvider reduceMotion={reduceMotion}>{children}</MotionPreferenceProvider>
+  );
 }
