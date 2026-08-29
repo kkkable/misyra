@@ -42,17 +42,25 @@ test('MTS-012 fixture inventory covers approved surfaces and required visual axe
     'default',
     'large',
   ]);
-  assert.deepEqual([...new Set(visualFixtureMatrix.map(({ surface }) => surface))].sort(), [
-    ...REQUIRED_SURFACES,
-  ].sort());
+  assert.deepEqual(
+    [...new Set(visualFixtureMatrix.map(({ surface }) => surface))].sort(),
+    [...REQUIRED_SURFACES].sort(),
+  );
 
   const viewportKeys = [
     ...new Set(visualFixtureMatrix.map(({ viewport }) => `${viewport.width}x${viewport.height}`)),
   ].sort();
-  assert.deepEqual(viewportKeys, REQUIRED_VIEWPORTS.map(({ width, height }) => `${width}x${height}`).sort());
+  assert.deepEqual(
+    viewportKeys,
+    REQUIRED_VIEWPORTS.map(({ width, height }) => `${width}x${height}`).sort(),
+  );
 
   const fixtureKeys = new Set(visualFixtureMatrix.map(({ key }) => key));
-  assert.equal(fixtureKeys.size, visualFixtureMatrix.length, 'every fixture must have a unique stable key');
+  assert.equal(
+    fixtureKeys.size,
+    visualFixtureMatrix.length,
+    'every fixture must have a unique stable key',
+  );
 });
 
 test('MTS-012 screenshot generation smoke writes a valid PNG at the requested device size', async () => {
