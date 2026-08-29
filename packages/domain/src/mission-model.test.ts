@@ -2,20 +2,15 @@ import { describe, expect, it } from 'vitest';
 
 type DomainModule = typeof import('./index.js');
 type RequiredFactoryName =
-  | 'createMissionSeries'
-  | 'createMissionOccurrence'
-  | 'createOneTimeMission';
-type FactoryReturn<Name extends string> = DomainModule extends Record<Name, infer Factory>
-  ? Factory extends (...args: infer _Arguments) => infer Result
-    ? Result
-    : never
-  : never;
+  'createMissionSeries' | 'createMissionOccurrence' | 'createOneTimeMission';
+type FactoryReturn<Name extends string> =
+  DomainModule extends Record<Name, infer Factory>
+    ? Factory extends (...args: infer _Arguments) => infer Result
+      ? Result
+      : never
+    : never;
 type OccurrenceOnlyStateKey =
-  | 'completionState'
-  | 'evidenceState'
-  | 'rewardEligibility'
-  | 'rewardIssuance'
-  | 'storyState';
+  'completionState' | 'evidenceState' | 'rewardEligibility' | 'rewardIssuance' | 'storyState';
 type RequiredOccurrenceStateKey =
   | 'scheduleState'
   | OccurrenceOnlyStateKey
