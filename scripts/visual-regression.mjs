@@ -73,11 +73,20 @@ export function baselinePathFor(repositoryRoot, fixture) {
   return path.join(repositoryRoot, 'tests', 'mts-012', 'baselines', ...fixtureSegments(fixture));
 }
 
+export function assertComparableFixtures(captureFixture, baselineFixture) {
+  if (captureFixture.platform !== baselineFixture.platform) {
+    throw new Error('Visual comparison requires fixtures from the same platform.');
+  }
+}
+
 function assertMatchingCapture(capture, fixture) {
   if (capture.platform !== fixture.platform) {
     throw new Error('Capture platform must match its fixture platform.');
   }
-  if (capture.width !== fixture.viewport.width || capture.height !== fixture.viewport.height) {
+  if (
+    capture.width !== fixture.viewport.width ||
+    capture.height !== fixture.viewport.height
+  ) {
     throw new Error('Capture dimensions must match the fixture viewport.');
   }
 }
@@ -106,7 +115,13 @@ export async function captureFixture({ driver, fixture, outputDirectory }) {
   return Object.freeze({ ...capture, path: capturePath });
 }
 
-export async function updateBaseline({ allowUpdate, capture, fixture, reason, repositoryRoot }) {
+export async function updateBaseline({
+  allowUpdate,
+  capture,
+  fixture,
+  reason,
+  repositoryRoot,
+}) {
   if (allowUpdate !== true) {
     throw new Error('Explicit baseline update approval is required.');
   }
