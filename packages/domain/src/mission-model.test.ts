@@ -14,11 +14,7 @@ type Equal<Left, Right> =
     : false;
 
 type OccurrenceOnlyStateKey =
-  | 'completionState'
-  | 'evidenceState'
-  | 'rewardEligibility'
-  | 'rewardIssuance'
-  | 'storyState';
+  'completionState' | 'evidenceState' | 'rewardEligibility' | 'rewardIssuance' | 'storyState';
 
 type RequiredOccurrenceStateKey =
   | 'scheduleState'
