@@ -13,6 +13,7 @@
     "test": "vitest run --config ../../packages/config/vitest.config.mjs --passWithNoTests"
   },
   "dependencies": {
+    "@misyra/design-tokens": "workspace:*",
     "expo": "57.0.17",
     "expo-router": "57.0.17",
     "react": "19.2.3",
