@@ -98,6 +98,7 @@ test('MTS-012 screenshot generation smoke writes a valid PNG at the requested de
 
 test('MTS-012 baseline guard requires explicit intent and never compares across platforms', async () => {
   const {
+    assertComparableFixtures,
     baselinePathFor,
     createDeterministicScreenshotDriver,
     captureFixture,
@@ -121,6 +122,12 @@ test('MTS-012 baseline guard requires explicit intent and never compares across 
   );
   assert.ok(androidFixture);
   assert.ok(iosFixture);
+
+  assert.doesNotThrow(() => assertComparableFixtures(androidFixture, androidFixture));
+  assert.throws(
+    () => assertComparableFixtures(androidFixture, iosFixture),
+    /same platform/i,
+  );
 
   const root = await mkdtemp(path.join(tmpdir(), 'misyra-mts012-baselines-'));
   const captures = await mkdtemp(path.join(tmpdir(), 'misyra-mts012-captures-'));
