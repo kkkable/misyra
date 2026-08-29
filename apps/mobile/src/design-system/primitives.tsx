@@ -251,12 +251,7 @@ export function IconButton({
 
 type NativeFieldProps = Omit<
   TextInputProps,
-  | 'accessibilityLabel'
-  | 'editable'
-  | 'multiline'
-  | 'placeholderTextColor'
-  | 'style'
-  | 'testID'
+  'accessibilityLabel' | 'editable' | 'multiline' | 'placeholderTextColor' | 'style' | 'testID'
 >;
 
 interface FieldBaseProps extends NativeFieldProps, ThemedProps {
@@ -490,9 +485,8 @@ export function SettingsRow({
       style={({ pressed }) => [
         styles.row,
         {
-          backgroundColor: pressed && !disabled
-            ? themeColors(colorScheme).primarySoft
-            : contract.backgroundColor,
+          backgroundColor:
+            pressed && !disabled ? themeColors(colorScheme).primarySoft : contract.backgroundColor,
           minHeight: contract.minimumTouchTarget,
         },
       ]}
@@ -700,13 +694,7 @@ export interface ToastProps extends ThemedProps {
   readonly testID?: string;
 }
 
-export function Toast({
-  visible,
-  message,
-  accessibilityLabel,
-  colorScheme,
-  testID,
-}: ToastProps) {
+export function Toast({ visible, message, accessibilityLabel, colorScheme, testID }: ToastProps) {
   if (!visible) {
     return null;
   }
@@ -837,11 +825,7 @@ export interface LoadingSkeletonProps extends ThemedProps {
   readonly testID?: string;
 }
 
-export function LoadingSkeleton({
-  accessibilityLabel,
-  colorScheme,
-  testID,
-}: LoadingSkeletonProps) {
+export function LoadingSkeleton({ accessibilityLabel, colorScheme, testID }: LoadingSkeletonProps) {
   const colors = themeColors(colorScheme);
   return (
     <View
