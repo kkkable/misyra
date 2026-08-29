@@ -60,12 +60,7 @@ function validateSecretText(path, source) {
 
 function runSecrets() {
   const roots = ['.github/', 'apps/', 'infra/', 'packages/', 'scripts/'];
-  const rootFiles = new Set([
-    'compose.yaml',
-    'package.json',
-    'pnpm-workspace.yaml',
-    'turbo.json',
-  ]);
+  const rootFiles = new Set(['compose.yaml', 'package.json', 'pnpm-workspace.yaml', 'turbo.json']);
   const excluded = new Set(['scripts/ci-gates.mjs']);
 
   for (const path of gitTrackedFiles()) {
