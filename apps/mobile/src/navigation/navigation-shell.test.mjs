@@ -21,9 +21,10 @@ vi.mock('expo-router', async () => {
   return { Redirect, Stack, Tabs };
 });
 
-import RootLayout from '../../app/_layout.tsx';
 import TabLayout from '../../app/(tabs)/_layout.tsx';
+import * as RootLayoutModule from '../../app/_layout.tsx';
 
+const RootLayout = RootLayoutModule.default;
 const appDirectory = fileURLToPath(new URL('../../app/', import.meta.url));
 const tabsDirectory = fileURLToPath(new URL('../../app/(tabs)/', import.meta.url));
 
@@ -97,6 +98,10 @@ describe('MTS-010 tab-navigation shell', () => {
       headerShown: false,
       presentation: 'fullScreenModal',
     });
+  });
+
+  it('anchors cold-started modal routes to the tab navigator so Back returns to Calendar', () => {
+    expect(RootLayoutModule.unstable_settings).toEqual({ anchor: '(tabs)' });
   });
 });
 
