@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react';
 import {
   Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Switch,
   Text,
@@ -628,7 +629,13 @@ export function BottomSheet({
           ]}
           testID={testID}
         >
-          {children}
+          <ScrollView
+            contentContainerStyle={styles.sheetContent}
+            keyboardShouldPersistTaps="handled"
+            style={styles.modalScroll}
+          >
+            {children}
+          </ScrollView>
         </View>
       </View>
     </Modal>
@@ -675,28 +682,34 @@ export function ConfirmationDialog({
           ]}
           testID={testID}
         >
-          <Text
-            accessibilityRole="header"
-            allowFontScaling
-            style={{
-              color: colors.textPrimary,
-              fontSize: typography.headline.fontSize,
-              fontWeight: typography.headline.fontWeight,
-            }}
+          <ScrollView
+            contentContainerStyle={styles.dialogContent}
+            keyboardShouldPersistTaps="handled"
+            style={styles.modalScroll}
           >
-            {title}
-          </Text>
-          <Text
-            allowFontScaling
-            style={{
-              color: colors.textSecondary,
-              fontSize: typography.body.fontSize,
-              fontWeight: typography.body.fontWeight,
-            }}
-          >
-            {message}
-          </Text>
-          <View style={styles.dialogActions}>{actions}</View>
+            <Text
+              accessibilityRole="header"
+              allowFontScaling
+              style={{
+                color: colors.textPrimary,
+                fontSize: typography.headline.fontSize,
+                fontWeight: typography.headline.fontWeight,
+              }}
+            >
+              {title}
+            </Text>
+            <Text
+              allowFontScaling
+              style={{
+                color: colors.textSecondary,
+                fontSize: typography.body.fontSize,
+                fontWeight: typography.body.fontWeight,
+              }}
+            >
+              {message}
+            </Text>
+            <View style={styles.dialogActions}>{actions}</View>
+          </ScrollView>
         </View>
       </View>
     </Modal>
@@ -952,7 +965,12 @@ const styles = StyleSheet.create({
   sheet: {
     borderWidth: StyleSheet.hairlineWidth,
     maxHeight: '90%',
+  },
+  sheetContent: {
     padding: space[4],
+  },
+  modalScroll: {
+    flexShrink: 1,
   },
   dialogBackdrop: {
     alignItems: 'center',
@@ -962,10 +980,13 @@ const styles = StyleSheet.create({
   },
   dialog: {
     borderWidth: StyleSheet.hairlineWidth,
-    gap: space[3],
+    maxHeight: '100%',
     maxWidth: layout.maximumPhoneWidth,
-    padding: space[4],
     width: '100%',
+  },
+  dialogContent: {
+    gap: space[3],
+    padding: space[4],
   },
   dialogActions: {
     gap: space[2],
