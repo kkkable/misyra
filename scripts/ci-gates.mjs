@@ -30,6 +30,7 @@ function isPlaceholder(value) {
     normalized.includes('replace_me') ||
     normalized.includes('replace-me') ||
     normalized.includes('placeholder') ||
+    normalized.includes('fixture') ||
     normalized.includes('example.invalid') ||
     normalized.includes('usedevelopmentstorage=true')
   );
@@ -60,17 +61,15 @@ function validateSecretText(path, source) {
 }
 
 function runSecrets() {
-  const roots = ['.github/', 'apps/', 'infra/', 'packages/', 'scripts/'];
-  const rootFiles = new Set(['compose.yaml', 'package.json', 'pnpm-workspace.yaml', 'turbo.json']);
   const excluded = new Set(['scripts/ci-gates.mjs']);
 
   for (const path of gitTrackedFiles()) {
     if (excluded.has(path)) continue;
-    if (!rootFiles.has(path) && !roots.some((prefix) => path.startsWith(prefix))) continue;
-    if (path.startsWith('docs/') || path.startsWith('tests/') || path === '.env.example') continue;
     const absolute = join(root, path);
     if (!existsSync(absolute)) continue;
-    validateSecretText(path, read(absolute));
+    const bytes = readFileSync(absolute);
+    if (bytes.includes(0)) continue;
+    validateSecretText(path, bytes.toString('utf8'));
   }
 }
 
@@ -102,11 +101,10 @@ function runLocalization() {
   validateLocalizationText(read(indexPath));
 
   const catalogDir = join(root, 'packages', 'localization', 'src', 'locales');
-  if (!existsSync(catalogDir)) return;
-
   const expectedFiles = ['en.json', 'zh-HK.json'];
   for (const file of expectedFiles) {
-    if (!existsSync(join(catalogDir, file))) {
+    const path = join(catalogDir, file);
+    if (!existsSync(path)) {
       throw new Error(`localization catalog ${file} is missing`);
     }
   }
@@ -120,10 +118,15 @@ function runLocalization() {
 }
 
 function validatePrivacyText(path, source) {
-  const sensitiveLog =
-    /\b(?:console|logger)\.(?:log|info|warn|error|debug|trace)\s*\([^\n)]*\b(?:body|headers|authorization|token|password|secret|mission|story|evidence|note|content)\b/i;
-  if (sensitiveLog.test(source)) {
-    throw new Error(`${path}: content-bearing or credential-bearing logging is forbidden`);
+  const logCall =
+    /\b(?:console|logger|[A-Za-z_$][\w$]*\.log)\.(?:log|info|warn|error|debug|trace)\s*\(([\s\S]*?)\);/g;
+  const sensitive =
+    /\b(?:body|headers|authorization|token|password|secret|mission|story|evidence|note|content)\b/i;
+
+  for (const match of source.matchAll(logCall)) {
+    if (sensitive.test(match[1])) {
+      throw new Error(`${path}: content-bearing or credential-bearing logging is forbidden`);
+    }
   }
 }
 
@@ -158,10 +161,58 @@ function validateContractManifest(manifest, exists = () => true) {
   if (!exists(entry)) throw new Error('contracts package root export target is missing');
 }
 
+function exportedSymbols(source) {
+  const symbols = new Set();
+  const declarations =
+    /\bexport\s+(?:declare\s+)?(?:const|let|var|function|class|interface|type|enum)\s+([A-Za-z_$][\w$]*)/g;
+  for (const match of source.matchAll(declarations)) symbols.add(match[1]);
+
+  const namedExports = /\bexport\s*\{([^}]+)\}(?:\s+from\s+["'][^"']+["'])?/g;
+  for (const match of source.matchAll(namedExports)) {
+    for (const rawEntry of match[1].split(',')) {
+      const entry = rawEntry.trim();
+      if (!entry) continue;
+      const alias = entry.match(/\bas\s+([A-Za-z_$][\w$]*)$/);
+      const original = entry.match(/^([A-Za-z_$][\w$]*)/);
+      const exported = alias?.[1] ?? original?.[1];
+      if (exported) symbols.add(exported);
+    }
+  }
+
+  return symbols;
+}
+
+function assertContractExportsCompatible(baseSource, currentSource) {
+  const baseExports = exportedSymbols(baseSource);
+  const currentExports = exportedSymbols(currentSource);
+  for (const symbol of baseExports) {
+    if (!currentExports.has(symbol)) {
+      throw new Error(`contract compatibility removed exported symbol: ${symbol}`);
+    }
+  }
+}
+
+function gitShow(ref, path) {
+  const result = spawnSync('git', ['show', `${ref}:${path}`], {
+    cwd: root,
+    encoding: 'utf8',
+    env: process.env,
+  });
+  if (result.status !== 0) {
+    throw new Error(`Unable to read contract compatibility baseline ${ref}:${path}`);
+  }
+  return result.stdout;
+}
+
 function runContracts() {
   const packageDir = join(root, 'packages', 'contracts');
   const manifest = JSON.parse(read(join(packageDir, 'package.json')));
   validateContractManifest(manifest, (entry) => existsSync(join(packageDir, entry)));
+
+  const contractPath = 'packages/contracts/src/index.ts';
+  const baseSource = gitShow('HEAD^1', contractPath);
+  const currentSource = read(join(root, contractPath));
+  assertContractExportsCompatible(baseSource, currentSource);
 }
 
 function expectedFailure(label, action) {
@@ -182,9 +233,19 @@ function runSelfTest() {
     validateLocalizationText("export const supportedLocales = ['en'] as const;"),
   );
   expectedFailure('privacy', () =>
-    validatePrivacyText('synthetic.ts', 'console.log(request.body);'),
+    validatePrivacyText(
+      'synthetic.ts',
+      `request.log.info({
+        body: request.body,
+      });`,
+    ),
   );
-  expectedFailure('contract', () => validateContractManifest({ exports: { './*': './src/*.ts' } }));
+  expectedFailure('contract manifest', () =>
+    validateContractManifest({ exports: { './*': './src/*.ts' } }),
+  );
+  expectedFailure('contract compatibility', () =>
+    assertContractExportsCompatible('export const existing = 1;', 'export const replacement = 1;'),
+  );
 }
 
 const commands = {
