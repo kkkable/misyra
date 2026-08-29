@@ -227,7 +227,7 @@ function expectedFailure(label, action) {
 
 function runSelfTest() {
   expectedFailure('secret', () =>
-    validateSecretText('synthetic-secret.txt', 'clientSecret = "fixture-only-value"'),
+    validateSecretText('synthetic-secret.txt', 'clientSecret = "opaque-value-12345"'),
   );
   expectedFailure('localization', () =>
     validateLocalizationText("export const supportedLocales = ['en'] as const;"),
