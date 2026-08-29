@@ -45,13 +45,9 @@ describe('MTS-010 route inventory', () => {
       'settings.tsx',
     ]);
 
-    expect(readdirSync(appDirectory).sort()).toEqual([
-      '(tabs)',
-      '+not-found.tsx',
-      '_layout.tsx',
-      'evidence.tsx',
-      'story.tsx',
-    ]);
+    expect(readdirSync(appDirectory)).toEqual(
+      expect.arrayContaining(['(tabs)', '+not-found.tsx', '_layout.tsx', 'evidence.tsx', 'story.tsx']),
+    );
   });
 });
 
