@@ -1,0 +1,55 @@
+{
+  "theme": "light",
+  "textScale": 1,
+  "screen": {
+    "backgroundColor": "#F8F8FC",
+    "horizontalPadding": 16
+  },
+  "topBar": {
+    "backgroundColor": "#F8F8FC",
+    "titleColor": "#15152D",
+    "titleFontSize": 22,
+    "minimumTouchTarget": 44
+  },
+  "button": {
+    "minimumTouchTarget": 44,
+    "fontSize": 16,
+    "allowsFontScaling": true,
+    "wraps": true,
+    "fixedHeight": false
+  },
+  "field": {
+    "minimumTouchTarget": 44,
+    "fontSize": 16,
+    "allowsFontScaling": true,
+    "focusedBorderColor": "#8A63FF",
+    "errorBorderColor": "#E5484D"
+  },
+  "card": {
+    "backgroundColor": "#FFFFFF",
+    "radius": 14
+  },
+  "sheet": {
+    "backgroundColor": "#FFFFFF",
+    "radius": 18,
+    "overlayColor": "rgba(18, 18, 32, 0.38)"
+  },
+  "dialog": {
+    "backgroundColor": "#FFFFFF",
+    "radius": 18,
+    "overlayColor": "rgba(18, 18, 32, 0.38)"
+  },
+  "toast": {
+    "backgroundColor": "#FFFFFF",
+    "radius": 14
+  },
+  "skeleton": {
+    "backgroundColor": "#F3F2F8",
+    "animated": false
+  },
+  "accessibility": {
+    "criticalActionsClip": false,
+    "supportsSystemTextScaling": true,
+    "supportsBoldText": true
+  }
+}
