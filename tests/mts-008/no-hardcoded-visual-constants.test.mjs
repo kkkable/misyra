@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { readdir, readFile } from 'node:fs/promises';
-import { extname, join, relative } from 'node:path';
+import { extname, relative } from 'node:path';
 import test from 'node:test';
 
 const repositoryRoot = new URL('../../', import.meta.url);
@@ -15,7 +15,10 @@ const collectSourceFiles = async (directoryUrl) => {
   const files = [];
 
   for (const entry of entries) {
-    const entryUrl = new URL(`${entry.name}${entry.isDirectory() ? '/' : ''}`, directoryUrl);
+    const entryUrl = new URL(
+      `${entry.name}${entry.isDirectory() ? '/' : ''}`,
+      directoryUrl,
+    );
 
     if (entry.isDirectory()) {
       files.push(...(await collectSourceFiles(entryUrl)));
@@ -32,11 +35,15 @@ test('MTS-008 mobile screens contain no hard-coded colour or numeric visual cons
 
   for (const fileUrl of await collectSourceFiles(mobileAppRoot)) {
     const source = await readFile(fileUrl, 'utf8');
-    const matches = [...source.matchAll(colourLiteralPattern), ...source.matchAll(visualNumberPattern)];
+    const matches = [
+      ...source.matchAll(colourLiteralPattern),
+      ...source.matchAll(visualNumberPattern),
+    ];
 
     for (const match of matches) {
+      const filePath = relative(repositoryRoot.pathname, fileUrl.pathname);
       violations.push(
-        `${relative(repositoryRoot.pathname, fileUrl.pathname)}: ${match[0]} — use @misyra/design-tokens`,
+        `${filePath}: ${match[0]} — use @misyra/design-tokens`,
       );
     }
   }
