@@ -8,6 +8,8 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const workflowPath = join(root, '.github', 'workflows', 'ci.yml');
 const ciGateScriptPath = join(root, 'scripts', 'ci-gates.mjs');
 const packageJsonPath = join(root, 'package.json');
+const englishCatalogPath = join(root, 'packages', 'localization', 'src', 'locales', 'en.json');
+const zhHkCatalogPath = join(root, 'packages', 'localization', 'src', 'locales', 'zh-HK.json');
 
 function read(path) {
   assert.equal(existsSync(path), true, `${relative(root, path)} must exist`);
@@ -91,4 +93,38 @@ test('deliberate failing fixtures are part of the normal CI rehearsal', () => {
   assert.match(gateScript, /privacy/i);
   assert.match(gateScript, /contract/i);
   assert.match(gateScript, /expected.*fail|must fail|reject/i);
+});
+
+test('secret scanning covers the tracked repository instead of skipping whole repository areas', () => {
+  const gateScript = read(ciGateScriptPath);
+
+  assert.match(gateScript, /for \(const path of gitTrackedFiles\(\)\)/);
+  assert.doesNotMatch(gateScript, /const roots\s*=/);
+  assert.doesNotMatch(gateScript, /path\.startsWith\(['"]docs\//);
+  assert.doesNotMatch(gateScript, /path\.startsWith\(['"]tests\//);
+  assert.doesNotMatch(gateScript, /path\s*===\s*['"]\.env\.example['"]/);
+});
+
+test('localization completeness requires both launch-locale catalogs to exist', () => {
+  const gateScript = read(ciGateScriptPath);
+
+  read(englishCatalogPath);
+  read(zhHkCatalogPath);
+  assert.doesNotMatch(gateScript, /if \(!existsSync\(catalogDir\)\) return/);
+});
+
+test('privacy self-test covers multiline Fastify content-bearing logging', () => {
+  const gateScript = read(ciGateScriptPath);
+
+  assert.match(gateScript, /request\.log\.info\([\s\S]*request\.body/);
+});
+
+test('contract compatibility compares exported contract source against the pull-request base', () => {
+  const workflow = read(workflowPath);
+  const gateScript = read(ciGateScriptPath);
+
+  assert.match(workflow, /fetch-depth\s*:\s*0/);
+  assert.match(gateScript, /git[\s\S]*show/);
+  assert.match(gateScript, /HEAD\^1/);
+  assert.match(gateScript, /src\/index\.ts/);
 });
