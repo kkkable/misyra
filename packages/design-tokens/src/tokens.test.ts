@@ -26,8 +26,13 @@ const hexToLuminance = (value: string) => {
   const linear = channels.map((channel) =>
     channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4,
   );
+  const [red, green, blue] = linear;
 
-  return linear[0] * 0.2126 + linear[1] * 0.7152 + linear[2] * 0.0722;
+  if (red === undefined || green === undefined || blue === undefined) {
+    throw new Error(`Expected three RGB channels for ${value}`);
+  }
+
+  return red * 0.2126 + green * 0.7152 + blue * 0.0722;
 };
 
 const contrastRatio = (foreground: string, background: string) => {
