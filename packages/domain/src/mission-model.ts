@@ -30,12 +30,7 @@ export interface MissionRecurrence {
 export type TimeBehavior = 'local_time' | 'fixed_instant';
 export type ScheduleState = 'scheduled' | 'cancelled';
 export type CompletionState = 'incomplete' | 'completed';
-export type EvidenceState =
-  | 'not_submitted'
-  | 'pending'
-  | 'accepted'
-  | 'rejected'
-  | 'not_required';
+export type EvidenceState = 'not_submitted' | 'pending' | 'accepted' | 'rejected' | 'not_required';
 export type RewardEligibility = 'undetermined' | 'eligible' | 'ineligible';
 export type RewardIssuance = 'not_issued' | 'issued';
 export type CalendarSource = 'internal' | 'external';
@@ -101,14 +96,19 @@ export interface OneTimeMissionInput {
   readonly occurrence: Omit<MissionOccurrenceInput, 'seriesId'>;
 }
 
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const LOCAL_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const ORDINALS = [1, 2, 3, 4, -1] as const;
 const TIME_BEHAVIORS = ['local_time', 'fixed_instant'] as const;
 const SCHEDULE_STATES = ['scheduled', 'cancelled'] as const;
 const COMPLETION_STATES = ['incomplete', 'completed'] as const;
-const EVIDENCE_STATES = ['not_submitted', 'pending', 'accepted', 'rejected', 'not_required'] as const;
+const EVIDENCE_STATES = [
+  'not_submitted',
+  'pending',
+  'accepted',
+  'rejected',
+  'not_required',
+] as const;
 const REWARD_ELIGIBILITY_STATES = ['undetermined', 'eligible', 'ineligible'] as const;
 const REWARD_ISSUANCE_STATES = ['not_issued', 'issued'] as const;
 const CALENDAR_SOURCES = ['internal', 'external'] as const;
@@ -129,7 +129,12 @@ function assertNonBlank(value: string, label: string): void {
   }
 }
 
-function assertIntegerInRange(value: number, minimum: number, maximum: number, label: string): void {
+function assertIntegerInRange(
+  value: number,
+  minimum: number,
+  maximum: number,
+  label: string,
+): void {
   if (!Number.isInteger(value) || value < minimum || value > maximum) {
     throw new RangeError(`${label} must be an integer from ${minimum} to ${maximum}.`);
   }
@@ -160,7 +165,10 @@ function copyRecurrencePattern(pattern: RecurrencePattern): RecurrencePattern {
       for (const weekday of pattern.weekdays) {
         assertIntegerInRange(weekday, 0, 6, 'Recurrence weekday');
       }
-      return Object.freeze({ ...pattern, weekdays: Object.freeze([...pattern.weekdays]) as number[] });
+      return Object.freeze({
+        ...pattern,
+        weekdays: Object.freeze([...pattern.weekdays]) as number[],
+      });
     case 'monthly-date':
       assertPositiveInteger(pattern.interval, 'Recurrence interval');
       assertIntegerInRange(pattern.dayOfMonth, 1, 31, 'Recurrence day of month');
