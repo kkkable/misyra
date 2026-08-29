@@ -210,7 +210,8 @@ function runContracts() {
   validateContractManifest(manifest, (entry) => existsSync(join(packageDir, entry)));
 
   const contractPath = 'packages/contracts/src/index.ts';
-  const baseSource = gitShow('HEAD^1', contractPath);
+  const baselineRef = process.env.CI_CONTRACT_BASE_SHA?.trim() || 'HEAD^1';
+  const baseSource = gitShow(baselineRef, contractPath);
   const currentSource = read(join(root, contractPath));
   assertContractExportsCompatible(baseSource, currentSource);
 }
