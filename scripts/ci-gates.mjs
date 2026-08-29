@@ -1,36 +1,36 @@
-import assert from "node:assert/strict";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
-import { dirname, join, relative } from "node:path";
-import { fileURLToPath } from "node:url";
-import { spawnSync } from "node:child_process";
+import assert from 'node:assert/strict';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { dirname, join, relative } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { spawnSync } from 'node:child_process';
 
-const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 function read(path) {
-  return readFileSync(path, "utf8");
+  return readFileSync(path, 'utf8');
 }
 
 function gitTrackedFiles() {
-  const result = spawnSync("git", ["ls-files", "-z"], {
+  const result = spawnSync('git', ['ls-files', '-z'], {
     cwd: root,
-    encoding: "utf8",
+    encoding: 'utf8',
     env: process.env,
   });
   if (result.status !== 0) {
-    throw new Error("Unable to enumerate tracked files for CI validation.");
+    throw new Error('Unable to enumerate tracked files for CI validation.');
   }
-  return result.stdout.split("\0").filter(Boolean);
+  return result.stdout.split('\0').filter(Boolean);
 }
 
 function isPlaceholder(value) {
   const normalized = value.trim().toLowerCase();
   return (
-    normalized === "" ||
-    normalized.includes("replace_me") ||
-    normalized.includes("replace-me") ||
-    normalized.includes("placeholder") ||
-    normalized.includes("example.invalid") ||
-    normalized.includes("usedevelopmentstorage=true")
+    normalized === '' ||
+    normalized.includes('replace_me') ||
+    normalized.includes('replace-me') ||
+    normalized.includes('placeholder') ||
+    normalized.includes('example.invalid') ||
+    normalized.includes('usedevelopmentstorage=true')
   );
 }
 
@@ -59,14 +59,19 @@ function validateSecretText(path, source) {
 }
 
 function runSecrets() {
-  const roots = [".github/", "apps/", "infra/", "packages/", "scripts/"];
-  const rootFiles = new Set(["compose.yaml", "package.json", "pnpm-workspace.yaml", "turbo.json"]);
-  const excluded = new Set(["scripts/ci-gates.mjs"]);
+  const roots = ['.github/', 'apps/', 'infra/', 'packages/', 'scripts/'];
+  const rootFiles = new Set([
+    'compose.yaml',
+    'package.json',
+    'pnpm-workspace.yaml',
+    'turbo.json',
+  ]);
+  const excluded = new Set(['scripts/ci-gates.mjs']);
 
   for (const path of gitTrackedFiles()) {
     if (excluded.has(path)) continue;
     if (!rootFiles.has(path) && !roots.some((prefix) => path.startsWith(prefix))) continue;
-    if (path.startsWith("docs/") || path.startsWith("tests/") || path === ".env.example") continue;
+    if (path.startsWith('docs/') || path.startsWith('tests/') || path === '.env.example') continue;
     const absolute = join(root, path);
     if (!existsSync(absolute)) continue;
     validateSecretText(path, read(absolute));
@@ -75,7 +80,7 @@ function runSecrets() {
 
 function parseSupportedLocales(source) {
   const match = source.match(/supportedLocales\s*=\s*\[([^\]]+)\]/);
-  if (!match) throw new Error("supportedLocales declaration is missing");
+  if (!match) throw new Error('supportedLocales declaration is missing');
   return [...match[1].matchAll(/["']([^"']+)["']/g)].map((entry) => entry[1]);
 }
 
@@ -83,13 +88,13 @@ function validateLocalizationText(source) {
   const locales = parseSupportedLocales(source);
   assert.deepEqual(
     [...locales].sort(),
-    ["en", "zh-HK"].sort(),
-    "localization baseline must contain exactly en and zh-HK",
+    ['en', 'zh-HK'].sort(),
+    'localization baseline must contain exactly en and zh-HK',
   );
 }
 
-function flattenKeys(value, prefix = "") {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return [prefix];
+function flattenKeys(value, prefix = '') {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return [prefix];
   return Object.entries(value).flatMap(([key, child]) => {
     const next = prefix ? `${prefix}.${key}` : key;
     return flattenKeys(child, next);
@@ -97,13 +102,13 @@ function flattenKeys(value, prefix = "") {
 }
 
 function runLocalization() {
-  const indexPath = join(root, "packages", "localization", "src", "index.ts");
+  const indexPath = join(root, 'packages', 'localization', 'src', 'index.ts');
   validateLocalizationText(read(indexPath));
 
-  const catalogDir = join(root, "packages", "localization", "src", "locales");
+  const catalogDir = join(root, 'packages', 'localization', 'src', 'locales');
   if (!existsSync(catalogDir)) return;
 
-  const expectedFiles = ["en.json", "zh-HK.json"];
+  const expectedFiles = ['en.json', 'zh-HK.json'];
   for (const file of expectedFiles) {
     if (!existsSync(join(catalogDir, file))) {
       throw new Error(`localization catalog ${file} is missing`);
@@ -114,7 +119,7 @@ function runLocalization() {
   assert.deepEqual(
     flattenKeys(catalogs[0]).sort(),
     flattenKeys(catalogs[1]).sort(),
-    "en and zh-HK localization catalogs must expose identical keys",
+    'en and zh-HK localization catalogs must expose identical keys',
   );
 }
 
@@ -136,7 +141,7 @@ function collectSourceFiles(directory) {
 }
 
 function runPrivacy() {
-  for (const directory of [join(root, "apps"), join(root, "packages")]) {
+  for (const directory of [join(root, 'apps'), join(root, 'packages')]) {
     for (const absolute of collectSourceFiles(directory)) {
       validatePrivacyText(relative(root, absolute), read(absolute));
     }
@@ -144,22 +149,22 @@ function runPrivacy() {
 }
 
 function validateContractManifest(manifest, exists = () => true) {
-  if (!manifest.exports || typeof manifest.exports !== "object") {
-    throw new Error("contracts package must expose explicit exports");
+  if (!manifest.exports || typeof manifest.exports !== 'object') {
+    throw new Error('contracts package must expose explicit exports');
   }
   for (const key of Object.keys(manifest.exports)) {
-    if (key.includes("*")) throw new Error("wildcard contract exports are forbidden");
+    if (key.includes('*')) throw new Error('wildcard contract exports are forbidden');
   }
-  const entry = manifest.exports["."];
-  if (typeof entry !== "string" || !entry.startsWith("./")) {
-    throw new Error("contracts package root export must be an explicit relative file");
+  const entry = manifest.exports['.'];
+  if (typeof entry !== 'string' || !entry.startsWith('./')) {
+    throw new Error('contracts package root export must be an explicit relative file');
   }
-  if (!exists(entry)) throw new Error("contracts package root export target is missing");
+  if (!exists(entry)) throw new Error('contracts package root export target is missing');
 }
 
 function runContracts() {
-  const packageDir = join(root, "packages", "contracts");
-  const manifest = JSON.parse(read(join(packageDir, "package.json")));
+  const packageDir = join(root, 'packages', 'contracts');
+  const manifest = JSON.parse(read(join(packageDir, 'package.json')));
   validateContractManifest(manifest, (entry) => existsSync(join(packageDir, entry)));
 }
 
@@ -174,18 +179,16 @@ function expectedFailure(label, action) {
 }
 
 function runSelfTest() {
-  expectedFailure("secret", () =>
-    validateSecretText("synthetic-secret.txt", 'clientSecret = "fixture-only-value"'),
+  expectedFailure('secret', () =>
+    validateSecretText('synthetic-secret.txt', 'clientSecret = "fixture-only-value"'),
   );
-  expectedFailure("localization", () =>
+  expectedFailure('localization', () =>
     validateLocalizationText("export const supportedLocales = ['en'] as const;"),
   );
-  expectedFailure("privacy", () =>
-    validatePrivacyText("synthetic.ts", "console.log(request.body);"),
+  expectedFailure('privacy', () =>
+    validatePrivacyText('synthetic.ts', 'console.log(request.body);'),
   );
-  expectedFailure("contract", () =>
-    validateContractManifest({ exports: { "./*": "./src/*.ts" } }),
-  );
+  expectedFailure('contract', () => validateContractManifest({ exports: { './*': './src/*.ts' } }));
 }
 
 const commands = {
@@ -193,12 +196,12 @@ const commands = {
   localization: runLocalization,
   privacy: runPrivacy,
   contracts: runContracts,
-  "self-test": runSelfTest,
+  'self-test': runSelfTest,
 };
 
 const command = process.argv[2];
 if (!command || !(command in commands)) {
-  console.error(`Usage: node scripts/ci-gates.mjs ${Object.keys(commands).join("|")}`);
+  console.error(`Usage: node scripts/ci-gates.mjs ${Object.keys(commands).join('|')}`);
   process.exitCode = 2;
 } else {
   try {
