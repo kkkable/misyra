@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
+import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
@@ -196,14 +197,14 @@ const commands = {
 
 const command = process.argv[2];
 if (!command || !(command in commands)) {
-  console.error(`Usage: node scripts/ci-gates.mjs ${Object.keys(commands).join('|')}`);
+  process.stderr.write(`Usage: node scripts/ci-gates.mjs ${Object.keys(commands).join('|')}\n`);
   process.exitCode = 2;
 } else {
   try {
     commands[command]();
-    console.log(`CI gate passed: ${command}`);
+    process.stdout.write(`CI gate passed: ${command}\n`);
   } catch (error) {
-    console.error(error instanceof Error ? error.message : String(error));
+    process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
     process.exitCode = 1;
   }
 }
