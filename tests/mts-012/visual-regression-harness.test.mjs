@@ -144,6 +144,10 @@ test('MTS-012 baseline guard requires explicit intent and never compares across 
 
   assert.doesNotThrow(() => assertComparableFixtures(androidFixture, androidFixture));
   assert.throws(() => assertComparableFixtures(androidFixture, iosFixture), /same platform/i);
+  assert.throws(
+    () => assertComparableFixtures(androidFixture, otherAndroidFixture),
+    /fixture identity/i,
+  );
 
   const root = await mkdtemp(path.join(tmpdir(), 'misyra-mts012-baselines-'));
   const captures = await mkdtemp(path.join(tmpdir(), 'misyra-mts012-captures-'));
@@ -217,6 +221,16 @@ test('MTS-012 baseline guard requires explicit intent and never compares across 
       compareCaptureToBaseline({
         capture,
         captureFixture: otherAndroidFixture,
+        baselineFixture: otherAndroidFixture,
+        repositoryRoot: root,
+      }),
+      /fixture identity/i,
+    );
+
+    await assert.rejects(
+      compareCaptureToBaseline({
+        capture,
+        captureFixture: androidFixture,
         baselineFixture: otherAndroidFixture,
         repositoryRoot: root,
       }),
