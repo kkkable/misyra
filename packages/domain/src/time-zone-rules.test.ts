@@ -192,7 +192,9 @@ describe('MTS-016 time-zone and travel rules', () => {
       effectiveTime: clientTime,
       validationResult: 'valid',
     });
-    expect(resolveTimestamp({ clientTime, serverReceiptTime, validationResult: 'invalid' })).toEqual({
+    expect(
+      resolveTimestamp({ clientTime, serverReceiptTime, validationResult: 'invalid' }),
+    ).toEqual({
       originalClientTime: clientTime,
       serverReceiptTime,
       effectiveTime: serverReceiptTime,
