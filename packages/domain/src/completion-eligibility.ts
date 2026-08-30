@@ -64,7 +64,9 @@ function completionExpiry(schedule: MissionSchedule): Temporal.Instant {
   try {
     return localFinish.add({ days: 30 }).toZonedDateTime(schedule.timeZone).toInstant();
   } catch {
-    throw new TypeError(`Schedule local finish could not be resolved in time zone ${schedule.timeZone}.`);
+    throw new TypeError(
+      `Schedule local finish could not be resolved in time zone ${schedule.timeZone}.`,
+    );
   }
 }
 
@@ -107,8 +109,7 @@ export function evaluateSchedulePlacement(input: SchedulePlacementInput): Schedu
 
   return Object.freeze({
     allowed: true,
-    rewardEligibility:
-      ageMilliseconds > 0 ? 'ineligible' : input.currentRewardEligibility,
+    rewardEligibility: ageMilliseconds > 0 ? 'ineligible' : input.currentRewardEligibility,
     reason: 'allowed',
   });
 }
