@@ -42,6 +42,11 @@ export interface EffectiveTimestampResult {
 }
 
 function assertTimeZone(timeZone: string): void {
+  const firstCharacter = timeZone.at(0);
+  if (firstCharacter === '+' || firstCharacter === '-' || firstCharacter === '−') {
+    throw new TypeError(`Invalid IANA time zone: ${timeZone}.`);
+  }
+
   try {
     Temporal.Now.instant().toZonedDateTimeISO(timeZone);
   } catch {
