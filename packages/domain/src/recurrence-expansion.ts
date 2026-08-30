@@ -229,6 +229,7 @@ export function expandRecurrenceDates(input: RecurrenceExpansionInput): readonly
     }
 
     case 'weekly': {
+      // Phase interval weeks from the persisted calendar-week boundary, not from the anchor date.
       const anchorWeekOffset = (anchor.getUTCDay() - pattern.weekStartsOn + 7) % 7;
       const anchorWeekStart = addDays(anchor, -anchorWeekOffset);
       const weekdayOffsets = [...new Set(pattern.weekdays)]
