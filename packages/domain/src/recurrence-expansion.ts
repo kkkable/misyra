@@ -75,7 +75,11 @@ function makeDate(year: number, month: number, day: number): Date | null {
   return date;
 }
 
-function addMonths(year: number, month: number, months: number): { year: number; month: number } {
+function addMonths(
+  year: number,
+  month: number,
+  months: number,
+): { year: number; month: number } {
   const absoluteMonth = year * 12 + (month - 1) + months;
   return {
     year: Math.floor(absoluteMonth / 12),
@@ -133,7 +137,9 @@ function validatePattern(pattern: RecurrencePattern): void {
     case 'monthly-ordinal':
       assertPositiveInteger(pattern.interval, 'Recurrence interval');
       if (!ORDINALS.has(pattern.ordinal)) {
-        throw new RangeError('Recurrence ordinal must be first, second, third, fourth, or last.');
+        throw new RangeError(
+          'Recurrence ordinal must be first, second, third, fourth, or last.',
+        );
       }
       assertIntegerInRange(pattern.weekday, 0, 6, 'Recurrence weekday');
       break;
@@ -176,7 +182,10 @@ export function expandRecurrenceDates(input: RecurrenceExpansionInput): readonly
       );
       break;
     case 'count':
-      assertPositiveInteger(input.recurrence.end.occurrenceCount, 'Recurrence occurrence count');
+      assertPositiveInteger(
+        input.recurrence.end.occurrenceCount,
+        'Recurrence occurrence count',
+      );
       countLimit = input.recurrence.end.occurrenceCount;
       break;
   }
