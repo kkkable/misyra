@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  createMissionSeries,
-  expandRecurrenceDates,
-  type MissionRecurrence,
-} from './index.js';
+import { createMissionSeries, expandRecurrenceDates, type MissionRecurrence } from './index.js';
 
 interface Case {
   readonly name: string;
