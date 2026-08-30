@@ -46,6 +46,39 @@ const corpus: readonly Case[] = [
     expected: ['2026-01-31', '2026-03-31', '2026-05-31'],
   },
   {
+    name: 'monthly 30th skips February and respects interval months',
+    anchorLocalDate: '2026-01-30',
+    recurrence: {
+      pattern: { type: 'monthly-date', interval: 1, dayOfMonth: 30 },
+      end: { type: 'never' },
+    },
+    windowStartLocalDate: '2026-01-01',
+    windowEndLocalDate: '2026-04-30',
+    expected: ['2026-01-30', '2026-03-30', '2026-04-30'],
+  },
+  {
+    name: 'monthly 29th skips a non-leap February',
+    anchorLocalDate: '2026-01-29',
+    recurrence: {
+      pattern: { type: 'monthly-date', interval: 1, dayOfMonth: 29 },
+      end: { type: 'never' },
+    },
+    windowStartLocalDate: '2026-01-01',
+    windowEndLocalDate: '2026-03-31',
+    expected: ['2026-01-29', '2026-03-29'],
+  },
+  {
+    name: 'monthly interval advances by whole anchor-relative months',
+    anchorLocalDate: '2026-01-15',
+    recurrence: {
+      pattern: { type: 'monthly-date', interval: 2, dayOfMonth: 15 },
+      end: { type: 'never' },
+    },
+    windowStartLocalDate: '2026-01-01',
+    windowEndLocalDate: '2026-07-31',
+    expected: ['2026-01-15', '2026-03-15', '2026-05-15', '2026-07-15'],
+  },
+  {
     name: 'monthly ordinal weekday',
     anchorLocalDate: '2026-01-13',
     recurrence: {
@@ -66,6 +99,17 @@ const corpus: readonly Case[] = [
     windowStartLocalDate: '2024-01-01',
     windowEndLocalDate: '2032-12-31',
     expected: ['2024-02-29', '2028-02-29', '2032-02-29'],
+  },
+  {
+    name: 'yearly interval advances by whole anchor-relative years',
+    anchorLocalDate: '2026-06-05',
+    recurrence: {
+      pattern: { type: 'yearly-date', interval: 2, month: 6, day: 5 },
+      end: { type: 'never' },
+    },
+    windowStartLocalDate: '2026-01-01',
+    windowEndLocalDate: '2032-12-31',
+    expected: ['2026-06-05', '2028-06-05', '2030-06-05', '2032-06-05'],
   },
   {
     name: 'yearly ordinal weekday',
@@ -148,6 +192,25 @@ describe('MTS-014 recurrence expansion', () => {
         windowEndLocalDate: '2026-12-31',
       }),
     ).toEqual(['2026-03-31', '2026-05-31']);
+  });
+
+  it('honors count endings as a property of actual created occurrences', () => {
+    for (let occurrenceCount = 1; occurrenceCount <= 8; occurrenceCount += 1) {
+      const dates = expandRecurrenceDates({
+        anchorLocalDate: '2026-01-31',
+        recurrence: {
+          pattern: { type: 'monthly-date', interval: 1, dayOfMonth: 31 },
+          end: { type: 'count', occurrenceCount },
+        },
+        windowStartLocalDate: '2026-01-01',
+        windowEndLocalDate: '2030-12-31',
+      });
+
+      expect(dates).toHaveLength(occurrenceCount);
+      expect(new Set(dates).size).toBe(occurrenceCount);
+      expect(dates).toEqual([...dates].sort());
+      expect(dates.every((date) => date.endsWith('-31'))).toBe(true);
+    }
   });
 
   it('never returns occurrences outside the requested inclusive window', () => {
