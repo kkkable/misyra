@@ -125,6 +125,7 @@ function validatePattern(pattern: RecurrencePattern): void {
       for (const weekday of pattern.weekdays) {
         assertIntegerInRange(weekday, 0, 6, 'Recurrence weekday');
       }
+      assertIntegerInRange(pattern.weekStartsOn, 0, 6, 'Recurrence week start');
       break;
     case 'monthly-date':
       assertPositiveInteger(pattern.interval, 'Recurrence interval');
@@ -228,13 +229,14 @@ export function expandRecurrenceDates(input: RecurrenceExpansionInput): readonly
     }
 
     case 'weekly': {
-      const anchorWeekday = anchor.getUTCDay();
+      const anchorWeekOffset = (anchor.getUTCDay() - pattern.weekStartsOn + 7) % 7;
+      const anchorWeekStart = addDays(anchor, -anchorWeekOffset);
       const weekdayOffsets = [...new Set(pattern.weekdays)]
-        .map((weekday) => (weekday - anchorWeekday + 7) % 7)
+        .map((weekday) => (weekday - pattern.weekStartsOn + 7) % 7)
         .sort((left, right) => left - right);
 
       for (let block = 0; ; block += 1) {
-        const blockStart = addDays(anchor, block * pattern.interval * 7);
+        const blockStart = addDays(anchorWeekStart, block * pattern.interval * 7);
         if (blockStart.getTime() > upperBoundTime) {
           break;
         }
