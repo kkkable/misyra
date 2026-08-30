@@ -1,12 +1,44 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  createMissionOccurrence,
-  createMissionSeries,
-  planRecurringSeriesScope,
-  type MissionOccurrence,
-  type RecurringSeriesScope,
-} from './index.js';
+import * as domainModule from './index.js';
+import { createMissionOccurrence, createMissionSeries, type MissionOccurrence } from './index.js';
+
+type RecurringSeriesScope = 'this_occurrence' | 'this_and_future' | 'entire_series';
+type RecurringScopeOperation = 'edit' | 'delete';
+
+interface ScopePlanInput {
+  readonly series: ReturnType<typeof createMissionSeries>;
+  readonly occurrences: readonly MissionOccurrence[];
+  readonly selectedOccurrenceId: string;
+  readonly scope: RecurringSeriesScope;
+  readonly operation: RecurringScopeOperation;
+}
+
+interface ScopePlan {
+  readonly affectedOccurrenceIds: readonly string[];
+  readonly preservedOccurrenceIds: readonly string[];
+  readonly retiredOccurrenceIds: readonly string[];
+  readonly splitBoundary: null | {
+    readonly occurrenceId: string;
+    readonly localStart: string;
+    readonly startInstant: string;
+  };
+}
+
+type ScopePlanner = (input: ScopePlanInput) => ScopePlan;
+
+function isScopePlanner(value: unknown): value is ScopePlanner {
+  return typeof value === 'function';
+}
+
+function requireScopePlanner(): ScopePlanner {
+  const module = domainModule as unknown as Record<string, unknown>;
+  const planner = module['planRecurringSeriesScope'];
+  if (!isScopePlanner(planner)) {
+    throw new TypeError('Missing required domain function: planRecurringSeriesScope');
+  }
+  return planner;
+}
 
 const series = createMissionSeries({
   id: '11111111-1111-4111-8111-111111111111',
@@ -85,8 +117,8 @@ const unfinishedFuture = occurrence(
 
 const occurrences = [unfinishedFuture, completedFuture, selected, completedPast] as const;
 
-function affectedFor(scope: RecurringSeriesScope) {
-  return planRecurringSeriesScope({
+function affectedFor(scope: RecurringSeriesScope): ScopePlan {
+  return requireScopePlanner()({
     series,
     occurrences,
     selectedOccurrenceId: selected.id,
@@ -124,7 +156,7 @@ describe('MTS-015 recurring-series scope operations', () => {
   });
 
   it('retires only applicable unfinished identifiers for deletion', () => {
-    const plan = planRecurringSeriesScope({
+    const plan = requireScopePlanner()({
       series,
       occurrences,
       selectedOccurrenceId: selected.id,
@@ -171,6 +203,7 @@ describe('MTS-015 recurring-series scope operations', () => {
   });
 
   it('rejects nonrecurring aggregates, foreign occurrences, duplicate ids, and missing selections', () => {
+    const plan = requireScopePlanner();
     const oneTime = createMissionSeries({
       id: '61111111-1111-4111-8111-111111111111',
       title: 'One time',
@@ -183,7 +216,7 @@ describe('MTS-015 recurring-series scope operations', () => {
     });
 
     expect(() =>
-      planRecurringSeriesScope({
+      plan({
         series: oneTime,
         occurrences: [selected],
         selectedOccurrenceId: selected.id,
@@ -193,7 +226,7 @@ describe('MTS-015 recurring-series scope operations', () => {
     ).toThrow(/recurring series/i);
 
     expect(() =>
-      planRecurringSeriesScope({
+      plan({
         series,
         occurrences: [selected, foreign],
         selectedOccurrenceId: selected.id,
@@ -203,7 +236,7 @@ describe('MTS-015 recurring-series scope operations', () => {
     ).toThrow(/series/i);
 
     expect(() =>
-      planRecurringSeriesScope({
+      plan({
         series,
         occurrences: [selected, selected],
         selectedOccurrenceId: selected.id,
@@ -213,7 +246,7 @@ describe('MTS-015 recurring-series scope operations', () => {
     ).toThrow(/duplicate/i);
 
     expect(() =>
-      planRecurringSeriesScope({
+      plan({
         series,
         occurrences,
         selectedOccurrenceId: '91111111-1111-4111-8111-111111111111',
