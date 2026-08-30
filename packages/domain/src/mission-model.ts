@@ -5,7 +5,7 @@ export type RecurrenceEnd =
 
 export type RecurrencePattern =
   | { type: 'daily'; interval: number }
-  | { type: 'weekly'; interval: number; weekdays: number[] }
+  | { type: 'weekly'; interval: number; weekdays: number[]; weekStartsOn: number }
   | { type: 'monthly-date'; interval: number; dayOfMonth: number }
   | {
       type: 'monthly-ordinal';
@@ -167,6 +167,7 @@ function copyRecurrencePattern(pattern: RecurrencePattern): RecurrencePattern {
       for (const weekday of pattern.weekdays) {
         assertIntegerInRange(weekday, 0, 6, 'Recurrence weekday');
       }
+      assertIntegerInRange(pattern.weekStartsOn, 0, 6, 'Recurrence week start');
       return Object.freeze({
         ...pattern,
         weekdays: Object.freeze([...pattern.weekdays]) as number[],

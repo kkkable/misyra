@@ -1182,7 +1182,12 @@ export type RecurrenceEnd =
 
 export type RecurrencePattern =
   | { type: 'daily'; interval: number }
-  | { type: 'weekly'; interval: number; weekdays: number[] }
+  | {
+      type: 'weekly';
+      interval: number;
+      weekdays: number[];
+      weekStartsOn: number;
+    }
   | { type: 'monthly-date'; interval: number; dayOfMonth: number }
   | {
       type: 'monthly-ordinal';
@@ -1199,6 +1204,8 @@ export type RecurrencePattern =
       weekday: number;
     };
 ```
+
+Weekly recurrence is phased by calendar weeks, not rolling seven-day blocks from the anchor. `weekdays` and `weekStartsOn` use `0 = Sunday` through `6 = Saturday`. `weekStartsOn` is persisted with the recurrence rule and recurrence creation supplies the current phone-region week start. The calendar week containing the anchor is phase 0. Selected weekdays earlier than the anchor within phase 0 are not created; subsequent active weeks repeat every `interval` calendar weeks.
 
 Invalid dates are skipped. Skipped dates do not count toward count-based endings.
 
