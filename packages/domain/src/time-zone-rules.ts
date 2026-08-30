@@ -197,8 +197,10 @@ export function isLateByAbsoluteTime(input: AbsoluteLatenessInput): boolean {
 export function resolveEffectiveTimestamp(
   input: EffectiveTimestampInput,
 ): EffectiveTimestampResult {
-  parseInstant(input.clientTime, 'Client time');
   parseInstant(input.serverReceiptTime, 'Server receipt time');
+  if (input.validationResult === 'valid') {
+    parseInstant(input.clientTime, 'Client time');
+  }
 
   return Object.freeze({
     originalClientTime: input.clientTime,
