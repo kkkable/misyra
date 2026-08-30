@@ -199,9 +199,6 @@ export function resolveEffectiveTimestamp(
 ): EffectiveTimestampResult {
   parseInstant(input.clientTime, 'Client time');
   parseInstant(input.serverReceiptTime, 'Server receipt time');
-  if (input.validationResult !== 'valid' && input.validationResult !== 'invalid') {
-    throw new TypeError(`Invalid clock validation result: ${String(input.validationResult)}.`);
-  }
 
   return Object.freeze({
     originalClientTime: input.clientTime,
