@@ -31,10 +31,13 @@ describe('MTS-018 XP, proof bonus, and levels contract', () => {
     ['easy', 60, 60],
     ['normal', 60, 90],
     ['hard', 60, 120],
-  ])('calculates %s difficulty at %i minutes as %i base XP', async (difficulty, minutes, expected) => {
-    const { calculateBaseXp } = await loadRewardFunctions();
-    expect(calculateBaseXp(minutes, difficulty)).toBe(expected);
-  });
+  ])(
+    'calculates %s difficulty at %i minutes as %i base XP',
+    async (difficulty, minutes, expected) => {
+      const { calculateBaseXp } = await loadRewardFunctions();
+      expect(calculateBaseXp(minutes, difficulty)).toBe(expected);
+    },
+  );
 
   it('clamps duration, rounds to the nearest five, and caps base XP at 250', async () => {
     const { calculateBaseXp } = await loadRewardFunctions();
