@@ -276,8 +276,19 @@ export function createMissionOccurrence(input: MissionOccurrenceInput): MissionO
   assertAllowedValue(input.deletionState, DELETION_STATES, 'deletion state');
 
   return Object.freeze({
-    ...input,
+    id: input.id,
+    seriesId: input.seriesId,
     schedule: copySchedule(input.schedule),
+    scheduleState: input.scheduleState,
+    completionState: input.completionState,
+    evidenceState: input.evidenceState,
+    rewardEligibility: input.rewardEligibility,
+    rewardIssuance: input.rewardIssuance,
+    calendarSource: input.calendarSource,
+    fieldOwnership: input.fieldOwnership,
+    synchronizationState: input.synchronizationState,
+    storyState: input.storyState,
+    deletionState: input.deletionState,
   });
 }
 
