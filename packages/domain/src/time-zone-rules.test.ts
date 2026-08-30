@@ -58,24 +58,66 @@ type ProjectSchedule = (input: TravelProjectionInput) => MissionScheduleLike;
 type IsLate = (input: LatenessInput) => boolean;
 type ResolveTimestamp = (input: EffectiveTimestampInput) => EffectiveTimestampResult;
 
-function requiredFunction<T extends (...args: never[]) => unknown>(name: string): T {
-  const value = (domainModule as unknown as Record<string, unknown>)[name];
-  if (typeof value !== 'function') {
-    throw new TypeError(`Missing required domain function: ${name}`);
-  }
-  return value as T;
+const module = domainModule as unknown as Record<string, unknown>;
+
+function isCreateTimedSchedule(value: unknown): value is CreateTimedSchedule {
+  return typeof value === 'function';
+}
+
+function isCreateAllDaySchedule(value: unknown): value is CreateAllDaySchedule {
+  return typeof value === 'function';
+}
+
+function isProjectSchedule(value: unknown): value is ProjectSchedule {
+  return typeof value === 'function';
+}
+
+function isLateFunction(value: unknown): value is IsLate {
+  return typeof value === 'function';
+}
+
+function isResolveTimestamp(value: unknown): value is ResolveTimestamp {
+  return typeof value === 'function';
 }
 
 function createTimedSchedule(input: TimedScheduleInput): MissionScheduleLike {
-  return requiredFunction<CreateTimedSchedule>('createZonedTimedSchedule')(input);
+  const candidate = module['createZonedTimedSchedule'];
+  if (!isCreateTimedSchedule(candidate)) {
+    throw new TypeError('Missing required domain function: createZonedTimedSchedule');
+  }
+  return candidate(input);
 }
 
 function createAllDaySchedule(input: AllDayScheduleInput): MissionScheduleLike {
-  return requiredFunction<CreateAllDaySchedule>('createZonedAllDaySchedule')(input);
+  const candidate = module['createZonedAllDaySchedule'];
+  if (!isCreateAllDaySchedule(candidate)) {
+    throw new TypeError('Missing required domain function: createZonedAllDaySchedule');
+  }
+  return candidate(input);
 }
 
 function projectSchedule(input: TravelProjectionInput): MissionScheduleLike {
-  return requiredFunction<ProjectSchedule>('projectScheduleToTimeZone')(input);
+  const candidate = module['projectScheduleToTimeZone'];
+  if (!isProjectSchedule(candidate)) {
+    throw new TypeError('Missing required domain function: projectScheduleToTimeZone');
+  }
+  return candidate(input);
+}
+
+function isLate(input: LatenessInput): boolean {
+  const candidate = module['isLateByAbsoluteTime'];
+  if (!isLateFunction(candidate)) {
+    throw new TypeError('Missing required domain function: isLateByAbsoluteTime');
+  }
+  return candidate(input);
+}
+
+function resolveTimestamp(input: EffectiveTimestampInput): EffectiveTimestampResult {
+  const candidate = module['resolveEffectiveTimestamp'];
+  if (!isResolveTimestamp(candidate)) {
+    throw new TypeError('Missing required domain function: resolveEffectiveTimestamp');
+  }
+  return candidate(input);
 }
 
 describe('MTS-016 time-zone and travel rules', () => {
@@ -162,7 +204,6 @@ describe('MTS-016 time-zone and travel rules', () => {
   });
 
   it('compares lateness using absolute timestamps and the exact grace threshold', () => {
-    const isLate = requiredFunction<IsLate>('isLateByAbsoluteTime');
     const finish = '2026-09-01T01:00:00.000Z';
 
     expect(
@@ -182,7 +223,6 @@ describe('MTS-016 time-zone and travel rules', () => {
   });
 
   it('silently falls back to server receipt time when the device timestamp is invalid', () => {
-    const resolveTimestamp = requiredFunction<ResolveTimestamp>('resolveEffectiveTimestamp');
     const clientTime = '2026-09-01T00:00:00.000Z';
     const serverReceiptTime = '2026-09-01T00:00:05.000Z';
 
@@ -212,7 +252,6 @@ describe('MTS-016 time-zone and travel rules', () => {
       }),
     ).toThrow(/time zone/i);
 
-    const resolveTimestamp = requiredFunction<ResolveTimestamp>('resolveEffectiveTimestamp');
     expect(() =>
       resolveTimestamp({
         clientTime: 'not-a-timestamp',
