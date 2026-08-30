@@ -12,8 +12,8 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const ORDINALS = new Set([1, 2, 3, 4, -1]);
 
 function assertPositiveInteger(value: number, label: string): void {
-  if (!Number.isInteger(value) || value <= 0) {
-    throw new RangeError(`${label} must be a positive integer.`);
+  if (!Number.isSafeInteger(value) || value <= 0) {
+    throw new RangeError(`${label} must be a safe positive integer.`);
   }
 }
 
@@ -198,6 +198,9 @@ export function expandRecurrenceDates(input: RecurrenceExpansionInput): readonly
 
   const recordCandidate = (candidate: Date): boolean => {
     const time = candidate.getTime();
+    if (!Number.isFinite(time)) {
+      return false;
+    }
     if (time < anchorTime) {
       return true;
     }
