@@ -217,7 +217,7 @@ describe('MTS-017 mission completion eligibility', () => {
     });
   });
 
-  it('allows exactly 30-day-old creation or movement but permanently removes XP eligibility', () => {
+  it('allows an exactly 30-day-old placement and removes XP eligibility', () => {
     const actionInstant = '2026-09-30T12:00:00.000Z';
     const targetStartInstant = '2026-08-31T12:00:00.000Z';
 
@@ -248,7 +248,7 @@ describe('MTS-017 mission completion eligibility', () => {
     });
   });
 
-  it('does not restore XP eligibility after a historical mission is moved back to the future', () => {
+  it('keeps XP ineligible after a historical mission moves back to the future', () => {
     expect(
       evaluatePlacement({
         targetStartInstant: '2026-10-01T12:00:00.000Z',
