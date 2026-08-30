@@ -155,9 +155,7 @@ describe('MTS-017 mission completion eligibility', () => {
       canStartCompletion: true,
       readOnly: false,
     });
-    expect(
-      evaluateCompletion({ schedule, actionInstant: '2026-10-01T01:00:00.000Z' }),
-    ).toEqual({
+    expect(evaluateCompletion({ schedule, actionInstant: '2026-10-01T01:00:00.000Z' })).toEqual({
       state: 'expired',
       opensAt: '2026-09-01T00:00:00.000Z',
       expiresAt: '2026-10-01T01:00:00.000Z',
