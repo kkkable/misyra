@@ -46,8 +46,7 @@ export function calculateBaseXp(estimatedMinutes: number, difficulty: string): n
 
   const effectiveMinutes = Math.min(180, Math.max(5, estimatedMinutes));
   const timeScore = 10 + 1.3 * effectiveMinutes;
-  const roundedXp =
-    Math.round((timeScore * rewardDifficultyMultiplier(difficulty)) / 5) * 5;
+  const roundedXp = Math.round((timeScore * rewardDifficultyMultiplier(difficulty)) / 5) * 5;
   return Math.min(250, roundedXp);
 }
 
