@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { expandRecurrenceDates, type MissionRecurrence } from './index.js';
+import {
+  createMissionSeries,
+  expandRecurrenceDates,
+  type MissionRecurrence,
+} from './index.js';
 
 interface Case {
   readonly name: string;
@@ -27,12 +31,45 @@ const corpus: readonly Case[] = [
     name: 'weekly interval with selected weekdays',
     anchorLocalDate: '2026-03-02',
     recurrence: {
-      pattern: { type: 'weekly', interval: 2, weekdays: [1, 3] },
+      pattern: { type: 'weekly', interval: 2, weekdays: [1, 3], weekStartsOn: 1 },
       end: { type: 'never' },
     },
     windowStartLocalDate: '2026-03-02',
     windowEndLocalDate: '2026-03-31',
     expected: ['2026-03-02', '2026-03-04', '2026-03-16', '2026-03-18', '2026-03-30'],
+  },
+  {
+    name: 'weekly interval phases calendar weeks from a mid-week anchor',
+    anchorLocalDate: '2026-03-04',
+    recurrence: {
+      pattern: { type: 'weekly', interval: 2, weekdays: [1, 3], weekStartsOn: 1 },
+      end: { type: 'never' },
+    },
+    windowStartLocalDate: '2026-03-01',
+    windowEndLocalDate: '2026-04-05',
+    expected: ['2026-03-04', '2026-03-16', '2026-03-18', '2026-03-30', '2026-04-01'],
+  },
+  {
+    name: 'Sunday-start weekly phase skips a pre-anchor Sunday in the anchor week',
+    anchorLocalDate: '2026-03-04',
+    recurrence: {
+      pattern: { type: 'weekly', interval: 2, weekdays: [0], weekStartsOn: 0 },
+      end: { type: 'never' },
+    },
+    windowStartLocalDate: '2026-03-01',
+    windowEndLocalDate: '2026-03-31',
+    expected: ['2026-03-15', '2026-03-29'],
+  },
+  {
+    name: 'Monday-start weekly phase includes Sunday at the end of the anchor week',
+    anchorLocalDate: '2026-03-04',
+    recurrence: {
+      pattern: { type: 'weekly', interval: 2, weekdays: [0], weekStartsOn: 1 },
+      end: { type: 'never' },
+    },
+    windowStartLocalDate: '2026-03-01',
+    windowEndLocalDate: '2026-03-31',
+    expected: ['2026-03-08', '2026-03-22'],
   },
   {
     name: 'monthly same date skips invalid dates',
@@ -124,6 +161,15 @@ const corpus: readonly Case[] = [
   },
 ];
 
+function expandWith(recurrence: MissionRecurrence) {
+  return expandRecurrenceDates({
+    anchorLocalDate: '2026-03-04',
+    recurrence,
+    windowStartLocalDate: '2026-03-01',
+    windowEndLocalDate: '2026-04-30',
+  });
+}
+
 describe('MTS-014 recurrence expansion', () => {
   for (const entry of corpus) {
     it(`expands ${entry.name} deterministically`, () => {
@@ -137,6 +183,24 @@ describe('MTS-014 recurrence expansion', () => {
       ).toEqual(entry.expected);
     });
   }
+
+  it('persists the weekly week-start phase on the mission series', () => {
+    const series = createMissionSeries({
+      id: '99999999-9999-4999-8999-999999999999',
+      title: 'Regional weekly phase',
+      recurrence: {
+        pattern: { type: 'weekly', interval: 2, weekdays: [0, 3], weekStartsOn: 1 },
+        end: { type: 'never' },
+      },
+    });
+
+    expect(series.recurrence?.pattern).toEqual({
+      type: 'weekly',
+      interval: 2,
+      weekdays: [0, 3],
+      weekStartsOn: 1,
+    });
+  });
 
   it('keeps local daily recurrence continuous across a DST-adjacent calendar boundary', () => {
     expect(
@@ -225,5 +289,74 @@ describe('MTS-014 recurrence expansion', () => {
         windowEndLocalDate: '2026-06-12',
       }),
     ).toEqual(['2026-06-10', '2026-06-11', '2026-06-12']);
+  });
+
+  it('rejects malformed or impossible local dates', () => {
+    expect(() =>
+      expandRecurrenceDates({
+        anchorLocalDate: '2026-02-30',
+        recurrence: {
+          pattern: { type: 'daily', interval: 1 },
+          end: { type: 'never' },
+        },
+        windowStartLocalDate: '2026-03-01',
+        windowEndLocalDate: '2026-03-31',
+      }),
+    ).toThrow(/real calendar date/i);
+  });
+
+  it('rejects zero and negative recurrence intervals', () => {
+    expect(() =>
+      expandWith({
+        pattern: { type: 'daily', interval: 0 },
+        end: { type: 'never' },
+      }),
+    ).toThrow(/positive integer/i);
+
+    expect(() =>
+      expandWith({
+        pattern: { type: 'monthly-date', interval: -1, dayOfMonth: 4 },
+        end: { type: 'never' },
+      }),
+    ).toThrow(/positive integer/i);
+  });
+
+  it('rejects empty weekly weekday sets and invalid persisted week starts', () => {
+    expect(() =>
+      expandWith({
+        pattern: { type: 'weekly', interval: 1, weekdays: [], weekStartsOn: 1 },
+        end: { type: 'never' },
+      }),
+    ).toThrow(/weekday/i);
+
+    expect(() =>
+      expandWith({
+        pattern: { type: 'weekly', interval: 1, weekdays: [1], weekStartsOn: 7 },
+        end: { type: 'never' },
+      }),
+    ).toThrow(/week start/i);
+  });
+
+  it('rejects invalid ordinals at the runtime boundary', () => {
+    const invalidOrdinal = {
+      pattern: { type: 'monthly-ordinal', interval: 1, ordinal: 5, weekday: 1 },
+      end: { type: 'never' },
+    } as unknown as MissionRecurrence;
+
+    expect(() => expandWith(invalidOrdinal)).toThrow(/ordinal/i);
+  });
+
+  it('rejects reversed expansion windows', () => {
+    expect(() =>
+      expandRecurrenceDates({
+        anchorLocalDate: '2026-03-04',
+        recurrence: {
+          pattern: { type: 'daily', interval: 1 },
+          end: { type: 'never' },
+        },
+        windowStartLocalDate: '2026-04-01',
+        windowEndLocalDate: '2026-03-31',
+      }),
+    ).toThrow(/window end/i);
   });
 });
