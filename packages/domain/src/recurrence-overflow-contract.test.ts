@@ -8,7 +8,7 @@ describe('MTS-014 recurrence boundedness contract', () => {
       expandRecurrenceDates({
         anchorLocalDate: '2026-03-04',
         recurrence: {
-          pattern: { type: 'daily', interval: Number.MAX_SAFE_INTEGER },
+          pattern: { type: 'daily', interval: Number.MAX_SAFE_INTEGER + 1 },
           end: { type: 'never' },
         },
         windowStartLocalDate: '2026-01-01',
