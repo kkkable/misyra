@@ -174,6 +174,38 @@ describe('MTS-013 mission series and occurrence contract', () => {
     });
   });
 
+  it('drops unrecognized aggregate status fields from canonical occurrences', async () => {
+    const { createMissionOccurrence } = await loadFactories();
+    const occurrence = asRecord(
+      createMissionOccurrence({
+        id: '88888888-8888-4888-8888-888888888888',
+        seriesId: '55555555-5555-4555-8555-555555555555',
+        schedule: validSchedule,
+        ...validStates,
+        status: 'completed-and-rewarded',
+      }),
+    );
+
+    expect(occurrence).not.toHaveProperty('status');
+    expect(Object.keys(occurrence).sort()).toEqual(
+      [
+        'calendarSource',
+        'completionState',
+        'deletionState',
+        'evidenceState',
+        'fieldOwnership',
+        'id',
+        'rewardEligibility',
+        'rewardIssuance',
+        'schedule',
+        'scheduleState',
+        'seriesId',
+        'storyState',
+        'synchronizationState',
+      ].sort(),
+    );
+  });
+
   it('rejects invalid identifiers, blank titles, invalid schedules, and invalid state dimensions', async () => {
     const { createMissionOccurrence, createMissionSeries } = await loadFactories();
 
