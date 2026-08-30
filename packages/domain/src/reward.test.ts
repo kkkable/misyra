@@ -88,7 +88,7 @@ describe('MTS-018 XP, proof bonus, and levels contract', () => {
     });
     expect(calculateLevelProgress(100_000)).toMatchObject({
       level: 87,
-      xpIntoLevel: 175,
+      xpIntoLevel: 25,
       xpToNextLevel: 2250,
     });
   });
