@@ -1,11 +1,7 @@
 import { Temporal } from '@js-temporal/polyfill';
 
 export type StreakCompletionType =
-  | 'verified_on_time'
-  | 'verified_late'
-  | 'self_confirmed'
-  | 'private'
-  | 'trust_mode';
+  'verified_on_time' | 'verified_late' | 'self_confirmed' | 'private' | 'trust_mode';
 
 export type StreakDayState = 'paused' | 'continued' | 'broken' | 'pending';
 
