@@ -40,54 +40,47 @@ describe('MTS-020 mission edit conflict permutations', () => {
   it.each([
     ['older first', false],
     ['newer first', true],
-  ])('selects the whole latest valid save regardless of argument order: %s', async (_label, swap) => {
-    const { resolveMissionEditConflict } = await loadConflictFunctions();
-    const older = save(
-      'edit-older',
-      'older',
-      '2026-08-31T10:00:00.000Z',
-      '2026-08-31T10:00:01.000Z',
-    );
-    const newer = save(
-      'edit-newer',
-      'newer',
-      '2026-08-31T10:01:00.000Z',
-      '2026-08-31T10:01:01.000Z',
-    );
-    const first = swap ? newer : older;
-    const second = swap ? older : newer;
+  ])(
+    'selects the whole latest valid save regardless of argument order: %s',
+    async (_label, swap) => {
+      const { resolveMissionEditConflict } = await loadConflictFunctions();
+      const older = save(
+        'edit-older',
+        'older',
+        '2026-08-31T10:00:00.000Z',
+        '2026-08-31T10:00:01.000Z',
+      );
+      const newer = save(
+        'edit-newer',
+        'newer',
+        '2026-08-31T10:01:00.000Z',
+        '2026-08-31T10:01:01.000Z',
+      );
+      const first = swap ? newer : older;
+      const second = swap ? older : newer;
 
-    expect(
-      resolveMissionEditConflict({
-        first,
-        second,
-        tombstoned: false,
-      }),
-    ).toEqual({
-      winnerMutationId: 'edit-newer',
-      value: newer.value,
-      reasonCode: 'latest_valid_save',
-    });
-  });
+      expect(
+        resolveMissionEditConflict({
+          first,
+          second,
+          tombstoned: false,
+        }),
+      ).toEqual({
+        winnerMutationId: 'edit-newer',
+        value: newer.value,
+        reasonCode: 'latest_valid_save',
+      });
+    },
+  );
 
   it('never field-merges competing mission saves', async () => {
     const { resolveMissionEditConflict } = await loadConflictFunctions();
     const older = {
-      ...save(
-        'edit-a',
-        'old title',
-        '2026-08-31T10:00:00.000Z',
-        '2026-08-31T10:00:01.000Z',
-      ),
+      ...save('edit-a', 'old title', '2026-08-31T10:00:00.000Z', '2026-08-31T10:00:01.000Z'),
       value: Object.freeze({ title: 'old title', location: 'old location' }),
     };
     const newer = {
-      ...save(
-        'edit-b',
-        'new title',
-        '2026-08-31T10:05:00.000Z',
-        '2026-08-31T10:05:01.000Z',
-      ),
+      ...save('edit-b', 'new title', '2026-08-31T10:05:00.000Z', '2026-08-31T10:05:01.000Z'),
       value: Object.freeze({ title: 'new title' }),
     };
 
@@ -161,28 +154,31 @@ describe('MTS-020 deletion tombstone properties', () => {
     ['2020-01-01T00:00:00.000Z', '2026-08-31T12:00:00.000Z'],
     ['2026-08-31T12:00:00.000Z', '2020-01-01T00:00:00.000Z'],
     ['2099-01-01T00:00:00.000Z', '2026-08-31T12:00:00.000Z'],
-  ])('a tombstone wins over every delayed edit timestamp permutation', async (clientTime, receipt) => {
-    const { resolveMissionEditConflict } = await loadConflictFunctions();
-    const delayedEdit = save('delayed-edit', 'should never return', clientTime, receipt, 'valid');
-    const otherEdit = save(
-      'other-edit',
-      'also discarded',
-      '2026-08-31T11:00:00.000Z',
-      '2026-08-31T11:00:01.000Z',
-    );
+  ])(
+    'a tombstone wins over every delayed edit timestamp permutation',
+    async (clientTime, receipt) => {
+      const { resolveMissionEditConflict } = await loadConflictFunctions();
+      const delayedEdit = save('delayed-edit', 'should never return', clientTime, receipt, 'valid');
+      const otherEdit = save(
+        'other-edit',
+        'also discarded',
+        '2026-08-31T11:00:00.000Z',
+        '2026-08-31T11:00:01.000Z',
+      );
 
-    expect(
-      resolveMissionEditConflict({
-        first: delayedEdit,
-        second: otherEdit,
-        tombstoned: true,
-      }),
-    ).toEqual({
-      winnerMutationId: null,
-      value: null,
-      reasonCode: 'mission_deleted',
-    });
-  });
+      expect(
+        resolveMissionEditConflict({
+          first: delayedEdit,
+          second: otherEdit,
+          tombstoned: true,
+        }),
+      ).toEqual({
+        winnerMutationId: null,
+        value: null,
+        reasonCode: 'mission_deleted',
+      });
+    },
+  );
 });
 
 describe('MTS-020 completion ordering', () => {
