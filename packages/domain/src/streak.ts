@@ -1,10 +1,3 @@
-export type StreakCompletionType =
-  | 'verified_on_time'
-  | 'verified_late'
-  | 'self_confirmed'
-  | 'private'
-  | 'trust_mode';
-
 export type StreakDayState = 'paused' | 'continued' | 'broken' | 'pending';
 
 export interface StreakDayRecord {
@@ -15,7 +8,7 @@ export interface StreakDayRecord {
 
 export interface StreakEvaluationInput {
   readonly scheduledMissionCount: number;
-  readonly completionTypes: readonly StreakCompletionType[];
+  readonly completionTypes: readonly string[];
   readonly pendingEvidenceCount: number;
 }
 
@@ -24,8 +17,6 @@ export interface FinalizeStreakDayInput extends StreakEvaluationInput {
   readonly now: string;
   readonly currentTimeZone: string;
 }
-
-export type PendingStreakResolution = 'accepted' | 'self_confirmed' | 'rejected';
 
 function assertNonNegativeInteger(value: number, label: string): void {
   if (!Number.isSafeInteger(value) || value < 0) {
@@ -50,6 +41,20 @@ function assertLocalDate(localDate: string): void {
     candidate.getUTCDate() !== day
   ) {
     throw new RangeError('Streak local date must be a real calendar date.');
+  }
+}
+
+function assertCompletionTypes(completionTypes: readonly string[]): void {
+  for (const completionType of completionTypes) {
+    if (
+      completionType !== 'verified_on_time' &&
+      completionType !== 'verified_late' &&
+      completionType !== 'self_confirmed' &&
+      completionType !== 'private' &&
+      completionType !== 'trust_mode'
+    ) {
+      throw new TypeError('Invalid streak completion type.');
+    }
   }
 }
 
@@ -80,6 +85,7 @@ function currentLocalDate(now: string, currentTimeZone: string): string {
 export function evaluateStreakDay(input: StreakEvaluationInput): StreakDayState {
   assertNonNegativeInteger(input.scheduledMissionCount, 'Scheduled mission count');
   assertNonNegativeInteger(input.pendingEvidenceCount, 'Pending evidence count');
+  assertCompletionTypes(input.completionTypes);
 
   if (input.scheduledMissionCount === 0) {
     return 'paused';
@@ -119,7 +125,7 @@ export function finalizeStreakDay(input: FinalizeStreakDayInput): StreakDayRecor
 
 export function resolvePendingStreakDay(
   record: StreakDayRecord,
-  resolution: PendingStreakResolution,
+  resolution: string,
 ): StreakDayRecord {
   if (record.finalized) {
     return record;
@@ -142,5 +148,7 @@ export function resolvePendingStreakDay(
         state: 'broken',
         finalized: true,
       });
+    default:
+      throw new TypeError('Invalid pending streak resolution.');
   }
 }
