@@ -121,21 +121,19 @@ describe('MTS-019 local-day finalization', () => {
       completionTypes: [],
       pendingEvidenceCount: 0,
     };
-    const fixedOffsetTimeZone = () =>
-      finalizeStreakDay({
-        ...common,
-        now: '2026-01-02T00:30:00.000Z',
-        currentTimeZone: '+08:00',
-      });
-    const dateOnlyInstant = () =>
-      finalizeStreakDay({
-        ...common,
-        now: '2026-01-02',
-        currentTimeZone: 'Asia/Hong_Kong',
-      });
+    const fixedOffsetInput = {
+      ...common,
+      now: '2026-01-02T00:30:00.000Z',
+      currentTimeZone: '+08:00',
+    };
+    const dateOnlyInput = {
+      ...common,
+      now: '2026-01-02',
+      currentTimeZone: 'Asia/Hong_Kong',
+    };
 
-    expect(fixedOffsetTimeZone).toThrow();
-    expect(dateOnlyInstant).toThrow();
+    expect(() => finalizeStreakDay(fixedOffsetInput)).toThrow();
+    expect(() => finalizeStreakDay(dateOnlyInput)).toThrow();
   });
 
   it('never repairs or rewrites a finalized past day', async () => {
