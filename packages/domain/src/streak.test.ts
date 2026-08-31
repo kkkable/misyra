@@ -41,17 +41,20 @@ describe('MTS-019 streak day-state matrix', () => {
     ).toBe('paused');
   });
 
-  it.each(eligibleCompletionTypes)('%s preserves a scheduled day streak', async (completionType) => {
-    const { evaluateStreakDay } = await loadStreakFunctions();
+  it.each(eligibleCompletionTypes)(
+    '%s preserves a scheduled day streak',
+    async (completionType) => {
+      const { evaluateStreakDay } = await loadStreakFunctions();
 
-    expect(
-      evaluateStreakDay({
-        scheduledMissionCount: 2,
-        completionTypes: [completionType],
-        pendingEvidenceCount: 0,
-      }),
-    ).toBe('continued');
-  });
+      expect(
+        evaluateStreakDay({
+          scheduledMissionCount: 2,
+          completionTypes: [completionType],
+          pendingEvidenceCount: 0,
+        }),
+      ).toBe('continued');
+    },
+  );
 
   it('breaks a scheduled day only when there is no completion or pending evidence', async () => {
     const { evaluateStreakDay } = await loadStreakFunctions();
@@ -93,7 +96,9 @@ describe('MTS-019 local-day finalization', () => {
       now: '2026-01-02T00:30:00.000Z',
     };
 
-    expect(finalizeStreakDay({ ...common, currentTimeZone: 'America/Los_Angeles' })).toEqual({
+    expect(
+      finalizeStreakDay({ ...common, currentTimeZone: 'America/Los_Angeles' }),
+    ).toEqual({
       localDate: '2026-01-01',
       state: 'broken',
       finalized: false,
