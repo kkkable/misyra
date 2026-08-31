@@ -1,3 +1,12 @@
+import { Temporal } from '@js-temporal/polyfill';
+
+export type StreakCompletionType =
+  | 'verified_on_time'
+  | 'verified_late'
+  | 'self_confirmed'
+  | 'private'
+  | 'trust_mode';
+
 export type StreakDayState = 'paused' | 'continued' | 'broken' | 'pending';
 
 export interface StreakDayRecord {
@@ -8,7 +17,7 @@ export interface StreakDayRecord {
 
 export interface StreakEvaluationInput {
   readonly scheduledMissionCount: number;
-  readonly completionTypes: readonly string[];
+  readonly completionTypes: readonly StreakCompletionType[];
   readonly pendingEvidenceCount: number;
 }
 
@@ -17,6 +26,8 @@ export interface FinalizeStreakDayInput extends StreakEvaluationInput {
   readonly now: string;
   readonly currentTimeZone: string;
 }
+
+export type PendingStreakResolution = 'accepted' | 'self_confirmed' | 'rejected';
 
 function assertNonNegativeInteger(value: number, label: string): void {
   if (!Number.isSafeInteger(value) || value < 0) {
@@ -58,28 +69,30 @@ function assertCompletionTypes(completionTypes: readonly string[]): void {
   }
 }
 
+function assertTimeZone(timeZone: string): void {
+  const firstCharacter = timeZone.at(0);
+  if (firstCharacter === '+' || firstCharacter === '-' || firstCharacter === '−') {
+    throw new TypeError(`Invalid IANA time zone: ${timeZone}.`);
+  }
+
+  try {
+    Temporal.Now.instant().toZonedDateTimeISO(timeZone);
+  } catch {
+    throw new TypeError(`Invalid IANA time zone: ${timeZone}.`);
+  }
+}
+
+function parseInstant(value: string): Temporal.Instant {
+  try {
+    return Temporal.Instant.from(value);
+  } catch {
+    throw new TypeError('Current streak instant must be a valid absolute timestamp.');
+  }
+}
+
 function currentLocalDate(now: string, currentTimeZone: string): string {
-  const instant = new Date(now);
-  if (Number.isNaN(instant.getTime())) {
-    throw new RangeError('Current streak instant must be a valid ISO timestamp.');
-  }
-
-  const formatter = new Intl.DateTimeFormat('en-US', {
-    timeZone: currentTimeZone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  });
-  const parts = formatter.formatToParts(instant);
-  const year = parts.find((part) => part.type === 'year')?.value;
-  const month = parts.find((part) => part.type === 'month')?.value;
-  const day = parts.find((part) => part.type === 'day')?.value;
-
-  if (year === undefined || month === undefined || day === undefined) {
-    throw new RangeError('Could not resolve the current local streak day.');
-  }
-
-  return `${year}-${month}-${day}`;
+  assertTimeZone(currentTimeZone);
+  return parseInstant(now).toZonedDateTimeISO(currentTimeZone).toPlainDate().toString();
 }
 
 export function evaluateStreakDay(input: StreakEvaluationInput): StreakDayState {
@@ -125,7 +138,9 @@ export function finalizeStreakDay(input: FinalizeStreakDayInput): StreakDayRecor
 
 export function resolvePendingStreakDay(
   record: StreakDayRecord,
-  resolution: string,
+  resolution: PendingStreakResolution,
+  now: string,
+  currentTimeZone: string,
 ): StreakDayRecord {
   if (record.finalized) {
     return record;
@@ -134,19 +149,23 @@ export function resolvePendingStreakDay(
     throw new TypeError('Only a pending streak day can resolve pending evidence.');
   }
 
+  assertLocalDate(record.localDate);
+  const appLocalDate = currentLocalDate(now, currentTimeZone);
+  const finalized = record.localDate < appLocalDate;
+
   switch (resolution) {
     case 'accepted':
     case 'self_confirmed':
       return Object.freeze({
         localDate: record.localDate,
         state: 'continued',
-        finalized: true,
+        finalized,
       });
     case 'rejected':
       return Object.freeze({
         localDate: record.localDate,
         state: 'broken',
-        finalized: true,
+        finalized,
       });
     default:
       throw new TypeError('Invalid pending streak resolution.');
