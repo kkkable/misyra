@@ -12,6 +12,8 @@ export * from './completion-eligibility.js';
 
 export * from './streak.js';
 
+export * from './conflict-ordering.js';
+
 export type MissionDifficulty = 'easy' | 'normal' | 'hard';
 export type RewardPath =
   | 'verified_on_time'
