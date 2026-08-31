@@ -1,9 +1,6 @@
 import { Temporal } from '@js-temporal/polyfill';
 
-import {
-  resolveEffectiveTimestamp,
-  type ClockValidationResult,
-} from './time-zone-rules.js';
+import { resolveEffectiveTimestamp, type ClockValidationResult } from './time-zone-rules.js';
 
 export interface ConflictSave<T> {
   readonly mutationId: string;
