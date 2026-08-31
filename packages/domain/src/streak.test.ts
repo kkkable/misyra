@@ -56,20 +56,17 @@ describe('MTS-019 streak day-state matrix', () => {
     },
   );
 
-  it(
-    'breaks a scheduled day only when there is no completion or pending evidence',
-    async () => {
-      const { evaluateStreakDay } = await loadStreakFunctions();
+  it('breaks a scheduled day only when there is no completion or pending evidence', async () => {
+    const { evaluateStreakDay } = await loadStreakFunctions();
 
-      expect(
-        evaluateStreakDay({
-          scheduledMissionCount: 3,
-          completionTypes: [],
-          pendingEvidenceCount: 0,
-        }),
-      ).toBe('broken');
-    },
-  );
+    expect(
+      evaluateStreakDay({
+        scheduledMissionCount: 3,
+        completionTypes: [],
+        pendingEvidenceCount: 0,
+      }),
+    ).toBe('broken');
+  });
 
   it('uses a temporary pending state when offline evidence is unresolved', async () => {
     const { evaluateStreakDay } = await loadStreakFunctions();
@@ -85,37 +82,32 @@ describe('MTS-019 streak day-state matrix', () => {
 });
 
 describe('MTS-019 local-day finalization', () => {
-  it(
-    'uses the current app time zone to decide whether a local day has ended',
-    async () => {
-      const { finalizeStreakDay } = await loadStreakFunctions();
-      const common = {
-        record: {
-          localDate: '2026-01-01',
-          state: 'broken',
-          finalized: false,
-        },
-        scheduledMissionCount: 1,
-        completionTypes: [],
-        pendingEvidenceCount: 0,
-        now: '2026-01-02T00:30:00.000Z',
-      };
-
-      expect(
-        finalizeStreakDay({ ...common, currentTimeZone: 'America/Los_Angeles' }),
-      ).toEqual({
+  it('uses the current app time zone to decide whether a local day has ended', async () => {
+    const { finalizeStreakDay } = await loadStreakFunctions();
+    const common = {
+      record: {
         localDate: '2026-01-01',
         state: 'broken',
         finalized: false,
-      });
+      },
+      scheduledMissionCount: 1,
+      completionTypes: [],
+      pendingEvidenceCount: 0,
+      now: '2026-01-02T00:30:00.000Z',
+    };
 
-      expect(finalizeStreakDay({ ...common, currentTimeZone: 'Asia/Tokyo' })).toEqual({
-        localDate: '2026-01-01',
-        state: 'broken',
-        finalized: true,
-      });
-    },
-  );
+    expect(finalizeStreakDay({ ...common, currentTimeZone: 'America/Los_Angeles' })).toEqual({
+      localDate: '2026-01-01',
+      state: 'broken',
+      finalized: false,
+    });
+
+    expect(finalizeStreakDay({ ...common, currentTimeZone: 'Asia/Tokyo' })).toEqual({
+      localDate: '2026-01-01',
+      state: 'broken',
+      finalized: true,
+    });
+  });
 
   it('never repairs or rewrites a finalized past day', async () => {
     const { finalizeStreakDay } = await loadStreakFunctions();
@@ -137,31 +129,28 @@ describe('MTS-019 local-day finalization', () => {
     ).toBe(finalized);
   });
 
-  it(
-    'does not finalize an ended day while offline evidence is still pending',
-    async () => {
-      const { finalizeStreakDay } = await loadStreakFunctions();
+  it('does not finalize an ended day while offline evidence is still pending', async () => {
+    const { finalizeStreakDay } = await loadStreakFunctions();
 
-      expect(
-        finalizeStreakDay({
-          record: {
-            localDate: '2026-01-01',
-            state: 'pending',
-            finalized: false,
-          },
-          scheduledMissionCount: 1,
-          completionTypes: [],
-          pendingEvidenceCount: 1,
-          now: '2026-01-03T12:00:00.000Z',
-          currentTimeZone: 'Asia/Hong_Kong',
-        }),
-      ).toEqual({
-        localDate: '2026-01-01',
-        state: 'pending',
-        finalized: false,
-      });
-    },
-  );
+    expect(
+      finalizeStreakDay({
+        record: {
+          localDate: '2026-01-01',
+          state: 'pending',
+          finalized: false,
+        },
+        scheduledMissionCount: 1,
+        completionTypes: [],
+        pendingEvidenceCount: 1,
+        now: '2026-01-03T12:00:00.000Z',
+        currentTimeZone: 'Asia/Hong_Kong',
+      }),
+    ).toEqual({
+      localDate: '2026-01-01',
+      state: 'pending',
+      finalized: false,
+    });
+  });
 });
 
 describe('MTS-019 offline pending resolution', () => {
@@ -206,17 +195,14 @@ describe('MTS-019 offline pending resolution', () => {
     });
   });
 
-  it(
-    'cannot alter an already finalized day through a late pending-resolution call',
-    async () => {
-      const { resolvePendingStreakDay } = await loadStreakFunctions();
-      const finalized = Object.freeze({
-        localDate: '2026-01-01',
-        state: 'broken',
-        finalized: true,
-      });
+  it('cannot alter an already finalized day through a late pending-resolution call', async () => {
+    const { resolvePendingStreakDay } = await loadStreakFunctions();
+    const finalized = Object.freeze({
+      localDate: '2026-01-01',
+      state: 'broken',
+      finalized: true,
+    });
 
-      expect(resolvePendingStreakDay(finalized, 'accepted')).toBe(finalized);
-    },
-  );
+    expect(resolvePendingStreakDay(finalized, 'accepted')).toBe(finalized);
+  });
 });
