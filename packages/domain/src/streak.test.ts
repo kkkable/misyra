@@ -109,6 +109,35 @@ describe('MTS-019 local-day finalization', () => {
     });
   });
 
+  it('requires an IANA app time zone and an absolute current instant', async () => {
+    const { finalizeStreakDay } = await loadStreakFunctions();
+    const common = {
+      record: {
+        localDate: '2026-01-01',
+        state: 'broken',
+        finalized: false,
+      },
+      scheduledMissionCount: 1,
+      completionTypes: [],
+      pendingEvidenceCount: 0,
+    };
+
+    expect(() =>
+      finalizeStreakDay({
+        ...common,
+        now: '2026-01-02T00:30:00.000Z',
+        currentTimeZone: '+08:00',
+      }),
+    ).toThrow();
+    expect(() =>
+      finalizeStreakDay({
+        ...common,
+        now: '2026-01-02',
+        currentTimeZone: 'Asia/Hong_Kong',
+      }),
+    ).toThrow();
+  });
+
   it('never repairs or rewrites a finalized past day', async () => {
     const { finalizeStreakDay } = await loadStreakFunctions();
     const finalized = Object.freeze({
@@ -154,8 +183,29 @@ describe('MTS-019 local-day finalization', () => {
 });
 
 describe('MTS-019 offline pending resolution', () => {
+  it('keeps a resolved current local day open until end-of-day finalization', async () => {
+    const { resolvePendingStreakDay } = await loadStreakFunctions();
+
+    expect(
+      resolvePendingStreakDay(
+        {
+          localDate: '2026-01-01',
+          state: 'pending',
+          finalized: false,
+        },
+        'accepted',
+        '2026-01-01T12:00:00.000Z',
+        'Asia/Hong_Kong',
+      ),
+    ).toEqual({
+      localDate: '2026-01-01',
+      state: 'continued',
+      finalized: false,
+    });
+  });
+
   it.each(['accepted', 'self_confirmed'])(
-    '%s resolution converts temporary pending credit into a finalized continuation',
+    '%s resolution finalizes a historical pending day as continued',
     async (resolution) => {
       const { resolvePendingStreakDay } = await loadStreakFunctions();
 
@@ -167,6 +217,8 @@ describe('MTS-019 offline pending resolution', () => {
             finalized: false,
           },
           resolution,
+          '2026-01-03T12:00:00.000Z',
+          'Asia/Hong_Kong',
         ),
       ).toEqual({
         localDate: '2026-01-01',
@@ -176,7 +228,7 @@ describe('MTS-019 offline pending resolution', () => {
     },
   );
 
-  it('rejected evidence removes temporary protection and finalizes the break', async () => {
+  it('rejected evidence removes pending protection and finalizes a historical break', async () => {
     const { resolvePendingStreakDay } = await loadStreakFunctions();
 
     expect(
@@ -187,6 +239,8 @@ describe('MTS-019 offline pending resolution', () => {
           finalized: false,
         },
         'rejected',
+        '2026-01-03T12:00:00.000Z',
+        'Asia/Hong_Kong',
       ),
     ).toEqual({
       localDate: '2026-01-01',
@@ -203,6 +257,13 @@ describe('MTS-019 offline pending resolution', () => {
       finalized: true,
     });
 
-    expect(resolvePendingStreakDay(finalized, 'accepted')).toBe(finalized);
+    expect(
+      resolvePendingStreakDay(
+        finalized,
+        'accepted',
+        '2026-01-05T12:00:00.000Z',
+        'Asia/Hong_Kong',
+      ),
+    ).toBe(finalized);
   });
 });
