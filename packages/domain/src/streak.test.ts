@@ -256,12 +256,7 @@ describe('MTS-019 offline pending resolution', () => {
     });
 
     expect(
-      resolvePendingStreakDay(
-        finalized,
-        'accepted',
-        '2026-01-05T12:00:00.000Z',
-        'Asia/Hong_Kong',
-      ),
+      resolvePendingStreakDay(finalized, 'accepted', '2026-01-05T12:00:00.000Z', 'Asia/Hong_Kong'),
     ).toBe(finalized);
   });
 });
