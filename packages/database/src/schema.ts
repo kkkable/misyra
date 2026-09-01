@@ -9,7 +9,6 @@ import {
   integer,
   jsonb,
   pgTable,
-  primaryKey,
   smallint,
   text,
   timestamp,
@@ -246,7 +245,10 @@ export const storyDrafts = pgTable(
       .on(table.occurrenceId)
       .where(sql`${table.state} = 'active'`),
     index('story_drafts_account_idx').on(table.accountId),
-    check('story_drafts_ai_generation_count_check', sql`${table.aiGenerationCount} between 0 and 3`),
+    check(
+      'story_drafts_ai_generation_count_check',
+      sql`${table.aiGenerationCount} between 0 and 3`,
+    ),
   ],
 );
 
@@ -314,9 +316,7 @@ export const aiPlannerItems = pgTable(
     ordinal: integer('ordinal').notNull(),
     payload: jsonb('payload').notNull(),
   },
-  (table) => [
-    uniqueIndex('ai_planner_items_draft_ordinal_uidx').on(table.draftId, table.ordinal),
-  ],
+  (table) => [uniqueIndex('ai_planner_items_draft_ordinal_uidx').on(table.draftId, table.ordinal)],
 );
 
 export const externalCalendarConnections = pgTable(

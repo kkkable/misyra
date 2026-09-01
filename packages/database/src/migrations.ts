@@ -32,7 +32,10 @@ export async function applyMigrations(databaseUrl: string): Promise<void> {
         continue;
       }
 
-      const migrationSql = await readFile(new URL(`../migrations/${migrationName}`, import.meta.url), 'utf8');
+      const migrationSql = await readFile(
+        new URL(`../migrations/${migrationName}`, import.meta.url),
+        'utf8',
+      );
       await client.query('BEGIN');
       try {
         await client.query(migrationSql);
