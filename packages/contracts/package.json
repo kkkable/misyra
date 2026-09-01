@@ -4,7 +4,11 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./v1": "./src/v1/index.ts",
+    "./v1/api": "./src/v1/api.ts",
+    "./v1/events": "./src/v1/events.ts",
+    "./v1/sync": "./src/v1/sync.ts"
   },
   "scripts": {
     "build": "tsc --project ./tsconfig.json --noEmit",
@@ -12,5 +16,8 @@
     "lint": "eslint . --config ../config/eslint.config.mjs",
     "typecheck": "tsc --project ./tsconfig.json --noEmit",
     "test": "vitest run --config ../config/vitest.config.mjs --passWithNoTests"
+  },
+  "dependencies": {
+    "zod": "3.25.76"
   }
 }
