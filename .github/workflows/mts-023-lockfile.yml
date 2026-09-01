@@ -1,0 +1,41 @@
+name: MTS-023 lockfile refresh
+
+on:
+  push:
+    branches:
+      - feat/mts-023-contracts
+    paths:
+      - .github/workflows/mts-023-lockfile.yml
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/mts-023-contracts
+          fetch-depth: 0
+      - name: Install pinned pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.5
+          run_install: false
+      - name: Set up pinned Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+      - name: Refresh lockfile and remove helper
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm install --lockfile-only
+          rm .github/workflows/mts-023-lockfile.yml
+          git config user.name "Misyra Automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add pnpm-lock.yaml .github/workflows/mts-023-lockfile.yml
+          git commit -m "chore(contracts): synchronize lockfile"
+          git push origin HEAD:feat/mts-023-contracts
