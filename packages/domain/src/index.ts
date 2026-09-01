@@ -15,3 +15,5 @@ export * from './streak.js';
 export * from './conflict-ordering.js';
 
 export * from './reward.js';
+
+export * from './media-retention.js';
