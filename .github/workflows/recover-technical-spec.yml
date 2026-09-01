@@ -1,0 +1,31 @@
+name: Recover authoritative technical specification
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/recover-technical-spec.yml
+
+permissions:
+  contents: write
+
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout current main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Restore exact specification and remove helper
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout db06c036a2e8bd9dc5ee21843c958e4910aaac95 -- docs/specifications/technical-specification.md
+          rm .github/workflows/recover-technical-spec.yml
+          git config user.name "Misyra Recovery"
+          git config user.email "actions@users.noreply.github.com"
+          git add docs/specifications/technical-specification.md .github/workflows/recover-technical-spec.yml
+          git commit -m "chore: restore authoritative technical specification"
+          git push origin HEAD:main
