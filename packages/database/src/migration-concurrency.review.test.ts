@@ -43,7 +43,7 @@ afterAll(() => {
 });
 
 describe('MTS-022 migration concurrency', () => {
-  it('serializes simultaneous migration runners for the same database', async () => {
+  it('serializes concurrent migration runners for the same database', async () => {
     await expect(
       Promise.all([
         applyMigrations(databaseUrl),
