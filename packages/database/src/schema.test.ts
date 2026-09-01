@@ -270,6 +270,8 @@ describe('MTS-022 PostgreSQL schema contract', () => {
     );
 
     expect(indexDefinitions).toMatch(/account_id|occurrence_id|processed_at|deletion_due_at/i);
-    expect(indexDefinitions).not.toMatch(/\((title|notes?|description|email|payload|composition|metadata)\)/i);
+    expect(indexDefinitions).not.toMatch(
+      /\((title|notes?|description|email|payload|composition|metadata)\)/i,
+    );
   });
 });
