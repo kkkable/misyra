@@ -599,322 +599,1207 @@ Expired/cancelled historical duplication:
 Imported event duplication:
 
 - Creates a new independent mission.
-- Organizer-controlled fields become editable in the new copy.
-- New copy has no provider ID or invitation state.
-- If the source is cancelled/expired, it still defaults to today.
+- Organizer-controlled fields become editable in the copy.
+- Personal mission note is copied.
+- External invitation linkage is not copied.
 
 ---
 
-## 11. Evidence, Privacy, and Completion
+## 11. Recurrence
 
-### Normal Mode
+### Patterns
 
-Evidence is required by default.
-
-Evidence capture:
-
-- Camera only
-- One new photo per attempt
-- No gallery selection
-- No video
-- Maximum three submitted attempts per mission
-
-Before submission:
-
-- Retake
-- Submit
-
-After submission, the photo cannot be replaced for that attempt.
-
-### Verification results
-
-Accepted evidence:
-
-- On time: green
-- Late: yellow
-- XP base + 15% proof bonus
-- Preserves streak
-
-Rejected evidence:
-
-- Explain the reason.
-- Retry only if attempts remain and the completion window has not expired.
-- After final failure, or at any failure when the user insists, offer self-confirmation where time rules allow.
-
-Self-confirmation:
-
-**I really did it**
-
-- Marks complete.
-- Yellow status.
-- Base XP only.
-- No proof bonus.
-- Preserves streak.
-
-### Private mission
-
-Private is chosen per mission.
-
-- No photo/evidence.
-- Complete with one confirmation.
-- Grey status.
-- Base XP only.
-- Preserves streak.
-
-### Trust Mode
-
-Global Settings toggle.
-
-When enabled:
-
-- Normal missions complete without photo.
-- One confirmation.
-- Grey status.
-- Base XP only.
-- Preserves streak.
-
-Changing Trust Mode affects future completion actions only. It does not recolour or rewrite historical completions.
-
-### Organizer-owned/imported missions
-
-Evidence mode remains user-controlled. Organizer ownership limits provider-controlled field editing, not completion privacy.
-
-### Evidence retention
-
-Submitted evidence photos auto-delete 30 days after the scheduled mission finish time.
-
-Deletion is independent of verification timing. If verification is still pending at the deadline, backend deletion may wait only as long as operationally necessary to finish the in-flight check, then delete promptly. This exception must not become indefinite retention.
-
-No manual evidence-photo delete while the mission record remains.
-
-Deleting the mission/account deletes retained evidence immediately where deletion policy requires.
-
----
-
-## 12. XP and Levels
-
-### Difficulty
-
-AI estimates Easy / Normal / Hard from:
-
-- Duration or estimated duration
-- Title
-- Notes
-
-Relevant edits before start recalculate on Save.
-
-Difficulty is not directly user-editable.
-
-### Base XP formula
-
-```text
-effectiveMinutes = clamp(estimatedMinutes, 5, 180)
-timeScore = 10 + 1.3 × effectiveMinutes
-
-Easy   = 0.70
-Normal = 1.00
-Hard   = 1.35
-
-baseXP = min(250, roundToNearest5(timeScore × multiplier))
-```
-
-Tasks over 180 minutes should be divided; XP remains capped.
-
-### Proof bonus
-
-Accepted evidence earns a fixed 15% bonus.
-
-### Level progression
-
-```text
-XP to next level = 100 + 25 × (currentLevel - 1)
-```
-
-Levels are unlimited.
-
-No currency, marketplace, spending, or unlock store.
-
----
-
-## 13. Streaks
-
-- Scheduled day continues streak when at least one mission is completed.
-- Scheduled day breaks streak when no mission is completed.
-- Day with no scheduled missions pauses streak.
-- Private, Trust, verified, late, and self-confirmed completions all preserve streak.
-- Finalized past days do not repair from retroactive mission creation or completion.
-- Offline pending evidence may show a temporary pending streak until accepted or self-confirmed.
-
----
-
-## 14. Recurring Missions
-
-Supported:
+Presets:
 
 - Daily
 - Weekly
-- Custom weekdays
-- Monthly by date
-- Monthly by ordinal weekday, including second Tuesday
-- Last day of month
-- Yearly by date
+- Monthly
+- Yearly
+- Custom
 
-No recurrence pause/resume.
+Custom supports:
 
-### Edit/delete scope
+- Every N days
+- Every N weeks
+- Selected weekdays
+- Every N months
+- Monthly on same date
+- Monthly on first/second/third/fourth/last selected weekday
+- Every N years
+- Yearly on same month/date
+- Yearly on first/second/third/fourth/last selected weekday of a month
 
-When editing or deleting a recurring mission:
+Not supported:
 
-- This occurrence
-- This and future
-- Entire series
-
-Provider behaviour may limit what can be changed for imported organizer-controlled events.
+- Multiple ordinal weekdays in one rule
+- Complex exception dates
+- Pause/resume
 
 ### Ending
 
 - Never
-- On date
-- After N occurrences
+- On a date
+- After a number of occurrences
 
-`After N` counts created valid occurrences. Invalid dates that are skipped do not count.
+Date is inclusive.
 
----
+Occurrence count includes only created occurrences. Invalid skipped dates do not count.
 
-## 15. External Calendar
+### Invalid dates
 
-### Connection limit
+- Monthly 29th/30th/31st skips months without that date.
+- February 29 yearly skips non-leap years.
+- Never move to another date.
 
-Maximum one connected Apple or Google calendar.
+### Scopes
 
-### Modes
+For edit, delete, hide, and restore where applicable:
 
-Choose one:
+1. This occurrence
+2. This and future occurrences
+3. Entire series
 
-- Sync with external calendar
-- Misyra only
+This and future splits the series internally. Earlier history remains unchanged. Completed occurrences remain immutable under every scope, including Entire series; series deletion removes only applicable unfinished occurrences.
 
-### Sync behaviour
+Evidence, completion, lateness, XP award, Story draft, and colour always belong to individual occurrences.
 
-- Two-way where provider permissions allow.
-- Disconnect keeps an internal copy.
-- Organizer-controlled fields remain read-only.
-- Provider title remains read-only.
-- Personal mission note is app-only and never written back to provider.
-- Invitation/cancellation semantics follow provider truth.
+### Series XP
 
-### Hidden external events
-
-Users may dismiss imported organizer-owned events from Misyra without deleting the provider event.
-
-Dismissal identity includes provider event ID and recurrence scope.
+- Calculate difficulty/base XP once for the series.
+- Reuse per occurrence.
+- Recalculate when shared task details/estimated duration change.
+- Schedule-only changes do not require recalculation unless duration changes.
+- Every occurrence keeps independent XP eligibility and award.
 
 ---
 
-## 16. AI Planner
+## 12. Time Zones and Travel
 
-Input:
+- Use IANA time zones.
+- Store mission time zone and UTC instants.
+- Compare lateness using absolute timestamps.
+- Detect device time zone and allow manual override.
+- When device zone changes, update current app zone and show a small notice without confirmation.
+- Never recalculate historical streak days.
 
-- Free text up to 2000 characters
-- Up to 3 images
+Mission time behaviour:
 
-Flow:
+- Local time: preserves clock time when travelling.
+- Fixed instant: preserves absolute moment and displays in new local time.
 
-1. User submits text/images.
-2. AI extracts candidate missions.
-3. App shows one draft preview.
-4. User edits the draft.
-5. User taps Confirm schedule.
-6. Only then are missions created.
+Defaults:
+
+- Internally created missions default to Keep at local time when travelling.
+- Imported events preserve provider behaviour.
+- User may override when permitted.
+
+Current app time zone controls streak-day boundaries from the change forward.
+
+---
+
+## 13. External Calendar Connection
+
+### General model
+
+- Internal Calendar remains central.
+- External connection is optional.
+- Maximum one connected external calendar.
+- After setup, synchronization is bidirectional for fields the user controls.
+
+### Initial direction
+
+Offer:
+
+1. Sync with [External Calendar]
+   - External schedule is initial source.
+   - Import eligible events as missions.
+
+2. Sync with [App Name]
+   - App schedule is initial source.
+   - Create a dedicated provider calendar named after the app.
+   - Export eligible missions there.
+
+Use double confirmation because initial direction may migrate/replace future schedule data. Past data remains unchanged.
+
+### Synchronized fields where ownership permits
+
+- Title
+- Date
+- Start/end
+- Time zone
+- All-day status
+- Recurrence
+- Location
+- Provider notes/description
+- Deletion
+
+App-only fields:
+
+- Difficulty/XP
+- Evidence/privacy/verification
+- Completion colour/streak
+- Story
+- Personal mission note
+- Internal mission type
+
+### Disconnect
+
+- Ends synchronization immediately.
+- Discards queued external updates.
+- Keeps internal mission copies.
+- Removes active sync links.
+- Does not modify external events.
+
+### Reconnect
+
+Same calendar:
+
+- Relink using retained provider identifiers.
+- Avoid duplicates.
+- Import genuinely new events.
+- Resume unfinished synchronization.
+- Completed imports remain frozen.
+
+Different calendar:
+
+- Use normal source-direction setup.
+
+### Permission revocation/outage
+
+- Keep last synchronized data.
+- Internal completion, evidence, XP, and Story remain usable.
+- Queue eligible changes.
+- Show status only in Settings → Connected Calendar.
+- No repeated app-wide warnings.
+- Resume and apply queued changes automatically when access returns.
+
+### Conflict rule
+
+- Latest valid edit timestamp wins automatically.
+- Show a brief message only when actively viewed content changes.
+- Server-accepted deletion always wins.
+
+---
+
+## 14. Imported Events and Organizer Ownership
+
+### Invitee events
+
+- App completion, evidence, XP, privacy, personal notes, and Story are allowed.
+- Organizer-controlled title, schedule, recurrence, location, and provider description are read-only.
+- Do not attempt unauthorized provider changes.
+- RSVP behaviour stays governed by the external provider.
+
+### Personal mission notes
+
+For organizer-controlled events:
+
+- App-only and private.
+- Sync across the user’s devices.
+- Never sync to Apple/Google.
+- Organizer changes do not overwrite them.
+- Visible only in Mission Details and relevant search results.
+- May be used for Story text.
+- Must be ignored by evidence verification.
+- Deleted with internal mission/account.
+- Copied when duplicated into an independent mission.
+
+### Deleting an imported invitation
+
+- Remove only the internal mission copy and synchronization link.
+- Leave external invitation unchanged.
+- Create hidden dismissal record.
+- Do not decline/remove provider invitation.
+
+### Hidden calendar events
+
+Settings list:
+
+- Upcoming hidden events only
+- Event title/date
+- Individual Restore
+- No Restore all
+
+Past hidden events disappear from visible list but remain dismissed.
+
+Recurring hide/restore offers:
+
+- This occurrence
+- This and future occurrences
+- Entire series
+
+Restore:
+
+- Removes matching dismissal.
+- Fetches current provider details.
+- Reimports as active mission.
+- Does not restore prior completion/evidence/XP/Story.
+
+Reconnection ends the relevant dismissal exclusion according to reconnect flow.
+
+### Organizer updates before completion
+
+Unfinished future event:
+
+- Apply title, schedule, duration, location, provider notes, recurrence, and time-zone changes automatically.
+- Preserve app-only settings and personal notes.
+- Recalculate difficulty/XP when task details/duration change before start.
+
+Moved into the past within 30 days:
+
+- Remains completable.
+- Permanently 0 XP.
+- No user-edit warning because organizer caused it.
+
+Moved more than 30 days into past:
+
+- Read-only history.
+- Disable completion, evidence, editing, and rescheduling.
+- Keep deletion and duplication.
+
+### Completion freeze
+
+Once completed:
+
+- Freeze title, date, time, time zone, location, provider notes, and recurrence context.
+- Later organizer edits do not change history.
+- Evidence, lateness, XP, and Story remain stable.
+
+### Organizer cancellation/deletion
+
+Future unfinished:
+
+- Remove automatically.
+
+Past unfinished:
+
+- Keep read-only history.
+- Disable completion, evidence, editing, and rescheduling.
+- Allow deletion and duplication.
+
+Completed:
+
+- Keep read-only history.
+- Do not reverse XP, streak, level, or totals.
+- Allow deletion and duplication.
+
+Mission Details shows Cancelled by organizer when provider status clearly supports it; otherwise Event cancelled. Calendar card stays clean.
+
+### Generic/untitled events
+
+- Import generic titles such as Busy unchanged.
+- Import events with no title.
+- Show app-only placeholder:
+  - English: Untitled event
+  - `zh-HK`: 未命名活動
+- Never write placeholder back to provider.
+- Update unfinished mission if organizer later adds title.
+- Imported all-day events with insufficient detail use 30-minute effort estimate.
+
+---
+
+## 15. AI Difficulty and XP
+
+### Difficulty inputs
+
+AI uses mission details only:
+
+- Title/description
+- Estimated duration
+- Physical effort
+- Mental effort
+- Complexity
+- Preparation
+
+Do not use user history.
+
+Users cannot directly set difficulty.
+
+Relevant edits before start recalculate on Save. No AI call while typing, dragging, or previewing. AI Planner drafts calculate only after Confirm Schedule.
+
+### Base XP
+
+```text
+effectiveMinutes = clamp(estimatedMinutes, 5, 180)
+timeScore = 10 + 1.3 × effectiveMinutes
+Easy multiplier   = 0.70
+Normal multiplier = 1.00
+Hard multiplier   = 1.35
+baseXP = min(250, round to nearest 5(timeScore × multiplier))
+```
+
+Missions estimated above 180 minutes should be divided.
+
+### Proof bonus
+
+- Accepted evidence: +15%.
+- Accepted late evidence still receives bonus.
+- Self-confirmed, Private, and Trust Mode: base XP only.
+- XP-ineligible missions: 0 base and no bonus.
+
+---
+
+## 16. Completion and Evidence
+
+### Normal Mode
+
+- Evidence required by default.
+- Individual mission may become Private before completion and before first evidence submission.
+- Private completion: grey, base XP, streak credit.
+- After first evidence submission, Private is no longer available.
+
+### Trust Mode
+
+- Global only.
+- Applies to new and unfinished missions except those already in evidence processing.
+- Disabling restores evidence requirement for unfinished missions except those already processing.
+- Completed missions never change.
+- Completion uses Complete Mission plus Mark completed? confirmation.
+- Grey, base XP, streak, no camera.
+
+### Capture
+
+- In-app camera only; no gallery.
+- Either camera orientation allowed.
+- Preview: Retake / Submit Evidence.
+- Retake before submit does not consume attempt.
+- Submitted original remains immutable.
+- User may explicitly save original to phone.
+
+### Attempts
+
+Maximum three submitted attempts:
+
+- Initial
+- Retry 1
+- Retry 2
+
+After failure while attempts remain:
+
+- Show predefined short reason.
+- Try another photo.
+- I completed this mission (self-confirm).
+
+After third failure, only self-confirmation remains if the 30-day window is still open.
+
+### Verification response
+
+- AI returns verdict and reason code in one request.
+- App maps code to predefined message.
+- No second AI explanation call.
+
+### Self-confirmation
+
+- Double confirmation.
+- Yellow.
+- Base XP only.
+- Preserves streak.
+- Never claims AI verification.
+
+### Lateness
+
+Timed:
+
+`late threshold = scheduled finish + 10 minutes`
+
+All-day:
+
+`late threshold = 00:10 after the scheduled local date`
+
+- On time if `firstSubmittedAt < threshold`.
+- Late if `firstSubmittedAt >= threshold`.
+- First submission timestamp controls retries.
+- A successful retry can earn proof bonus.
+
+### Offline evidence
+
+- Record tap time.
+- Consume attempt.
+- Store photo securely.
+- Show Waiting for verification.
+- Upload automatically after reconnect.
+- Use tap time when clock validation succeeds.
+
+### Evidence deletion
+
+- User may delete early without changing completion/XP/streak.
+- Automatically delete after 30 days, including originals, server copies, thumbnails, temp files, and caches.
+- Mission Details then shows Evidence automatically deleted after 30 days.
+
+---
+
+## 17. XP, Levels, and Streaks
+
+### Award matrix
+
+- Green verified on time: base + 15%
+- Yellow verified late: base + 15%
+- Yellow self-confirmed: base
+- Grey Private: base
+- Grey Trust Mode: base
+- Incomplete: 0
+- Deleted unfinished: 0
+- Edited after start: 0
+- Created/moved into past: 0
+
+### Levels
+
+- Unlimited.
+- XP is not spendable.
+
+Next-level XP:
+
+`100 + 25 × (current level − 1)`
+
+### Completion confirmation
+
+Examples:
+
+- Mission complete · +86 XP
+- Mission complete · 0 XP
+- Mission complete · +86 XP · Level 12
+
+If multiple levels are gained, show only final level.
+
+Behaviour:
+
+- Brief subtle animation over Calendar
+- One light haptic pulse
+- Close the completion flow back to Calendar immediately
+- Present Done and Create Story within the compact confirmation rather than a separate result screen
+- Reduce Motion uses static confirmation
+- Total XP only
+- Breakdown/zero-XP reason in Mission Details
+
+### Daily streak
+
+Day with scheduled missions:
+
+- At least one completion continues/preserves streak.
+- No completion breaks it.
+
+Day without scheduled missions:
+
+- Pauses streak.
+
+Eligible completion types:
+
+- Verified on time
+- Verified late
+- Self-confirmed
+- Private
+- Trust Mode
 
 Rules:
 
-- One active draft per mission/import context where applicable.
-- Undo/redo ±5 editing steps.
-- No Q&A interrogation flow.
-- AI may suggest schedule density but cannot rearrange the user’s existing schedule.
+- Late completion of an earlier day does not repair a finalized streak.
+- Creating a past mission does not repair it.
+- Deleting a completed mission later does not change history.
+- Offline evidence may mark Pending.
+- Successful verification/self-confirm finalizes.
+- Unresolved rejected evidence does not permanently preserve.
+- Finalize at local day end using current app time zone.
+
+### Cross-device progress
+
+- XP, level, streak, totals, and mission status synchronize.
+- Only completing device shows animation/haptic.
+- Other devices update silently.
 
 ---
 
-## 17. Story Creation and Sharing
+## 18. AI Planner
 
-- Manual Create Story from completed mission.
-- Static 1080 × 1920 output.
-- AI generates headline + supporting text.
-- Style profile influences output.
-- One AI image per request.
-- User may choose Source image where available.
-- No automatic stickers/music.
-- No watermark.
-- Share through Instagram handoff or system share sheet.
+### Inputs
 
-Story drafts are account data and synchronize across devices.
+- Text up to 2,000 characters with live counter
+- Camera/gallery screenshots
+- Maximum three images per draft
+- Text and images together where practical
 
----
+### AI role
 
-## 18. Search
+May extract title, date, time, duration, recurrence, location, and notes.
 
-Search appears only in Calendar search results, not as persistent Calendar clutter.
+Must not:
 
-Search across:
+- Rearrange schedule
+- Optimize density
+- Add breaks
+- Judge lifestyle
+- Ask clarification questions
+- Invent highly uncertain items
 
-- Mission title
-- Personal mission note
-- Provider title where allowed
+Use sensible defaults only when reasonable. Use current zone and 30-minute duration where appropriate. Omit highly uncertain parts and show:
 
-Do not expose provider-private metadata.
+**Some schedule details could not be imported.**
 
----
+### Preview
 
-## 19. Offline and Multi-Device
+- Existing active missions appear normally.
+- Draft missions use temporary outline.
+- Drafts may be edited, moved, resized, deleted, or manually added.
+- Overlaps allowed.
+- Drafts do not notify, sync, affect XP, or affect streak.
 
-- Latest valid draft wins where drafts conflict.
-- Server time is authoritative when device time is invalid.
-- Deletion wins over delayed offline edits.
-- Permanent tombstones prevent resurrection.
-- Recurring create/delete uses explicit scope.
-- Completion is occurrence-specific and exactly once.
+### Persistence
 
----
+- One unconfirmed draft.
+- Persist across app closure and devices.
+- Remains until confirmed/replaced.
+- No draft history and no separate Discard Draft.
+- Starting new extraction asks Replace current draft?
 
-## 20. Notifications
+### Confirm
 
-- Mission-start notifications only in v1.
-- No overdue or missed prompts.
-- Recreate eligible future notifications after sign-in/resync.
-- Past notifications are not restored.
+Show:
 
----
+**Add this schedule to your calendar? This will activate N missions, schedule notifications, and sync with your connected calendar.**
 
-## 21. Privacy, Diagnostics, Feedback
+On Confirm:
 
-- Minimal diagnostics only.
-- Avoid content-rich logs.
-- User may optionally include email and screenshot in feedback.
-- Submitted feedback may be retained after account deletion only after internal account identity is removed.
-- No data export in v1.
-
----
-
-## 22. Account Data Deletion Semantics
-
-Account deletion removes account-owned operational data, including missions, completion state, progress, external links, hidden events, Story state, retained product media, and auth/session data.
-
-Submitted feedback is the explicit exception described above: retain only after unlinking the internal account identity.
-
-No recovery period.
+- Activate batch.
+- Calculate difficulty/XP.
+- Schedule notifications.
+- Synchronize eligible fields.
+- Clear draft.
+- Open relevant Calendar date.
 
 ---
 
-## 23. Accessibility and Visual Simplicity
+## 19. Story Creation
 
-- Maintain screen-reader labels for status and controls.
-- Written status available outside colour alone.
-- Keep Calendar uncluttered.
-- No special high-contrast mode beyond system defaults in v1.
+### Entry/output
+
+- After completion, close the evidence/completion flow back to Calendar.
+- Show the concise completion confirmation over Calendar with Done and Create Story actions.
+- Do not auto-open the Story editor.
+- Static 1080 × 1920 image only.
+- No video, animation, music editing, or default watermark.
+
+### Source
+
+- Original evidence source
+- Any submitted evidence-attempt photo
+- AI-styled image
+
+Original evidence is never modified. Story uses a separate copy.
+
+Self-confirmed mission photos may be used, but Story must not claim AI verification.
+
+### Drafts
+
+- One unfinished draft per mission.
+- Auto-save on leaving.
+- Resume later.
+- Starting over confirms and replaces.
+- Undo/Redo is current session only.
+- Reopening starts new edit stack.
+
+### AI request budget
+
+Maximum three AI generation requests per mission.
+
+Counts:
+
+- Initial styled image
+- Image regeneration
+- AI regeneration of headline/supporting text/layout/effects
+
+Free:
+
+- Source image
+- Initial free text suggestions
+- Manual edits
+- Switching to retained version
+
+Show remaining count.
+
+### Initial suggestions
+
+May suggest:
+
+- Headline
+- Supporting text
+- Music/song or mood
+- Mention
+- Location
+- Poll question/options
+
+Use style profile or concise default.
+
+Suggestions appear first and are not auto-placed. User chooses headline, supporting text, both, or photo only.
+
+No feed-caption feature.
+
+### Manual editing
+
+Allow text edit/move/resize/recolour/remove, font category, crop/zoom/reposition, supported effects/decorations.
+
+No built-in native Instagram stickers, GIFs, music, polls, links, mentions, or location stickers. Provide suggestions only.
+
+### Style profile
+
+First Create Story:
+
+- Set up my style
+- Use default
+
+Setup uses 3–8 reference images.
+
+Extract only abstract palette, contrast, crop, text position, font category, text density, emoji, effects, and tone.
+
+Do not copy exact templates, usernames, logos, watermarks, faces, or captions.
+
+Settings:
+
+- Add/replace references
+- Rebuild
+- Reset default
+
+References delete after 30 days; abstract profile remains until reset/account deletion.
+
+Profile updates do not alter existing drafts; they apply to new Stories and later AI regenerations.
+
+### Versions
+
+- Up to three AI-generated image versions.
+- Switch between source and existing AI versions for free.
+- Delete individual generated versions.
+
+Every version has fully separate:
+
+- Headline/supporting text
+- Fonts/colours/styles
+- Crop/zoom/image position
+- Text positions
+- Effects/decorations/adjustments
+
+No automatic sharing of composition state.
+
+### Save/share
+
+Save to Photos:
+
+- 1080 × 1920
+- No confirmation
+- Show Saved to Photos.
+- Save versions separately
+
+Open Instagram:
+
+- Show Sharing Notes first.
+- Include copyable music/mood, mention, location, and poll suggestions.
+- Notes persist with draft.
+- Then use supported platform handoff.
+- No Did you post? prompt or status tracking.
+
+Share elsewhere:
+
+- System share sheet.
+- No Sharing Notes requirement.
+
+External published media must be deleted on the external platform.
+
+### Retention
+
+Automatically delete after 30 days:
+
+- Story drafts
+- Generated images
+- Export working copies
+- Sharing Notes
+- Thumbnails/temp/cache
+
+After deletion, Story area returns to Create Story without deletion message.
 
 ---
 
-## 24. First-Release Non-Goals
+## 20. Search
 
-Do not add categories, subtasks, health integration, payments, social feeds, direct Instagram publishing, advanced analytics, export, flexible tasks, or automatic rescheduling unless explicitly approved as a specification change.
+Search title, location, general notes, personal mission notes, past, and future missions.
+
+- Show short personal-note excerpt only when it caused the match.
+- Never show note excerpt on main Calendar.
+- Tapping result opens original date, scrolls/highlights mission, then opens Mission Details.
+- If deleted after results loaded: This mission is no longer available.
+- Closing search clears query/results.
+- No search history.
+- Queries do not synchronize.
+- Offline search uses cached data and may be incomplete.
+- Refresh automatically after reconnect.
+
+---
+
+## 21. Notifications
+
+### Mission reminders
+
+Timed:
+
+- One notification at start.
+- `[Title] starts now.`
+
+All-day:
+
+- Default 09:00 in mission time zone.
+- User may change per mission/series.
+
+No early, repeated, overdue, or missed reminders.
+
+### Same-time missions
+
+- One combined notification: `3 missions start now`.
+- Opens selected date and highlights missions.
+- Single notification opens Mission Details.
+- Private mission notification still shows title; OS controls lock-screen preview.
+
+### Multi-device
+
+- Every signed-in device with notifications enabled schedules locally.
+- Complete/delete/reschedule cancels obsolete reminders after sync.
+- Sign-out cancels local reminders.
+- Other-device progress updates do not show banners.
+
+---
+
+## 22. Offline and Multi-Device Synchronization
+
+### Available offline
+
+- View cached Calendar/details/Progress
+- Create/edit/move/resize/delete eligible missions
+- Complete Trust/Private missions
+- Capture/submit evidence for later verification
+- Manually edit existing Story drafts
+- Search cached missions/notes
+
+Requires internet:
+
+- AI Planner
+- Evidence verification
+- AI Story image/text
+- Style-profile build/rebuild
+- External sync
+
+### Queues
+
+Queue internal sync, eligible external updates, evidence upload, and Story saves. Apply automatically after reconnect.
+
+Feedback reports are not auto-submitted; user taps Submit again.
+
+### Clock validation
+
+- Prefer original local action/save time.
+- Validate device clock.
+- If valid, use local timestamp.
+- If invalid, silently use server receipt time.
+- No user message.
+- Record only in non-content diagnostics.
+
+Applies to evidence, mission edits, completion, Story saves, and conflicts.
+
+### Mission edit conflicts
+
+- Latest valid saved edit wins.
+- No field merge.
+- Losing device reloads and shows This mission was updated on another device.
+- Unsaved local changes are discarded.
+
+### Deletion conflicts
+
+- Server-accepted deletion wins.
+- Delayed edits cannot recreate.
+- Losing device shows This mission was deleted on another device.
+- Permanent deletion marker and retired identifier enforce it.
+
+### Completion conflicts
+
+- First completion accepted by server wins.
+- Local tap ordering across devices does not override acceptance.
+- Award evidence result, colour, XP, streak, and Story eligibility once.
+- Later attempts are duplicates.
+- Losing device deletes temporary evidence/cache, excludes photo from Story, shows This mission was already completed on another device, and updates to accepted state.
+
+### Story conflicts
+
+- Sync after each saved edit.
+- No real-time collaboration.
+- Undo/Redo local only.
+- Offline manual edits allowed.
+- Latest valid saved version wins.
+- No merge of layout/text/crop/effects.
+- Losing device reloads and shows This Story draft was updated on another device.
+- Reload clears Undo/Redo history.
+
+---
+
+## 23. Calendar Help
+
+Calendar `?` opens a compact bottom sheet containing:
+
+- Colour meanings
+- Recurring behaviour
+- Basic gestures
+- Completion/evidence timing
+- Link to full FAQ in Settings
+
+Dismiss by swipe down, outside tap, or close button.
+
+No tracking of whether it was opened. Button always remains available.
+
+---
+
+## 24. Accessibility and Feedback
+
+### Supported
+
+- System text-size scaling within practical limits
+- System Bold Text
+- VoiceOver
+- TalkBack
+- Reduce Motion
+- Logical screen-reader order
+- Accessible control labels
+- Spoken mission title, time, recurrence, completion, and verification state
+- Announcements for important changes
+
+Story canvas stays fixed at 1080 × 1920; editor controls scale accessibly.
+
+### Colour accessibility
+
+Calendar may visually use colour only to stay clean.
+
+Safeguards:
+
+- Written status in Mission Details
+- VoiceOver/TalkBack status
+- Calendar `?` guide
+- Other screens should not rely only on colour when space permits
+
+### Reduce Motion
+
+Replace moving outlines, parallax, decorative motion, and elaborate transitions with fades/immediate updates. Completion uses static confirmation. Essential loading remains visible.
+
+### Haptics/sound
+
+- Subtle haptics for selection, drag/resize, completion, and Story save.
+- Respect system haptic settings.
+- No in-app haptic toggle.
+- No interface sounds.
+
+---
+
+## 25. Diagnostics, Privacy, and Retention
+
+### Minimal diagnostics
+
+Enabled by default with opt-out in Settings.
+
+May collect:
+
+- Anonymous crash reports
+- Reliability metrics
+- App version/build
+- Device model
+- OS version
+- Error codes
+- Crash identifiers
+- Network state
+- Screen name
+- Timestamp
+- Silent clock-validation correction events
+
+Never collect automatically:
+
+- Mission titles/notes
+- Locations
+- Calendar event content
+- AI Planner input
+- Evidence photos
+- Story content
+- Tokens
+- Precise location
+
+No advertising trackers, cross-app tracking, or personalized-ad use.
+
+Do not show diagnostics notice during onboarding.
+
+### Media retention
+
+Automatically delete 30 days after each retained item is created:
+
+- Evidence and derivatives
+- Story drafts/media
+- Sharing Notes
+- Story reference images
+- Thumbnails/temp/cache
+
+Retain:
+
+- Abstract Story style profile until reset/account deletion
+- Mission metadata until mission/account deletion
+- Aggregate progress/reward ledger under deletion rules
+- Hidden-event dismissals until restore/reconnection reset/account deletion
+
+Users may delete retained media early without affecting completion/XP/streak.
+
+### Privacy settings
+
+Include:
+
+- Diagnostics toggle
+- Connected-calendar management
+- Media-retention information
+- Account deletion
+- Privacy Policy
+- Terms of Service
+
+---
+
+## 26. Help, Feedback, and Problem Reporting
+
+### Help
+
+- Short FAQ only
+- No support email link
+- No chatbot
+- No forum
+- No public ticket-tracking interface
+
+### Feedback form
+
+Entry points:
+
+- Send feedback
+- Report a problem
+
+Fields:
+
+- Category
+- Short description
+- Optional follow-up email
+- Optional manually selected screenshot
+
+Do not auto-expose account email.
+
+### Screenshot
+
+- User selects manually through system photo picker.
+- Never capture automatically.
+- Preview before submit.
+- Allow remove/replace.
+- Strip unnecessary metadata.
+
+### Automatic technical details
+
+Only:
+
+- App version/build
+- Device model
+- OS version
+- Current screen name
+- Error codes
+- Crash identifiers
+- Network state
+- Submission timestamp
+
+Never automatically include mission/calendar/AI/evidence/Story/token/location content.
+
+### Submission preview
+
+Show description, optional email, screenshot preview, plain-language technical summary, and Submit. Do not expose raw logs.
+
+### Confirmation/follow-up
+
+After success:
+
+**Feedback sent. Thank you.**
+
+- No in-app history/status.
+- No reply without email.
+- Follow-up only through deliberately supplied email.
+
+### Offline draft
+
+If offline:
+
+- Keep local draft with description/type/email/screenshot/technical details.
+- Show Couldn’t send. Try again when you’re online.
+- Do not auto-submit.
+- User taps Submit again.
+- Persist after app closure.
+- Delete after successful submit, manual discard, sign-out, or uninstall.
+
+Discard asks Discard this feedback draft? with Cancel/Discard.
+
+### Submitted feedback retention
+
+- No automatic deletion period.
+- Retain reports, optional email, screenshots, and technical information indefinitely unless administrators remove them.
+- Restrict access to authorized personnel.
+- Do not use for marketing or AI training.
+- Account deletion does not delete submitted feedback.
+- Remove internal account linkage after account deletion.
+- Keep optional email because user deliberately supplied it.
+
+This differs from the 30-day product-media policy and must be clearly disclosed.
+
+---
+
+## 27. Non-Functional Requirements
+
+### Reliability
+
+- Cached Calendar/completion remain available where specified.
+- Destructive operations are idempotent.
+- Deleted identifiers are never reused.
+- Sync tolerates retries/provider outages.
+- Reward issuance is exactly once per occurrence.
+
+### Security
+
+- OS secure storage for credentials and local keys.
+- Encrypt sensitive synchronized data in transit and at rest.
+- Protect evidence/Story working media from unrelated app access.
+- Restrict feedback access by role.
+- Never put tokens/private mission content in diagnostics.
+
+### Performance
+
+- Day navigation and cached search should feel immediate.
+- Long histories use incremental loading/indexing without changing behaviour.
+- Completion confirmation must not wait for non-critical sync.
+- AI operations expose clear loading/retry states.
+
+### Consistency
+
+- Server-authoritative completion/deletion.
+- Stable all-day ordering.
+- Deterministic recurrence expansion.
+- Shared time-zone and clock-validation rules.
+- No automatic field merge.
+
+### Privacy review risk
+
+Before release, conduct focused privacy/legal review of:
+
+- Indefinite feedback/screenshot retention
+- Retention after account deletion
+- Optional email follow-up
+- Calendar-provider access
+- AI processing of evidence/Story content
+- 30-day deletion guarantees
+
+This review does not alter approved product behaviour.
+
+---
+
+## 28. Key Acceptance Flows
+
+### New user without external calendar
+
+1. Sign in.
+2. Language resolves automatically.
+3. Notification explanation and optional permission.
+4. Skip calendar connection.
+5. Open empty Calendar.
+6. Create mission.
+7. Receive start notification if enabled.
+8. Complete through evidence, Private, or Trust Mode.
+9. Receive XP confirmation.
+10. Optionally create/share Story.
+
+### AI Planner import
+
+1. Enter text and/or up to three images.
+2. Extract without clarification questions.
+3. Review outlined draft over active Calendar.
+4. Edit/move/resize/add/delete draft missions.
+5. Confirm schedule.
+6. Calculate difficulty/XP.
+7. Activate notifications and external sync.
+8. Open relevant date.
+
+### Evidence completion
+
+1. Completion becomes available at start.
+2. Open evidence flow.
+3. Request camera permission contextually if needed.
+4. Capture/retake/submit.
+5. Record first submission time.
+6. Verify.
+7. Apply colour, XP, bonus, and streak.
+8. Show concise confirmation.
+9. Offer Create Story.
+
+### Imported invitation dismissal
+
+1. User deletes organizer-owned imported mission.
+2. Remove app copy/sync link only.
+3. Leave invitation unchanged.
+4. Create hidden dismissal.
+5. Prevent re-import.
+6. Allow individual restore using current provider details.
+
+### External cancellation
+
+1. Provider reports cancellation/deletion.
+2. Future unfinished disappears.
+3. Past unfinished becomes read-only.
+4. Completed remains frozen.
+5. Preserve rewards.
+6. Show cancellation only in Mission Details.
+
+### Offline evidence conflict
+
+1. Device A submits offline.
+2. Store photo and validated local timestamp.
+3. Device B completes online first.
+4. Server accepts B.
+5. A reconnects.
+6. Reject duplicate.
+7. Delete A temporary evidence.
+8. Show already-completed message.
+9. Sync accepted result.
+
+### Account deletion
+
+1. Open Privacy → Account deletion.
+2. Reauthenticate.
+3. Confirm permanent deletion.
+4. Delete account data/media.
+5. Disconnect calendar without deleting external events.
+6. Invalidate all sessions.
+7. Retain submitted feedback, remove account linkage, preserve deliberately supplied email.
+
+---
+
+## 29. Completion Criteria
+
+The first-release design is implemented only when:
+
+- Included features follow this specification.
+- Excluded features are not introduced indirectly.
+- App-owned deletion and organizer-owned invitation dismissal behave differently and correctly.
+- Reward, streak, evidence, and Story state is occurrence-specific.
+- Exact 30-day completion rules are enforced.
+- Offline/multi-device conflicts are deterministic.
+- Media deletion covers originals, derivatives, thumbnails, temp files, and caches.
+- Accessibility semantics exist even where Calendar uses colour only.
+- English and `zh-HK` are complete.
+- Privacy Policy accurately describes diagnostics, AI processing, media retention, and indefinite feedback retention.
+- No unresolved launch-scope decisions remain.
+
+---
+
+## 30. Next Gate
+
+This is the approved-design consolidation, not an implementation plan.
+
+After user review and approval:
+
+1. Choose implementation stack and deployment architecture.
+2. Decompose the system into independently deliverable phases.
+3. Produce a detailed implementation plan with tests, provider validation, migration strategy, and release gates.
+4. Begin implementation only after that plan is approved.
