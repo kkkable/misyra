@@ -8,7 +8,7 @@
   },
   "scripts": {
     "build": "tsc --project ./tsconfig.json --noEmit",
-    "format": "prettier --write . --config ../config/prettier.config.mjs && git diff -- src/schema.test.ts && exit 1",
+    "format": "prettier --check . --config ../config/prettier.config.mjs",
     "lint": "eslint . --config ../config/eslint.config.mjs",
     "typecheck": "tsc --project ./tsconfig.json --noEmit",
     "test": "vitest run --config ../config/vitest.config.mjs --passWithNoTests"
