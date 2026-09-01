@@ -143,9 +143,9 @@ describe('MTS-022 permanent occurrence tombstones', () => {
       `INSERT INTO mission_occurrence_tombstones (occurrence_id, account_id, deleted_at) VALUES ('${occurrenceId}', '${accountId}', now())`,
     );
 
-    expect(psqlFailure(databaseName, timedOccurrenceSql(accountId, seriesId, occurrenceId))).toMatch(
-      /tombstone|deleted|resurrect/i,
-    );
+    expect(
+      psqlFailure(databaseName, timedOccurrenceSql(accountId, seriesId, occurrenceId)),
+    ).toMatch(/tombstone|deleted|resurrect/i);
     expect(
       psql(databaseName, `SELECT count(*) FROM mission_occurrences WHERE id = '${occurrenceId}'`),
     ).toBe('0');
