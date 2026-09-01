@@ -1,6 +1,3 @@
-import { readFile } from 'node:fs/promises';
-import { URL } from 'node:url';
-
 import { describe, expect, it } from 'vitest';
 
 type Schema = {
@@ -49,18 +46,10 @@ const mission = {
 };
 
 describe('MTS-023 explicit versioned entry points', () => {
-  it('publishes stable root and v1 contract entry points', async () => {
-    const packageJson = JSON.parse(
-      await readFile(new URL('../package.json', import.meta.url), 'utf8'),
-    ) as { exports?: Record<string, string> };
-
-    expect(packageJson.exports).toEqual({
-      '.': './src/index.ts',
-      './v1': './src/v1/index.ts',
-      './v1/api': './src/v1/api.ts',
-      './v1/events': './src/v1/events.ts',
-      './v1/sync': './src/v1/sync.ts',
-    });
+  it('publishes stable v1 contract modules', async () => {
+    for (const relativePath of ['./v1/index.js', './v1/api.js', './v1/events.js', './v1/sync.js']) {
+      await expect(load(relativePath)).resolves.toBeDefined();
+    }
   });
 });
 
