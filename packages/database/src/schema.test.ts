@@ -1,7 +1,10 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 
+import { getTableConfig } from 'drizzle-orm/pg-core';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+
+import { coreTables } from './schema.js';
 
 type DatabaseModule = Record<string, unknown>;
 type AsyncDatabaseFunction = (...args: unknown[]) => Promise<unknown>;
@@ -109,6 +112,26 @@ function requireStringArray(module: DatabaseModule, name: string): readonly stri
   return value;
 }
 
+function drizzleUniqueIndexSignatures(): string[] {
+  return coreTables
+    .flatMap((table) => {
+      const config = getTableConfig(table);
+      return config.indexes
+        .filter((candidate) => candidate.config.unique)
+        .map((candidate) => {
+          const columns = candidate.config.columns.map((column) => {
+            const name = (column as { name?: unknown }).name;
+            if (typeof name !== 'string') {
+              throw new TypeError(`Unique index on ${config.name} must use named columns.`);
+            }
+            return name;
+          });
+          return `${config.name}:${columns.join(',')}`;
+        });
+    })
+    .sort();
+}
+
 async function loadDatabaseContract() {
   const module = (await import('./index.js')) as DatabaseModule;
   return {
@@ -143,6 +166,79 @@ describe('MTS-022 PostgreSQL schema contract', () => {
       .filter(Boolean);
 
     expect(actualTables).toEqual([...coreTableNames].sort());
+  });
+
+  it('persists the canonical mission time model and separate state dimensions', async () => {
+    const { applyMigrations } = await loadDatabaseContract();
+    await applyMigrations(databaseUrl);
+
+    const columns = dockerPsql(
+      databaseName,
+      `SELECT column_name || ':' || is_nullable
+       FROM information_schema.columns
+       WHERE table_schema = 'public'
+         AND table_name = 'mission_occurrences'
+       ORDER BY column_name`,
+    );
+
+    for (const requiredColumn of [
+      'series_id:NO',
+      'local_date:NO',
+      'local_start:NO',
+      'local_finish:NO',
+      'start_instant:NO',
+      'finish_instant:NO',
+      'time_zone:NO',
+      'time_behavior:NO',
+      'all_day:NO',
+      'estimated_effort_minutes:YES',
+      'schedule_state:NO',
+      'completion_state:NO',
+      'evidence_state:NO',
+      'reward_eligibility:NO',
+      'reward_issuance:NO',
+      'calendar_source:NO',
+      'field_ownership:NO',
+      'synchronization_state:NO',
+      'story_state:NO',
+      'deletion_state:NO',
+    ]) {
+      expect(columns).toContain(requiredColumn);
+    }
+  });
+
+  it('keeps Drizzle unique-index declarations aligned with migrated PostgreSQL', async () => {
+    const { applyMigrations } = await loadDatabaseContract();
+    await applyMigrations(databaseUrl);
+
+    const migratedUniqueIndexes = dockerPsql(
+      databaseName,
+      `SELECT table_name || ':' || string_agg(column_name, ',' ORDER BY ordinal_position)
+       FROM (
+         SELECT table_rel.relname AS table_name,
+                attribute.attname AS column_name,
+                key_column.ordinality AS ordinal_position,
+                index_data.indexrelid
+         FROM pg_index index_data
+         JOIN pg_class table_rel ON table_rel.oid = index_data.indrelid
+         JOIN pg_namespace namespace_data ON namespace_data.oid = table_rel.relnamespace
+         JOIN LATERAL unnest(index_data.indkey) WITH ORDINALITY AS key_column(attnum, ordinality)
+           ON key_column.attnum > 0
+         JOIN pg_attribute attribute
+           ON attribute.attrelid = table_rel.oid
+          AND attribute.attnum = key_column.attnum
+         WHERE namespace_data.nspname = 'public'
+           AND index_data.indisunique
+           AND NOT index_data.indisprimary
+       ) unique_columns
+       GROUP BY table_name, indexrelid
+       ORDER BY table_name, indexrelid`,
+    )
+      .split('\n')
+      .filter(Boolean)
+      .sort();
+
+    expect(migratedUniqueIndexes).toEqual(drizzleUniqueIndexSignatures());
   });
 
   it('enforces account provider, completion, reward, and active Story uniqueness', async () => {
@@ -205,6 +301,49 @@ describe('MTS-022 PostgreSQL schema contract', () => {
         `INSERT INTO story_drafts (id, account_id, occurrence_id, state) VALUES ('${randomUUID()}', '${accountId}', '${occurrenceId}', 'active')`,
       ),
     ).toMatch(/unique|duplicate/i);
+  });
+
+  it('keeps minimal reward-ledger data when a completed occurrence is deleted', async () => {
+    const { applyMigrations } = await loadDatabaseContract();
+    await applyMigrations(databaseUrl);
+
+    const accountId = randomUUID();
+    const seriesId = randomUUID();
+    const occurrenceId = randomUUID();
+    const rewardId = randomUUID();
+
+    dockerPsql(
+      databaseName,
+      `INSERT INTO accounts (id, provider, provider_subject) VALUES ('${accountId}', 'google', 'subject-retained-reward')`,
+    );
+    dockerPsql(
+      databaseName,
+      `INSERT INTO mission_series (id, account_id, title) VALUES ('${seriesId}', '${accountId}', 'Completed Mission')`,
+    );
+    dockerPsql(
+      databaseName,
+      `INSERT INTO mission_occurrences (id, account_id, series_id, local_date, time_zone, all_day) VALUES ('${occurrenceId}', '${accountId}', '${seriesId}', '2026-09-01', 'Asia/Hong_Kong', false)`,
+    );
+    dockerPsql(
+      databaseName,
+      `INSERT INTO mission_completions (id, account_id, occurrence_id, completion_type, action_time) VALUES ('${randomUUID()}', '${accountId}', '${occurrenceId}', 'trust_mode', now())`,
+    );
+    dockerPsql(
+      databaseName,
+      `INSERT INTO reward_ledger (id, account_id, occurrence_id, base_xp, proof_bonus_xp, awarded_xp) VALUES ('${rewardId}', '${accountId}', '${occurrenceId}', 30, 0, 30)`,
+    );
+    dockerPsql(
+      databaseName,
+      `INSERT INTO mission_occurrence_tombstones (occurrence_id, account_id, deleted_at) VALUES ('${occurrenceId}', '${accountId}', now())`,
+    );
+    dockerPsql(databaseName, `DELETE FROM mission_occurrences WHERE id = '${occurrenceId}'`);
+
+    expect(
+      dockerPsql(
+        databaseName,
+        `SELECT count(*) FROM reward_ledger WHERE id = '${rewardId}' AND occurrence_id = '${occurrenceId}'`,
+      ),
+    ).toBe('1');
   });
 
   it('installs foreign keys for the principal account and mission relationships', async () => {
