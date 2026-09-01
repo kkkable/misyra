@@ -129,7 +129,7 @@ describe('MTS-023 mobile privacy boundary', () => {
     const connection = {
       id: '44444444-4444-4444-8444-444444444444',
       provider: 'google',
-      syncDirection: 'two_way',
+      initialSyncDirection: 'external_to_misyra',
       connected: true,
     };
 
