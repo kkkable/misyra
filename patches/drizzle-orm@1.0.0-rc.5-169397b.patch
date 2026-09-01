@@ -1,0 +1,52 @@
+diff --git a/cockroach-core/policies.d.ts b/cockroach-core/policies.d.ts
+index 3d000078a7c7eb9e1fbf6663079d34cc4f065692..d2f3f2aecff57b7042db1223f42c3e31f5810749 100644
+--- a/cockroach-core/policies.d.ts
++++ b/cockroach-core/policies.d.ts
+@@ -12,7 +12,7 @@ interface CockroachPolicyConfig {
+   using?: SQL;
+   withCheck?: SQL;
+ }
+-declare class CockroachPolicy implements CockroachPolicyConfig {
++declare class CockroachPolicy {
+   readonly name: string;
+   static readonly [entityKind]: string;
+   readonly as: CockroachPolicyConfig['as'];
+diff --git a/cockroach-core/roles.d.ts b/cockroach-core/roles.d.ts
+index 6621824c2665a67e12de04ef8c8570455ac3b6c8..b1171c1469354c4dd9a86230caf850f8966a591c 100644
+--- a/cockroach-core/roles.d.ts
++++ b/cockroach-core/roles.d.ts
+@@ -5,7 +5,7 @@ interface CockroachRoleConfig {
+   createDb?: boolean;
+   createRole?: boolean;
+ }
+-declare class CockroachRole implements CockroachRoleConfig {
++declare class CockroachRole {
+   readonly name: string;
+   static readonly [entityKind]: string;
+   readonly createDb: CockroachRoleConfig['createDb'];
+diff --git a/pg-core/policies.d.ts b/pg-core/policies.d.ts
+index 8dddf4ca5865abfcd754bfcc793d16272aeecf13..8cf30d5621a9db57309f8f5fb373685bb4302b3e 100644
+--- a/pg-core/policies.d.ts
++++ b/pg-core/policies.d.ts
+@@ -12,7 +12,7 @@ interface PgPolicyConfig {
+   using?: SQL;
+   withCheck?: SQL;
+ }
+-declare class PgPolicy implements PgPolicyConfig {
++declare class PgPolicy {
+   readonly name: string;
+   static readonly [entityKind]: string;
+   readonly as: PgPolicyConfig['as'];
+diff --git a/pg-core/roles.d.ts b/pg-core/roles.d.ts
+index 265648e047b90b9cf78a00bcfe3fe40ad6582984..2babee4922c74d5c266805b1e0d4f2091e6328e2 100644
+--- a/pg-core/roles.d.ts
++++ b/pg-core/roles.d.ts
+@@ -6,7 +6,7 @@ interface PgRoleConfig {
+   createRole?: boolean;
+   inherit?: boolean;
+ }
+-declare class PgRole implements PgRoleConfig {
++declare class PgRole {
+   readonly name: string;
+   static readonly [entityKind]: string;
+   readonly createDb: PgRoleConfig['createDb'];
