@@ -1,7 +1,11 @@
 {
   "extends": "../config/tsconfig/base.json",
   "compilerOptions": {
-    "rootDir": "./src"
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "rootDir": "./src",
+    "target": "ES2022",
+    "types": ["node"]
   },
   "include": ["src/**/*.ts"]
 }
