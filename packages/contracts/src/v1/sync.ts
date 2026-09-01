@@ -67,7 +67,7 @@ export const mobileCalendarConnectionSchema = z
   .object({
     id: uuidSchema,
     provider: z.enum(['apple', 'google']),
-    syncDirection: z.enum(['one_way', 'two_way']),
+    initialSyncDirection: z.enum(['external_to_misyra', 'misyra_to_external']),
     connected: z.boolean(),
   })
   .strict();
