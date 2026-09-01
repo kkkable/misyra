@@ -61,7 +61,10 @@ export const accountSessions = pgTable(
     revokedAt: timestamp('revoked_at', { withTimezone: true }),
     createdAt: createdAt(),
   },
-  (table) => [index('account_sessions_account_idx').on(table.accountId)],
+  (table) => [
+    index('account_sessions_account_idx').on(table.accountId),
+    uniqueIndex('account_sessions_refresh_hash_uidx').on(table.refreshTokenHash),
+  ],
 );
 
 export const userSettings = pgTable('user_settings', {
@@ -96,14 +99,28 @@ export const missionOccurrences = pgTable(
     accountId: uuid('account_id')
       .notNull()
       .references(() => accounts.id, { onDelete: 'cascade' }),
-    seriesId: uuid('series_id').references(() => missionSeries.id, { onDelete: 'set null' }),
+    seriesId: uuid('series_id')
+      .notNull()
+      .references(() => missionSeries.id, { onDelete: 'restrict' }),
     localDate: date('local_date').notNull(),
-    localStart: text('local_start'),
-    localFinish: text('local_finish'),
-    startInstant: timestamp('start_instant', { withTimezone: true }),
-    finishInstant: timestamp('finish_instant', { withTimezone: true }),
+    localStart: text('local_start').notNull(),
+    localFinish: text('local_finish').notNull(),
+    startInstant: timestamp('start_instant', { withTimezone: true }).notNull(),
+    finishInstant: timestamp('finish_instant', { withTimezone: true }).notNull(),
     timeZone: text('time_zone').notNull(),
+    timeBehavior: text('time_behavior').notNull(),
     allDay: boolean('all_day').notNull().default(false),
+    estimatedEffortMinutes: integer('estimated_effort_minutes'),
+    scheduleState: text('schedule_state').notNull().default('scheduled'),
+    completionState: text('completion_state').notNull().default('incomplete'),
+    evidenceState: text('evidence_state').notNull().default('not_submitted'),
+    rewardEligibility: text('reward_eligibility').notNull().default('undetermined'),
+    rewardIssuance: text('reward_issuance').notNull().default('not_issued'),
+    calendarSource: text('calendar_source').notNull().default('internal'),
+    fieldOwnership: text('field_ownership').notNull().default('app_owned'),
+    synchronizationState: text('synchronization_state').notNull().default('local_only'),
+    storyState: text('story_state').notNull().default('none'),
+    deletionState: text('deletion_state').notNull().default('active'),
     location: text('location'),
     notes: text('notes'),
     version: integer('version').notNull().default(1),
@@ -113,6 +130,59 @@ export const missionOccurrences = pgTable(
   (table) => [
     index('mission_occurrences_account_date_idx').on(table.accountId, table.localDate),
     index('mission_occurrences_series_idx').on(table.seriesId),
+    check(
+      'mission_occurrences_time_behavior_check',
+      sql`${table.timeBehavior} in ('local_time', 'fixed_instant')`,
+    ),
+    check(
+      'mission_occurrences_schedule_state_check',
+      sql`${table.scheduleState} in ('scheduled', 'cancelled')`,
+    ),
+    check(
+      'mission_occurrences_completion_state_check',
+      sql`${table.completionState} in ('incomplete', 'completed')`,
+    ),
+    check(
+      'mission_occurrences_evidence_state_check',
+      sql`${table.evidenceState} in ('not_submitted', 'pending', 'accepted', 'rejected', 'not_required')`,
+    ),
+    check(
+      'mission_occurrences_reward_eligibility_check',
+      sql`${table.rewardEligibility} in ('undetermined', 'eligible', 'ineligible')`,
+    ),
+    check(
+      'mission_occurrences_reward_issuance_check',
+      sql`${table.rewardIssuance} in ('not_issued', 'issued')`,
+    ),
+    check(
+      'mission_occurrences_calendar_source_check',
+      sql`${table.calendarSource} in ('internal', 'external')`,
+    ),
+    check(
+      'mission_occurrences_field_ownership_check',
+      sql`${table.fieldOwnership} in ('app_owned', 'organizer_controlled')`,
+    ),
+    check(
+      'mission_occurrences_synchronization_state_check',
+      sql`${table.synchronizationState} in ('local_only', 'pending', 'synced', 'failed')`,
+    ),
+    check(
+      'mission_occurrences_story_state_check',
+      sql`${table.storyState} in ('none', 'draft', 'ready')`,
+    ),
+    check(
+      'mission_occurrences_deletion_state_check',
+      sql`${table.deletionState} in ('active', 'deleted')`,
+    ),
+    check(
+      'mission_occurrences_finish_after_start_check',
+      sql`${table.finishInstant} > ${table.startInstant}`,
+    ),
+    check('mission_occurrences_version_check', sql`${table.version} > 0`),
+    check(
+      'mission_occurrences_effort_check',
+      sql`(${table.allDay} = false and ${table.estimatedEffortMinutes} is null) or (${table.allDay} = true and ${table.estimatedEffortMinutes} > 0)`,
+    ),
   ],
 );
 
@@ -196,9 +266,7 @@ export const rewardLedger = pgTable(
     accountId: uuid('account_id')
       .notNull()
       .references(() => accounts.id, { onDelete: 'cascade' }),
-    occurrenceId: uuid('occurrence_id')
-      .notNull()
-      .references(() => missionOccurrences.id, { onDelete: 'cascade' }),
+    occurrenceId: uuid('occurrence_id').notNull(),
     baseXp: integer('base_xp').notNull(),
     proofBonusXp: integer('proof_bonus_xp').notNull(),
     awardedXp: integer('awarded_xp').notNull(),
