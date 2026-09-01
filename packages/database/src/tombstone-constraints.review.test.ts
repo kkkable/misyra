@@ -61,12 +61,12 @@ function psqlFailure(database: string, sql: string): string {
 }
 
 beforeAll(async () => {
-  psql('postgres', `CREATE DATABASE \"${databaseName}\"`);
+  psql('postgres', `CREATE DATABASE "${databaseName}"`);
   await applyMigrations(databaseUrl);
 });
 
 afterAll(() => {
-  psql('postgres', `DROP DATABASE IF EXISTS \"${databaseName}\" WITH (FORCE)`);
+  psql('postgres', `DROP DATABASE IF EXISTS "${databaseName}" WITH (FORCE)`);
 });
 
 // Review regression coverage for permanent tombstone identity and resurrection semantics.
