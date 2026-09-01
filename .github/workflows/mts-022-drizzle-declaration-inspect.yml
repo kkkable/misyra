@@ -1,0 +1,52 @@
+name: MTS-022 Drizzle declaration inspect
+
+on:
+  push:
+    branches:
+      - feat/mts-022-postgres-schema
+    paths:
+      - .github/workflows/mts-022-drizzle-declaration-inspect.yml
+
+permissions:
+  contents: write
+
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/mts-022-postgres-schema
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.5
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+      - name: Install baseline and rc5 in runner only
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm --filter @misyra/database add --save-exact --lockfile=false drizzle-orm@1.0.0-rc.5-169397b
+      - name: Print exact four declaration files
+        shell: bash
+        run: |
+          for file in \
+            $(find node_modules/.pnpm -type f -path '*/drizzle-orm@1.0.0-rc.5-169397b_*/node_modules/drizzle-orm/pg-core/policies.d.ts') \
+            $(find node_modules/.pnpm -type f -path '*/drizzle-orm@1.0.0-rc.5-169397b_*/node_modules/drizzle-orm/pg-core/roles.d.ts') \
+            $(find node_modules/.pnpm -type f -path '*/drizzle-orm@1.0.0-rc.5-169397b_*/node_modules/drizzle-orm/cockroach-core/policies.d.ts') \
+            $(find node_modules/.pnpm -type f -path '*/drizzle-orm@1.0.0-rc.5-169397b_*/node_modules/drizzle-orm/cockroach-core/roles.d.ts'); do
+            echo "===== $file ====="
+            cat "$file"
+          done
+      - name: Self-delete probe
+        if: always()
+        run: |
+          git checkout -- packages/database/package.json
+          rm .github/workflows/mts-022-drizzle-declaration-inspect.yml
+          git config user.name 'Misyra Automation'
+          git config user.email 'actions@users.noreply.github.com'
+          git add .github/workflows/mts-022-drizzle-declaration-inspect.yml
+          git commit -m 'chore(database): remove Drizzle declaration inspect'
+          git push origin HEAD:feat/mts-022-postgres-schema
