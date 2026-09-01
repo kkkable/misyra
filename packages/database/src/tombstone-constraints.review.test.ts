@@ -146,10 +146,7 @@ describe('MTS-022 permanent occurrence tombstones', () => {
       ),
     ).toMatch(/tombstone|deleted|resurrect/i);
     expect(
-      psql(
-        databaseName,
-        `SELECT count(*) FROM mission_occurrences WHERE id = '${occurrenceId}'`,
-      ),
+      psql(databaseName, `SELECT count(*) FROM mission_occurrences WHERE id = '${occurrenceId}'`),
     ).toBe('0');
   });
 });
