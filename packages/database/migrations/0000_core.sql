@@ -46,11 +46,12 @@ CREATE TABLE mission_series (
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX mission_series_account_idx ON mission_series(account_id);
+CREATE UNIQUE INDEX mission_series_id_account_uidx ON mission_series(id, account_id);
 
 CREATE TABLE mission_occurrences (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
-  series_id uuid NOT NULL REFERENCES mission_series(id) ON DELETE RESTRICT,
+  series_id uuid NOT NULL,
   local_date date NOT NULL,
   local_start text NOT NULL,
   local_finish text NOT NULL,
@@ -87,11 +88,13 @@ CREATE TABLE mission_occurrences (
   CONSTRAINT mission_occurrences_finish_after_start_check CHECK (finish_instant > start_instant),
   CONSTRAINT mission_occurrences_version_check CHECK (version > 0),
   CONSTRAINT mission_occurrences_effort_check CHECK ((all_day = false AND estimated_effort_minutes IS NULL) OR (all_day = true AND estimated_effort_minutes > 0)),
+  CONSTRAINT mission_occurrences_series_account_fk FOREIGN KEY (series_id, account_id) REFERENCES mission_series(id, account_id) ON DELETE RESTRICT,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX mission_occurrences_account_date_idx ON mission_occurrences(account_id, local_date);
 CREATE INDEX mission_occurrences_series_idx ON mission_occurrences(series_id);
+CREATE UNIQUE INDEX mission_occurrences_id_account_uidx ON mission_occurrences(id, account_id);
 
 CREATE TABLE mission_occurrence_tombstones (
   occurrence_id uuid PRIMARY KEY,
@@ -102,20 +105,22 @@ CREATE TABLE mission_occurrence_tombstones (
 CREATE INDEX mission_occurrence_tombstones_account_idx ON mission_occurrence_tombstones(account_id);
 
 CREATE TABLE mission_personal_notes (
-  occurrence_id uuid PRIMARY KEY REFERENCES mission_occurrences(id) ON DELETE CASCADE,
+  occurrence_id uuid PRIMARY KEY,
   account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
   note text NOT NULL,
-  updated_at timestamptz NOT NULL DEFAULT now()
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT mission_personal_notes_occurrence_account_fk FOREIGN KEY (occurrence_id, account_id) REFERENCES mission_occurrences(id, account_id) ON DELETE CASCADE
 );
 CREATE INDEX mission_personal_notes_account_idx ON mission_personal_notes(account_id);
 
 CREATE TABLE mission_completions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
-  occurrence_id uuid NOT NULL REFERENCES mission_occurrences(id) ON DELETE CASCADE,
+  occurrence_id uuid NOT NULL,
   completion_type text NOT NULL,
   action_time timestamptz NOT NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT mission_completions_occurrence_account_fk FOREIGN KEY (occurrence_id, account_id) REFERENCES mission_occurrences(id, account_id) ON DELETE CASCADE,
   CONSTRAINT mission_completions_occurrence_unique UNIQUE (occurrence_id)
 );
 CREATE INDEX mission_completions_account_idx ON mission_completions(account_id);
@@ -123,11 +128,12 @@ CREATE INDEX mission_completions_account_idx ON mission_completions(account_id);
 CREATE TABLE evidence_attempts (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
-  occurrence_id uuid NOT NULL REFERENCES mission_occurrences(id) ON DELETE CASCADE,
+  occurrence_id uuid NOT NULL,
   attempt_number smallint NOT NULL,
   status text NOT NULL,
   submitted_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT evidence_attempts_occurrence_account_fk FOREIGN KEY (occurrence_id, account_id) REFERENCES mission_occurrences(id, account_id) ON DELETE CASCADE,
   CONSTRAINT evidence_attempts_number_check CHECK (attempt_number BETWEEN 1 AND 3),
   CONSTRAINT evidence_attempts_occurrence_attempt_unique UNIQUE (occurrence_id, attempt_number)
 );
@@ -158,11 +164,12 @@ CREATE TABLE streak_days (
 CREATE TABLE story_drafts (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
-  occurrence_id uuid NOT NULL REFERENCES mission_occurrences(id) ON DELETE CASCADE,
+  occurrence_id uuid NOT NULL,
   state text NOT NULL DEFAULT 'active',
   ai_generation_count smallint NOT NULL DEFAULT 0,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT story_drafts_occurrence_account_fk FOREIGN KEY (occurrence_id, account_id) REFERENCES mission_occurrences(id, account_id) ON DELETE CASCADE,
   CONSTRAINT story_drafts_ai_generation_count_check CHECK (ai_generation_count BETWEEN 0 AND 3)
 );
 CREATE UNIQUE INDEX story_drafts_active_occurrence_uidx ON story_drafts(occurrence_id) WHERE state = 'active';
@@ -384,6 +391,31 @@ CREATE TRIGGER mission_occurrences_reject_tombstoned_id
 BEFORE INSERT OR UPDATE ON mission_occurrences
 FOR EACH ROW
 EXECUTE FUNCTION misyra_reject_tombstoned_occurrence();
+
+CREATE OR REPLACE FUNCTION misyra_protect_completion_identity()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF TG_OP = 'UPDATE' THEN
+    IF NEW.occurrence_id IS DISTINCT FROM OLD.occurrence_id
+       OR NEW.account_id IS DISTINCT FROM OLD.account_id THEN
+      RAISE EXCEPTION 'Completion identity is immutable';
+    END IF;
+    RETURN NEW;
+  END IF;
+
+  IF EXISTS (SELECT 1 FROM mission_occurrences WHERE id = OLD.occurrence_id) THEN
+    RAISE EXCEPTION 'Completion cannot be deleted while its occurrence exists';
+  END IF;
+  RETURN OLD;
+END;
+$$;
+
+CREATE TRIGGER mission_completions_identity_immutable
+BEFORE UPDATE OR DELETE ON mission_completions
+FOR EACH ROW
+EXECUTE FUNCTION misyra_protect_completion_identity();
 
 CREATE OR REPLACE FUNCTION misyra_protect_completed_occurrence()
 RETURNS trigger

@@ -5,6 +5,7 @@ import {
   boolean,
   check,
   date,
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -89,7 +90,10 @@ export const missionSeries = pgTable(
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (table) => [index('mission_series_account_idx').on(table.accountId)],
+  (table) => [
+    index('mission_series_account_idx').on(table.accountId),
+    uniqueIndex('mission_series_id_account_uidx').on(table.id, table.accountId),
+  ],
 );
 
 export const missionOccurrences = pgTable(
@@ -99,9 +103,7 @@ export const missionOccurrences = pgTable(
     accountId: uuid('account_id')
       .notNull()
       .references(() => accounts.id, { onDelete: 'cascade' }),
-    seriesId: uuid('series_id')
-      .notNull()
-      .references(() => missionSeries.id, { onDelete: 'restrict' }),
+    seriesId: uuid('series_id').notNull(),
     localDate: date('local_date').notNull(),
     localStart: text('local_start').notNull(),
     localFinish: text('local_finish').notNull(),
@@ -130,6 +132,12 @@ export const missionOccurrences = pgTable(
   (table) => [
     index('mission_occurrences_account_date_idx').on(table.accountId, table.localDate),
     index('mission_occurrences_series_idx').on(table.seriesId),
+    uniqueIndex('mission_occurrences_id_account_uidx').on(table.id, table.accountId),
+    foreignKey({
+      columns: [table.seriesId, table.accountId],
+      foreignColumns: [missionSeries.id, missionSeries.accountId],
+      name: 'mission_occurrences_series_account_fk',
+    }).onDelete('restrict'),
     check(
       'mission_occurrences_time_behavior_check',
       sql`${table.timeBehavior} in ('local_time', 'fixed_instant')`,
@@ -202,16 +210,21 @@ export const missionOccurrenceTombstones = pgTable(
 export const missionPersonalNotes = pgTable(
   'mission_personal_notes',
   {
-    occurrenceId: uuid('occurrence_id')
-      .primaryKey()
-      .references(() => missionOccurrences.id, { onDelete: 'cascade' }),
+    occurrenceId: uuid('occurrence_id').primaryKey(),
     accountId: uuid('account_id')
       .notNull()
       .references(() => accounts.id, { onDelete: 'cascade' }),
     note: text('note').notNull(),
     updatedAt: updatedAt(),
   },
-  (table) => [index('mission_personal_notes_account_idx').on(table.accountId)],
+  (table) => [
+    index('mission_personal_notes_account_idx').on(table.accountId),
+    foreignKey({
+      columns: [table.occurrenceId, table.accountId],
+      foreignColumns: [missionOccurrences.id, missionOccurrences.accountId],
+      name: 'mission_personal_notes_occurrence_account_fk',
+    }).onDelete('cascade'),
+  ],
 );
 
 export const missionCompletions = pgTable(
@@ -221,9 +234,7 @@ export const missionCompletions = pgTable(
     accountId: uuid('account_id')
       .notNull()
       .references(() => accounts.id, { onDelete: 'cascade' }),
-    occurrenceId: uuid('occurrence_id')
-      .notNull()
-      .references(() => missionOccurrences.id, { onDelete: 'cascade' }),
+    occurrenceId: uuid('occurrence_id').notNull(),
     completionType: text('completion_type').notNull(),
     actionTime: timestamp('action_time', { withTimezone: true }).notNull(),
     createdAt: createdAt(),
@@ -231,6 +242,11 @@ export const missionCompletions = pgTable(
   (table) => [
     uniqueIndex('mission_completions_occurrence_uidx').on(table.occurrenceId),
     index('mission_completions_account_idx').on(table.accountId),
+    foreignKey({
+      columns: [table.occurrenceId, table.accountId],
+      foreignColumns: [missionOccurrences.id, missionOccurrences.accountId],
+      name: 'mission_completions_occurrence_account_fk',
+    }).onDelete('cascade'),
   ],
 );
 
@@ -241,9 +257,7 @@ export const evidenceAttempts = pgTable(
     accountId: uuid('account_id')
       .notNull()
       .references(() => accounts.id, { onDelete: 'cascade' }),
-    occurrenceId: uuid('occurrence_id')
-      .notNull()
-      .references(() => missionOccurrences.id, { onDelete: 'cascade' }),
+    occurrenceId: uuid('occurrence_id').notNull(),
     attemptNumber: smallint('attempt_number').notNull(),
     status: text('status').notNull(),
     submittedAt: timestamp('submitted_at', { withTimezone: true }),
@@ -255,6 +269,11 @@ export const evidenceAttempts = pgTable(
       table.attemptNumber,
     ),
     index('evidence_attempts_account_idx').on(table.accountId),
+    foreignKey({
+      columns: [table.occurrenceId, table.accountId],
+      foreignColumns: [missionOccurrences.id, missionOccurrences.accountId],
+      name: 'evidence_attempts_occurrence_account_fk',
+    }).onDelete('cascade'),
     check('evidence_attempts_number_check', sql`${table.attemptNumber} between 1 and 3`),
   ],
 );
@@ -300,9 +319,7 @@ export const storyDrafts = pgTable(
     accountId: uuid('account_id')
       .notNull()
       .references(() => accounts.id, { onDelete: 'cascade' }),
-    occurrenceId: uuid('occurrence_id')
-      .notNull()
-      .references(() => missionOccurrences.id, { onDelete: 'cascade' }),
+    occurrenceId: uuid('occurrence_id').notNull(),
     state: text('state').notNull().default('active'),
     aiGenerationCount: smallint('ai_generation_count').notNull().default(0),
     createdAt: createdAt(),
@@ -313,6 +330,11 @@ export const storyDrafts = pgTable(
       .on(table.occurrenceId)
       .where(sql`${table.state} = 'active'`),
     index('story_drafts_account_idx').on(table.accountId),
+    foreignKey({
+      columns: [table.occurrenceId, table.accountId],
+      foreignColumns: [missionOccurrences.id, missionOccurrences.accountId],
+      name: 'story_drafts_occurrence_account_fk',
+    }).onDelete('cascade'),
     check(
       'story_drafts_ai_generation_count_check',
       sql`${table.aiGenerationCount} between 0 and 3`,

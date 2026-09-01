@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { Client } from 'pg';
 
 const migrationDirectory = fileURLToPath(new URL('../migrations/', import.meta.url));
+const migrationAdvisoryLockKey = 1296651097;
 
 async function listMigrationNames(): Promise<readonly string[]> {
   const names = await readdir(migrationDirectory);
@@ -15,6 +16,7 @@ export async function applyMigrations(databaseUrl: string): Promise<void> {
   await client.connect();
 
   try {
+    await client.query('SELECT pg_advisory_lock($1)', [migrationAdvisoryLockKey]);
     await client.query('CREATE SCHEMA IF NOT EXISTS misyra_meta');
     await client.query(`
       CREATE TABLE IF NOT EXISTS misyra_meta.schema_migrations (
