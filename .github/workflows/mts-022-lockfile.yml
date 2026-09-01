@@ -1,0 +1,61 @@
+name: MTS-022 lockfile finalizer
+
+on:
+  push:
+    branches:
+      - feat/mts-022-postgres-schema
+    paths:
+      - packages/database/package.json
+      - .github/workflows/mts-022-lockfile.yml
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout active MTS-022 branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/mts-022-postgres-schema
+          fetch-depth: 0
+
+      - name: Install pinned pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.5
+          run_install: false
+
+      - name: Set up pinned Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Regenerate lockfile and canonicalize MTS-022 sources
+        run: |
+          sed -i '/^[[:space:]]*primaryKey,$/d' packages/database/src/schema.ts
+          pnpm install --lockfile-only
+          pnpm install --frozen-lockfile
+          pnpm exec prettier --write \
+            packages/database/package.json \
+            packages/database/tsconfig.json \
+            packages/database/src/index.ts \
+            packages/database/src/migrations.ts \
+            packages/database/src/schema.ts \
+            packages/database/src/schema.test.ts \
+            --config packages/config/prettier.config.mjs
+          rm .github/workflows/mts-022-lockfile.yml
+
+      - name: Commit generated lockfile and self-delete workflow
+        run: |
+          git config user.name 'Misyra Automation'
+          git config user.email 'actions@users.noreply.github.com'
+          git add pnpm-lock.yaml packages/database .github/workflows/mts-022-lockfile.yml
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m 'chore(database): finalize MTS-022 lockfile and formatting'
+          git push origin HEAD:feat/mts-022-postgres-schema
