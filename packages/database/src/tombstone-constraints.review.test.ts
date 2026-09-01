@@ -89,6 +89,12 @@ describe('MTS-022 permanent occurrence tombstones', () => {
         `UPDATE mission_occurrence_tombstones SET occurrence_id = '${randomUUID()}' WHERE occurrence_id = '${occurrenceId}'`,
       ),
     ).toMatch(/tombstone|permanent|immutable/i);
+    expect(
+      psql(
+        databaseName,
+        `SELECT occurrence_id FROM mission_occurrence_tombstones WHERE occurrence_id = '${occurrenceId}'`,
+      ),
+    ).toBe(occurrenceId);
   });
 
   it('rejects resurrection of an occurrence id after a permanent tombstone exists', () => {
@@ -139,5 +145,11 @@ describe('MTS-022 permanent occurrence tombstones', () => {
          )`,
       ),
     ).toMatch(/tombstone|deleted|resurrect/i);
+    expect(
+      psql(
+        databaseName,
+        `SELECT count(*) FROM mission_occurrences WHERE id = '${occurrenceId}'`,
+      ),
+    ).toBe('0');
   });
 });
