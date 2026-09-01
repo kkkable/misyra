@@ -344,6 +344,14 @@ RETURNS trigger
 LANGUAGE plpgsql
 AS $$
 BEGIN
+  IF TG_OP = 'UPDATE' THEN
+    IF NEW.occurrence_id IS DISTINCT FROM OLD.occurrence_id
+       OR NEW.account_id IS DISTINCT FROM OLD.account_id THEN
+      RAISE EXCEPTION 'Occurrence tombstone identity is permanent and immutable';
+    END IF;
+    RETURN NEW;
+  END IF;
+
   IF EXISTS (SELECT 1 FROM accounts WHERE id = OLD.account_id) THEN
     RAISE EXCEPTION 'Occurrence tombstones are permanent while the account exists';
   END IF;
@@ -352,9 +360,30 @@ END;
 $$;
 
 CREATE TRIGGER mission_occurrence_tombstones_permanent
-BEFORE DELETE ON mission_occurrence_tombstones
+BEFORE UPDATE OR DELETE ON mission_occurrence_tombstones
 FOR EACH ROW
 EXECUTE FUNCTION misyra_protect_occurrence_tombstone();
+
+CREATE OR REPLACE FUNCTION misyra_reject_tombstoned_occurrence()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM mission_occurrence_tombstones
+    WHERE occurrence_id = NEW.id
+  ) THEN
+    RAISE EXCEPTION 'Tombstoned occurrence ids cannot be resurrected';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER mission_occurrences_reject_tombstoned_id
+BEFORE INSERT OR UPDATE ON mission_occurrences
+FOR EACH ROW
+EXECUTE FUNCTION misyra_reject_tombstoned_occurrence();
 
 CREATE OR REPLACE FUNCTION misyra_protect_completed_occurrence()
 RETURNS trigger
