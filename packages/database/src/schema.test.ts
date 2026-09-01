@@ -96,6 +96,42 @@ function dockerPsqlFailure(database: string, sql: string): string {
   return `${result.stdout}${result.stderr}`;
 }
 
+function insertTimedOccurrence(
+  database: string,
+  accountId: string,
+  seriesId: string,
+  occurrenceId: string,
+): void {
+  dockerPsql(
+    database,
+    `INSERT INTO mission_occurrences (
+       id,
+       account_id,
+       series_id,
+       local_date,
+       local_start,
+       local_finish,
+       start_instant,
+       finish_instant,
+       time_zone,
+       time_behavior,
+       all_day
+     ) VALUES (
+       '${occurrenceId}',
+       '${accountId}',
+       '${seriesId}',
+       '2026-09-01',
+       '09:00',
+       '10:00',
+       '2026-09-01T01:00:00Z',
+       '2026-09-01T02:00:00Z',
+       'Asia/Hong_Kong',
+       'local_time',
+       false
+     )`,
+  );
+}
+
 function requireAsyncFunction(module: DatabaseModule, name: string): AsyncDatabaseFunction {
   const value = module[name];
   if (typeof value !== 'function') {
@@ -264,10 +300,7 @@ describe('MTS-022 PostgreSQL schema contract', () => {
       databaseName,
       `INSERT INTO mission_series (id, account_id, title) VALUES ('${seriesId}', '${accountId}', 'Mission')`,
     );
-    dockerPsql(
-      databaseName,
-      `INSERT INTO mission_occurrences (id, account_id, series_id, local_date, time_zone, all_day) VALUES ('${occurrenceId}', '${accountId}', '${seriesId}', '2026-09-01', 'Asia/Hong_Kong', false)`,
-    );
+    insertTimedOccurrence(databaseName, accountId, seriesId, occurrenceId);
 
     dockerPsql(
       databaseName,
@@ -320,10 +353,7 @@ describe('MTS-022 PostgreSQL schema contract', () => {
       databaseName,
       `INSERT INTO mission_series (id, account_id, title) VALUES ('${seriesId}', '${accountId}', 'Completed Mission')`,
     );
-    dockerPsql(
-      databaseName,
-      `INSERT INTO mission_occurrences (id, account_id, series_id, local_date, time_zone, all_day) VALUES ('${occurrenceId}', '${accountId}', '${seriesId}', '2026-09-01', 'Asia/Hong_Kong', false)`,
-    );
+    insertTimedOccurrence(databaseName, accountId, seriesId, occurrenceId);
     dockerPsql(
       databaseName,
       `INSERT INTO mission_completions (id, account_id, occurrence_id, completion_type, action_time) VALUES ('${randomUUID()}', '${accountId}', '${occurrenceId}', 'trust_mode', now())`,
@@ -366,7 +396,6 @@ describe('MTS-022 PostgreSQL schema contract', () => {
       'mission_series:accounts',
       'mission_occurrences:mission_series',
       'mission_completions:mission_occurrences',
-      'reward_ledger:mission_occurrences',
       'story_drafts:mission_occurrences',
       'ai_planner_items:ai_planner_drafts',
       'external_event_links:external_calendar_connections',
