@@ -14,7 +14,7 @@
     "test": "vitest run --config ../config/vitest.config.mjs --passWithNoTests"
   },
   "dependencies": {
-    "drizzle-orm": "1.0.0-rc.4",
+    "drizzle-orm": "1.0.0-rc.5-169397b",
     "pg": "8.23.0"
   },
   "devDependencies": {
