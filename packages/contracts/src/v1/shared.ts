@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
-export const contractVersionSchema = z.literal(1);
+export const contractVersion = 1 as const;
+export const contractVersionSchema = z.literal(contractVersion);
 export const uuidSchema = z.string().uuid();
 export const instantSchema = z.string().datetime({ offset: true });
 
