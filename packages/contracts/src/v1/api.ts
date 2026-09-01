@@ -44,10 +44,16 @@ export const apiResponseEnvelopeSchema = z
   .strict()
   .superRefine((value, context) => {
     if (value.ok && value.error !== undefined) {
-      context.addIssue({ code: z.ZodIssueCode.custom, message: 'Successful responses cannot contain errors' });
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Successful responses cannot contain errors',
+      });
     }
     if (!value.ok && value.error === undefined) {
-      context.addIssue({ code: z.ZodIssueCode.custom, message: 'Failed responses require an error' });
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Failed responses require an error',
+      });
     }
   });
 
