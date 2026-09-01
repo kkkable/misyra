@@ -1,0 +1,40 @@
+name: MTS-022 lockfile finalizer
+
+on:
+  push:
+    branches:
+      - feat/mts-022-postgres-schema
+    paths:
+      - .github/workflows/mts-022-lockfile.yml
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/mts-022-postgres-schema
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.5
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - name: Regenerate lockfile
+        run: |
+          pnpm install --lockfile-only
+          rm .github/workflows/mts-022-lockfile.yml
+      - name: Commit generated lockfile and self-delete workflow
+        run: |
+          git config user.name 'Misyra Automation'
+          git config user.email 'actions@users.noreply.github.com'
+          git add pnpm-lock.yaml .github/workflows/mts-022-lockfile.yml
+          git commit -m 'chore(database): regenerate Drizzle RC lockfile'
+          git push origin HEAD:feat/mts-022-postgres-schema
