@@ -144,6 +144,27 @@ describe('MTS-023 mobile privacy boundary', () => {
   });
 });
 
+describe('MTS-023 calendar initial-direction contract', () => {
+  it('stores only the initial migration direction and rejects persistent one-way/two-way modes', async () => {
+    const sync = await load('./v1/sync.js');
+    const contract = schema(sync, 'mobileCalendarConnectionSchema');
+    const base = {
+      id: '55555555-5555-4555-8555-555555555555',
+      provider: 'google',
+      connected: true,
+    };
+
+    expect(
+      contract.safeParse({ ...base, initialSyncDirection: 'external_to_misyra' }).success,
+    ).toBe(true);
+    expect(
+      contract.safeParse({ ...base, initialSyncDirection: 'misyra_to_external' }).success,
+    ).toBe(true);
+    expect(contract.safeParse({ ...base, syncDirection: 'one_way' }).success).toBe(false);
+    expect(contract.safeParse({ ...base, syncDirection: 'two_way' }).success).toBe(false);
+  });
+});
+
 describe('MTS-023 backward-compatible v1 shape snapshots', () => {
   it('snapshots the normalized mission shape rather than provider-private storage fields', async () => {
     const sync = await load('./v1/sync.js');
