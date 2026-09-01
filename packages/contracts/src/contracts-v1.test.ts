@@ -137,7 +137,7 @@ describe('MTS-023 mobile privacy boundary', () => {
     expect(
       schema(sync, 'mobileCalendarConnectionSchema').safeParse({
         ...connection,
-        accessToken: 'secret',
+        accessToken: 'fixture',
         providerCursor: 'private-cursor',
       }).success,
     ).toBe(false);
