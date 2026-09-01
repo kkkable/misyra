@@ -69,7 +69,6 @@ afterAll(() => {
   psql('postgres', `DROP DATABASE IF EXISTS "${databaseName}" WITH (FORCE)`);
 });
 
-// Review regression coverage for permanent tombstone identity and resurrection semantics.
 describe('MTS-022 permanent occurrence tombstones', () => {
   it('does not allow an ordinary repository to rewrite a tombstoned occurrence id', () => {
     const accountId = randomUUID();
