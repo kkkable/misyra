@@ -39,6 +39,9 @@
   "pnpm": {
     "overrides": {
       "image-size@<=2.0.2": "npm:image-size-next@2.1.1"
+    },
+    "patchedDependencies": {
+      "drizzle-orm@1.0.0-rc.5-169397b": "patches/drizzle-orm@1.0.0-rc.5-169397b.patch"
     }
   }
 }
