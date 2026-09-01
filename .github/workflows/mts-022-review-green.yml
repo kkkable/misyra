@@ -1,0 +1,229 @@
+name: MTS-022 apply review corrections
+
+on:
+  push:
+    branches:
+      - feat/mts-022-postgres-schema
+    paths:
+      - .github/workflows/mts-022-review-green.yml
+
+permissions:
+  contents: write
+
+jobs:
+  correct:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/mts-022-postgres-schema
+          fetch-depth: 0
+      - name: Apply bounded review corrections
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(text: str, old: str, new: str, label: str) -> str:
+              if text.count(old) != 1:
+                  raise SystemExit(f'{label}: expected exactly one match, found {text.count(old)}')
+              return text.replace(old, new, 1)
+
+          sql_path = Path('packages/database/migrations/0000_core.sql')
+          sql = sql_path.read_text()
+          sql = replace_once(
+              sql,
+              'CREATE INDEX mission_series_account_idx ON mission_series(account_id);\n',
+              'CREATE INDEX mission_series_account_idx ON mission_series(account_id);\nCREATE UNIQUE INDEX mission_series_id_account_uidx ON mission_series(id, account_id);\n',
+              'mission series tenant key',
+          )
+          sql = replace_once(
+              sql,
+              '  series_id uuid NOT NULL REFERENCES mission_series(id) ON DELETE RESTRICT,\n',
+              '  series_id uuid NOT NULL,\n',
+              'occurrence series inline fk',
+          )
+          sql = replace_once(
+              sql,
+              "  CONSTRAINT mission_occurrences_effort_check CHECK ((all_day = false AND estimated_effort_minutes IS NULL) OR (all_day = true AND estimated_effort_minutes > 0)),\n  created_at timestamptz NOT NULL DEFAULT now(),\n",
+              "  CONSTRAINT mission_occurrences_effort_check CHECK ((all_day = false AND estimated_effort_minutes IS NULL) OR (all_day = true AND estimated_effort_minutes > 0)),\n  CONSTRAINT mission_occurrences_series_account_fk FOREIGN KEY (series_id, account_id) REFERENCES mission_series(id, account_id) ON DELETE RESTRICT,\n  created_at timestamptz NOT NULL DEFAULT now(),\n",
+              'occurrence tenant fk',
+          )
+          sql = replace_once(
+              sql,
+              'CREATE INDEX mission_occurrences_series_idx ON mission_occurrences(series_id);\n',
+              'CREATE INDEX mission_occurrences_series_idx ON mission_occurrences(series_id);\nCREATE UNIQUE INDEX mission_occurrences_id_account_uidx ON mission_occurrences(id, account_id);\n',
+              'occurrence tenant key',
+          )
+          sql = replace_once(
+              sql,
+              "CREATE TABLE mission_personal_notes (\n  occurrence_id uuid PRIMARY KEY REFERENCES mission_occurrences(id) ON DELETE CASCADE,\n  account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,\n  note text NOT NULL,\n  updated_at timestamptz NOT NULL DEFAULT now()\n);",
+              "CREATE TABLE mission_personal_notes (\n  occurrence_id uuid PRIMARY KEY,\n  account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,\n  note text NOT NULL,\n  updated_at timestamptz NOT NULL DEFAULT now(),\n  CONSTRAINT mission_personal_notes_occurrence_account_fk FOREIGN KEY (occurrence_id, account_id) REFERENCES mission_occurrences(id, account_id) ON DELETE CASCADE\n);",
+              'personal note tenant fk',
+          )
+          sql = replace_once(
+              sql,
+              "  occurrence_id uuid NOT NULL REFERENCES mission_occurrences(id) ON DELETE CASCADE,\n  completion_type text NOT NULL,\n  action_time timestamptz NOT NULL,\n  created_at timestamptz NOT NULL DEFAULT now(),\n  CONSTRAINT mission_completions_occurrence_unique UNIQUE (occurrence_id)\n",
+              "  occurrence_id uuid NOT NULL,\n  completion_type text NOT NULL,\n  action_time timestamptz NOT NULL,\n  created_at timestamptz NOT NULL DEFAULT now(),\n  CONSTRAINT mission_completions_occurrence_account_fk FOREIGN KEY (occurrence_id, account_id) REFERENCES mission_occurrences(id, account_id) ON DELETE CASCADE,\n  CONSTRAINT mission_completions_occurrence_unique UNIQUE (occurrence_id)\n",
+              'completion tenant fk',
+          )
+          sql = replace_once(
+              sql,
+              "  occurrence_id uuid NOT NULL REFERENCES mission_occurrences(id) ON DELETE CASCADE,\n  attempt_number smallint NOT NULL,\n  status text NOT NULL,\n  submitted_at timestamptz,\n  created_at timestamptz NOT NULL DEFAULT now(),\n  CONSTRAINT evidence_attempts_number_check CHECK (attempt_number BETWEEN 1 AND 3),\n",
+              "  occurrence_id uuid NOT NULL,\n  attempt_number smallint NOT NULL,\n  status text NOT NULL,\n  submitted_at timestamptz,\n  created_at timestamptz NOT NULL DEFAULT now(),\n  CONSTRAINT evidence_attempts_occurrence_account_fk FOREIGN KEY (occurrence_id, account_id) REFERENCES mission_occurrences(id, account_id) ON DELETE CASCADE,\n  CONSTRAINT evidence_attempts_number_check CHECK (attempt_number BETWEEN 1 AND 3),\n",
+              'evidence tenant fk',
+          )
+          sql = replace_once(
+              sql,
+              "  occurrence_id uuid NOT NULL REFERENCES mission_occurrences(id) ON DELETE CASCADE,\n  state text NOT NULL DEFAULT 'active',\n  ai_generation_count smallint NOT NULL DEFAULT 0,\n  created_at timestamptz NOT NULL DEFAULT now(),\n  updated_at timestamptz NOT NULL DEFAULT now(),\n  CONSTRAINT story_drafts_ai_generation_count_check CHECK (ai_generation_count BETWEEN 0 AND 3)\n",
+              "  occurrence_id uuid NOT NULL,\n  state text NOT NULL DEFAULT 'active',\n  ai_generation_count smallint NOT NULL DEFAULT 0,\n  created_at timestamptz NOT NULL DEFAULT now(),\n  updated_at timestamptz NOT NULL DEFAULT now(),\n  CONSTRAINT story_drafts_occurrence_account_fk FOREIGN KEY (occurrence_id, account_id) REFERENCES mission_occurrences(id, account_id) ON DELETE CASCADE,\n  CONSTRAINT story_drafts_ai_generation_count_check CHECK (ai_generation_count BETWEEN 0 AND 3)\n",
+              'story draft tenant fk',
+          )
+          completion_guard = """CREATE OR REPLACE FUNCTION misyra_protect_completion_identity()
+          RETURNS trigger
+          LANGUAGE plpgsql
+          AS $$
+          BEGIN
+            IF TG_OP = 'UPDATE' THEN
+              IF NEW.occurrence_id IS DISTINCT FROM OLD.occurrence_id
+                 OR NEW.account_id IS DISTINCT FROM OLD.account_id THEN
+                RAISE EXCEPTION 'Completion identity is immutable';
+              END IF;
+              RETURN NEW;
+            END IF;
+
+            IF EXISTS (SELECT 1 FROM mission_occurrences WHERE id = OLD.occurrence_id) THEN
+              RAISE EXCEPTION 'Completion cannot be deleted while its occurrence exists';
+            END IF;
+            RETURN OLD;
+          END;
+          $$;
+
+          CREATE TRIGGER mission_completions_identity_immutable
+          BEFORE UPDATE OR DELETE ON mission_completions
+          FOR EACH ROW
+          EXECUTE FUNCTION misyra_protect_completion_identity();
+
+          """
+          sql = replace_once(
+              sql,
+              'CREATE OR REPLACE FUNCTION misyra_protect_completed_occurrence()\n',
+              completion_guard + 'CREATE OR REPLACE FUNCTION misyra_protect_completed_occurrence()\n',
+              'completion identity guard',
+          )
+          sql_path.write_text(sql)
+
+          migrations_path = Path('packages/database/src/migrations.ts')
+          migrations = migrations_path.read_text()
+          migrations = replace_once(
+              migrations,
+              "const migrationDirectory = fileURLToPath(new URL('../migrations/', import.meta.url));\n",
+              "const migrationDirectory = fileURLToPath(new URL('../migrations/', import.meta.url));\nconst migrationAdvisoryLockKey = 1296651097;\n",
+              'migration lock constant',
+          )
+          migrations = replace_once(
+              migrations,
+              "  try {\n    await client.query('CREATE SCHEMA IF NOT EXISTS misyra_meta');\n",
+              "  try {\n    await client.query('SELECT pg_advisory_lock($1)', [migrationAdvisoryLockKey]);\n    await client.query('CREATE SCHEMA IF NOT EXISTS misyra_meta');\n",
+              'migration advisory lock',
+          )
+          migrations_path.write_text(migrations)
+
+          schema_path = Path('packages/database/src/schema.ts')
+          schema = schema_path.read_text()
+          schema = replace_once(schema, '  date,\n  index,\n', '  date,\n  foreignKey,\n  index,\n', 'foreignKey import')
+          schema = replace_once(
+              schema,
+              "  (table) => [index('mission_series_account_idx').on(table.accountId)],\n);\n\nexport const missionOccurrences",
+              "  (table) => [\n    index('mission_series_account_idx').on(table.accountId),\n    uniqueIndex('mission_series_id_account_uidx').on(table.id, table.accountId),\n  ],\n);\n\nexport const missionOccurrences",
+              'mission series tenant key declaration',
+          )
+          schema = replace_once(
+              schema,
+              "    seriesId: uuid('series_id')\n      .notNull()\n      .references(() => missionSeries.id, { onDelete: 'restrict' }),\n",
+              "    seriesId: uuid('series_id').notNull(),\n",
+              'occurrence series inline declaration',
+          )
+          schema = replace_once(
+              schema,
+              "    index('mission_occurrences_account_date_idx').on(table.accountId, table.localDate),\n    index('mission_occurrences_series_idx').on(table.seriesId),\n",
+              "    index('mission_occurrences_account_date_idx').on(table.accountId, table.localDate),\n    index('mission_occurrences_series_idx').on(table.seriesId),\n    uniqueIndex('mission_occurrences_id_account_uidx').on(table.id, table.accountId),\n    foreignKey({\n      columns: [table.seriesId, table.accountId],\n      foreignColumns: [missionSeries.id, missionSeries.accountId],\n      name: 'mission_occurrences_series_account_fk',\n    }).onDelete('restrict'),\n",
+              'occurrence tenant fk declaration',
+          )
+          schema = replace_once(
+              schema,
+              "    occurrenceId: uuid('occurrence_id')\n      .primaryKey()\n      .references(() => missionOccurrences.id, { onDelete: 'cascade' }),\n",
+              "    occurrenceId: uuid('occurrence_id').primaryKey(),\n",
+              'personal note occurrence declaration',
+          )
+          schema = replace_once(
+              schema,
+              "  (table) => [index('mission_personal_notes_account_idx').on(table.accountId)],\n);",
+              "  (table) => [\n    index('mission_personal_notes_account_idx').on(table.accountId),\n    foreignKey({\n      columns: [table.occurrenceId, table.accountId],\n      foreignColumns: [missionOccurrences.id, missionOccurrences.accountId],\n      name: 'mission_personal_notes_occurrence_account_fk',\n    }).onDelete('cascade'),\n  ],\n);",
+              'personal note tenant fk declaration',
+          )
+          schema = replace_once(
+              schema,
+              "    occurrenceId: uuid('occurrence_id')\n      .notNull()\n      .references(() => missionOccurrences.id, { onDelete: 'cascade' }),\n    completionType: text('completion_type').notNull(),\n",
+              "    occurrenceId: uuid('occurrence_id').notNull(),\n    completionType: text('completion_type').notNull(),\n",
+              'completion occurrence declaration',
+          )
+          schema = replace_once(
+              schema,
+              "    uniqueIndex('mission_completions_occurrence_uidx').on(table.occurrenceId),\n    index('mission_completions_account_idx').on(table.accountId),\n",
+              "    uniqueIndex('mission_completions_occurrence_uidx').on(table.occurrenceId),\n    index('mission_completions_account_idx').on(table.accountId),\n    foreignKey({\n      columns: [table.occurrenceId, table.accountId],\n      foreignColumns: [missionOccurrences.id, missionOccurrences.accountId],\n      name: 'mission_completions_occurrence_account_fk',\n    }).onDelete('cascade'),\n",
+              'completion tenant fk declaration',
+          )
+          schema = replace_once(
+              schema,
+              "    occurrenceId: uuid('occurrence_id')\n      .notNull()\n      .references(() => missionOccurrences.id, { onDelete: 'cascade' }),\n    attemptNumber: smallint('attempt_number').notNull(),\n",
+              "    occurrenceId: uuid('occurrence_id').notNull(),\n    attemptNumber: smallint('attempt_number').notNull(),\n",
+              'evidence occurrence declaration',
+          )
+          schema = replace_once(
+              schema,
+              "    index('evidence_attempts_account_idx').on(table.accountId),\n    check('evidence_attempts_number_check', sql`${table.attemptNumber} between 1 and 3`),\n",
+              "    index('evidence_attempts_account_idx').on(table.accountId),\n    foreignKey({\n      columns: [table.occurrenceId, table.accountId],\n      foreignColumns: [missionOccurrences.id, missionOccurrences.accountId],\n      name: 'evidence_attempts_occurrence_account_fk',\n    }).onDelete('cascade'),\n    check('evidence_attempts_number_check', sql`${table.attemptNumber} between 1 and 3`),\n",
+              'evidence tenant fk declaration',
+          )
+          schema = replace_once(
+              schema,
+              "    occurrenceId: uuid('occurrence_id')\n      .notNull()\n      .references(() => missionOccurrences.id, { onDelete: 'cascade' }),\n    state: text('state').notNull().default('active'),\n",
+              "    occurrenceId: uuid('occurrence_id').notNull(),\n    state: text('state').notNull().default('active'),\n",
+              'story occurrence declaration',
+          )
+          schema = replace_once(
+              schema,
+              "    index('story_drafts_account_idx').on(table.accountId),\n    check(\n",
+              "    index('story_drafts_account_idx').on(table.accountId),\n    foreignKey({\n      columns: [table.occurrenceId, table.accountId],\n      foreignColumns: [missionOccurrences.id, missionOccurrences.accountId],\n      name: 'story_drafts_occurrence_account_fk',\n    }).onDelete('cascade'),\n    check(\n",
+              'story tenant fk declaration',
+          )
+          schema_path.write_text(schema)
+          PY
+      - name: Install pinned pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.5
+          run_install: false
+      - name: Set up pinned Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - name: Install from lockfile
+        run: pnpm install --frozen-lockfile
+      - name: Format corrected files
+        run: pnpm exec prettier --write packages/database/migrations/0000_core.sql packages/database/src/migrations.ts packages/database/src/schema.ts --config packages/config/prettier.config.mjs
+      - name: Commit corrections and remove helper
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/mts-022-review-green.yml
+          git config user.name "Misyra Automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add packages/database/migrations/0000_core.sql packages/database/src/migrations.ts packages/database/src/schema.ts .github/workflows/mts-022-review-green.yml
+          git commit -m "fix(database): enforce tenant integrity and migration serialization"
+          git push origin HEAD:feat/mts-022-postgres-schema
