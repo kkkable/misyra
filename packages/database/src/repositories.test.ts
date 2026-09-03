@@ -150,21 +150,35 @@ describe('MTS-024 repository and transaction contract', () => {
     await expect(findOccurrenceById(occurrenceB)).resolves.toBeNull();
   });
 
-  it('blocks editable mutation of a completed occurrence', async () => {
-    const { createAccountRepositories } = await loadRepositoryContract();
-    const repositoriesA = createAccountRepositories(pool, accountA);
-    const missions = requireRecord(repositoriesA.missions, 'missions');
-    const updateOccurrenceSchedule = requireAsyncFunction(
-      missions.updateOccurrenceSchedule,
+  it('requires a transaction and blocks editable mutation of a completed occurrence', async () => {
+    const { createAccountRepositories, runInTransaction } = await loadRepositoryContract();
+    const missionsOutsideTransaction = requireRecord(
+      createAccountRepositories(pool, accountA).missions,
+      'missions',
+    );
+    const outsideUpdate = requireAsyncFunction(
+      missionsOutsideTransaction.updateOccurrenceSchedule,
       'missions.updateOccurrenceSchedule',
     );
+    const patch = {
+      localStart: '11:00',
+      localFinish: '12:00',
+      startInstant: new Date('2026-09-03T03:00:00Z'),
+      finishInstant: new Date('2026-09-03T04:00:00Z'),
+    };
+
+    await expect(outsideUpdate(completedOccurrenceA, patch)).rejects.toMatchObject({
+      name: 'TransactionRequiredError',
+    });
 
     await expect(
-      updateOccurrenceSchedule(completedOccurrenceA, {
-        localStart: '11:00',
-        localFinish: '12:00',
-        startInstant: new Date('2026-09-03T03:00:00Z'),
-        finishInstant: new Date('2026-09-03T04:00:00Z'),
+      runInTransaction(pool, accountA, async (repositories) => {
+        const missions = requireRecord(repositories.missions, 'missions');
+        const updateOccurrenceSchedule = requireAsyncFunction(
+          missions.updateOccurrenceSchedule,
+          'missions.updateOccurrenceSchedule',
+        );
+        await updateOccurrenceSchedule(completedOccurrenceA, patch);
       }),
     ).rejects.toMatchObject({ name: 'CompletedOccurrenceMutationError' });
   });
@@ -201,20 +215,19 @@ describe('MTS-024 repository and transaction contract', () => {
       );
       expect(tombstone.rows[0]).toMatchObject({ account_id: accountA, reason: 'user_deleted' });
 
-      const missions = requireRecord(
-        createAccountRepositories(pool, accountA).missions,
-        'missions',
-      );
-      const updateOccurrenceSchedule = requireAsyncFunction(
-        missions.updateOccurrenceSchedule,
-        'missions.updateOccurrenceSchedule',
-      );
       await expect(
-        updateOccurrenceSchedule(occurrenceA, {
-          localStart: '12:00',
-          localFinish: '13:00',
-          startInstant: new Date('2026-09-03T04:00:00Z'),
-          finishInstant: new Date('2026-09-03T05:00:00Z'),
+        runInTransaction(pool, accountA, async (repositories) => {
+          const missions = requireRecord(repositories.missions, 'missions');
+          const updateOccurrenceSchedule = requireAsyncFunction(
+            missions.updateOccurrenceSchedule,
+            'missions.updateOccurrenceSchedule',
+          );
+          await updateOccurrenceSchedule(occurrenceA, {
+            localStart: '12:00',
+            localFinish: '13:00',
+            startInstant: new Date('2026-09-03T04:00:00Z'),
+            finishInstant: new Date('2026-09-03T05:00:00Z'),
+          });
         }),
       ).rejects.toMatchObject({ name: 'TombstonedOccurrenceError' });
     },
