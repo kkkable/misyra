@@ -67,6 +67,14 @@ export async function executeIdempotentCommand<TResult>(
   try {
     await client.query('BEGIN');
     try {
+      await client.query(
+        `DELETE FROM idempotency_keys
+         WHERE account_id = $1
+           AND key = $2
+           AND expires_at <= CURRENT_TIMESTAMP`,
+        [options.accountId, options.key],
+      );
+
       const inserted = await client.query(
         `INSERT INTO idempotency_keys (account_id, key, request_hash, expires_at)
          VALUES ($1, $2, $3, $4)
