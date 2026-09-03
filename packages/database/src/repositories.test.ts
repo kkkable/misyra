@@ -120,9 +120,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  if (pool) {
-    await pool.end();
-  }
+  await pool.end();
   const admin = new Pool({ connectionString: adminUrl });
   await admin.query(`DROP DATABASE IF EXISTS "${databaseName}" WITH (FORCE)`);
   await admin.end();
