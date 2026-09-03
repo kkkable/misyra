@@ -94,8 +94,8 @@ describe('MTS-025 idempotency and transactional outbox', () => {
     const claimed = await claimOutboxEvents(pool, { limit: 10 });
     const event = claimed.find((item) => item.aggregateId === aggregateId);
     expect(event).toBeDefined();
-    expect(event?.payload).toEqual({
-      protectedReference: expect.objectContaining({ kind: 'media_asset' }),
+    expect(event?.payload).toMatchObject({
+      protectedReference: { kind: 'media_asset' },
     });
     expect(JSON.stringify(event?.payload)).not.toContain('mission title');
   });
