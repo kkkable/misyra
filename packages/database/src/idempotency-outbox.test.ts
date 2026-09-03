@@ -100,6 +100,105 @@ describe('MTS-025 idempotency and transactional outbox', () => {
     expect(JSON.stringify(event?.payload)).not.toContain('mission title');
   });
 
+  it('keeps account-deletion idempotency and cleanup work after the account row is removed', async () => {
+    const deletionAccountId = randomUUID();
+    const key = randomUUID();
+    const cleanupAggregateId = randomUUID();
+    let executions = 0;
+    await pool.query(
+      `INSERT INTO accounts (id, provider, provider_subject) VALUES ($1, 'google', $2)`,
+      [deletionAccountId, `mts025-delete-${deletionAccountId}`],
+    );
+
+    const run = () =>
+      executeIdempotentCommand(pool, {
+        accountId: deletionAccountId,
+        key,
+        requestHash: 'delete-account-v1',
+        expiresAt: new Date('2026-09-05T00:00:00Z'),
+        async work({ client, enqueueOutbox }) {
+          executions += 1;
+          await enqueueOutbox({
+            eventType: 'account.cleanup.requested',
+            aggregateType: 'account',
+            aggregateId: cleanupAggregateId,
+          });
+          await client.query(`DELETE FROM accounts WHERE id = $1`, [deletionAccountId]);
+          return { deleted: true };
+        },
+      });
+
+    await expect(run()).resolves.toEqual({ deleted: true });
+    await expect(run()).resolves.toEqual({ deleted: true });
+    expect(executions).toBe(1);
+
+    const idempotency = await pool.query<{ response: unknown }>(
+      `SELECT response FROM idempotency_keys WHERE account_id = $1 AND key = $2`,
+      [deletionAccountId, key],
+    );
+    expect(idempotency.rows[0]?.response).toEqual({ deleted: true });
+
+    const cleanup = await pool.query<{ accountId: string; aggregateId: string }>(
+      `SELECT account_id AS "accountId", aggregate_id AS "aggregateId"
+       FROM outbox_events
+       WHERE aggregate_id = $1`,
+      [cleanupAggregateId],
+    );
+    expect(cleanup.rows).toEqual([
+      { accountId: deletionAccountId, aggregateId: cleanupAggregateId },
+    ]);
+  });
+
+  it('allows an expired idempotency key to be reused for a new request', async () => {
+    const key = randomUUID();
+    let executions = 0;
+    const first = await executeIdempotentCommand(pool, {
+      accountId,
+      key,
+      requestHash: 'expired-v1',
+      expiresAt: new Date(0),
+      async work() {
+        executions += 1;
+        return { version: 1 };
+      },
+    });
+    expect(first).toEqual({ version: 1 });
+
+    const second = await executeIdempotentCommand(pool, {
+      accountId,
+      key,
+      requestHash: 'expired-v2',
+      expiresAt: new Date('2099-01-01T00:00:00Z'),
+      async work() {
+        executions += 1;
+        return { version: 2 };
+      },
+    });
+    expect(second).toEqual({ version: 2 });
+    expect(executions).toBe(2);
+  });
+
+  it('rejects null results rather than committing an unreplayable idempotency record', async () => {
+    const key = randomUUID();
+    await expect(
+      executeIdempotentCommand(pool, {
+        accountId,
+        key,
+        requestHash: 'null-result',
+        expiresAt: new Date('2099-01-01T00:00:00Z'),
+        async work() {
+          return null;
+        },
+      }),
+    ).rejects.toThrow('Idempotent command responses must be non-null JSON values');
+
+    const count = await pool.query<{ count: string }>(
+      `SELECT count(*)::text AS count FROM idempotency_keys WHERE account_id = $1 AND key = $2`,
+      [accountId, key],
+    );
+    expect(count.rows[0]?.count).toBe('0');
+  });
+
   it('supports consumer retry, idempotent completion, and bounded dead-letter classification', async () => {
     const aggregateId = randomUUID();
     await executeIdempotentCommand(pool, {
