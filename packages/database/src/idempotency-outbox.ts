@@ -291,14 +291,7 @@ export async function failOutboxEvent(
        AND processed_at IS NULL
        AND dead_lettered_at IS NULL
      RETURNING dead_lettered_at AS "deadLetteredAt"`,
-    [
-      options.id,
-      options.claimToken,
-      options.failureClass,
-      options.retryAt,
-      maxAttempts,
-      failedAt,
-    ],
+    [options.id, options.claimToken, options.failureClass, options.retryAt, maxAttempts, failedAt],
   );
   const row = result.rows[0];
   if (row === undefined) {
