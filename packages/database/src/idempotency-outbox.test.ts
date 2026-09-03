@@ -157,9 +157,9 @@ describe('MTS-025 idempotency and transactional outbox', () => {
       key,
       requestHash: 'expired-v1',
       expiresAt: new Date(0),
-      async work() {
+      work() {
         executions += 1;
-        return { version: 1 };
+        return Promise.resolve({ version: 1 });
       },
     });
     expect(first).toEqual({ version: 1 });
@@ -169,9 +169,9 @@ describe('MTS-025 idempotency and transactional outbox', () => {
       key,
       requestHash: 'expired-v2',
       expiresAt: new Date('2099-01-01T00:00:00Z'),
-      async work() {
+      work() {
         executions += 1;
-        return { version: 2 };
+        return Promise.resolve({ version: 2 });
       },
     });
     expect(second).toEqual({ version: 2 });
@@ -186,8 +186,8 @@ describe('MTS-025 idempotency and transactional outbox', () => {
         key,
         requestHash: 'null-result',
         expiresAt: new Date('2099-01-01T00:00:00Z'),
-        async work() {
-          return null;
+        work() {
+          return Promise.resolve(null);
         },
       }),
     ).rejects.toThrow('Idempotent command responses must be non-null JSON values');
