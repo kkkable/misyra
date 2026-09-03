@@ -284,7 +284,10 @@ export async function failOutboxEvent(
     `UPDATE outbox_events
      SET last_failure_class = $3,
          available_at = $4,
-         dead_lettered_at = CASE WHEN attempt_count >= $5 OR $3 = 'permanent' THEN $6 ELSE NULL END,
+         dead_lettered_at = CASE
+           WHEN attempt_count >= $5 OR $3::text = 'permanent' THEN $6::timestamptz
+           ELSE NULL::timestamptz
+         END,
          claimed_at = NULL,
          claim_token = NULL
      WHERE id = $1
