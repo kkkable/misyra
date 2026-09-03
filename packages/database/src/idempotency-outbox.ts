@@ -120,8 +120,9 @@ export async function executeIdempotentCommand<TResult>(
       };
 
       const response = await options.work(context);
-      if (response === undefined) {
-        throw new TypeError('Idempotent command responses must be JSON-serializable values');
+      const storedResponse: unknown = response;
+      if (storedResponse === null || storedResponse === undefined) {
+        throw new TypeError('Idempotent command responses must be non-null JSON values');
       }
       await client.query(
         `UPDATE idempotency_keys
