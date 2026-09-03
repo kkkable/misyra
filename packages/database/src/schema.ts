@@ -580,11 +580,22 @@ export const outboxEvents = pgTable(
     payload: jsonb('payload').notNull(),
     availableAt: timestamp('available_at', { withTimezone: true }).notNull().defaultNow(),
     processedAt: timestamp('processed_at', { withTimezone: true }),
+    attemptCount: integer('attempt_count').notNull().default(0),
+    claimedAt: timestamp('claimed_at', { withTimezone: true }),
+    claimToken: uuid('claim_token'),
+    lastFailureClass: text('last_failure_class'),
+    deadLetteredAt: timestamp('dead_lettered_at', { withTimezone: true }),
     createdAt: createdAt(),
   },
   (table) => [
     index('outbox_events_account_idx').on(table.accountId),
     index('outbox_events_processed_available_idx').on(table.processedAt, table.availableAt),
+    index('outbox_events_dispatch_idx').on(
+      table.processedAt,
+      table.deadLetteredAt,
+      table.availableAt,
+      table.claimedAt,
+    ),
   ],
 );
 
