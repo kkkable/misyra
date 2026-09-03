@@ -9,11 +9,7 @@ type UnknownRecord = Record<string, unknown>;
 type AsyncFunction = (...args: unknown[]) => Promise<unknown>;
 type RepositorySet = Record<string, UnknownRecord>;
 type TransactionWork = (repositories: RepositorySet) => Promise<unknown>;
-type RunInTransaction = (
-  pool: Pool,
-  accountId: string,
-  work: TransactionWork,
-) => Promise<unknown>;
+type RunInTransaction = (pool: Pool, accountId: string, work: TransactionWork) => Promise<unknown>;
 type CreateAccountRepositories = (pool: Pool, accountId: string) => RepositorySet;
 
 const REQUIRED_REPOSITORIES = [
@@ -86,10 +82,11 @@ async function insertOccurrence(
 ): Promise<string> {
   const seriesId = randomUUID();
   const occurrenceId = randomUUID();
-  await pool.query(
-    `INSERT INTO mission_series (id, account_id, title) VALUES ($1, $2, $3)`,
-    [seriesId, accountId, title],
-  );
+  await pool.query(`INSERT INTO mission_series (id, account_id, title) VALUES ($1, $2, $3)`, [
+    seriesId,
+    accountId,
+    title,
+  ]);
   await pool.query(
     `INSERT INTO mission_occurrences (
        id, account_id, series_id, local_date, local_start, local_finish,
@@ -183,55 +180,50 @@ describe('MTS-024 repository and transaction contract', () => {
     ).rejects.toMatchObject({ name: 'CompletedOccurrenceMutationError' });
   });
 
-  it(
-    'centralizes tombstone checks and requires a transaction for the multi-table delete invariant',
-    async () => {
-      const { createAccountRepositories, runInTransaction } = await loadRepositoryContract();
-      const repositoriesA = createAccountRepositories(pool, accountA);
-      const missionsOutsideTransaction = requireRecord(repositoriesA.missions, 'missions');
-      const tombstoneOutsideTransaction = requireAsyncFunction(
-        missionsOutsideTransaction.tombstoneOccurrence,
+  it('centralizes tombstone checks and requires a transaction for the multi-table delete invariant', async () => {
+    const { createAccountRepositories, runInTransaction } = await loadRepositoryContract();
+    const repositoriesA = createAccountRepositories(pool, accountA);
+    const missionsOutsideTransaction = requireRecord(repositoriesA.missions, 'missions');
+    const tombstoneOutsideTransaction = requireAsyncFunction(
+      missionsOutsideTransaction.tombstoneOccurrence,
+      'missions.tombstoneOccurrence',
+    );
+
+    await expect(tombstoneOutsideTransaction(occurrenceA, 'user_deleted')).rejects.toMatchObject({
+      name: 'TransactionRequiredError',
+    });
+
+    await runInTransaction(pool, accountA, async (repositories) => {
+      const missions = requireRecord(repositories.missions, 'missions');
+      const tombstoneOccurrence = requireAsyncFunction(
+        missions.tombstoneOccurrence,
         'missions.tombstoneOccurrence',
       );
+      await tombstoneOccurrence(occurrenceA, 'user_deleted');
+    });
 
-      await expect(
-        tombstoneOutsideTransaction(occurrenceA, 'user_deleted'),
-      ).rejects.toMatchObject({
-        name: 'TransactionRequiredError',
-      });
+    const tombstone = await pool.query(
+      `SELECT account_id, reason FROM mission_occurrence_tombstones WHERE occurrence_id = $1`,
+      [occurrenceA],
+    );
+    expect(tombstone.rows[0]).toMatchObject({ account_id: accountA, reason: 'user_deleted' });
 
-      await runInTransaction(pool, accountA, async (repositories) => {
+    await expect(
+      runInTransaction(pool, accountA, async (repositories) => {
         const missions = requireRecord(repositories.missions, 'missions');
-        const tombstoneOccurrence = requireAsyncFunction(
-          missions.tombstoneOccurrence,
-          'missions.tombstoneOccurrence',
+        const updateOccurrenceSchedule = requireAsyncFunction(
+          missions.updateOccurrenceSchedule,
+          'missions.updateOccurrenceSchedule',
         );
-        await tombstoneOccurrence(occurrenceA, 'user_deleted');
-      });
-
-      const tombstone = await pool.query(
-        `SELECT account_id, reason FROM mission_occurrence_tombstones WHERE occurrence_id = $1`,
-        [occurrenceA],
-      );
-      expect(tombstone.rows[0]).toMatchObject({ account_id: accountA, reason: 'user_deleted' });
-
-      await expect(
-        runInTransaction(pool, accountA, async (repositories) => {
-          const missions = requireRecord(repositories.missions, 'missions');
-          const updateOccurrenceSchedule = requireAsyncFunction(
-            missions.updateOccurrenceSchedule,
-            'missions.updateOccurrenceSchedule',
-          );
-          await updateOccurrenceSchedule(occurrenceA, {
-            localStart: '12:00',
-            localFinish: '13:00',
-            startInstant: new Date('2026-09-03T04:00:00Z'),
-            finishInstant: new Date('2026-09-03T05:00:00Z'),
-          });
-        }),
-      ).rejects.toMatchObject({ name: 'TombstonedOccurrenceError' });
-    },
-  );
+        await updateOccurrenceSchedule(occurrenceA, {
+          localStart: '12:00',
+          localFinish: '13:00',
+          startInstant: new Date('2026-09-03T04:00:00Z'),
+          finishInstant: new Date('2026-09-03T05:00:00Z'),
+        });
+      }),
+    ).rejects.toMatchObject({ name: 'TombstonedOccurrenceError' });
+  });
 
   it('rolls back repository writes when transaction work fails', async () => {
     const { runInTransaction } = await loadRepositoryContract();
