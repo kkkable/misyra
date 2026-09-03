@@ -39,6 +39,7 @@ let accountB: string;
 let occurrenceA: string;
 let occurrenceB: string;
 let completedOccurrenceA: string;
+let rollbackOccurrenceA: string;
 
 function requireRecord(value: unknown, label: string): UnknownRecord {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
@@ -115,6 +116,7 @@ beforeAll(async () => {
   occurrenceA = await insertOccurrence(accountA, 'A mission');
   occurrenceB = await insertOccurrence(accountB, 'B mission');
   completedOccurrenceA = await insertOccurrence(accountA, 'Completed A mission', true);
+  rollbackOccurrenceA = await insertOccurrence(accountA, 'Rollback A mission');
 });
 
 afterAll(async () => {
@@ -233,14 +235,14 @@ describe('MTS-024 repository and transaction contract', () => {
       runInTransaction(pool, accountA, async (repositories) => {
         const notes = requireRecord(repositories.notes, 'notes');
         const upsert = requireAsyncFunction(notes.upsert, 'notes.upsert');
-        await upsert(completedOccurrenceA, note);
+        await upsert(rollbackOccurrenceA, note);
         throw new Error('force rollback');
       }),
     ).rejects.toThrow('force rollback');
 
     const persisted = await pool.query(
       `SELECT note FROM mission_personal_notes WHERE occurrence_id = $1 AND account_id = $2`,
-      [completedOccurrenceA, accountA],
+      [rollbackOccurrenceA, accountA],
     );
     expect(persisted.rowCount).toBe(0);
   });
