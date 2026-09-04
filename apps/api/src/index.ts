@@ -116,6 +116,15 @@ function isUuid(value: unknown): value is string {
   );
 }
 
+function isValidationError(error: unknown) {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'validation' in error &&
+    Array.isArray((error as { validation?: unknown }).validation)
+  );
+}
+
 function errorEnvelope(requestId: string, code: ApiErrorCode) {
   return {
     version: 1 as const,
@@ -178,7 +187,7 @@ export function createApiServer(options: ApiServerOptions = {}) {
   }
 
   server.setErrorHandler((error, request, reply) => {
-    const validationError = 'validation' in error && Array.isArray(error.validation);
+    const validationError = isValidationError(error);
     const code: ApiErrorCode = validationError
       ? 'validation_failed'
       : error instanceof ApiError
@@ -217,18 +226,19 @@ export function createApiServer(options: ApiServerOptions = {}) {
       });
 
       for (const route of routes) {
-        v1.route({
+        const routeOptions = {
           method: route.method,
           url: route.path,
-          schema: route.schema,
-          handler: (request, reply) => {
+          handler: (request: FastifyRequest, reply: FastifyReply) => {
             const auth = request.authContext;
             if (!auth) {
               return reply.code(401).send(errorEnvelope(request.id, 'unauthorized'));
             }
             return route.handler(request, reply, auth);
           },
-        });
+          ...(route.schema === undefined ? {} : { schema: route.schema }),
+        };
+        v1.route(routeOptions);
       }
       done();
     },
