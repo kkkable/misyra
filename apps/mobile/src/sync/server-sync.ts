@@ -145,6 +145,7 @@ export function createServerSync(options: ServerSyncOptions) {
     throw new TypeError('Account ID must not be empty.');
   }
   const batchSize = resolveBatchSize(options.batchSize);
+  let runTail: Promise<void> = Promise.resolve();
 
   const pushQueuedMutations = async (): Promise<number> => {
     let settled = 0;
@@ -175,10 +176,10 @@ export function createServerSync(options: ServerSyncOptions) {
     for (;;) {
       const page = await options.transport.pull({ cursor, limit: batchSize });
       if (page.kind === 'snapshot_required') {
-        const pendingBefore = await options.mutationQueue.listPending();
         const snapshot = await options.transport.snapshot();
         const snapshotCursor = assertCursor(snapshot.nextCursor, 'Snapshot cursor');
         await options.database.withExclusiveTransactionAsync(async (transaction) => {
+          const pendingBefore = await options.mutationQueue.listPending();
           await options.applySnapshot(transaction, snapshot.entries);
           for (const pending of pendingBefore) {
             const retained = await transaction.getFirstAsync<{ mutation_id: string }>(
@@ -205,11 +206,20 @@ export function createServerSync(options: ServerSyncOptions) {
     }
   };
 
+  const executeRun = async () => {
+    const settledMutations = await pushQueuedMutations();
+    const cursor = await pullAuthoritativeState();
+    return { settledMutations, cursor };
+  };
+
   return {
-    run: async () => {
-      const settledMutations = await pushQueuedMutations();
-      const cursor = await pullAuthoritativeState();
-      return { settledMutations, cursor };
+    run: () => {
+      const result = runTail.then(executeRun, executeRun);
+      runTail = result.then(
+        () => undefined,
+        () => undefined,
+      );
+      return result;
     },
   };
 }
