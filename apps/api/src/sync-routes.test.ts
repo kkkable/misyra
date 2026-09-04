@@ -32,7 +32,12 @@ describe('MTS-031 sync routes', () => {
           pushed.push(...mutations.map((item) => item.mutationId));
           return { acceptedMutationIds: mutations.map((item) => item.mutationId) };
         },
-        pull: async () => ({ kind: 'incremental', changes: [], nextCursor: 0, hasMore: false }),
+        pull: async () => ({
+          kind: 'incremental',
+          changes: [],
+          nextCursor: 0,
+          hasMore: false,
+        }),
         snapshot: async () => ({ entries: [], nextCursor: 0 }),
       }),
     });
@@ -64,7 +69,12 @@ describe('MTS-031 sync routes', () => {
         push: async () => ({ acceptedMutationIds: [] }),
         pull: async (authenticatedAccountId, input) => {
           pulls.push({ accountId: authenticatedAccountId, ...input });
-          return { kind: 'incremental', changes: [], nextCursor: input.cursor, hasMore: false };
+          return {
+            kind: 'incremental',
+            changes: [],
+            nextCursor: input.cursor,
+            hasMore: false,
+          };
         },
         snapshot: async (authenticatedAccountId) => {
           snapshots.push(authenticatedAccountId);
@@ -74,7 +84,10 @@ describe('MTS-031 sync routes', () => {
     });
     servers.push(server);
 
-    const pull = await server.inject({ method: 'GET', url: '/v1/sync/pull?cursor=6&limit=25' });
+    const pull = await server.inject({
+      method: 'GET',
+      url: '/v1/sync/pull?cursor=6&limit=25',
+    });
     expect(pull.statusCode).toBe(200);
     expect(pulls).toEqual([{ accountId, cursor: 6, limit: 25 }]);
 
