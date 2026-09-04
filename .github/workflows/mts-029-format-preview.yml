@@ -1,4 +1,4 @@
-name: MTS-029 format preview
+name: MTS-029 Story tombstone correction
 
 on:
   push:
@@ -26,17 +26,50 @@ jobs:
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
-      - name: Apply repository Prettier correction to active MTS-029 review test
+      - name: Suppress Story drafts for tombstoned occurrences
         run: |
-          test "$(git rev-parse HEAD)" = "a8260c782cae8a1a2acf110c098801a1c6a98cec"
-          pnpm exec prettier --write apps/mobile/src/storage/local-repositories.review-corrections.test.mjs --config packages/config/prettier.config.mjs
+          test "$(git rev-parse HEAD)" = "15b1d51c806c75d51bc591dae34a6623a649c9d8"
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('apps/mobile/src/storage/local-repositories.ts')
+          source = path.read_text()
+          old = '''  const getStoryDraft = async (occurrenceId: string): Promise<StoryDraft | null> => {
+            const row = await database.getFirstAsync<StoryDraftRow>(
+              `SELECT occurrence_id, draft_id, composition_json, updated_at
+                 FROM story_drafts
+                WHERE account_id = ? AND occurrence_id = ?`,
+              accountId,
+              occurrenceId,
+            );
+          '''
+          new = '''  const getStoryDraft = async (occurrenceId: string): Promise<StoryDraft | null> => {
+            const row = await database.getFirstAsync<StoryDraftRow>(
+              `SELECT d.occurrence_id, d.draft_id, d.composition_json, d.updated_at
+                 FROM story_drafts d
+                 JOIN cached_mission_occurrences o
+                   ON o.account_id = d.account_id
+                  AND o.occurrence_id = d.occurrence_id
+                WHERE d.account_id = ?
+                  AND d.occurrence_id = ?
+                  AND json_extract(o.payload_json, '$.deletionState') <> 'deleted'`,
+              accountId,
+              occurrenceId,
+            );
+          '''
+          if old not in source:
+              raise SystemExit('expected getStoryDraft block not found')
+          source = source.replace(old, new, 1)
+          old_observe = "observe(() => getStoryDraft(occurrenceId), ['story_drafts']),"
+          new_observe = "observe(() => getStoryDraft(occurrenceId), ['story_drafts', 'cached_mission_occurrences']),"
+          if old_observe not in source:
+              raise SystemExit('expected Story observer dependency block not found')
+          path.write_text(source.replace(old_observe, new_observe, 1))
+          PY
+          pnpm exec prettier --write apps/mobile/src/storage/local-repositories.ts apps/mobile/src/storage/local-repositories.story-deletion.test.mjs --config packages/config/prettier.config.mjs
           git diff --check
-          if git diff --quiet -- apps/mobile/src/storage/local-repositories.review-corrections.test.mjs; then
-            echo "No format correction needed"
-            exit 0
-          fi
           git config user.name "Misyra Auto Development"
           git config user.email "130823389+kkkable@users.noreply.github.com"
-          git add apps/mobile/src/storage/local-repositories.review-corrections.test.mjs
-          git commit -m "style(mobile): format MTS-029 review regressions"
+          git add apps/mobile/src/storage/local-repositories.ts apps/mobile/src/storage/local-repositories.story-deletion.test.mjs
+          git commit -m "fix(mobile): suppress tombstoned Story drafts"
           git push origin HEAD:feat/mts-029-local-repositories
