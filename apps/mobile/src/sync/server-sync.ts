@@ -1,3 +1,4 @@
+import type { ConflictOutcome } from './conflict-application.js';
 import type { MutationQueue, PendingMutation, SyncMutation } from '../storage/mutation-queue.js';
 import type { MigrationDatabase } from '../storage/schema.js';
 
@@ -11,6 +12,8 @@ export type ServerAccountChange = Readonly<{
   operation: string;
   payload: unknown;
 }>;
+
+export type SyncConflictResult = ConflictOutcome & Readonly<{ mutationId: string }>;
 
 export type SyncPullResponse =
   | Readonly<{
@@ -31,9 +34,12 @@ export type SyncSnapshot = Readonly<{
 }>;
 
 export interface ServerSyncTransport {
-  push(
-    mutations: readonly SyncMutation[],
-  ): Promise<Readonly<{ acceptedMutationIds: readonly string[] }>>;
+  push(mutations: readonly SyncMutation[]): Promise<
+    Readonly<{
+      acceptedMutationIds: readonly string[];
+      conflicts?: readonly SyncConflictResult[];
+    }>
+  >;
   pull(input: Readonly<{ cursor: number; limit: number }>): Promise<SyncPullResponse>;
   snapshot(): Promise<SyncSnapshot>;
 }
@@ -53,6 +59,7 @@ export type ServerSyncOptions = Readonly<{
     transaction: MigrationDatabase,
     entries: readonly ServerAccountChange[],
   ) => Promise<void>;
+  applyConflicts?: (conflicts: readonly SyncConflictResult[]) => Promise<void>;
   batchSize?: number;
 }>;
 
@@ -127,17 +134,22 @@ function serverPending(items: readonly PendingMutation[]): PendingMutation[] {
   return items.filter((item) => item.destination.kind === 'server');
 }
 
-function validateAcceptedIds(
+function validateSettledPrefix(
   batch: readonly PendingMutation[],
   acceptedMutationIds: readonly string[],
+  conflicts: readonly SyncConflictResult[],
 ): Set<string> {
-  const expectedPrefix = batch
-    .slice(0, acceptedMutationIds.length)
-    .map((item) => item.mutation.mutationId);
-  if (acceptedMutationIds.some((mutationId, index) => mutationId !== expectedPrefix[index])) {
-    throw new Error('Server acceptance must be a contiguous queued prefix.');
+  const settledIds = [...acceptedMutationIds, ...conflicts.map((conflict) => conflict.mutationId)];
+  const unique = new Set(settledIds);
+  if (unique.size !== settledIds.length) {
+    throw new Error('A server mutation result must settle each mutation at most once.');
   }
-  return new Set(acceptedMutationIds);
+
+  const expectedPrefix = batch.slice(0, unique.size).map((item) => item.mutation.mutationId);
+  if (expectedPrefix.length !== unique.size || expectedPrefix.some((mutationId) => !unique.has(mutationId))) {
+    throw new Error('Server mutation results must settle a contiguous queued prefix.');
+  }
+  return unique;
 }
 
 function validateIncrementalPage(
@@ -172,18 +184,27 @@ export function createServerSync(options: ServerSyncOptions) {
   const batchSize = resolveBatchSize(options.batchSize);
   let runTail: Promise<void> = Promise.resolve();
 
-  const pushQueuedMutations = async (): Promise<number> => {
+  const pushQueuedMutations = async (): Promise<{
+    settled: number;
+    conflicts: SyncConflictResult[];
+  }> => {
     let settled = 0;
+    const conflicts: SyncConflictResult[] = [];
     for (;;) {
       const pending = serverPending(await options.mutationQueue.listPending()).slice(0, batchSize);
-      if (pending.length === 0) return settled;
+      if (pending.length === 0) return { settled, conflicts };
 
       const result = await options.transport.push(pending.map((item) => item.mutation));
-      const accepted = validateAcceptedIds(pending, result.acceptedMutationIds);
-      if (accepted.size === 0) return settled;
+      const batchConflicts = [...(result.conflicts ?? [])];
+      const settledIds = validateSettledPrefix(
+        pending,
+        result.acceptedMutationIds,
+        batchConflicts,
+      );
+      if (settledIds.size === 0) return { settled, conflicts };
 
       await options.database.withExclusiveTransactionAsync(async (transaction) => {
-        for (const mutationId of accepted) {
+        for (const mutationId of settledIds) {
           await transaction.runAsync(
             'DELETE FROM mutation_queue WHERE account_id = ? AND mutation_id = ?',
             options.accountId,
@@ -191,7 +212,8 @@ export function createServerSync(options: ServerSyncOptions) {
           );
         }
       });
-      settled += accepted.size;
+      conflicts.push(...batchConflicts);
+      settled += settledIds.size;
     }
   };
 
@@ -232,9 +254,12 @@ export function createServerSync(options: ServerSyncOptions) {
   };
 
   const executeRun = async () => {
-    const settledMutations = await pushQueuedMutations();
+    const pushResult = await pushQueuedMutations();
     const cursor = await pullAuthoritativeState();
-    return { settledMutations, cursor };
+    if (pushResult.conflicts.length > 0) {
+      await options.applyConflicts?.(pushResult.conflicts);
+    }
+    return { settledMutations: pushResult.settled, cursor };
   };
 
   return {
