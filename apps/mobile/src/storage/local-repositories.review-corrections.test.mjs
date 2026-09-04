@@ -240,8 +240,8 @@ describe('MTS-029 review corrections', () => {
       '2026-09-04T00:00:00.000Z',
     );
 
-    expect(
-      await createLocalRepositories(database, accountId).settings.listHiddenEvents(1),
-    ).toEqual([expect.objectContaining({ hiddenEventId: 'future-hidden' })]);
+    expect(await createLocalRepositories(database, accountId).settings.listHiddenEvents(1)).toEqual(
+      [expect.objectContaining({ hiddenEventId: 'future-hidden' })],
+    );
   });
 });
