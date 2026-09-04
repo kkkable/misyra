@@ -24,7 +24,8 @@ export interface SyncMutation<TPayload = unknown> {
 }
 
 export type MutationDestination =
-  Readonly<{ kind: 'server' }> | Readonly<{ kind: 'external_calendar'; provider: string }>;
+  | Readonly<{ kind: 'server' }>
+  | Readonly<{ kind: 'external_calendar'; provider: string }>;
 
 export type PendingMutation = Readonly<{
   sequence: number;
@@ -90,16 +91,10 @@ function assertMutation(mutation: unknown, accountId: string): asserts mutation 
   if (mutation.accountId !== accountId) {
     throw new TypeError('Mutation account ID must match the queue account.');
   }
-  if (
-    typeof mutation.entityType !== 'string' ||
-    !isOneOf(mutation.entityType, ENTITY_TYPES)
-  ) {
+  if (typeof mutation.entityType !== 'string' || !isOneOf(mutation.entityType, ENTITY_TYPES)) {
     throw new TypeError(`Unsupported mutation entity type: ${String(mutation.entityType)}.`);
   }
-  if (
-    typeof mutation.operation !== 'string' ||
-    !isOneOf(mutation.operation, OPERATIONS)
-  ) {
+  if (typeof mutation.operation !== 'string' || !isOneOf(mutation.operation, OPERATIONS)) {
     throw new TypeError(`Unsupported mutation operation: ${String(mutation.operation)}.`);
   }
 
@@ -117,9 +112,7 @@ function assertMutation(mutation: unknown, accountId: string): asserts mutation 
   }
 }
 
-function assertDestination(
-  destination: unknown,
-): asserts destination is MutationDestination {
+function assertDestination(destination: unknown): asserts destination is MutationDestination {
   if (!isRecord(destination) || typeof destination.kind !== 'string') {
     throw new TypeError('Mutation destination is invalid.');
   }
