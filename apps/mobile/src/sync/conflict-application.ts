@@ -3,22 +3,21 @@ export type ActiveConflictWork = Readonly<{
   storyDraftId?: string;
 }>;
 
-export type ServerConflictResult =
+export type ConflictOutcome =
   | Readonly<{ kind: 'mission_updated'; missionId: string }>
   | Readonly<{ kind: 'mission_deleted'; missionId: string }>
-  | Readonly<{
-      kind: 'mission_completed_elsewhere';
-      missionId: string;
-      duplicateWorkingFiles: readonly string[];
-    }>
-  | Readonly<{ kind: 'story_updated'; storyDraftId: string }>
+  | Readonly<{ kind: 'mission_completed_elsewhere'; missionId: string }>
+  | Readonly<{ kind: 'story_updated'; storyDraftId: string }>;
+
+export type ServerConflictResult =
+  | ConflictOutcome
   | Readonly<{ kind: 'background_progress'; missionId?: string }>;
 
 export interface ConflictApplicationEffects {
   reloadMission(missionId: string): Promise<void>;
   reloadStory(storyDraftId: string): Promise<void>;
   clearStoryUndoHistory(storyDraftId: string): void;
-  deleteWorkingFile(path: string): Promise<void>;
+  deleteDuplicateEvidenceWorkingFiles(missionId: string): Promise<void>;
   showMessage(message: string): void;
 }
 
@@ -52,9 +51,7 @@ export async function applyServerConflict(
       return;
 
     case 'mission_completed_elsewhere':
-      for (const path of conflict.duplicateWorkingFiles) {
-        await effects.deleteWorkingFile(path);
-      }
+      await effects.deleteDuplicateEvidenceWorkingFiles(conflict.missionId);
       if (!isActiveMission(activeWork, conflict.missionId)) return;
       await effects.reloadMission(conflict.missionId);
       effects.showMessage(conflictMessages.missionCompletedElsewhere);
