@@ -34,16 +34,13 @@ jobs:
 
           path = Path('apps/mobile/src/storage/local-repositories.ts')
           source = path.read_text()
-          old = '''  const getStoryDraft = async (occurrenceId: string): Promise<StoryDraft | null> => {
-            const row = await database.getFirstAsync<StoryDraftRow>(
-              `SELECT occurrence_id, draft_id, composition_json, updated_at
-                 FROM story_drafts
-                WHERE account_id = ? AND occurrence_id = ?`,
-              accountId,
-              occurrenceId,
-            );
-          '''
-          new = '''  const getStoryDraft = async (occurrenceId: string): Promise<StoryDraft | null> => {
+          start_marker = '  const getStoryDraft = async (occurrenceId: string): Promise<StoryDraft | null> => {'
+          end_marker = '\n\n  const listSearchDocuments = async (limit: number): Promise<SearchDocument[]> => {'
+          start = source.find(start_marker)
+          end = source.find(end_marker, start)
+          if start < 0 or end < 0:
+              raise SystemExit('Story draft function markers not found')
+          replacement = '''  const getStoryDraft = async (occurrenceId: string): Promise<StoryDraft | null> => {
             const row = await database.getFirstAsync<StoryDraftRow>(
               `SELECT d.occurrence_id, d.draft_id, d.composition_json, d.updated_at
                  FROM story_drafts d
@@ -56,14 +53,20 @@ jobs:
               accountId,
               occurrenceId,
             );
-          '''
-          if old not in source:
-              raise SystemExit('expected getStoryDraft block not found')
-          source = source.replace(old, new, 1)
+            return row === null
+              ? null
+              : {
+                  occurrenceId: row.occurrence_id,
+                  draftId: row.draft_id,
+                  composition: parseJson(row.composition_json),
+                  updatedAt: row.updated_at,
+                };
+          };'''
+          source = source[:start] + replacement + source[end:]
           old_observe = "observe(() => getStoryDraft(occurrenceId), ['story_drafts']),"
           new_observe = "observe(() => getStoryDraft(occurrenceId), ['story_drafts', 'cached_mission_occurrences']),"
           if old_observe not in source:
-              raise SystemExit('expected Story observer dependency block not found')
+              raise SystemExit('Story observer dependency block not found')
           path.write_text(source.replace(old_observe, new_observe, 1))
           PY
           pnpm exec prettier --write apps/mobile/src/storage/local-repositories.ts apps/mobile/src/storage/local-repositories.story-deletion.test.mjs --config packages/config/prettier.config.mjs
