@@ -32,11 +32,7 @@ export type ApiRouteDefinition = {
   method: HTTPMethods | HTTPMethods[];
   path: `/${string}`;
   schema?: FastifySchema;
-  handler: (
-    request: FastifyRequest,
-    reply: FastifyReply,
-    auth: AuthContext,
-  ) => unknown | Promise<unknown>;
+  handler: (request: FastifyRequest, reply: FastifyReply, auth: AuthContext) => unknown;
 };
 
 type ApiServerOptions = {
@@ -155,7 +151,7 @@ export function createLocalReadinessCheck(env: NodeJS.ProcessEnv = process.env):
 export function createApiServer(options: ApiServerOptions = {}) {
   const readiness = options.readiness ?? createLocalReadinessCheck();
   const routes = options.routes ?? [];
-  const authenticate = options.authenticate ?? (async () => null);
+  const authenticate = options.authenticate ?? (() => null);
   const server = Fastify({
     logger: false,
     genReqId: (request) => {
@@ -164,18 +160,20 @@ export function createApiServer(options: ApiServerOptions = {}) {
     },
   });
 
-  server.addHook('onRequest', async (request, reply) => {
+  server.addHook('onRequest', (request, reply, done) => {
     reply.header('x-request-id', request.id);
+    done();
   });
 
   if (options.auditLog) {
-    server.addHook('onResponse', async (request, reply) => {
+    server.addHook('onResponse', (request, reply, done) => {
       options.auditLog?.({
         requestId: request.id,
         method: request.method,
         route: routeLabel(request),
         statusCode: reply.statusCode,
       });
+      done();
     });
   }
 
@@ -209,7 +207,7 @@ export function createApiServer(options: ApiServerOptions = {}) {
   });
 
   void server.register(
-    async (v1) => {
+    (v1, _pluginOptions, done) => {
       v1.addHook('onRequest', async (request, reply) => {
         const auth = await authenticate(request);
         if (!auth) {
@@ -223,7 +221,7 @@ export function createApiServer(options: ApiServerOptions = {}) {
           method: route.method,
           url: route.path,
           schema: route.schema,
-          handler: async (request, reply) => {
+          handler: (request, reply) => {
             const auth = request.authContext;
             if (!auth) {
               return reply.code(401).send(errorEnvelope(request.id, 'unauthorized'));
@@ -232,6 +230,7 @@ export function createApiServer(options: ApiServerOptions = {}) {
           },
         });
       }
+      done();
     },
     { prefix: '/v1' },
   );
