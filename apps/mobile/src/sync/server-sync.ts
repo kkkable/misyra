@@ -130,6 +130,23 @@ async function listPendingMutationIds(
   }
 }
 
+async function deleteQueuedMutations(
+  database: ServerSyncDatabase,
+  accountId: string,
+  mutationIds: ReadonlySet<string>,
+): Promise<void> {
+  if (mutationIds.size === 0) return;
+  await database.withExclusiveTransactionAsync(async (transaction) => {
+    for (const mutationId of mutationIds) {
+      await transaction.runAsync(
+        'DELETE FROM mutation_queue WHERE account_id = ? AND mutation_id = ?',
+        accountId,
+        mutationId,
+      );
+    }
+  });
+}
+
 function serverPending(items: readonly PendingMutation[]): PendingMutation[] {
   return items.filter((item) => item.destination.kind === 'server');
 }
@@ -146,7 +163,10 @@ function validateSettledPrefix(
   }
 
   const expectedPrefix = batch.slice(0, unique.size).map((item) => item.mutation.mutationId);
-  if (expectedPrefix.length !== unique.size || expectedPrefix.some((mutationId) => !unique.has(mutationId))) {
+  if (
+    expectedPrefix.length !== unique.size ||
+    expectedPrefix.some((mutationId) => !unique.has(mutationId))
+  ) {
     throw new Error('Server mutation results must settle a contiguous queued prefix.');
   }
   return unique;
@@ -187,12 +207,14 @@ export function createServerSync(options: ServerSyncOptions) {
   const pushQueuedMutations = async (): Promise<{
     settled: number;
     conflicts: SyncConflictResult[];
+    deferredSettlementIds: Set<string>;
   }> => {
     let settled = 0;
-    const conflicts: SyncConflictResult[] = [];
     for (;;) {
       const pending = serverPending(await options.mutationQueue.listPending()).slice(0, batchSize);
-      if (pending.length === 0) return { settled, conflicts };
+      if (pending.length === 0) {
+        return { settled, conflicts: [], deferredSettlementIds: new Set() };
+      }
 
       const result = await options.transport.push(pending.map((item) => item.mutation));
       const batchConflicts = [...(result.conflicts ?? [])];
@@ -201,18 +223,19 @@ export function createServerSync(options: ServerSyncOptions) {
         result.acceptedMutationIds,
         batchConflicts,
       );
-      if (settledIds.size === 0) return { settled, conflicts };
+      if (settledIds.size === 0) {
+        return { settled, conflicts: [], deferredSettlementIds: new Set() };
+      }
 
-      await options.database.withExclusiveTransactionAsync(async (transaction) => {
-        for (const mutationId of settledIds) {
-          await transaction.runAsync(
-            'DELETE FROM mutation_queue WHERE account_id = ? AND mutation_id = ?',
-            options.accountId,
-            mutationId,
-          );
-        }
-      });
-      conflicts.push(...batchConflicts);
+      if (batchConflicts.length > 0) {
+        return {
+          settled,
+          conflicts: batchConflicts,
+          deferredSettlementIds: settledIds,
+        };
+      }
+
+      await deleteQueuedMutations(options.database, options.accountId, settledIds);
       settled += settledIds.size;
     }
   };
@@ -257,9 +280,20 @@ export function createServerSync(options: ServerSyncOptions) {
     const pushResult = await pushQueuedMutations();
     const cursor = await pullAuthoritativeState();
     if (pushResult.conflicts.length > 0) {
-      await options.applyConflicts?.(pushResult.conflicts);
+      if (options.applyConflicts === undefined) {
+        throw new Error('Conflict outcomes require an application handler before settlement.');
+      }
+      await options.applyConflicts(pushResult.conflicts);
+      await deleteQueuedMutations(
+        options.database,
+        options.accountId,
+        pushResult.deferredSettlementIds,
+      );
     }
-    return { settledMutations: pushResult.settled, cursor };
+    return {
+      settledMutations: pushResult.settled + pushResult.deferredSettlementIds.size,
+      cursor,
+    };
   };
 
   return {
