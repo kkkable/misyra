@@ -138,6 +138,7 @@ async function seedDeletedOccurrence(database, index) {
   return occurrenceId;
 }
 
+// Guard visible-result limits against stale or tombstoned rows consuming the SQL window.
 describe('MTS-029 review corrections', () => {
   it('does not let deleted completions consume the bounded visible Progress result', async () => {
     const database = createDatabase();
