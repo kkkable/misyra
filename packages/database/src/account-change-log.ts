@@ -9,7 +9,7 @@ export interface AppendAccountChangeInput {
   entityType: string;
   entityId: string;
   operation: AccountChangeOperation;
-  payload: unknown | null;
+  payload: unknown;
 }
 
 export interface AccountChange {
@@ -18,7 +18,7 @@ export interface AccountChange {
   entityType: string;
   entityId: string;
   operation: AccountChangeOperation;
-  payload: unknown | null;
+  payload: unknown;
 }
 
 export interface IncrementalChangePage {
@@ -125,7 +125,7 @@ export async function pullAccountChanges(
     entity_type: string;
     entity_id: string;
     operation: AccountChangeOperation;
-    payload: unknown | null;
+    payload: unknown;
   }>(
     `SELECT account_id, sequence, entity_type, entity_id, operation, payload
      FROM account_change_log
@@ -159,7 +159,7 @@ export async function getAccountSnapshot(pool: Pool, accountId: string): Promise
     entity_type: string;
     entity_id: string;
     operation: AccountChangeOperation;
-    payload: unknown | null;
+    payload: unknown;
   }>(
     `WITH ranked AS (
        SELECT account_id, sequence, entity_type, entity_id, operation, payload,
