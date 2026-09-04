@@ -331,7 +331,9 @@ export function createLocalRepositories(database: LocalRepositoryDatabase, accou
     progress: {
       listRecent: async (limit: number): Promise<CompletionSummary[]> => {
         const requestedLimit = boundedLimit(limit);
-        const rows = await database.getAllAsync<CompletionRow & { occurrence_payload_json: string }>(
+        const rows = await database.getAllAsync<
+          CompletionRow & { occurrence_payload_json: string }
+        >(
           `SELECT c.occurrence_id,
                   c.completed_at,
                   c.awarded_xp,
