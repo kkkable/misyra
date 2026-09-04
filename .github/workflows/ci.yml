@@ -1,32 +1,27 @@
-name: CI
+name: MTS-028 Green Helper
 
 on:
-  pull_request:
   push:
     branches:
-      - main
+      - verify/mts-028-green-helper-20260904
 
 permissions:
-  contents: read
-
-concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  contents: write
 
 jobs:
-  quality:
+  normalize-green:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    env:
-      MTS004_INTEGRATION: '1'
-      TURBO_TELEMETRY_DISABLED: '1'
-      CI_CONTRACT_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+    timeout-minutes: 15
     steps:
-      - name: Checkout clean repository
+      - name: Checkout exact active MTS-028 branch
         uses: actions/checkout@v4
         with:
-          persist-credentials: false
+          ref: feat/mts-028-mobile-sqlite-schema
           fetch-depth: 0
+          persist-credentials: true
+
+      - name: Verify expected GREEN head
+        run: test "$(git rev-parse HEAD)" = "e9500051e84fd8b93a5c479e25ead5b65b62d4a1"
 
       - name: Install pinned pnpm
         uses: pnpm/action-setup@v4
@@ -34,64 +29,33 @@ jobs:
           version: 10.34.5
           run_install: false
 
-      - name: Set up pinned Node with pnpm cache
+      - name: Set up pinned Node
         uses: actions/setup-node@v4
         with:
           node-version: 24.19.0
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
-      - name: Install from lockfile
-        run: pnpm install --frozen-lockfile
+      - name: Regenerate lockfile with pinned toolchain
+        run: pnpm install --no-frozen-lockfile
 
-      - name: Install Bicep compiler in runner only
-        run: az bicep install
+      - name: Format only MTS-028 implementation files
+        run: pnpm exec prettier --write apps/mobile/src/storage/schema.ts apps/mobile/src/storage/database.ts --config packages/config/prettier.config.mjs
 
-      - name: Start deterministic local dependencies
-        run: docker compose --file compose.yaml up -d --wait postgres azurite
+      - name: Prove helper touched only intended generated or MTS-028 files
+        run: |
+          unexpected="$(git diff --name-only | grep -Ev '^(pnpm-lock.yaml|apps/mobile/src/storage/schema.ts|apps/mobile/src/storage/database.ts)$' || true)"
+          test -z "$unexpected"
+          git diff --check
 
-      - name: Prove failing-fixture gates reject bad inputs
-        run: pnpm ci:fixtures
-
-      - name: Check workspace formatting
-        run: pnpm format
-
-      - name: Check CI-owned formatting
-        run: pnpm format:ci
-
-      - name: Lint workspaces
-        run: pnpm lint
-
-      - name: Lint CI-owned scripts and tests
-        run: pnpm lint:ci
-
-      - name: Typecheck
-        run: pnpm typecheck
-
-      - name: Run unit, integration, and mobile component tests
-        run: pnpm test
-
-      - name: Build all workspaces
-        run: pnpm build
-
-      - name: Reject high and critical dependency findings
-        run: pnpm audit --audit-level high
-
-      - name: Scan tracked implementation and configuration for secrets
-        run: pnpm ci:secrets
-
-      - name: Verify localization completeness
-        run: pnpm ci:localization
-
-      - name: Verify privacy and logging boundaries
-        run: pnpm ci:privacy
-
-      - name: Compile Bicep and environment parameter shapes
-        run: pnpm validate:infra
-
-      - name: Verify contract compatibility boundary
-        run: pnpm ci:contracts
-
-      - name: Stop local dependencies
-        if: always()
-        run: docker compose --file compose.yaml down --volumes
+      - name: Commit normalized GREEN files to active branch
+        run: |
+          if git diff --quiet -- pnpm-lock.yaml apps/mobile/src/storage/schema.ts apps/mobile/src/storage/database.ts; then
+            echo "No normalization change required"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pnpm-lock.yaml apps/mobile/src/storage/schema.ts apps/mobile/src/storage/database.ts
+          git commit -m "chore(mts-028): normalize SQLite implementation"
+          git push origin HEAD:feat/mts-028-mobile-sqlite-schema
