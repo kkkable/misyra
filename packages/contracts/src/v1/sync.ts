@@ -123,6 +123,79 @@ export const syncChangeSchema = z.union([
   calendarConnectionDeleteChangeSchema,
 ]);
 
+export const syncMutationEntityTypeSchema = z.enum([
+  'mission',
+  'story',
+  'completion',
+  'evidence',
+  'settings',
+]);
+export const syncMutationOperationSchema = z.enum([
+  'create',
+  'update',
+  'delete',
+  'complete',
+  'submit',
+]);
+export const syncMutationSchema = z
+  .object({
+    mutationId: z.string().min(1),
+    accountId: z.string().min(1),
+    deviceId: z.string().min(1),
+    entityType: syncMutationEntityTypeSchema,
+    entityId: z.string().min(1),
+    operation: syncMutationOperationSchema,
+    baseVersion: z.number().int().nonnegative().nullable(),
+    clientOccurredAt: z.string().min(1),
+    payload: z.unknown(),
+  })
+  .strict();
+
+export const serverAccountChangeSchema = z
+  .object({
+    sequence: z.number().int().nonnegative(),
+    entityType: z.string().min(1),
+    entityId: z.string().min(1),
+    operation: z.string().min(1),
+    payload: z.unknown(),
+  })
+  .strict();
+
+export const syncPushRequestSchema = z.object({ mutations: z.array(syncMutationSchema).max(500) }).strict();
+export const syncPushResponseSchema = z
+  .object({ acceptedMutationIds: z.array(z.string().min(1)) })
+  .strict();
+export const syncPullQuerySchema = z
+  .object({ cursor: z.coerce.number().int().nonnegative(), limit: z.coerce.number().int().min(1).max(500).default(100) })
+  .strict();
+export const syncPullResponseSchema = z.union([
+  z
+    .object({
+      kind: z.literal('incremental'),
+      changes: z.array(serverAccountChangeSchema),
+      nextCursor: z.number().int().nonnegative(),
+      hasMore: z.boolean(),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal('snapshot_required'),
+      reason: z.enum(['invalid_cursor', 'expired_cursor']),
+      nextCursor: z.number().int().nonnegative(),
+    })
+    .strict(),
+]);
+export const syncSnapshotResponseSchema = z
+  .object({
+    entries: z.array(serverAccountChangeSchema),
+    nextCursor: z.number().int().nonnegative(),
+  })
+  .strict();
+
 export type MobileMission = z.infer<typeof mobileMissionSchema>;
 export type MobileCalendarConnection = z.infer<typeof mobileCalendarConnectionSchema>;
 export type SyncChange = z.infer<typeof syncChangeSchema>;
+export type SyncMutationContract = z.infer<typeof syncMutationSchema>;
+export type ServerAccountChangeContract = z.infer<typeof serverAccountChangeSchema>;
+export type SyncPullResponseContract = z.infer<typeof syncPullResponseSchema>;
+export type SyncSnapshotResponseContract = z.infer<typeof syncSnapshotResponseSchema>;
