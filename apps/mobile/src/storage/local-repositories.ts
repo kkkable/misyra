@@ -334,26 +334,19 @@ export function createLocalRepositories(database: LocalRepositoryDatabase, accou
            ON o.account_id = c.account_id
           AND o.occurrence_id = c.occurrence_id
         WHERE c.account_id = ?
+          AND json_extract(o.payload_json, '$.deletionState') <> 'deleted'
         ORDER BY c.completed_at DESC, c.occurrence_id
         LIMIT ?`,
       accountId,
-      MAX_BOUNDED_RESULTS,
+      requestedLimit,
     );
-    return rows
-      .filter((row) => {
-        const occurrence = createMissionOccurrence(
-          parseJson(row.occurrence_payload_json) as MissionOccurrenceInput,
-        );
-        return occurrence.deletionState !== 'deleted';
-      })
-      .slice(0, requestedLimit)
-      .map((row) => ({
-        occurrenceId: row.occurrence_id,
-        completedAt: row.completed_at,
-        awardedXp: row.awarded_xp,
-        payload: parseJson(row.payload_json),
-        updatedAt: row.updated_at,
-      }));
+    return rows.map((row) => ({
+      occurrenceId: row.occurrence_id,
+      completedAt: row.completed_at,
+      awardedXp: row.awarded_xp,
+      payload: parseJson(row.payload_json),
+      updatedAt: row.updated_at,
+    }));
   };
 
   const getSettings = async (): Promise<LocalSettings | null> => {
@@ -376,14 +369,18 @@ export function createLocalRepositories(database: LocalRepositoryDatabase, accou
   };
 
   const listHiddenEvents = async (limit: number): Promise<HiddenEventSummary[]> => {
+    const requestedLimit = boundedLimit(limit);
+    const now = new Date().toISOString();
     const rows = await database.getAllAsync<HiddenEventRow>(
       `SELECT hidden_event_id, starts_at, ends_at, payload_json, updated_at
          FROM hidden_event_summaries
         WHERE account_id = ?
+          AND ends_at > ?
         ORDER BY starts_at, hidden_event_id
         LIMIT ?`,
       accountId,
-      boundedLimit(limit),
+      now,
+      requestedLimit,
     );
     return rows.map((row) => ({
       hiddenEventId: row.hidden_event_id,
@@ -444,29 +441,27 @@ export function createLocalRepositories(database: LocalRepositoryDatabase, accou
            ON o.account_id = d.account_id
           AND o.occurrence_id = d.occurrence_id
         WHERE d.account_id = ?
+          AND (
+            d.occurrence_id IS NULL
+            OR (
+              o.payload_json IS NOT NULL
+              AND json_extract(o.payload_json, '$.deletionState') <> 'deleted'
+            )
+          )
         ORDER BY d.updated_at DESC, d.document_id
         LIMIT ?`,
       accountId,
-      MAX_BOUNDED_RESULTS,
+      requestedLimit,
     );
-    return rows
-      .filter((row) => {
-        if (row.occurrence_id === null || row.occurrence_payload_json === null) return true;
-        const occurrence = createMissionOccurrence(
-          parseJson(row.occurrence_payload_json) as MissionOccurrenceInput,
-        );
-        return occurrence.deletionState !== 'deleted';
-      })
-      .slice(0, requestedLimit)
-      .map((row) => ({
-        documentId: row.document_id,
-        occurrenceId: row.occurrence_id,
-        title: row.title,
-        location: row.location,
-        providerText: row.provider_text,
-        personalNote: row.personal_note,
-        updatedAt: row.updated_at,
-      }));
+    return rows.map((row) => ({
+      documentId: row.document_id,
+      occurrenceId: row.occurrence_id,
+      title: row.title,
+      location: row.location,
+      providerText: row.provider_text,
+      personalNote: row.personal_note,
+      updatedAt: row.updated_at,
+    }));
   };
 
   const repositories = {
