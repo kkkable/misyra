@@ -112,15 +112,15 @@ function validateAcceptedIds(
   batch: readonly PendingMutation[],
   acceptedMutationIds: readonly string[],
 ): Set<string> {
-  const batchIds = new Set(batch.map((item) => item.mutation.mutationId));
-  const accepted = new Set<string>();
-  for (const mutationId of acceptedMutationIds) {
-    if (!batchIds.has(mutationId)) {
-      throw new Error(`Server accepted unknown mutation ID: ${mutationId}.`);
-    }
-    accepted.add(mutationId);
+  const expectedPrefix = batch
+    .slice(0, acceptedMutationIds.length)
+    .map((item) => item.mutation.mutationId);
+  if (
+    acceptedMutationIds.some((mutationId, index) => mutationId !== expectedPrefix[index])
+  ) {
+    throw new Error('Server acceptance must be a contiguous queued prefix.');
   }
-  return accepted;
+  return new Set(acceptedMutationIds);
 }
 
 function validateIncrementalPage(
@@ -131,8 +131,8 @@ function validateIncrementalPage(
   let previous = cursor;
   for (const change of page.changes) {
     assertCursor(change.sequence, 'Change sequence');
-    if (change.sequence <= previous) {
-      throw new Error('Authoritative changes must be strictly ordered after the current cursor.');
+    if (change.sequence !== previous + 1) {
+      throw new Error('Authoritative changes must be contiguous after the current cursor.');
     }
     previous = change.sequence;
   }
@@ -183,10 +183,21 @@ export function createServerSync(options: ServerSyncOptions) {
     while (true) {
       const page = await options.transport.pull({ cursor, limit: batchSize });
       if (page.kind === 'snapshot_required') {
+        const pendingBefore = await options.mutationQueue.listPending();
         const snapshot = await options.transport.snapshot();
         const snapshotCursor = assertCursor(snapshot.nextCursor, 'Snapshot cursor');
         await options.database.withExclusiveTransactionAsync(async (transaction) => {
           await options.applySnapshot(transaction, snapshot.entries);
+          for (const pending of pendingBefore) {
+            const retained = await transaction.getFirstAsync<{ mutation_id: string }>(
+              'SELECT mutation_id FROM mutation_queue WHERE account_id = ? AND mutation_id = ?',
+              options.accountId,
+              pending.mutation.mutationId,
+            );
+            if (retained === null) {
+              throw new Error('Snapshot recovery removed an unsent mutation.');
+            }
+          }
           await writeCursor(transaction, options.accountId, snapshotCursor);
         });
         return snapshotCursor;
