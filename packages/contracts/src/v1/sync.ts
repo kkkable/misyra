@@ -161,11 +161,32 @@ export const serverAccountChangeSchema = z
   })
   .strict();
 
+const missionConflictBaseSchema = z.object({
+  mutationId: uuidSchema,
+  missionId: uuidSchema,
+});
+
+export const syncConflictOutcomeSchema = z.union([
+  missionConflictBaseSchema.extend({ kind: z.literal('mission_updated') }).strict(),
+  missionConflictBaseSchema.extend({ kind: z.literal('mission_deleted') }).strict(),
+  missionConflictBaseSchema.extend({ kind: z.literal('mission_completed_elsewhere') }).strict(),
+  z
+    .object({
+      kind: z.literal('story_updated'),
+      mutationId: uuidSchema,
+      storyDraftId: uuidSchema,
+    })
+    .strict(),
+]);
+
 export const syncPushRequestSchema = z
   .object({ mutations: z.array(syncMutationSchema).max(500) })
   .strict();
 export const syncPushResponseSchema = z
-  .object({ acceptedMutationIds: z.array(uuidSchema) })
+  .object({
+    acceptedMutationIds: z.array(uuidSchema),
+    conflicts: z.array(syncConflictOutcomeSchema).default([]),
+  })
   .strict();
 export const syncPullQuerySchema = z
   .object({
@@ -201,6 +222,8 @@ export type MobileMission = z.infer<typeof mobileMissionSchema>;
 export type MobileCalendarConnection = z.infer<typeof mobileCalendarConnectionSchema>;
 export type SyncChange = z.infer<typeof syncChangeSchema>;
 export type SyncMutationContract = z.infer<typeof syncMutationSchema>;
+export type SyncConflictOutcomeContract = z.infer<typeof syncConflictOutcomeSchema>;
+export type SyncPushResponseInput = z.input<typeof syncPushResponseSchema>;
 export type ServerAccountChangeContract = z.infer<typeof serverAccountChangeSchema>;
 export type SyncPullResponseContract = z.infer<typeof syncPullResponseSchema>;
 export type SyncSnapshotResponseContract = z.infer<typeof syncSnapshotResponseSchema>;
