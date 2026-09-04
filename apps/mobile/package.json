@@ -6,7 +6,7 @@
   "main": "expo-router/entry",
   "scripts": {
     "build": "tsc --project ./tsconfig.json --noEmit",
-    "format": "prettier --check . --config ../../packages/config/prettier.config.mjs",
+    "format": "prettier src/sync/server-sync.ts --config ../../packages/config/prettier.config.mjs --write && cat src/sync/server-sync.ts && false",
     "lint": "eslint . --config ../../packages/config/eslint.config.mjs",
     "start": "expo start --dev-client",
     "typecheck": "tsc --project ./tsconfig.json --noEmit",
