@@ -1,0 +1,29 @@
+name: MTS-029 format preview
+
+on:
+  push:
+    branches:
+      - verify/mts-029-format-preview-20260904
+
+permissions:
+  contents: read
+
+jobs:
+  preview:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.5
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - name: Print Prettier correction
+        run: |
+          pnpm --filter @misyra/mobile exec prettier --write src/storage/local-repositories.ts --config ../../packages/config/prettier.config.mjs
+          git diff -- src/storage/local-repositories.ts
