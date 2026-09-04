@@ -14,14 +14,19 @@ describe('MTS-027 API bootstrap', () => {
       ],
       authenticate: () => ({ accountId: 'account-1' }),
     });
+    const requestId = '123e4567-e89b-42d3-a456-426614174000';
 
-    const versioned = await server.inject({ method: 'GET', url: '/v1/missions/mission-1' });
+    const versioned = await server.inject({
+      method: 'GET',
+      url: '/v1/missions/mission-1',
+      headers: { 'x-request-id': requestId },
+    });
     const unversioned = await server.inject({ method: 'GET', url: '/missions/mission-1' });
 
     expect(versioned.statusCode).toBe(200);
     expect(versioned.json()).toMatchObject({
       version: 1,
-      requestId: expect.any(String),
+      requestId,
       ok: true,
       payload: { missionId: 'mission-1' },
     });
