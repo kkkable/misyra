@@ -1,8 +1,4 @@
-import type {
-  MutationQueue,
-  PendingMutation,
-  SyncMutation,
-} from '../storage/mutation-queue.js';
+import type { MutationQueue, PendingMutation, SyncMutation } from '../storage/mutation-queue.js';
 import type { MigrationDatabase } from '../storage/schema.js';
 
 const DEFAULT_BATCH_SIZE = 100;
@@ -70,17 +66,12 @@ function assertCursor(value: number, label: string): number {
 function resolveBatchSize(value: number | undefined): number {
   const batchSize = value ?? DEFAULT_BATCH_SIZE;
   if (!Number.isSafeInteger(batchSize) || batchSize < 1 || batchSize > MAX_BATCH_SIZE) {
-    throw new RangeError(
-      `Sync batch size must be an integer from 1 to ${String(MAX_BATCH_SIZE)}.`,
-    );
+    throw new RangeError(`Sync batch size must be an integer from 1 to ${String(MAX_BATCH_SIZE)}.`);
   }
   return batchSize;
 }
 
-async function readCursor(
-  database: ServerSyncDatabase,
-  accountId: string,
-): Promise<number> {
+async function readCursor(database: ServerSyncDatabase, accountId: string): Promise<number> {
   const row = await database.getFirstAsync<{ cursor: string }>(
     'SELECT cursor FROM sync_cursors WHERE account_id = ?',
     accountId,
@@ -158,10 +149,7 @@ export function createServerSync(options: ServerSyncOptions) {
   const pushQueuedMutations = async (): Promise<number> => {
     let settled = 0;
     while (true) {
-      const pending = serverPending(await options.mutationQueue.listPending()).slice(
-        0,
-        batchSize,
-      );
+      const pending = serverPending(await options.mutationQueue.listPending()).slice(0, batchSize);
       if (pending.length === 0) return settled;
 
       const result = await options.transport.push(pending.map((item) => item.mutation));
