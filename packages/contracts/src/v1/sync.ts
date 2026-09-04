@@ -139,11 +139,11 @@ export const syncMutationOperationSchema = z.enum([
 ]);
 export const syncMutationSchema = z
   .object({
-    mutationId: z.string().min(1),
-    accountId: z.string().min(1),
-    deviceId: z.string().min(1),
+    mutationId: uuidSchema,
+    accountId: uuidSchema,
+    deviceId: uuidSchema,
     entityType: syncMutationEntityTypeSchema,
-    entityId: z.string().min(1),
+    entityId: uuidSchema,
     operation: syncMutationOperationSchema,
     baseVersion: z.number().int().nonnegative().nullable(),
     clientOccurredAt: z.string().min(1),
@@ -165,7 +165,7 @@ export const syncPushRequestSchema = z
   .object({ mutations: z.array(syncMutationSchema).max(500) })
   .strict();
 export const syncPushResponseSchema = z
-  .object({ acceptedMutationIds: z.array(z.string().min(1)) })
+  .object({ acceptedMutationIds: z.array(uuidSchema) })
   .strict();
 export const syncPullQuerySchema = z
   .object({
