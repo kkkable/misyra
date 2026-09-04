@@ -1,0 +1,85 @@
+import { afterEach, describe, expect, it } from 'vitest';
+
+import { createApiServer } from './index.js';
+import { createSyncRoutes } from './sync-routes.js';
+
+const accountId = 'account-a';
+const mutation = {
+  mutationId: 'mutation-a',
+  accountId,
+  deviceId: 'device-a',
+  entityType: 'mission' as const,
+  entityId: '11111111-1111-4111-8111-111111111111',
+  operation: 'update' as const,
+  baseVersion: 1,
+  clientOccurredAt: '2026-09-04T18:00:00.000Z',
+  payload: { title: 'Offline edit' },
+};
+
+describe('MTS-031 sync routes', () => {
+  const servers: Array<ReturnType<typeof createApiServer>> = [];
+
+  afterEach(async () => {
+    await Promise.all(servers.splice(0).map((server) => server.close()));
+  });
+
+  it('authenticates push and scopes mutations to the authenticated account', async () => {
+    const pushed: string[] = [];
+    const server = createApiServer({
+      authenticate: () => ({ accountId }),
+      routes: createSyncRoutes({
+        push: async (_accountId, mutations) => {
+          pushed.push(...mutations.map((item) => item.mutationId));
+          return { acceptedMutationIds: mutations.map((item) => item.mutationId) };
+        },
+        pull: async () => ({ kind: 'incremental', changes: [], nextCursor: 0, hasMore: false }),
+        snapshot: async () => ({ entries: [], nextCursor: 0 }),
+      }),
+    });
+    servers.push(server);
+
+    const response = await server.inject({
+      method: 'POST',
+      url: '/v1/sync/push',
+      payload: { mutations: [mutation] },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(pushed).toEqual(['mutation-a']);
+
+    const forbidden = await server.inject({
+      method: 'POST',
+      url: '/v1/sync/push',
+      payload: { mutations: [{ ...mutation, accountId: 'account-b' }] },
+    });
+    expect(forbidden.statusCode).toBe(403);
+  });
+
+  it('passes authenticated cursor pagination and snapshot requests to the sync service', async () => {
+    const pulls: Array<{ accountId: string; cursor: number; limit: number }> = [];
+    const snapshots: string[] = [];
+    const server = createApiServer({
+      authenticate: () => ({ accountId }),
+      routes: createSyncRoutes({
+        push: async () => ({ acceptedMutationIds: [] }),
+        pull: async (authenticatedAccountId, input) => {
+          pulls.push({ accountId: authenticatedAccountId, ...input });
+          return { kind: 'incremental', changes: [], nextCursor: input.cursor, hasMore: false };
+        },
+        snapshot: async (authenticatedAccountId) => {
+          snapshots.push(authenticatedAccountId);
+          return { entries: [], nextCursor: 7 };
+        },
+      }),
+    });
+    servers.push(server);
+
+    const pull = await server.inject({ method: 'GET', url: '/v1/sync/pull?cursor=6&limit=25' });
+    expect(pull.statusCode).toBe(200);
+    expect(pulls).toEqual([{ accountId, cursor: 6, limit: 25 }]);
+
+    const snapshot = await server.inject({ method: 'GET', url: '/v1/sync/snapshot' });
+    expect(snapshot.statusCode).toBe(200);
+    expect(snapshots).toEqual([accountId]);
+  });
+});
