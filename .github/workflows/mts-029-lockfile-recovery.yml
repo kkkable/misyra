@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  format-target:
+  fix-target:
     runs-on: ubuntu-latest
     steps:
       - name: Check out target branch
@@ -33,18 +33,41 @@ jobs:
       - name: Install exact dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
 
-      - name: Format affected source
-        run: pnpm exec prettier --write apps/mobile/src/storage/local-repositories.ts --config packages/config/prettier.config.mjs
+      - name: Apply lint corrections
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('apps/mobile/src/storage/local-repositories.ts')
+          source = path.read_text()
+          replacements = {
+              "function parseJson<T>(source: string): T {\n  const value: unknown = JSON.parse(source);\n  return value as T;\n}": "function parseJson(source: string): unknown {\n  return JSON.parse(source) as unknown;\n}",
+              "createMissionSeries(parseJson<MissionSeriesInput>(row.series_payload_json))": "createMissionSeries(parseJson(row.series_payload_json) as MissionSeriesInput)",
+              "parseJson<MissionOccurrenceInput>(row.occurrence_payload_json)": "parseJson(row.occurrence_payload_json) as MissionOccurrenceInput",
+              "parseJson<unknown>(link.payload_json)": "parseJson(link.payload_json)",
+              "parseJson<unknown>(row.payload_json)": "parseJson(row.payload_json)",
+              "parseJson<unknown>(row.content_json)": "parseJson(row.content_json)",
+              "parseJson<unknown>(row.composition_json)": "parseJson(row.composition_json)",
+              "${MAX_BOUNDED_RESULTS}.`": "${String(MAX_BOUNDED_RESULTS)}.`",
+          }
+          for old, new in replacements.items():
+              if old not in source:
+                  raise SystemExit(f'expected source fragment missing: {old!r}')
+              source = source.replace(old, new)
+          path.write_text(source)
+          PY
+          pnpm exec prettier --write apps/mobile/src/storage/local-repositories.ts --config packages/config/prettier.config.mjs
+          pnpm --filter @misyra/mobile lint
 
-      - name: Commit formatting correction to MTS-029 branch
+      - name: Commit lint correction to MTS-029 branch
         shell: bash
         run: |
           if git diff --quiet -- apps/mobile/src/storage/local-repositories.ts; then
-            echo "Source is already formatted"
+            echo "Lint correction already present"
             exit 0
           fi
           git config user.name "Misyra Auto Development"
           git config user.email "130823389+kkkable@users.noreply.github.com"
           git add apps/mobile/src/storage/local-repositories.ts
-          git commit -m "style(mobile): format local repositories"
+          git commit -m "fix(mobile): satisfy local repository lint contracts"
           git push origin HEAD:feat/mts-029-local-repositories
