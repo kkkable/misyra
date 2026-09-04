@@ -1,0 +1,36 @@
+name: MTS-032 format preview
+
+on:
+  push:
+    branches:
+      - verify/mts-032-format-preview-20260905
+
+permissions:
+  contents: read
+
+jobs:
+  preview:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.5
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - name: Print formatter diff
+        run: |
+          pnpm exec prettier --write \
+            apps/mobile/src/sync/conflict-application.ts \
+            apps/mobile/src/sync/server-sync-conflicts.review.test.mjs \
+            apps/mobile/src/sync/server-sync.ts \
+            --config packages/config/prettier.config.mjs
+          git diff -- \
+            apps/mobile/src/sync/conflict-application.ts \
+            apps/mobile/src/sync/server-sync-conflicts.review.test.mjs \
+            apps/mobile/src/sync/server-sync.ts
