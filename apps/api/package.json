@@ -13,7 +13,6 @@
   },
   "dependencies": {
     "@misyra/contracts": "workspace:*",
-    "@misyra/database": "workspace:*",
     "fastify": "5.8.5"
   },
   "devDependencies": {
