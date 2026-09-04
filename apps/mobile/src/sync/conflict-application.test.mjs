@@ -7,7 +7,7 @@ function effects() {
     reloadMission: vi.fn(async () => undefined),
     reloadStory: vi.fn(async () => undefined),
     clearStoryUndoHistory: vi.fn(),
-    deleteWorkingFile: vi.fn(async () => undefined),
+    deleteDuplicateEvidenceWorkingFiles: vi.fn(async () => undefined),
     showMessage: vi.fn(),
   };
 }
@@ -36,18 +36,11 @@ describe('MTS-032 conflict application', () => {
   it('cleans duplicate evidence and shows completion copy only for affected active work', async () => {
     const active = effects();
     await applyServerConflict(
-      {
-        kind: 'mission_completed_elsewhere',
-        missionId: 'mission-a',
-        duplicateWorkingFiles: ['evidence-a.jpg', 'evidence-a.thumb'],
-      },
+      { kind: 'mission_completed_elsewhere', missionId: 'mission-a' },
       { missionId: 'mission-a' },
       active,
     );
-    expect(active.deleteWorkingFile.mock.calls.map(([path]) => path)).toEqual([
-      'evidence-a.jpg',
-      'evidence-a.thumb',
-    ]);
+    expect(active.deleteDuplicateEvidenceWorkingFiles).toHaveBeenCalledWith('mission-a');
     expect(active.reloadMission).toHaveBeenCalledWith('mission-a');
     expect(active.showMessage).toHaveBeenCalledWith(
       'This mission was already completed on another device.',
@@ -55,15 +48,11 @@ describe('MTS-032 conflict application', () => {
 
     const background = effects();
     await applyServerConflict(
-      {
-        kind: 'mission_completed_elsewhere',
-        missionId: 'mission-b',
-        duplicateWorkingFiles: ['evidence-b.jpg'],
-      },
+      { kind: 'mission_completed_elsewhere', missionId: 'mission-b' },
       { missionId: 'mission-a' },
       background,
     );
-    expect(background.deleteWorkingFile).toHaveBeenCalledWith('evidence-b.jpg');
+    expect(background.deleteDuplicateEvidenceWorkingFiles).toHaveBeenCalledWith('mission-b');
     expect(background.showMessage).not.toHaveBeenCalled();
   });
 
@@ -88,6 +77,6 @@ describe('MTS-032 conflict application', () => {
     );
     expect(fx.showMessage).not.toHaveBeenCalled();
     expect(fx.clearStoryUndoHistory).not.toHaveBeenCalled();
-    expect(fx.deleteWorkingFile).not.toHaveBeenCalled();
+    expect(fx.deleteDuplicateEvidenceWorkingFiles).not.toHaveBeenCalled();
   });
 });
