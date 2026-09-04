@@ -74,6 +74,7 @@ function deletedOccurrencePayload() {
   };
 }
 
+// Deleted missions must not leave a locally renderable Story draft behind.
 describe('MTS-029 deleted Story draft visibility', () => {
   it('does not expose a Story draft whose occurrence is tombstoned', async () => {
     const database = new NodeSqliteAdapter();
