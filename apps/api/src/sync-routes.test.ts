@@ -28,17 +28,20 @@ describe('MTS-031 sync routes', () => {
     const server = createApiServer({
       authenticate: () => ({ accountId }),
       routes: createSyncRoutes({
-        push: async (_accountId, mutations) => {
+        push: (_accountId, mutations) => {
           pushed.push(...mutations.map((item) => item.mutationId));
-          return { acceptedMutationIds: mutations.map((item) => item.mutationId) };
+          return Promise.resolve({
+            acceptedMutationIds: mutations.map((item) => item.mutationId),
+          });
         },
-        pull: async () => ({
-          kind: 'incremental',
-          changes: [],
-          nextCursor: 0,
-          hasMore: false,
-        }),
-        snapshot: async () => ({ entries: [], nextCursor: 0 }),
+        pull: () =>
+          Promise.resolve({
+            kind: 'incremental',
+            changes: [],
+            nextCursor: 0,
+            hasMore: false,
+          }),
+        snapshot: () => Promise.resolve({ entries: [], nextCursor: 0 }),
       }),
     });
     servers.push(server);
@@ -66,19 +69,19 @@ describe('MTS-031 sync routes', () => {
     const server = createApiServer({
       authenticate: () => ({ accountId }),
       routes: createSyncRoutes({
-        push: async () => ({ acceptedMutationIds: [] }),
-        pull: async (authenticatedAccountId, input) => {
+        push: () => Promise.resolve({ acceptedMutationIds: [] }),
+        pull: (authenticatedAccountId, input) => {
           pulls.push({ accountId: authenticatedAccountId, ...input });
-          return {
+          return Promise.resolve({
             kind: 'incremental',
             changes: [],
             nextCursor: input.cursor,
             hasMore: false,
-          };
+          });
         },
-        snapshot: async (authenticatedAccountId) => {
+        snapshot: (authenticatedAccountId) => {
           snapshots.push(authenticatedAccountId);
-          return { entries: [], nextCursor: 7 };
+          return Promise.resolve({ entries: [], nextCursor: 7 });
         },
       }),
     });
