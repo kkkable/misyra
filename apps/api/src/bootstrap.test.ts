@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createApiServer } from './index.js';
 
 describe('MTS-027 API bootstrap', () => {
-  it('registers application routes only below /v1', async () => {
+  it('registers application routes only below /v1 and wraps success in the v1 envelope', async () => {
     const server = createApiServer({
       routes: [
         {
@@ -19,6 +19,12 @@ describe('MTS-027 API bootstrap', () => {
     const unversioned = await server.inject({ method: 'GET', url: '/missions/mission-1' });
 
     expect(versioned.statusCode).toBe(200);
+    expect(versioned.json()).toMatchObject({
+      version: 1,
+      requestId: expect.any(String),
+      ok: true,
+      payload: { missionId: 'mission-1' },
+    });
     expect(unversioned.statusCode).toBe(404);
     await server.close();
   });
