@@ -100,7 +100,15 @@ describe('MTS-031 server synchronization', () => {
         },
         pull: async ({ cursor }) => ({
           kind: 'incremental',
-          changes: [{ sequence: cursor + 1, entityType: 'mission', entityId: 'mission-a', operation: 'upsert', payload: { version: cursor + 1 } }],
+          changes: [
+            {
+              sequence: cursor + 1,
+              entityType: 'mission',
+              entityId: 'mission-a',
+              operation: 'upsert',
+              payload: { version: cursor + 1 },
+            },
+          ],
           nextCursor: cursor + 1,
           hasMore: false,
         }),
@@ -113,7 +121,8 @@ describe('MTS-031 server synchronization', () => {
         accountId,
         mutationQueue: queue,
         transport,
-        applyChanges: async (_transaction, changes) => applied.push(...changes.map((change) => change.sequence)),
+        applyChanges: async (_transaction, changes) =>
+          applied.push(...changes.map((change) => change.sequence)),
         applySnapshot: async () => {},
       });
 
@@ -135,7 +144,15 @@ describe('MTS-031 server synchronization', () => {
         push: async () => ({ acceptedMutationIds: [] }),
         pull: async () => ({
           kind: 'incremental',
-          changes: [{ sequence: 1, entityType: 'mission', entityId: 'mission-a', operation: 'upsert', payload: {} }],
+          changes: [
+            {
+              sequence: 1,
+              entityType: 'mission',
+              entityId: 'mission-a',
+              operation: 'upsert',
+              payload: {},
+            },
+          ],
           nextCursor: 1,
           hasMore: false,
         }),
@@ -179,7 +196,15 @@ describe('MTS-031 server synchronization', () => {
           const nextCursor = cursor + 1;
           return {
             kind: 'incremental',
-            changes: [{ sequence: nextCursor, entityType: 'mission', entityId: `mission-${nextCursor}`, operation: 'upsert', payload: {} }],
+            changes: [
+              {
+                sequence: nextCursor,
+                entityType: 'mission',
+                entityId: `mission-${nextCursor}`,
+                operation: 'upsert',
+                payload: {},
+              },
+            ],
             nextCursor,
             hasMore: nextCursor < 2,
           };
@@ -193,7 +218,8 @@ describe('MTS-031 server synchronization', () => {
         accountId,
         mutationQueue: createMutationQueue(database, accountId),
         transport,
-        applyChanges: async (_transaction, changes) => applied.push(...changes.map((change) => change.sequence)),
+        applyChanges: async (_transaction, changes) =>
+          applied.push(...changes.map((change) => change.sequence)),
         applySnapshot: async () => {},
       });
 
@@ -214,9 +240,21 @@ describe('MTS-031 server synchronization', () => {
       let snapshotApplied = false;
       const transport = {
         push: async () => ({ acceptedMutationIds: [] }),
-        pull: async () => ({ kind: 'snapshot_required', reason: 'expired_cursor', nextCursor: 9 }),
+        pull: async () => ({
+          kind: 'snapshot_required',
+          reason: 'expired_cursor',
+          nextCursor: 9,
+        }),
         snapshot: async () => ({
-          entries: [{ sequence: 9, entityType: 'mission', entityId: 'mission-a', operation: 'upsert', payload: {} }],
+          entries: [
+            {
+              sequence: 9,
+              entityType: 'mission',
+              entityId: 'mission-a',
+              operation: 'upsert',
+              payload: {},
+            },
+          ],
           nextCursor: 9,
         }),
       };
@@ -234,7 +272,9 @@ describe('MTS-031 server synchronization', () => {
       await sync.run();
 
       expect(snapshotApplied).toBe(true);
-      expect((await queue.listPending()).map((item) => item.mutation.mutationId)).toEqual(['mutation-a']);
+      expect((await queue.listPending()).map((item) => item.mutation.mutationId)).toEqual([
+        'mutation-a',
+      ]);
       expect(await readCursor(database)).toBe('9');
     } finally {
       database.close();
