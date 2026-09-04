@@ -120,7 +120,9 @@ describe('MTS-029 deleted Story draft visibility', () => {
         '2026-09-04T02:00:00.000Z',
       );
 
-      expect(await createLocalRepositories(database, accountId).drafts.getStory(occurrenceId)).toBeNull();
+      expect(
+        await createLocalRepositories(database, accountId).drafts.getStory(occurrenceId),
+      ).toBeNull();
     } finally {
       database.close();
     }

@@ -409,9 +409,14 @@ export function createLocalRepositories(database: LocalRepositoryDatabase, accou
 
   const getStoryDraft = async (occurrenceId: string): Promise<StoryDraft | null> => {
     const row = await database.getFirstAsync<StoryDraftRow>(
-      `SELECT occurrence_id, draft_id, composition_json, updated_at
-         FROM story_drafts
-        WHERE account_id = ? AND occurrence_id = ?`,
+      `SELECT d.occurrence_id, d.draft_id, d.composition_json, d.updated_at
+       FROM story_drafts d
+       JOIN cached_mission_occurrences o
+         ON o.account_id = d.account_id
+        AND o.occurrence_id = d.occurrence_id
+      WHERE d.account_id = ?
+        AND d.occurrence_id = ?
+        AND json_extract(o.payload_json, '$.deletionState') <> 'deleted'`,
       accountId,
       occurrenceId,
     );
@@ -512,7 +517,7 @@ export function createLocalRepositories(database: LocalRepositoryDatabase, accou
       observePlanner: () => observe(getPlannerDraft, ['planner_drafts']),
       getStory: getStoryDraft,
       observeStory: (occurrenceId: string) =>
-        observe(() => getStoryDraft(occurrenceId), ['story_drafts']),
+        observe(() => getStoryDraft(occurrenceId), ['story_drafts', 'cached_mission_occurrences']),
     },
     search: {
       listDocuments: listSearchDocuments,
