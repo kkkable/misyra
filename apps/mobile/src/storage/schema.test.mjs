@@ -270,11 +270,17 @@ describe('MTS-028 account isolation and sign-out wipe', () => {
 
     for (const table of accountDataTables) {
       expect(
-        await database.getFirstAsync(`SELECT COUNT(*) AS count FROM ${table} WHERE account_id = ?`, 'account-a'),
+        await database.getFirstAsync(
+          `SELECT COUNT(*) AS count FROM ${table} WHERE account_id = ?`,
+          'account-a',
+        ),
         `${table} retained signed-out account data`,
       ).toMatchObject({ count: 0 });
       expect(
-        await database.getFirstAsync(`SELECT COUNT(*) AS count FROM ${table} WHERE account_id = ?`, 'account-b'),
+        await database.getFirstAsync(
+          `SELECT COUNT(*) AS count FROM ${table} WHERE account_id = ?`,
+          'account-b',
+        ),
         `${table} removed another account's data`,
       ).toMatchObject({ count: 1 });
     }
@@ -323,13 +329,7 @@ describe('MTS-028 draft and privacy constraints', () => {
             (account_id, occurrence_id, draft_id, composition_json, updated_at)
            VALUES (?, ?, ?, ?, ?)`,
         )
-        .run(
-          'account-a',
-          'occurrence-account-a',
-          'story-second',
-          '{}',
-          '2026-09-04T00:01:00.000Z',
-        ),
+        .run('account-a', 'occurrence-account-a', 'story-second', '{}', '2026-09-04T00:01:00.000Z'),
     ).toThrow();
   });
 
@@ -340,7 +340,9 @@ describe('MTS-028 draft and privacy constraints', () => {
     const sensitiveName = /(credential|token|secret|encryption.?key)/i;
     for (const table of accountDataTables) {
       const columns = database.all(`PRAGMA table_info(${table})`);
-      expect(columns.map((column) => column.name).filter((name) => sensitiveName.test(name))).toEqual([]);
+      expect(
+        columns.map((column) => column.name).filter((name) => sensitiveName.test(name)),
+      ).toEqual([]);
     }
   });
 });
