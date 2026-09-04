@@ -2,6 +2,8 @@ import type { Pool, PoolClient } from 'pg';
 
 export type AccountChangeOperation = 'upsert' | 'delete' | 'conflict';
 
+type DatabaseClient = Pool | PoolClient;
+
 export interface AppendAccountChangeInput {
   accountId: string;
   entityType: string;
@@ -36,7 +38,11 @@ export interface AccountSnapshot {
   nextCursor: number;
 }
 
-async function currentCursor(client: Pool | PoolClient, accountId: string): Promise<number> {
+function isPool(client: DatabaseClient): client is Pool {
+  return 'connect' in client && typeof client.connect === 'function';
+}
+
+async function currentCursor(client: DatabaseClient, accountId: string): Promise<number> {
   const result = await client.query<{ cursor: string | number | null }>(
     `SELECT max(sequence) AS cursor FROM account_change_log WHERE account_id = $1`,
     [accountId],
@@ -44,41 +50,53 @@ async function currentCursor(client: Pool | PoolClient, accountId: string): Prom
   return Number(result.rows[0]?.cursor ?? 0);
 }
 
-export async function appendAccountChange(
-  pool: Pool,
+async function appendWithClient(
+  client: PoolClient,
   input: AppendAccountChangeInput,
 ): Promise<AccountChange> {
-  const client = await pool.connect();
+  await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [input.accountId]);
+  const nextResult = await client.query<{ sequence: string | number }>(
+    `SELECT coalesce(max(sequence), 0) + 1 AS sequence
+     FROM account_change_log
+     WHERE account_id = $1`,
+    [input.accountId],
+  );
+  const sequence = Number(nextResult.rows[0]?.sequence ?? 1);
+  await client.query(
+    `INSERT INTO account_change_log
+     (account_id, sequence, entity_type, entity_id, operation, payload)
+     VALUES ($1, $2, $3, $4, $5, $6::jsonb)`,
+    [
+      input.accountId,
+      sequence,
+      input.entityType,
+      input.entityId,
+      input.operation,
+      input.payload === null ? null : JSON.stringify(input.payload),
+    ],
+  );
+  return { ...input, sequence };
+}
+
+export async function appendAccountChange(
+  client: DatabaseClient,
+  input: AppendAccountChangeInput,
+): Promise<AccountChange> {
+  if (!isPool(client)) {
+    return appendWithClient(client, input);
+  }
+
+  const transactionClient = await client.connect();
   try {
-    await client.query('BEGIN');
-    await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [input.accountId]);
-    const nextResult = await client.query<{ sequence: string | number }>(
-      `SELECT coalesce(max(sequence), 0) + 1 AS sequence
-       FROM account_change_log
-       WHERE account_id = $1`,
-      [input.accountId],
-    );
-    const sequence = Number(nextResult.rows[0]?.sequence ?? 1);
-    await client.query(
-      `INSERT INTO account_change_log
-       (account_id, sequence, entity_type, entity_id, operation, payload)
-       VALUES ($1, $2, $3, $4, $5, $6::jsonb)`,
-      [
-        input.accountId,
-        sequence,
-        input.entityType,
-        input.entityId,
-        input.operation,
-        input.payload === null ? null : JSON.stringify(input.payload),
-      ],
-    );
-    await client.query('COMMIT');
-    return { ...input, sequence };
+    await transactionClient.query('BEGIN');
+    const change = await appendWithClient(transactionClient, input);
+    await transactionClient.query('COMMIT');
+    return change;
   } catch (error) {
-    await client.query('ROLLBACK');
+    await transactionClient.query('ROLLBACK');
     throw error;
   } finally {
-    client.release();
+    transactionClient.release();
   }
 }
 
