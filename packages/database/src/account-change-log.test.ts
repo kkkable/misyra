@@ -95,69 +95,58 @@ describe('MTS-026 per-account change log and cursors', () => {
     expect(persisted.rows[0]?.count).toBe('0');
   });
 
-  it(
-    'replays ordered changes and tombstones from a cursor without cross-account leakage',
-    async () => {
-      const entityId = randomUUID();
-      const upsert = await appendAccountChange(pool, {
+  it('replays ordered changes and tombstones from a cursor without cross-account leakage', async () => {
+    const entityId = randomUUID();
+    const upsert = await appendAccountChange(pool, {
+      accountId: accountA,
+      entityType: 'mission',
+      entityId,
+      operation: 'upsert',
+      payload: { title: 'safe-sync-value' },
+    });
+    const tombstone = await appendAccountChange(pool, {
+      accountId: accountA,
+      entityType: 'mission',
+      entityId,
+      operation: 'delete',
+      payload: null,
+    });
+
+    const page = await pullAccountChanges(pool, {
+      accountId: accountA,
+      cursor: upsert.sequence,
+    });
+    expect(page.kind).toBe('incremental');
+    if (page.kind !== 'incremental') throw new Error('expected incremental page');
+    expect(page.changes.map((change) => change.sequence)).toContain(tombstone.sequence);
+    expect(
+      page.changes.some((change) => change.operation === 'delete' && change.payload === null),
+    ).toBe(true);
+    expect(page.changes.every((change) => change.accountId === accountA)).toBe(true);
+    expect(page.nextCursor).toBeGreaterThanOrEqual(tombstone.sequence);
+  });
+
+  it('makes snapshot state converge with incremental replay and requests snapshot for invalid cursors', async () => {
+    const snapshot = await getAccountSnapshot(pool, accountA);
+    const fromZero = await pullAccountChanges(pool, { accountId: accountA, cursor: 0 });
+    expect(fromZero.kind).toBe('incremental');
+    if (fromZero.kind !== 'incremental') throw new Error('expected incremental page');
+
+    const latestFromReplay = new Map<string, string>();
+    for (const change of fromZero.changes) {
+      latestFromReplay.set(`${change.entityType}:${change.entityId}`, change.operation);
+    }
+    expect(
+      snapshot.entries.map((entry) => [`${entry.entityType}:${entry.entityId}`, entry.operation]),
+    ).toEqual([...latestFromReplay.entries()]);
+
+    await expect(
+      pullAccountChanges(pool, {
         accountId: accountA,
-        entityType: 'mission',
-        entityId,
-        operation: 'upsert',
-        payload: { title: 'safe-sync-value' },
-      });
-      const tombstone = await appendAccountChange(pool, {
-        accountId: accountA,
-        entityType: 'mission',
-        entityId,
-        operation: 'delete',
-        payload: null,
-      });
-
-      const page = await pullAccountChanges(pool, {
-        accountId: accountA,
-        cursor: upsert.sequence,
-      });
-      expect(page.kind).toBe('incremental');
-      if (page.kind !== 'incremental') throw new Error('expected incremental page');
-      expect(page.changes.map((change) => change.sequence)).toContain(tombstone.sequence);
-      expect(
-        page.changes.some(
-          (change) => change.operation === 'delete' && change.payload === null,
-        ),
-      ).toBe(true);
-      expect(page.changes.every((change) => change.accountId === accountA)).toBe(true);
-      expect(page.nextCursor).toBeGreaterThanOrEqual(tombstone.sequence);
-    },
-  );
-
-  it(
-    'makes snapshot state converge with incremental replay and requests snapshot for invalid cursors',
-    async () => {
-      const snapshot = await getAccountSnapshot(pool, accountA);
-      const fromZero = await pullAccountChanges(pool, { accountId: accountA, cursor: 0 });
-      expect(fromZero.kind).toBe('incremental');
-      if (fromZero.kind !== 'incremental') throw new Error('expected incremental page');
-
-      const latestFromReplay = new Map<string, string>();
-      for (const change of fromZero.changes) {
-        latestFromReplay.set(`${change.entityType}:${change.entityId}`, change.operation);
-      }
-      expect(
-        snapshot.entries.map((entry) => [
-          `${entry.entityType}:${entry.entityId}`,
-          entry.operation,
-        ]),
-      ).toEqual([...latestFromReplay.entries()]);
-
-      await expect(
-        pullAccountChanges(pool, {
-          accountId: accountA,
-          cursor: snapshot.nextCursor + 1000,
-        }),
-      ).resolves.toMatchObject({ kind: 'snapshot_required', reason: 'invalid_cursor' });
-    },
-  );
+        cursor: snapshot.nextCursor + 1000,
+      }),
+    ).resolves.toMatchObject({ kind: 'snapshot_required', reason: 'invalid_cursor' });
+  });
 
   it('requests a snapshot when the retained sequence window has passed the cursor', async () => {
     const retainedAccountId = randomUUID();
