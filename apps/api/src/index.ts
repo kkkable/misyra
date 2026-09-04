@@ -2,6 +2,11 @@ import { randomUUID } from 'node:crypto';
 import { connect } from 'node:net';
 import { pathToFileURL } from 'node:url';
 
+import {
+  apiResponseEnvelopeSchema,
+  clientActionErrorCodes,
+  type ClientActionError,
+} from '@misyra/contracts';
 import Fastify, {
   type FastifyReply,
   type FastifyRequest,
@@ -42,19 +47,9 @@ type ApiServerOptions = {
   auditLog?: ApiAuditLog;
 };
 
-export const apiErrorCodes = [
-  'validation_failed',
-  'unauthorized',
-  'forbidden',
-  'not_found',
-  'conflict',
-  'already_completed',
-  'completion_window_expired',
-  'evidence_attempt_limit',
-  'temporarily_unavailable',
-] as const;
+export const apiErrorCodes = clientActionErrorCodes;
 
-export type ApiErrorCode = (typeof apiErrorCodes)[number];
+export type ApiErrorCode = ClientActionError['code'];
 
 const errorStatus: Record<ApiErrorCode, number> = {
   validation_failed: 400,
@@ -126,26 +121,26 @@ function isValidationError(error: unknown) {
 }
 
 function errorEnvelope(requestId: string, code: ApiErrorCode) {
-  return {
-    version: 1 as const,
+  return apiResponseEnvelopeSchema.parse({
+    version: 1,
     requestId,
-    ok: false as const,
+    ok: false,
     error: {
-      version: 1 as const,
+      version: 1,
       code,
       retryable: retryableCodes.has(code),
       messageKey: `error.${code}`,
     },
-  };
+  });
 }
 
 function successEnvelope(requestId: string, payload: unknown) {
-  return {
-    version: 1 as const,
+  return apiResponseEnvelopeSchema.parse({
+    version: 1,
     requestId,
-    ok: true as const,
+    ok: true,
     payload,
-  };
+  });
 }
 
 function routeLabel(request: FastifyRequest) {
