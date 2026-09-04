@@ -218,11 +218,7 @@ export function createServerSync(options: ServerSyncOptions) {
 
       const result = await options.transport.push(pending.map((item) => item.mutation));
       const batchConflicts = [...(result.conflicts ?? [])];
-      const settledIds = validateSettledPrefix(
-        pending,
-        result.acceptedMutationIds,
-        batchConflicts,
-      );
+      const settledIds = validateSettledPrefix(pending, result.acceptedMutationIds, batchConflicts);
       if (settledIds.size === 0) {
         return { settled, conflicts: [], deferredSettlementIds: new Set() };
       }
