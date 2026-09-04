@@ -26,17 +26,17 @@ jobs:
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
-      - name: Apply repository Prettier correction to active MTS-029 branch
+      - name: Apply repository Prettier correction to active MTS-029 review test
         run: |
-          test "$(git rev-parse HEAD)" = "2c038334002c6475d58943b4da135bfe4ff7cd20"
-          pnpm exec prettier --write apps/mobile/src/storage/local-repositories.ts --config packages/config/prettier.config.mjs
+          test "$(git rev-parse HEAD)" = "a8260c782cae8a1a2acf110c098801a1c6a98cec"
+          pnpm exec prettier --write apps/mobile/src/storage/local-repositories.review-corrections.test.mjs --config packages/config/prettier.config.mjs
           git diff --check
-          if git diff --quiet -- apps/mobile/src/storage/local-repositories.ts; then
+          if git diff --quiet -- apps/mobile/src/storage/local-repositories.review-corrections.test.mjs; then
             echo "No format correction needed"
             exit 0
           fi
           git config user.name "Misyra Auto Development"
           git config user.email "130823389+kkkable@users.noreply.github.com"
-          git add apps/mobile/src/storage/local-repositories.ts
-          git commit -m "style(mobile): format MTS-029 repository observers"
+          git add apps/mobile/src/storage/local-repositories.review-corrections.test.mjs
+          git commit -m "style(mobile): format MTS-029 review regressions"
           git push origin HEAD:feat/mts-029-local-repositories
