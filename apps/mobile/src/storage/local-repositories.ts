@@ -474,30 +474,33 @@ export function createLocalRepositories(database: LocalRepositoryDatabase, accou
       listWindow: listCalendarWindow,
       observeWindow: (window: CalendarWindow) => {
         assertWindow(window);
-        return observe(() => listCalendarWindow(window), [
-          'cached_mission_series',
-          'cached_mission_occurrences',
-        ]);
+        return observe(
+          () => listCalendarWindow(window),
+          ['cached_mission_series', 'cached_mission_occurrences'],
+        );
       },
     },
     missions: {
       getById: getMissionById,
       observeById: (occurrenceId: string) =>
-        observe(() => getMissionById(occurrenceId), [
-          'cached_mission_series',
-          'cached_mission_occurrences',
-          'personal_notes',
-          'external_links',
-        ]),
+        observe(
+          () => getMissionById(occurrenceId),
+          [
+            'cached_mission_series',
+            'cached_mission_occurrences',
+            'personal_notes',
+            'external_links',
+          ],
+        ),
     },
     progress: {
       listRecent: listRecentProgress,
       observeRecent: (limit: number) => {
         boundedLimit(limit);
-        return observe(() => listRecentProgress(limit), [
-          'completion_summaries',
-          'cached_mission_occurrences',
-        ]);
+        return observe(
+          () => listRecentProgress(limit),
+          ['completion_summaries', 'cached_mission_occurrences'],
+        );
       },
     },
     settings: {
@@ -520,10 +523,10 @@ export function createLocalRepositories(database: LocalRepositoryDatabase, accou
       listDocuments: listSearchDocuments,
       observeDocuments: (limit: number) => {
         boundedLimit(limit);
-        return observe(() => listSearchDocuments(limit), [
-          'search_documents',
-          'cached_mission_occurrences',
-        ]);
+        return observe(
+          () => listSearchDocuments(limit),
+          ['search_documents', 'cached_mission_occurrences'],
+        );
       },
     },
     invalidate: async (dependencies: readonly QueryDependency[]): Promise<void> => {
