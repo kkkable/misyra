@@ -63,9 +63,21 @@ async function seedAccount(database, accountId = 'account-a') {
   );
 }
 
-function command(kind, target = { kind: 'internal' }) {
-  return { kind, target, payload: { title: `${kind} mission` } };
+function mutation(mutationId, operation = 'update') {
+  return {
+    mutationId,
+    accountId: 'account-a',
+    deviceId: 'device-a',
+    entityType: 'mission',
+    entityId: 'mission-a',
+    operation,
+    baseVersion: operation === 'create' ? null : 1,
+    clientOccurredAt: '2026-09-04T00:00:01.000Z',
+    payload: { title: `${operation} mission` },
+  };
 }
+
+const server = { kind: 'server' };
 
 describe('MTS-030 optimistic mutation queue', () => {
   it('commits optimistic local state and its mutation envelope atomically', async () => {
@@ -75,9 +87,8 @@ describe('MTS-030 optimistic mutation queue', () => {
     const queue = createMutationQueue(database, 'account-a');
 
     await queue.enqueue({
-      mutationId: 'mutation-create',
-      command: command('mission.create'),
-      createdAt: '2026-09-04T00:00:01.000Z',
+      mutation: mutation('mutation-create', 'create'),
+      destination: server,
       applyLocal: async (transaction) => {
         await transaction.runAsync(
           `INSERT INTO cached_mission_series
@@ -93,18 +104,20 @@ describe('MTS-030 optimistic mutation queue', () => {
       },
     });
 
-    expect(await database.getFirstAsync('SELECT title FROM cached_mission_series WHERE series_id = ?', 'series-a')).toEqual({
-      title: 'Offline mission',
-    });
-    expect(await queue.listPending()).toEqual([
-      expect.objectContaining({ mutationId: 'mutation-create', sequence: 1 }),
+    expect(
+      await database.getFirstAsync(
+        'SELECT title FROM cached_mission_series WHERE series_id = ?',
+        'series-a',
+      ),
+    ).toEqual({ title: 'Offline mission' });
+    expect((await queue.listPending()).map((item) => item.mutation.mutationId)).toEqual([
+      'mutation-create',
     ]);
 
     await expect(
       queue.enqueue({
-        mutationId: 'mutation-failed',
-        command: command('mission.edit'),
-        createdAt: '2026-09-04T00:00:02.000Z',
+        mutation: mutation('mutation-failed'),
+        destination: server,
         applyLocal: async (transaction) => {
           await transaction.runAsync(
             'UPDATE cached_mission_series SET title = ? WHERE series_id = ?',
@@ -116,33 +129,38 @@ describe('MTS-030 optimistic mutation queue', () => {
       }),
     ).rejects.toThrow('simulated crash');
 
-    expect(await database.getFirstAsync('SELECT title FROM cached_mission_series WHERE series_id = ?', 'series-a')).toEqual({
-      title: 'Offline mission',
-    });
-    expect((await queue.listPending()).map((item) => item.mutationId)).toEqual(['mutation-create']);
+    expect(
+      await database.getFirstAsync(
+        'SELECT title FROM cached_mission_series WHERE series_id = ?',
+        'series-a',
+      ),
+    ).toEqual({ title: 'Offline mission' });
+    expect((await queue.listPending()).map((item) => item.mutation.mutationId)).toEqual([
+      'mutation-create',
+    ]);
   });
 
-  it('survives queue reconstruction and preserves stable mutation IDs in strict sequence order', async () => {
+  it('survives queue reconstruction and retries stable IDs in strict sequence order', async () => {
     const database = createDatabase();
     await applyMobileMigrations(database);
     await seedAccount(database);
 
     const firstQueue = createMutationQueue(database, 'account-a');
     await firstQueue.enqueue({
-      mutationId: 'mutation-1',
-      command: command('mission.create'),
-      createdAt: '2026-09-04T00:00:01.000Z',
+      mutation: mutation('mutation-1', 'create'),
+      destination: server,
       applyLocal: async () => {},
     });
     await firstQueue.enqueue({
-      mutationId: 'mutation-2',
-      command: command('mission.edit'),
-      createdAt: '2026-09-04T00:00:02.000Z',
+      mutation: mutation('mutation-2'),
+      destination: server,
       applyLocal: async () => {},
     });
 
     const restartedQueue = createMutationQueue(database, 'account-a');
-    expect((await restartedQueue.listPending()).map((item) => [item.mutationId, item.sequence])).toEqual([
+    expect(
+      (await restartedQueue.listPending()).map((item) => [item.mutation.mutationId, item.sequence]),
+    ).toEqual([
       ['mutation-1', 1],
       ['mutation-2', 2],
     ]);
@@ -151,9 +169,9 @@ describe('MTS-030 optimistic mutation queue', () => {
     let failFirstAttempt = true;
     const firstPass = await restartedQueue.processPending({
       maxAttemptsPerMutation: 1,
-      execute: async (mutation) => {
-        attempts.push(mutation.mutationId);
-        if (mutation.mutationId === 'mutation-1' && failFirstAttempt) {
+      execute: async (queued) => {
+        attempts.push(queued.mutation.mutationId);
+        if (queued.mutation.mutationId === 'mutation-1' && failFirstAttempt) {
           failFirstAttempt = false;
           throw new Error('offline');
         }
@@ -164,13 +182,37 @@ describe('MTS-030 optimistic mutation queue', () => {
 
     const secondPass = await restartedQueue.processPending({
       maxAttemptsPerMutation: 2,
-      execute: async (mutation) => attempts.push(mutation.mutationId),
+      execute: async (queued) => attempts.push(queued.mutation.mutationId),
     });
     expect(secondPass).toEqual({ processed: 2, remaining: 0, stoppedOn: null });
     expect(attempts).toEqual(['mutation-1', 'mutation-1', 'mutation-2']);
   });
 
-  it('discards queued commands for a disconnected provider without deleting optimistic internal state', async () => {
+  it('does not reapply optimistic state when the same durable mutation ID is retried', async () => {
+    const database = createDatabase();
+    await applyMobileMigrations(database);
+    await seedAccount(database);
+    const queue = createMutationQueue(database, 'account-a');
+    let localApplications = 0;
+    const queuedMutation = mutation('mutation-stable');
+
+    const enqueue = () =>
+      queue.enqueue({
+        mutation: queuedMutation,
+        destination: server,
+        applyLocal: async () => {
+          localApplications += 1;
+        },
+      });
+
+    await enqueue();
+    await enqueue();
+
+    expect(localApplications).toBe(1);
+    expect(await queue.listPending()).toHaveLength(1);
+  });
+
+  it('discards a disconnected provider command without deleting optimistic internal state', async () => {
     const database = createDatabase();
     await applyMobileMigrations(database);
     await seedAccount(database);
@@ -189,31 +231,31 @@ describe('MTS-030 optimistic mutation queue', () => {
     );
 
     await queue.enqueue({
-      mutationId: 'internal-edit',
-      command: command('mission.edit'),
-      createdAt: '2026-09-04T00:00:01.000Z',
+      mutation: mutation('internal-edit'),
+      destination: server,
       applyLocal: async () => {},
     });
     await queue.enqueue({
-      mutationId: 'google-update',
-      command: command('calendar.update', { kind: 'external_calendar', provider: 'google' }),
-      createdAt: '2026-09-04T00:00:02.000Z',
+      mutation: mutation('google-update'),
+      destination: { kind: 'external_calendar', provider: 'google' },
       applyLocal: async () => {},
     });
     await queue.enqueue({
-      mutationId: 'apple-update',
-      command: command('calendar.update', { kind: 'external_calendar', provider: 'apple' }),
-      createdAt: '2026-09-04T00:00:03.000Z',
+      mutation: mutation('apple-update'),
+      destination: { kind: 'external_calendar', provider: 'apple' },
       applyLocal: async () => {},
     });
 
     expect(await queue.discardExternalCommands('google')).toBe(1);
-    expect((await queue.listPending()).map((item) => item.mutationId)).toEqual([
+    expect((await queue.listPending()).map((item) => item.mutation.mutationId)).toEqual([
       'internal-edit',
       'apple-update',
     ]);
-    expect(await database.getFirstAsync('SELECT title FROM cached_mission_series WHERE series_id = ?', 'series-a')).toEqual({
-      title: 'Keep me',
-    });
+    expect(
+      await database.getFirstAsync(
+        'SELECT title FROM cached_mission_series WHERE series_id = ?',
+        'series-a',
+      ),
+    ).toEqual({ title: 'Keep me' });
   });
 });
