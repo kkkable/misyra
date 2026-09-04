@@ -1,32 +1,41 @@
 import type { MigrationDatabase, SqlBindValue } from './schema.js';
 
 const MAX_RETRY_ATTEMPTS = 5;
+const ENTITY_TYPES = ['mission', 'story', 'completion', 'evidence', 'settings'] as const;
+const OPERATIONS = ['create', 'update', 'delete', 'complete', 'submit'] as const;
 
 export interface MutationQueueDatabase extends MigrationDatabase {
   getAllAsync<T>(source: string, ...params: SqlBindValue[]): Promise<T[]>;
 }
 
-export type MutationTarget =
-  | Readonly<{ kind: 'internal' }>
+export type SyncMutationEntityType = (typeof ENTITY_TYPES)[number];
+export type SyncMutationOperation = (typeof OPERATIONS)[number];
+
+export interface SyncMutation<TPayload = unknown> {
+  readonly mutationId: string;
+  readonly accountId: string;
+  readonly deviceId: string;
+  readonly entityType: SyncMutationEntityType;
+  readonly entityId: string;
+  readonly operation: SyncMutationOperation;
+  readonly baseVersion: number | null;
+  readonly clientOccurredAt: string;
+  readonly payload: TPayload;
+}
+
+export type MutationDestination =
+  | Readonly<{ kind: 'server' }>
   | Readonly<{ kind: 'external_calendar'; provider: string }>;
 
-export type MutationCommand = Readonly<{
-  kind: string;
-  target: MutationTarget;
-  payload?: unknown;
-}>;
-
 export type PendingMutation = Readonly<{
-  mutationId: string;
   sequence: number;
-  command: MutationCommand;
-  createdAt: string;
+  mutation: SyncMutation;
+  destination: MutationDestination;
 }>;
 
 export type EnqueueMutation = Readonly<{
-  mutationId: string;
-  command: MutationCommand;
-  createdAt: string;
+  mutation: SyncMutation;
+  destination: MutationDestination;
   applyLocal: (transaction: MigrationDatabase) => Promise<void>;
 }>;
 
@@ -41,21 +50,51 @@ export type ProcessPendingResult = Readonly<{
   stoppedOn: string | null;
 }>;
 
+interface StoredEnvelope {
+  readonly mutation: SyncMutation;
+  readonly destination: MutationDestination;
+}
+
 interface MutationRow {
   readonly mutation_id: string;
   readonly sequence: number;
   readonly command_json: string;
-  readonly created_at: string;
 }
 
 function assertNonEmpty(value: string, name: string): void {
   if (value.trim().length === 0) throw new TypeError(`${name} must not be empty.`);
 }
 
-function assertCommand(command: MutationCommand): void {
-  assertNonEmpty(command.kind, 'Mutation command kind');
-  if (command.target.kind === 'external_calendar') {
-    assertNonEmpty(command.target.provider, 'External mutation provider');
+function isOneOf<T extends string>(value: string, allowed: readonly T[]): value is T {
+  return (allowed as readonly string[]).includes(value);
+}
+
+function assertMutation(mutation: SyncMutation, accountId: string): void {
+  assertNonEmpty(mutation.mutationId, 'Mutation ID');
+  assertNonEmpty(mutation.accountId, 'Mutation account ID');
+  assertNonEmpty(mutation.deviceId, 'Mutation device ID');
+  assertNonEmpty(mutation.entityId, 'Mutation entity ID');
+  assertNonEmpty(mutation.clientOccurredAt, 'Mutation clientOccurredAt');
+  if (mutation.accountId !== accountId) {
+    throw new TypeError('Mutation account ID must match the queue account.');
+  }
+  if (!isOneOf(mutation.entityType, ENTITY_TYPES)) {
+    throw new TypeError(`Unsupported mutation entity type: ${mutation.entityType}.`);
+  }
+  if (!isOneOf(mutation.operation, OPERATIONS)) {
+    throw new TypeError(`Unsupported mutation operation: ${mutation.operation}.`);
+  }
+  if (
+    mutation.baseVersion !== null &&
+    (!Number.isSafeInteger(mutation.baseVersion) || mutation.baseVersion < 0)
+  ) {
+    throw new TypeError('Mutation baseVersion must be a non-negative integer or null.');
+  }
+}
+
+function assertDestination(destination: MutationDestination): void {
+  if (destination.kind === 'external_calendar') {
+    assertNonEmpty(destination.provider, 'External mutation provider');
   }
 }
 
@@ -68,29 +107,33 @@ function assertRetryLimit(value: number): number {
   return value;
 }
 
-function parseCommand(source: string): MutationCommand {
-  const value = JSON.parse(source) as Partial<MutationCommand>;
+function parseEnvelope(source: string, accountId: string): StoredEnvelope {
+  const value = JSON.parse(source) as StoredEnvelope;
   if (
     typeof value !== 'object' ||
     value === null ||
-    typeof value.kind !== 'string' ||
-    typeof value.target !== 'object' ||
-    value.target === null ||
-    (value.target.kind !== 'internal' && value.target.kind !== 'external_calendar')
+    typeof value.mutation !== 'object' ||
+    value.mutation === null ||
+    typeof value.destination !== 'object' ||
+    value.destination === null ||
+    (value.destination.kind !== 'server' && value.destination.kind !== 'external_calendar')
   ) {
-    throw new TypeError('Stored mutation command is invalid.');
+    throw new TypeError('Stored mutation envelope is invalid.');
   }
-  const command = value as MutationCommand;
-  assertCommand(command);
-  return command;
+  assertMutation(value.mutation, accountId);
+  assertDestination(value.destination);
+  return value;
 }
 
-function mapMutation(row: MutationRow): PendingMutation {
+function mapMutation(row: MutationRow, accountId: string): PendingMutation {
+  const envelope = parseEnvelope(row.command_json, accountId);
+  if (envelope.mutation.mutationId !== row.mutation_id) {
+    throw new TypeError('Stored mutation ID does not match its queue key.');
+  }
   return {
-    mutationId: row.mutation_id,
     sequence: row.sequence,
-    command: parseCommand(row.command_json),
-    createdAt: row.created_at,
+    mutation: envelope.mutation,
+    destination: envelope.destination,
   };
 }
 
@@ -99,13 +142,13 @@ export function createMutationQueue(database: MutationQueueDatabase, accountId: 
 
   const listPending = async (): Promise<PendingMutation[]> => {
     const rows = await database.getAllAsync<MutationRow>(
-      `SELECT mutation_id, sequence, command_json, created_at
+      `SELECT mutation_id, sequence, command_json
          FROM mutation_queue
         WHERE account_id = ?
         ORDER BY sequence`,
       accountId,
     );
-    return rows.map(mapMutation);
+    return rows.map((row) => mapMutation(row, accountId));
   };
 
   const countPending = async (): Promise<number> => {
@@ -118,17 +161,26 @@ export function createMutationQueue(database: MutationQueueDatabase, accountId: 
 
   return {
     enqueue: async (input: EnqueueMutation): Promise<void> => {
-      assertNonEmpty(input.mutationId, 'Mutation ID');
-      assertNonEmpty(input.createdAt, 'Mutation createdAt');
-      assertCommand(input.command);
+      assertMutation(input.mutation, accountId);
+      assertDestination(input.destination);
+      const storedEnvelope: StoredEnvelope = {
+        mutation: input.mutation,
+        destination: input.destination,
+      };
+      const serializedEnvelope = JSON.stringify(storedEnvelope);
 
       await database.withExclusiveTransactionAsync(async (transaction) => {
-        const existing = await transaction.getFirstAsync<{ mutation_id: string }>(
-          'SELECT mutation_id FROM mutation_queue WHERE account_id = ? AND mutation_id = ?',
+        const existing = await transaction.getFirstAsync<{ command_json: string }>(
+          'SELECT command_json FROM mutation_queue WHERE account_id = ? AND mutation_id = ?',
           accountId,
-          input.mutationId,
+          input.mutation.mutationId,
         );
-        if (existing !== null) return;
+        if (existing !== null) {
+          if (existing.command_json !== serializedEnvelope) {
+            throw new Error('Mutation ID is already queued with a different envelope.');
+          }
+          return;
+        }
 
         const sequenceRow = await transaction.getFirstAsync<{ next_sequence: number }>(
           `SELECT COALESCE(MAX(sequence), 0) + 1 AS next_sequence
@@ -147,10 +199,10 @@ export function createMutationQueue(database: MutationQueueDatabase, accountId: 
             (account_id, mutation_id, sequence, command_json, created_at)
            VALUES (?, ?, ?, ?, ?)`,
           accountId,
-          input.mutationId,
+          input.mutation.mutationId,
           sequence,
-          JSON.stringify(input.command),
-          input.createdAt,
+          serializedEnvelope,
+          input.mutation.clientOccurredAt,
         );
       });
     },
@@ -162,11 +214,11 @@ export function createMutationQueue(database: MutationQueueDatabase, accountId: 
       const pending = await listPending();
       let processed = 0;
 
-      for (const mutation of pending) {
+      for (const queuedMutation of pending) {
         let succeeded = false;
         for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
           try {
-            await options.execute(mutation);
+            await options.execute(queuedMutation);
             succeeded = true;
             break;
           } catch {
@@ -174,7 +226,7 @@ export function createMutationQueue(database: MutationQueueDatabase, accountId: 
               return {
                 processed,
                 remaining: await countPending(),
-                stoppedOn: mutation.mutationId,
+                stoppedOn: queuedMutation.mutation.mutationId,
               };
             }
           }
@@ -184,7 +236,7 @@ export function createMutationQueue(database: MutationQueueDatabase, accountId: 
         await database.runAsync(
           'DELETE FROM mutation_queue WHERE account_id = ? AND mutation_id = ?',
           accountId,
-          mutation.mutationId,
+          queuedMutation.mutation.mutationId,
         );
         processed += 1;
       }
@@ -196,28 +248,15 @@ export function createMutationQueue(database: MutationQueueDatabase, accountId: 
       assertNonEmpty(provider, 'External mutation provider');
       let discarded = 0;
       await database.withExclusiveTransactionAsync(async (transaction) => {
-        const rows = await database.getAllAsync<MutationRow>(
-          `SELECT mutation_id, sequence, command_json, created_at
-             FROM mutation_queue
+        const result = (await transaction.runAsync(
+          `DELETE FROM mutation_queue
             WHERE account_id = ?
-            ORDER BY sequence`,
+              AND json_extract(command_json, '$.destination.kind') = 'external_calendar'
+              AND json_extract(command_json, '$.destination.provider') = ?`,
           accountId,
-        );
-        for (const row of rows) {
-          const mutation = mapMutation(row);
-          if (
-            mutation.command.target.kind !== 'external_calendar' ||
-            mutation.command.target.provider !== provider
-          ) {
-            continue;
-          }
-          const result = (await transaction.runAsync(
-            'DELETE FROM mutation_queue WHERE account_id = ? AND mutation_id = ?',
-            accountId,
-            mutation.mutationId,
-          )) as { changes?: number };
-          discarded += result.changes ?? 0;
-        }
+          provider,
+        )) as { changes?: number };
+        discarded = result.changes ?? 0;
       });
       return discarded;
     },
