@@ -129,6 +129,7 @@ interface CompletionRow {
   readonly awarded_xp: number;
   readonly payload_json: string;
   readonly updated_at: string;
+  readonly occurrence_payload_json: string;
 }
 
 interface SettingsRow {
@@ -253,6 +254,9 @@ export function createLocalRepositories(database: LocalRepositoryDatabase, accou
     return () => registeredQueries.delete(query);
   };
 
+  const observe = <T>(loader: () => Promise<T>, dependencies: readonly QueryDependency[]) =>
+    createObservableQuery(loader, dependencies, register);
+
   const listCalendarWindow = async (window: CalendarWindow): Promise<LocalMission[]> => {
     assertWindow(window);
     const rows = await database.getAllAsync<MissionRow>(
@@ -276,210 +280,250 @@ export function createLocalRepositories(database: LocalRepositoryDatabase, accou
     return rows.map(mapMission).filter(isVisibleMission);
   };
 
+  const getMissionById = async (occurrenceId: string): Promise<MissionDetails | null> => {
+    const row = await database.getFirstAsync<MissionDetailsRow>(
+      `SELECT s.payload_json AS series_payload_json,
+              o.payload_json AS occurrence_payload_json,
+              n.note AS personal_note
+         FROM cached_mission_occurrences o
+         JOIN cached_mission_series s
+           ON s.account_id = o.account_id
+          AND s.series_id = o.series_id
+         LEFT JOIN personal_notes n
+           ON n.account_id = o.account_id
+          AND n.occurrence_id = o.occurrence_id
+        WHERE o.account_id = ? AND o.occurrence_id = ?`,
+      accountId,
+      occurrenceId,
+    );
+    if (row === null) return null;
+    const mission = mapMission(row);
+    if (!isVisibleMission(mission)) return null;
+
+    const links = await database.getAllAsync<ExternalLinkRow>(
+      `SELECT provider, external_event_id, payload_json, updated_at
+         FROM external_links
+        WHERE account_id = ? AND occurrence_id = ?
+        ORDER BY provider, external_event_id`,
+      accountId,
+      occurrenceId,
+    );
+    return {
+      ...mission,
+      personalNote: row.personal_note,
+      externalLinks: links.map((link) => ({
+        provider: link.provider,
+        externalEventId: link.external_event_id,
+        payload: parseJson(link.payload_json),
+        updatedAt: link.updated_at,
+      })),
+    };
+  };
+
+  const listRecentProgress = async (limit: number): Promise<CompletionSummary[]> => {
+    const requestedLimit = boundedLimit(limit);
+    const rows = await database.getAllAsync<CompletionRow>(
+      `SELECT c.occurrence_id,
+              c.completed_at,
+              c.awarded_xp,
+              c.payload_json,
+              c.updated_at,
+              o.payload_json AS occurrence_payload_json
+         FROM completion_summaries c
+         JOIN cached_mission_occurrences o
+           ON o.account_id = c.account_id
+          AND o.occurrence_id = c.occurrence_id
+        WHERE c.account_id = ?
+        ORDER BY c.completed_at DESC, c.occurrence_id
+        LIMIT ?`,
+      accountId,
+      MAX_BOUNDED_RESULTS,
+    );
+    return rows
+      .filter((row) => {
+        const occurrence = createMissionOccurrence(
+          parseJson(row.occurrence_payload_json) as MissionOccurrenceInput,
+        );
+        return occurrence.deletionState !== 'deleted';
+      })
+      .slice(0, requestedLimit)
+      .map((row) => ({
+        occurrenceId: row.occurrence_id,
+        completedAt: row.completed_at,
+        awardedXp: row.awarded_xp,
+        payload: parseJson(row.payload_json),
+        updatedAt: row.updated_at,
+      }));
+  };
+
+  const getSettings = async (): Promise<LocalSettings | null> => {
+    const row = await database.getFirstAsync<SettingsRow>(
+      `SELECT language, trust_mode, app_time_zone, settings_updated_at
+         FROM local_accounts
+        WHERE account_id = ?`,
+      accountId,
+    );
+    if (row === null) return null;
+    if (row.language !== 'en' && row.language !== 'zh-HK') {
+      throw new TypeError(`Unsupported local settings language: ${row.language}.`);
+    }
+    return {
+      language: row.language,
+      trustMode: row.trust_mode === 1,
+      appTimeZone: row.app_time_zone,
+      updatedAt: row.settings_updated_at,
+    };
+  };
+
+  const listHiddenEvents = async (limit: number): Promise<HiddenEventSummary[]> => {
+    const rows = await database.getAllAsync<HiddenEventRow>(
+      `SELECT hidden_event_id, starts_at, ends_at, payload_json, updated_at
+         FROM hidden_event_summaries
+        WHERE account_id = ?
+        ORDER BY starts_at, hidden_event_id
+        LIMIT ?`,
+      accountId,
+      boundedLimit(limit),
+    );
+    return rows.map((row) => ({
+      hiddenEventId: row.hidden_event_id,
+      startsAt: row.starts_at,
+      endsAt: row.ends_at,
+      payload: parseJson(row.payload_json),
+      updatedAt: row.updated_at,
+    }));
+  };
+
+  const getPlannerDraft = async (): Promise<PlannerDraft | null> => {
+    const row = await database.getFirstAsync<PlannerDraftRow>(
+      `SELECT draft_id, content_json, updated_at
+         FROM planner_drafts
+        WHERE account_id = ?`,
+      accountId,
+    );
+    return row === null
+      ? null
+      : {
+          draftId: row.draft_id,
+          content: parseJson(row.content_json),
+          updatedAt: row.updated_at,
+        };
+  };
+
+  const getStoryDraft = async (occurrenceId: string): Promise<StoryDraft | null> => {
+    const row = await database.getFirstAsync<StoryDraftRow>(
+      `SELECT occurrence_id, draft_id, composition_json, updated_at
+         FROM story_drafts
+        WHERE account_id = ? AND occurrence_id = ?`,
+      accountId,
+      occurrenceId,
+    );
+    return row === null
+      ? null
+      : {
+          occurrenceId: row.occurrence_id,
+          draftId: row.draft_id,
+          composition: parseJson(row.composition_json),
+          updatedAt: row.updated_at,
+        };
+  };
+
+  const listSearchDocuments = async (limit: number): Promise<SearchDocument[]> => {
+    const requestedLimit = boundedLimit(limit);
+    const rows = await database.getAllAsync<SearchDocumentRow>(
+      `SELECT d.document_id,
+              d.occurrence_id,
+              d.title,
+              d.location,
+              d.provider_text,
+              d.personal_note,
+              d.updated_at,
+              o.payload_json AS occurrence_payload_json
+         FROM search_documents d
+         LEFT JOIN cached_mission_occurrences o
+           ON o.account_id = d.account_id
+          AND o.occurrence_id = d.occurrence_id
+        WHERE d.account_id = ?
+        ORDER BY d.updated_at DESC, d.document_id
+        LIMIT ?`,
+      accountId,
+      MAX_BOUNDED_RESULTS,
+    );
+    return rows
+      .filter((row) => {
+        if (row.occurrence_id === null || row.occurrence_payload_json === null) return true;
+        const occurrence = createMissionOccurrence(
+          parseJson(row.occurrence_payload_json) as MissionOccurrenceInput,
+        );
+        return occurrence.deletionState !== 'deleted';
+      })
+      .slice(0, requestedLimit)
+      .map((row) => ({
+        documentId: row.document_id,
+        occurrenceId: row.occurrence_id,
+        title: row.title,
+        location: row.location,
+        providerText: row.provider_text,
+        personalNote: row.personal_note,
+        updatedAt: row.updated_at,
+      }));
+  };
+
   const repositories = {
     calendar: {
       listWindow: listCalendarWindow,
       observeWindow: (window: CalendarWindow) => {
         assertWindow(window);
-        return createObservableQuery(
-          () => listCalendarWindow(window),
-          ['cached_mission_series', 'cached_mission_occurrences'],
-          register,
-        );
+        return observe(() => listCalendarWindow(window), [
+          'cached_mission_series',
+          'cached_mission_occurrences',
+        ]);
       },
     },
     missions: {
-      getById: async (occurrenceId: string): Promise<MissionDetails | null> => {
-        const row = await database.getFirstAsync<MissionDetailsRow>(
-          `SELECT s.payload_json AS series_payload_json,
-                  o.payload_json AS occurrence_payload_json,
-                  n.note AS personal_note
-             FROM cached_mission_occurrences o
-             JOIN cached_mission_series s
-               ON s.account_id = o.account_id
-              AND s.series_id = o.series_id
-             LEFT JOIN personal_notes n
-               ON n.account_id = o.account_id
-              AND n.occurrence_id = o.occurrence_id
-            WHERE o.account_id = ? AND o.occurrence_id = ?`,
-          accountId,
-          occurrenceId,
-        );
-        if (row === null) return null;
-        const mission = mapMission(row);
-        if (!isVisibleMission(mission)) return null;
-
-        const linkRows = await database.getAllAsync<ExternalLinkRow>(
-          `SELECT provider, external_event_id, payload_json, updated_at
-             FROM external_links
-            WHERE account_id = ? AND occurrence_id = ?
-            ORDER BY provider, external_event_id`,
-          accountId,
-          occurrenceId,
-        );
-        return {
-          ...mission,
-          personalNote: row.personal_note,
-          externalLinks: linkRows.map((link) => ({
-            provider: link.provider,
-            externalEventId: link.external_event_id,
-            payload: parseJson(link.payload_json),
-            updatedAt: link.updated_at,
-          })),
-        };
-      },
+      getById: getMissionById,
+      observeById: (occurrenceId: string) =>
+        observe(() => getMissionById(occurrenceId), [
+          'cached_mission_series',
+          'cached_mission_occurrences',
+          'personal_notes',
+          'external_links',
+        ]),
     },
     progress: {
-      listRecent: async (limit: number): Promise<CompletionSummary[]> => {
-        const requestedLimit = boundedLimit(limit);
-        const rows = await database.getAllAsync<
-          CompletionRow & { occurrence_payload_json: string }
-        >(
-          `SELECT c.occurrence_id,
-                  c.completed_at,
-                  c.awarded_xp,
-                  c.payload_json,
-                  c.updated_at,
-                  o.payload_json AS occurrence_payload_json
-             FROM completion_summaries c
-             JOIN cached_mission_occurrences o
-               ON o.account_id = c.account_id
-              AND o.occurrence_id = c.occurrence_id
-            WHERE c.account_id = ?
-            ORDER BY c.completed_at DESC, c.occurrence_id
-            LIMIT ?`,
-          accountId,
-          MAX_BOUNDED_RESULTS,
-        );
-        return rows
-          .filter((row) => {
-            const occurrence = createMissionOccurrence(
-              parseJson(row.occurrence_payload_json) as MissionOccurrenceInput,
-            );
-            return occurrence.deletionState !== 'deleted';
-          })
-          .slice(0, requestedLimit)
-          .map((row) => ({
-            occurrenceId: row.occurrence_id,
-            completedAt: row.completed_at,
-            awardedXp: row.awarded_xp,
-            payload: parseJson(row.payload_json),
-            updatedAt: row.updated_at,
-          }));
+      listRecent: listRecentProgress,
+      observeRecent: (limit: number) => {
+        boundedLimit(limit);
+        return observe(() => listRecentProgress(limit), [
+          'completion_summaries',
+          'cached_mission_occurrences',
+        ]);
       },
     },
     settings: {
-      get: async (): Promise<LocalSettings | null> => {
-        const row = await database.getFirstAsync<SettingsRow>(
-          `SELECT language, trust_mode, app_time_zone, settings_updated_at
-             FROM local_accounts
-            WHERE account_id = ?`,
-          accountId,
-        );
-        if (row === null) return null;
-        if (row.language !== 'en' && row.language !== 'zh-HK') {
-          throw new TypeError(`Unsupported local settings language: ${row.language}.`);
-        }
-        return {
-          language: row.language,
-          trustMode: row.trust_mode === 1,
-          appTimeZone: row.app_time_zone,
-          updatedAt: row.settings_updated_at,
-        };
-      },
-      listHiddenEvents: async (limit: number): Promise<HiddenEventSummary[]> => {
-        const rows = await database.getAllAsync<HiddenEventRow>(
-          `SELECT hidden_event_id, starts_at, ends_at, payload_json, updated_at
-             FROM hidden_event_summaries
-            WHERE account_id = ?
-            ORDER BY starts_at, hidden_event_id
-            LIMIT ?`,
-          accountId,
-          boundedLimit(limit),
-        );
-        return rows.map((row) => ({
-          hiddenEventId: row.hidden_event_id,
-          startsAt: row.starts_at,
-          endsAt: row.ends_at,
-          payload: parseJson(row.payload_json),
-          updatedAt: row.updated_at,
-        }));
+      get: getSettings,
+      observe: () => observe(getSettings, ['local_accounts']),
+      listHiddenEvents,
+      observeHiddenEvents: (limit: number) => {
+        boundedLimit(limit);
+        return observe(() => listHiddenEvents(limit), ['hidden_event_summaries']);
       },
     },
     drafts: {
-      getPlanner: async (): Promise<PlannerDraft | null> => {
-        const row = await database.getFirstAsync<PlannerDraftRow>(
-          `SELECT draft_id, content_json, updated_at
-             FROM planner_drafts
-            WHERE account_id = ?`,
-          accountId,
-        );
-        return row === null
-          ? null
-          : {
-              draftId: row.draft_id,
-              content: parseJson(row.content_json),
-              updatedAt: row.updated_at,
-            };
-      },
-      getStory: async (occurrenceId: string): Promise<StoryDraft | null> => {
-        const row = await database.getFirstAsync<StoryDraftRow>(
-          `SELECT occurrence_id, draft_id, composition_json, updated_at
-             FROM story_drafts
-            WHERE account_id = ? AND occurrence_id = ?`,
-          accountId,
-          occurrenceId,
-        );
-        return row === null
-          ? null
-          : {
-              occurrenceId: row.occurrence_id,
-              draftId: row.draft_id,
-              composition: parseJson(row.composition_json),
-              updatedAt: row.updated_at,
-            };
-      },
+      getPlanner: getPlannerDraft,
+      observePlanner: () => observe(getPlannerDraft, ['planner_drafts']),
+      getStory: getStoryDraft,
+      observeStory: (occurrenceId: string) =>
+        observe(() => getStoryDraft(occurrenceId), ['story_drafts']),
     },
     search: {
-      listDocuments: async (limit: number): Promise<SearchDocument[]> => {
-        const requestedLimit = boundedLimit(limit);
-        const rows = await database.getAllAsync<SearchDocumentRow>(
-          `SELECT d.document_id,
-                  d.occurrence_id,
-                  d.title,
-                  d.location,
-                  d.provider_text,
-                  d.personal_note,
-                  d.updated_at,
-                  o.payload_json AS occurrence_payload_json
-             FROM search_documents d
-             LEFT JOIN cached_mission_occurrences o
-               ON o.account_id = d.account_id
-              AND o.occurrence_id = d.occurrence_id
-            WHERE d.account_id = ?
-            ORDER BY d.updated_at DESC, d.document_id
-            LIMIT ?`,
-          accountId,
-          MAX_BOUNDED_RESULTS,
-        );
-        return rows
-          .filter((row) => {
-            if (row.occurrence_id === null || row.occurrence_payload_json === null) return true;
-            const occurrence = createMissionOccurrence(
-              parseJson(row.occurrence_payload_json) as MissionOccurrenceInput,
-            );
-            return occurrence.deletionState !== 'deleted';
-          })
-          .slice(0, requestedLimit)
-          .map((row) => ({
-            documentId: row.document_id,
-            occurrenceId: row.occurrence_id,
-            title: row.title,
-            location: row.location,
-            providerText: row.provider_text,
-            personalNote: row.personal_note,
-            updatedAt: row.updated_at,
-          }));
+      listDocuments: listSearchDocuments,
+      observeDocuments: (limit: number) => {
+        boundedLimit(limit);
+        return observe(() => listSearchDocuments(limit), [
+          'search_documents',
+          'cached_mission_occurrences',
+        ]);
       },
     },
     invalidate: async (dependencies: readonly QueryDependency[]): Promise<void> => {
