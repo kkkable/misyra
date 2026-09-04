@@ -86,11 +86,18 @@ describe('MTS-026 per-account change log and cursors', () => {
       payload: null,
     });
 
-    const page = await pullAccountChanges(pool, { accountId: accountA, cursor: upsert.sequence });
+    const page = await pullAccountChanges(pool, {
+      accountId: accountA,
+      cursor: upsert.sequence,
+    });
     expect(page.kind).toBe('incremental');
     if (page.kind !== 'incremental') throw new Error('expected incremental page');
     expect(page.changes.map((change) => change.sequence)).toContain(tombstone.sequence);
-    expect(page.changes.some((change) => change.operation === 'delete' && change.payload === null)).toBe(true);
+    expect(
+      page.changes.some(
+        (change) => change.operation === 'delete' && change.payload === null,
+      ),
+    ).toBe(true);
     expect(page.changes.every((change) => change.accountId === accountA)).toBe(true);
     expect(page.nextCursor).toBeGreaterThanOrEqual(tombstone.sequence);
   });
@@ -105,10 +112,12 @@ describe('MTS-026 per-account change log and cursors', () => {
     for (const change of fromZero.changes) {
       latestFromReplay.set(`${change.entityType}:${change.entityId}`, change.operation);
     }
-    expect(snapshot.entries.map((entry) => [
-      `${entry.entityType}:${entry.entityId}`,
-      entry.operation,
-    ])).toEqual([...latestFromReplay.entries()]);
+    expect(
+      snapshot.entries.map((entry) => [
+        `${entry.entityType}:${entry.entityId}`,
+        entry.operation,
+      ]),
+    ).toEqual([...latestFromReplay.entries()]);
 
     await expect(
       pullAccountChanges(pool, { accountId: accountA, cursor: snapshot.nextCursor + 1000 }),
