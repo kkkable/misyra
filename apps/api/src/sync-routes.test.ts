@@ -3,13 +3,14 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { createApiServer } from './index.js';
 import { createSyncRoutes } from './sync-routes.js';
 
-const accountId = 'account-a';
+const accountId = '11111111-1111-4111-8111-111111111111';
+const otherAccountId = '22222222-2222-4222-8222-222222222222';
 const mutation = {
-  mutationId: 'mutation-a',
+  mutationId: '33333333-3333-4333-8333-333333333333',
   accountId,
-  deviceId: 'device-a',
+  deviceId: '44444444-4444-4444-8444-444444444444',
   entityType: 'mission' as const,
-  entityId: '11111111-1111-4111-8111-111111111111',
+  entityId: '55555555-5555-4555-8555-555555555555',
   operation: 'update' as const,
   baseVersion: 1,
   clientOccurredAt: '2026-09-04T18:00:00.000Z',
@@ -53,14 +54,46 @@ describe('MTS-031 sync routes', () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(pushed).toEqual(['mutation-a']);
+    expect(pushed).toEqual([mutation.mutationId]);
 
     const forbidden = await server.inject({
       method: 'POST',
       url: '/v1/sync/push',
-      payload: { mutations: [{ ...mutation, accountId: 'account-b' }] },
+      payload: { mutations: [{ ...mutation, accountId: otherAccountId }] },
     });
     expect(forbidden.statusCode).toBe(403);
+  });
+
+  it('rejects malformed database-backed mutation identifiers at the request boundary', async () => {
+    const server = createApiServer({
+      authenticate: () => ({ accountId }),
+      routes: createSyncRoutes({
+        push: () => Promise.resolve({ acceptedMutationIds: [] }),
+        pull: () =>
+          Promise.resolve({
+            kind: 'incremental',
+            changes: [],
+            nextCursor: 0,
+            hasMore: false,
+          }),
+        snapshot: () => Promise.resolve({ entries: [], nextCursor: 0 }),
+      }),
+    });
+    servers.push(server);
+
+    for (const malformed of [
+      { ...mutation, mutationId: 'not-a-uuid' },
+      { ...mutation, accountId: 'not-a-uuid' },
+      { ...mutation, deviceId: 'not-a-uuid' },
+      { ...mutation, entityId: 'not-a-uuid' },
+    ]) {
+      const response = await server.inject({
+        method: 'POST',
+        url: '/v1/sync/push',
+        payload: { mutations: [malformed] },
+      });
+      expect(response.statusCode).toBe(400);
+    }
   });
 
   it('passes authenticated cursor pagination and snapshot requests to the sync service', async () => {
