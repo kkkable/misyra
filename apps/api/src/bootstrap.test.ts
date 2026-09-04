@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { createApiServer } from './index.js';
+import { ApiError, createApiServer } from './index.js';
 
 describe('MTS-027 API bootstrap', () => {
   it('registers application routes only below /v1 and wraps success in the v1 envelope', async () => {
@@ -68,6 +68,67 @@ describe('MTS-027 API bootstrap', () => {
     });
     expect(response.json()).not.toHaveProperty('stack');
     expect(response.json()).not.toHaveProperty('validation');
+    await server.close();
+  });
+
+  it('maps domain failures to stable client-action codes without internal details', async () => {
+    const server = createApiServer({
+      routes: [
+        {
+          method: 'POST',
+          path: '/missions/:missionId/complete',
+          handler: () => {
+            throw new ApiError('already_completed');
+          },
+        },
+      ],
+      authenticate: () => ({ accountId: 'account-1' }),
+    });
+
+    const response = await server.inject({
+      method: 'POST',
+      url: '/v1/missions/mission-1/complete',
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({
+      ok: false,
+      error: {
+        code: 'already_completed',
+        retryable: false,
+        messageKey: 'error.already_completed',
+      },
+    });
+    expect(response.body).not.toContain('stack');
+    await server.close();
+  });
+
+  it('maps unexpected server failures to a retryable content-free envelope', async () => {
+    const server = createApiServer({
+      routes: [
+        {
+          method: 'GET',
+          path: '/missions',
+          handler: () => {
+            throw new Error('private database failure detail');
+          },
+        },
+      ],
+      authenticate: () => ({ accountId: 'account-1' }),
+    });
+
+    const response = await server.inject({ method: 'GET', url: '/v1/missions' });
+
+    expect(response.statusCode).toBe(503);
+    expect(response.json()).toMatchObject({
+      ok: false,
+      error: {
+        code: 'temporarily_unavailable',
+        retryable: true,
+        messageKey: 'error.temporarily_unavailable',
+      },
+    });
+    expect(response.body).not.toContain('private database failure detail');
     await server.close();
   });
 
