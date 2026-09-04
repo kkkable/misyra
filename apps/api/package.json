@@ -12,6 +12,7 @@
     "test": "vitest run --config ../../packages/config/vitest.config.mjs --passWithNoTests"
   },
   "dependencies": {
+    "@misyra/contracts": "workspace:*",
     "fastify": "5.8.5"
   },
   "devDependencies": {
