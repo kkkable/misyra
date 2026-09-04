@@ -1,0 +1,47 @@
+name: MTS-029 lockfile recovery
+
+on:
+  push:
+    branches:
+      - automation/mts-029-lockfile-recovery-20260904t082825z
+
+permissions:
+  contents: write
+
+jobs:
+  regenerate-lockfile:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out target branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/mts-029-local-repositories
+          fetch-depth: 0
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.5
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: pnpm
+
+      - name: Regenerate lockfile only
+        run: pnpm install --lockfile-only --ignore-scripts
+
+      - name: Commit lockfile correction to MTS-029 branch
+        shell: bash
+        run: |
+          if git diff --quiet -- pnpm-lock.yaml; then
+            echo "pnpm-lock.yaml already matches package manifests"
+            exit 0
+          fi
+          git config user.name "Misyra Auto Development"
+          git config user.email "130823389+kkkable@users.noreply.github.com"
+          git add pnpm-lock.yaml
+          git commit -m "fix(mobile): sync lockfile for local repositories"
+          git push origin HEAD:feat/mts-029-local-repositories
