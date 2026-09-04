@@ -68,6 +68,9 @@ importers:
       expo-router:
         specifier: 57.0.17
         version: 57.0.17(4a19684b58b4d246b1e96e4830adba5a)
+      expo-sqlite:
+        specifier: ~57.0.2
+        version: 57.0.2(expo@57.0.17)(react-native@0.86.3(@babel/core@7.29.7)(@react-native/metro-config@0.86.3(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)
       react:
         specifier: 19.2.3
         version: 19.2.3
@@ -106,7 +109,7 @@ importers:
     dependencies:
       drizzle-orm:
         specifier: 1.0.0-rc.5-169397b
-        version: 1.0.0-rc.5-169397b(patch_hash=d2589e2d6955c507611928c7d965e3da733a689f25b441be816cfbcffaf8ff42)(@types/pg@8.23.1)(pg@8.23.0)(zod@3.25.76)
+        version: 1.0.0-rc.5-169397b(patch_hash=d2589e2d6955c507611928c7d965e3da733a689f25b441be816cfbcffaf8ff42)(@types/pg@8.23.1)(expo-sqlite@57.0.2(expo@57.0.17)(react-native@0.86.3(@babel/core@7.29.7)(@react-native/metro-config@0.86.3(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3))(pg@8.23.0)(zod@3.25.76)
       pg:
         specifier: 8.23.0
         version: 8.23.0
@@ -1652,6 +1655,9 @@ packages:
   avvio@9.3.0:
     resolution: {integrity: sha512-g2tQ7LE7oOSqDfwEm3M+ZCMTJc7KiZCdJ4UwyZJb5ckTKyYu50OYmvv0mCFXPuYXoM4zkSt8zM9XQ9KCvxA74A==}
 
+  await-lock@2.2.2:
+    resolution: {integrity: sha512-aDczADvlvTGajTDjcjpJMqRkOF6Qdz3YbPZm/PyW6tKPkx2hlYBzxMhEywM/tU72HrVZjgl5VCdRuMlA7pZ8Gw==}
+
   babel-plugin-polyfill-corejs2@0.4.17:
     resolution: {integrity: sha512-aTyf30K/rqAsNwN76zYrdtx8obu0E4KoUME29B1xj+B3WxgvWkp943vYQ+z8Mv3lw9xHXMHpvSPOBxzAkIa94w==}
     peerDependencies:
@@ -2283,6 +2289,13 @@ packages:
   expo-server@57.0.3:
     resolution: {integrity: sha512-aK+LdKzauHSGmsOStZtyxdzv0zWssCkxTw3m4QuOhfDSJsZaMRTd9O41d8ixU/QfELTbaJ0oRNcF7JFV/7O9YQ==}
     engines: {node: '>=20.16.0'}
+
+  expo-sqlite@57.0.2:
+    resolution: {integrity: sha512-5KVbT7BQFZlIcQBXKWvwBERK3ODF6PSqct27GQKukZzAjsx2B97R+mwtYqrTUtUbw71VJrQrdr9Yl2OWYC7UpA==}
+    peerDependencies:
+      expo: '*'
+      react: '*'
+      react-native: '*'
 
   expo-symbols@57.0.2:
     resolution: {integrity: sha512-qZ0iqOflm5lZGwRsQ5Y8sDksw3GAUKwHSX1bJBoocXf7gu14vafIXXYWte+JT9VfXAUGyKodJhLHP/GoOrcNWg==}
@@ -5565,6 +5578,8 @@ snapshots:
       '@fastify/error': 4.2.0
       fastq: 1.20.2
 
+  await-lock@2.2.2: {}
+
   babel-plugin-polyfill-corejs2@0.4.17(@babel/core@7.29.7):
     dependencies:
       '@babel/compat-data': 7.29.7
@@ -5866,9 +5881,10 @@ snapshots:
 
   dnssd-advertise@1.1.6: {}
 
-  drizzle-orm@1.0.0-rc.5-169397b(patch_hash=d2589e2d6955c507611928c7d965e3da733a689f25b441be816cfbcffaf8ff42)(@types/pg@8.23.1)(pg@8.23.0)(zod@3.25.76):
+  drizzle-orm@1.0.0-rc.5-169397b(patch_hash=d2589e2d6955c507611928c7d965e3da733a689f25b441be816cfbcffaf8ff42)(@types/pg@8.23.1)(expo-sqlite@57.0.2(expo@57.0.17)(react-native@0.86.3(@babel/core@7.29.7)(@react-native/metro-config@0.86.3(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3))(pg@8.23.0)(zod@3.25.76):
     optionalDependencies:
       '@types/pg': 8.23.1
+      expo-sqlite: 57.0.2(expo@57.0.17)(react-native@0.86.3(@babel/core@7.29.7)(@react-native/metro-config@0.86.3(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)
       pg: 8.23.0
       zod: 3.25.76
 
@@ -6128,6 +6144,13 @@ snapshots:
       - supports-color
 
   expo-server@57.0.3: {}
+
+  expo-sqlite@57.0.2(expo@57.0.17)(react-native@0.86.3(@babel/core@7.29.7)(@react-native/metro-config@0.86.3(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3):
+    dependencies:
+      await-lock: 2.2.2
+      expo: 57.0.17(@babel/core@7.29.7)(@expo/dom-webview@57.0.1)(@expo/metro-runtime@57.0.14)(expo-router@57.0.17)(react-native-worklets@0.10.1(@babel/core@7.29.7)(@react-native/metro-config@0.86.3(@babel/core@7.29.7))(react-native@0.86.3(@babel/core@7.29.7)(@react-native/metro-config@0.86.3(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3))(react-native@0.86.3(@babel/core@7.29.7)(@react-native/metro-config@0.86.3(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)(typescript@6.0.3)
+      react: 19.2.3
+      react-native: 0.86.3(@babel/core@7.29.7)(@react-native/metro-config@0.86.3(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3)
 
   expo-symbols@57.0.2(expo-font@57.0.1)(expo@57.0.17)(react-native@0.86.3(@babel/core@7.29.7)(@react-native/metro-config@0.86.3(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3):
     dependencies:
