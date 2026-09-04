@@ -1,8 +1,29 @@
+import { apiResponseEnvelopeSchema, clientActionErrorCodes } from '@misyra/contracts';
 import { describe, expect, it, vi } from 'vitest';
 
-import { ApiError, createApiServer } from './index.js';
+import { ApiError, apiErrorCodes, createApiServer } from './index.js';
 
 describe('MTS-027 API bootstrap', () => {
+  it('uses the shared MTS-023 API response and client-action error contracts', async () => {
+    expect(apiErrorCodes).toBe(clientActionErrorCodes);
+
+    const server = createApiServer({
+      routes: [
+        {
+          method: 'GET',
+          path: '/missions/:missionId',
+          handler: () => ({ missionId: 'mission-1' }),
+        },
+      ],
+      authenticate: () => ({ accountId: 'account-1' }),
+    });
+
+    const response = await server.inject({ method: 'GET', url: '/v1/missions/mission-1' });
+
+    expect(() => apiResponseEnvelopeSchema.parse(response.json())).not.toThrow();
+    await server.close();
+  });
+
   it('registers application routes only below /v1 and wraps success in the v1 envelope', async () => {
     const server = createApiServer({
       routes: [
