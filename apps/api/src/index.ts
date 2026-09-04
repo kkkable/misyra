@@ -139,6 +139,15 @@ function errorEnvelope(requestId: string, code: ApiErrorCode) {
   };
 }
 
+function successEnvelope(requestId: string, payload: unknown) {
+  return {
+    version: 1 as const,
+    requestId,
+    ok: true as const,
+    payload,
+  };
+}
+
 function routeLabel(request: FastifyRequest) {
   return request.routeOptions.url ?? 'unmatched';
 }
@@ -229,12 +238,15 @@ export function createApiServer(options: ApiServerOptions = {}) {
         const routeOptions = {
           method: route.method,
           url: route.path,
-          handler: (request: FastifyRequest, reply: FastifyReply) => {
+          handler: async (request: FastifyRequest, reply: FastifyReply) => {
             const auth = request.authContext;
             if (!auth) {
               return reply.code(401).send(errorEnvelope(request.id, 'unauthorized'));
             }
-            return route.handler(request, reply, auth);
+
+            const payload = await route.handler(request, reply, auth);
+            if (reply.sent) return;
+            return successEnvelope(request.id, payload);
           },
           ...(route.schema === undefined ? {} : { schema: route.schema }),
         };
