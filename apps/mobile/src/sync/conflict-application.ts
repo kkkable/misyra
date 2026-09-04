@@ -10,8 +10,7 @@ export type ConflictOutcome =
   | Readonly<{ kind: 'story_updated'; storyDraftId: string }>;
 
 export type ServerConflictResult =
-  | ConflictOutcome
-  | Readonly<{ kind: 'background_progress'; missionId?: string }>;
+  ConflictOutcome | Readonly<{ kind: 'background_progress'; missionId?: string }>;
 
 export interface ConflictApplicationEffects {
   reloadMission(missionId: string): Promise<void>;
