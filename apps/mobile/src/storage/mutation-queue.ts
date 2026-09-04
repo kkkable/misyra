@@ -24,8 +24,7 @@ export interface SyncMutation<TPayload = unknown> {
 }
 
 export type MutationDestination =
-  | Readonly<{ kind: 'server' }>
-  | Readonly<{ kind: 'external_calendar'; provider: string }>;
+  Readonly<{ kind: 'server' }> | Readonly<{ kind: 'external_calendar'; provider: string }>;
 
 export type PendingMutation = Readonly<{
   sequence: number;
@@ -65,37 +64,73 @@ function assertNonEmpty(value: string, name: string): void {
   if (value.trim().length === 0) throw new TypeError(`${name} must not be empty.`);
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
 function isOneOf<T extends string>(value: string, allowed: readonly T[]): value is T {
   return (allowed as readonly string[]).includes(value);
 }
 
-function assertMutation(mutation: SyncMutation, accountId: string): void {
-  assertNonEmpty(mutation.mutationId, 'Mutation ID');
-  assertNonEmpty(mutation.accountId, 'Mutation account ID');
-  assertNonEmpty(mutation.deviceId, 'Mutation device ID');
-  assertNonEmpty(mutation.entityId, 'Mutation entity ID');
-  assertNonEmpty(mutation.clientOccurredAt, 'Mutation clientOccurredAt');
+function assertMutation(mutation: unknown, accountId: string): asserts mutation is SyncMutation {
+  if (!isRecord(mutation)) throw new TypeError('Mutation envelope must be an object.');
+
+  for (const [field, label] of [
+    ['mutationId', 'Mutation ID'],
+    ['accountId', 'Mutation account ID'],
+    ['deviceId', 'Mutation device ID'],
+    ['entityId', 'Mutation entity ID'],
+    ['clientOccurredAt', 'Mutation clientOccurredAt'],
+  ] as const) {
+    const value = mutation[field];
+    if (typeof value !== 'string') throw new TypeError(`${label} must be a string.`);
+    assertNonEmpty(value, label);
+  }
+
   if (mutation.accountId !== accountId) {
     throw new TypeError('Mutation account ID must match the queue account.');
   }
-  if (!isOneOf(mutation.entityType, ENTITY_TYPES)) {
-    throw new TypeError(`Unsupported mutation entity type: ${mutation.entityType}.`);
-  }
-  if (!isOneOf(mutation.operation, OPERATIONS)) {
-    throw new TypeError(`Unsupported mutation operation: ${mutation.operation}.`);
+  if (
+    typeof mutation.entityType !== 'string' ||
+    !isOneOf(mutation.entityType, ENTITY_TYPES)
+  ) {
+    throw new TypeError(`Unsupported mutation entity type: ${String(mutation.entityType)}.`);
   }
   if (
-    mutation.baseVersion !== null &&
-    (!Number.isSafeInteger(mutation.baseVersion) || mutation.baseVersion < 0)
+    typeof mutation.operation !== 'string' ||
+    !isOneOf(mutation.operation, OPERATIONS)
+  ) {
+    throw new TypeError(`Unsupported mutation operation: ${String(mutation.operation)}.`);
+  }
+
+  const baseVersion = mutation.baseVersion;
+  if (
+    baseVersion !== null &&
+    (typeof baseVersion !== 'number' ||
+      !Number.isSafeInteger(baseVersion) ||
+      baseVersion < 0)
   ) {
     throw new TypeError('Mutation baseVersion must be a non-negative integer or null.');
   }
+  if (!Object.hasOwn(mutation, 'payload')) {
+    throw new TypeError('Mutation payload field is required.');
+  }
 }
 
-function assertDestination(destination: MutationDestination): void {
-  if (destination.kind === 'external_calendar') {
-    assertNonEmpty(destination.provider, 'External mutation provider');
+function assertDestination(
+  destination: unknown,
+): asserts destination is MutationDestination {
+  if (!isRecord(destination) || typeof destination.kind !== 'string') {
+    throw new TypeError('Mutation destination is invalid.');
   }
+  if (destination.kind === 'server') return;
+  if (destination.kind !== 'external_calendar') {
+    throw new TypeError(`Unsupported mutation destination: ${destination.kind}.`);
+  }
+  if (typeof destination.provider !== 'string') {
+    throw new TypeError('External mutation provider must be a string.');
+  }
+  assertNonEmpty(destination.provider, 'External mutation provider');
 }
 
 function assertRetryLimit(value: number): number {
@@ -108,21 +143,16 @@ function assertRetryLimit(value: number): number {
 }
 
 function parseEnvelope(source: string, accountId: string): StoredEnvelope {
-  const value = JSON.parse(source) as StoredEnvelope;
-  if (
-    typeof value !== 'object' ||
-    value === null ||
-    typeof value.mutation !== 'object' ||
-    value.mutation === null ||
-    typeof value.destination !== 'object' ||
-    value.destination === null ||
-    (value.destination.kind !== 'server' && value.destination.kind !== 'external_calendar')
-  ) {
+  const value = JSON.parse(source) as unknown;
+  if (!isRecord(value)) {
     throw new TypeError('Stored mutation envelope is invalid.');
   }
   assertMutation(value.mutation, accountId);
   assertDestination(value.destination);
-  return value;
+  return {
+    mutation: value.mutation,
+    destination: value.destination,
+  };
 }
 
 function mapMutation(row: MutationRow, accountId: string): PendingMutation {
@@ -197,7 +227,7 @@ export function createMutationQueue(database: MutationQueueDatabase, accountId: 
         await transaction.runAsync(
           `INSERT INTO mutation_queue
             (account_id, mutation_id, sequence, command_json, created_at)
-           VALUES (?, ?, ?, ?, ?)`,
+            VALUES (?, ?, ?, ?, ?)`,
           accountId,
           input.mutation.mutationId,
           sequence,
@@ -250,7 +280,7 @@ export function createMutationQueue(database: MutationQueueDatabase, accountId: 
       await database.withExclusiveTransactionAsync(async (transaction) => {
         const result = (await transaction.runAsync(
           `DELETE FROM mutation_queue
-            WHERE account_id = ?
+           WHERE account_id = ?
               AND json_extract(command_json, '$.destination.kind') = 'external_calendar'
               AND json_extract(command_json, '$.destination.provider') = ?`,
           accountId,
