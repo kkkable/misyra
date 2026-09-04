@@ -1,4 +1,8 @@
-import type { MutationQueue, PendingMutation, SyncMutation } from '../storage/mutation-queue.js';
+import type {
+  MutationQueue,
+  PendingMutation,
+  SyncMutation,
+} from '../storage/mutation-queue.js';
 import type { MigrationDatabase } from '../storage/schema.js';
 
 const DEFAULT_BATCH_SIZE = 100;
@@ -31,7 +35,9 @@ export type SyncSnapshot = Readonly<{
 }>;
 
 export interface ServerSyncTransport {
-  push(mutations: readonly SyncMutation[]): Promise<Readonly<{ acceptedMutationIds: readonly string[] }>>;
+  push(
+    mutations: readonly SyncMutation[],
+  ): Promise<Readonly<{ acceptedMutationIds: readonly string[] }>>;
   pull(input: Readonly<{ cursor: number; limit: number }>): Promise<SyncPullResponse>;
   snapshot(): Promise<SyncSnapshot>;
 }
@@ -64,7 +70,9 @@ function assertCursor(value: number, label: string): number {
 function resolveBatchSize(value: number | undefined): number {
   const batchSize = value ?? DEFAULT_BATCH_SIZE;
   if (!Number.isSafeInteger(batchSize) || batchSize < 1 || batchSize > MAX_BATCH_SIZE) {
-    throw new RangeError(`Sync batch size must be an integer from 1 to ${String(MAX_BATCH_SIZE)}.`);
+    throw new RangeError(
+      `Sync batch size must be an integer from 1 to ${String(MAX_BATCH_SIZE)}.`,
+    );
   }
   return batchSize;
 }
@@ -115,7 +123,10 @@ function validateAcceptedIds(
   return accepted;
 }
 
-function validateIncrementalPage(page: Extract<SyncPullResponse, { kind: 'incremental' }>, cursor: number) {
+function validateIncrementalPage(
+  page: Extract<SyncPullResponse, { kind: 'incremental' }>,
+  cursor: number,
+) {
   assertCursor(page.nextCursor, 'Pull next cursor');
   let previous = cursor;
   for (const change of page.changes) {
@@ -138,7 +149,9 @@ function validateIncrementalPage(page: Extract<SyncPullResponse, { kind: 'increm
 }
 
 export function createServerSync(options: ServerSyncOptions) {
-  if (options.accountId.trim().length === 0) throw new TypeError('Account ID must not be empty.');
+  if (options.accountId.trim().length === 0) {
+    throw new TypeError('Account ID must not be empty.');
+  }
   const batchSize = resolveBatchSize(options.batchSize);
 
   const pushQueuedMutations = async (): Promise<number> => {
@@ -176,8 +189,7 @@ export function createServerSync(options: ServerSyncOptions) {
           await options.applySnapshot(transaction, snapshot.entries);
           await writeCursor(transaction, options.accountId, snapshotCursor);
         });
-        cursor = snapshotCursor;
-        continue;
+        return snapshotCursor;
       }
 
       validateIncrementalPage(page, cursor);
