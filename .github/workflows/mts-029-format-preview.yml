@@ -23,7 +23,10 @@ jobs:
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
-      - name: Print Prettier correction
+      - name: Reproduce repository format gate
+        run: pnpm format
+      - name: Print direct Prettier correction if any
+        if: always()
         run: |
           pnpm --filter @misyra/mobile exec prettier --write src/storage/local-repositories.ts --config ../../packages/config/prettier.config.mjs
           git diff -- src/storage/local-repositories.ts
