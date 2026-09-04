@@ -98,6 +98,31 @@ async function writeCursor(
   );
 }
 
+async function listPendingMutationIds(
+  transaction: MigrationDatabase,
+  accountId: string,
+): Promise<string[]> {
+  const mutationIds: string[] = [];
+  let previousSequence = 0;
+  for (;;) {
+    const row = await transaction.getFirstAsync<{ mutation_id: string; sequence: number }>(
+      `SELECT mutation_id, sequence
+         FROM mutation_queue
+        WHERE account_id = ? AND sequence > ?
+        ORDER BY sequence
+        LIMIT 1`,
+      accountId,
+      previousSequence,
+    );
+    if (row === null) return mutationIds;
+    if (!Number.isSafeInteger(row.sequence) || row.sequence <= previousSequence) {
+      throw new Error('Mutation queue sequence is invalid during snapshot recovery.');
+    }
+    mutationIds.push(row.mutation_id);
+    previousSequence = row.sequence;
+  }
+}
+
 function serverPending(items: readonly PendingMutation[]): PendingMutation[] {
   return items.filter((item) => item.destination.kind === 'server');
 }
@@ -179,13 +204,13 @@ export function createServerSync(options: ServerSyncOptions) {
         const snapshot = await options.transport.snapshot();
         const snapshotCursor = assertCursor(snapshot.nextCursor, 'Snapshot cursor');
         await options.database.withExclusiveTransactionAsync(async (transaction) => {
-          const pendingBefore = await options.mutationQueue.listPending();
+          const pendingMutationIds = await listPendingMutationIds(transaction, options.accountId);
           await options.applySnapshot(transaction, snapshot.entries);
-          for (const pending of pendingBefore) {
+          for (const mutationId of pendingMutationIds) {
             const retained = await transaction.getFirstAsync<{ mutation_id: string }>(
               'SELECT mutation_id FROM mutation_queue WHERE account_id = ? AND mutation_id = ?',
               options.accountId,
-              pending.mutation.mutationId,
+              mutationId,
             );
             if (retained === null) {
               throw new Error('Snapshot recovery removed an unsent mutation.');
