@@ -38,7 +38,7 @@ export interface ServerSyncTransport {
   snapshot(): Promise<SyncSnapshot>;
 }
 
-export interface ServerSyncDatabase extends MigrationDatabase {}
+export type ServerSyncDatabase = MigrationDatabase;
 
 export type ServerSyncOptions = Readonly<{
   database: ServerSyncDatabase;
@@ -148,7 +148,7 @@ export function createServerSync(options: ServerSyncOptions) {
 
   const pushQueuedMutations = async (): Promise<number> => {
     let settled = 0;
-    while (true) {
+    for (;;) {
       const pending = serverPending(await options.mutationQueue.listPending()).slice(0, batchSize);
       if (pending.length === 0) return settled;
 
@@ -172,7 +172,7 @@ export function createServerSync(options: ServerSyncOptions) {
   const pullAuthoritativeState = async (): Promise<number> => {
     let cursor = await readCursor(options.database, options.accountId);
 
-    while (true) {
+    for (;;) {
       const page = await options.transport.pull({ cursor, limit: batchSize });
       if (page.kind === 'snapshot_required') {
         const pendingBefore = await options.mutationQueue.listPending();
