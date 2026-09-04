@@ -6,6 +6,7 @@ import {
   syncSnapshotResponseSchema,
   type SyncMutationContract,
   type SyncPullResponseContract,
+  type SyncPushResponseInput,
   type SyncSnapshotResponseContract,
 } from '@misyra/contracts';
 
@@ -15,7 +16,7 @@ export type SyncRouteServices = Readonly<{
   push: (
     accountId: string,
     mutations: readonly SyncMutationContract[],
-  ) => Promise<Readonly<{ acceptedMutationIds: readonly string[] }>>;
+  ) => Promise<Readonly<SyncPushResponseInput>>;
   pull: (
     accountId: string,
     input: Readonly<{ cursor: number; limit: number }>,
