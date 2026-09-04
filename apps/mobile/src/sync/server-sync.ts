@@ -1,4 +1,8 @@
-import type { MutationQueue, PendingMutation, SyncMutation } from '../storage/mutation-queue.js';
+import type {
+  MutationQueue,
+  PendingMutation,
+  SyncMutation,
+} from '../storage/mutation-queue.js';
 import type { MigrationDatabase } from '../storage/schema.js';
 
 const DEFAULT_BATCH_SIZE = 100;
@@ -73,7 +77,10 @@ function resolveBatchSize(value: number | undefined): number {
   return batchSize;
 }
 
-async function readCursor(database: ServerSyncDatabase, accountId: string): Promise<number> {
+async function readCursor(
+  database: ServerSyncDatabase,
+  accountId: string,
+): Promise<number> {
   const row = await database.getFirstAsync<{ cursor: string }>(
     'SELECT cursor FROM sync_cursors WHERE account_id = ?',
     accountId,
