@@ -195,7 +195,7 @@ function validateMigrationPlan(migrations: readonly MobileMigration[]) {
     const expectedVersion = index + 1;
     if (!Number.isSafeInteger(migration.version) || migration.version !== expectedVersion) {
       throw new Error(
-        `Mobile migration versions must be contiguous from 1; expected ${expectedVersion}`,
+        `Mobile migration versions must be contiguous from 1; expected ${String(expectedVersion)}`,
       );
     }
   });
@@ -203,7 +203,7 @@ function validateMigrationPlan(migrations: readonly MobileMigration[]) {
 
 async function readUserVersion(database: MigrationDatabase) {
   const row = await database.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
-  const version = Number(row?.user_version ?? 0);
+  const version = row?.user_version ?? 0;
   if (!Number.isSafeInteger(version) || version < 0) {
     throw new Error('SQLite user_version is invalid');
   }
@@ -220,7 +220,7 @@ export async function applyMigrations(
   const latestVersion = migrations.length;
   if (currentVersion > latestVersion) {
     throw new Error(
-      `SQLite schema version ${currentVersion} is newer than supported version ${latestVersion}`,
+      `SQLite schema version ${String(currentVersion)} is newer than supported version ${String(latestVersion)}`,
     );
   }
 
@@ -231,7 +231,7 @@ export async function applyMigrations(
       for (const statement of migration.statements) {
         await transaction.execAsync(statement);
       }
-      await transaction.execAsync(`PRAGMA user_version = ${migration.version}`);
+      await transaction.execAsync(`PRAGMA user_version = ${String(migration.version)}`);
     });
   }
 }
