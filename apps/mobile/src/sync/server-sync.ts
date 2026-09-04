@@ -1,8 +1,4 @@
-import type {
-  MutationQueue,
-  PendingMutation,
-  SyncMutation,
-} from '../storage/mutation-queue.js';
+import type { MutationQueue, PendingMutation, SyncMutation } from '../storage/mutation-queue.js';
 import type { MigrationDatabase } from '../storage/schema.js';
 
 const DEFAULT_BATCH_SIZE = 100;
@@ -115,9 +111,7 @@ function validateAcceptedIds(
   const expectedPrefix = batch
     .slice(0, acceptedMutationIds.length)
     .map((item) => item.mutation.mutationId);
-  if (
-    acceptedMutationIds.some((mutationId, index) => mutationId !== expectedPrefix[index])
-  ) {
+  if (acceptedMutationIds.some((mutationId, index) => mutationId !== expectedPrefix[index])) {
     throw new Error('Server acceptance must be a contiguous queued prefix.');
   }
   return new Set(acceptedMutationIds);
@@ -157,7 +151,10 @@ export function createServerSync(options: ServerSyncOptions) {
   const pushQueuedMutations = async (): Promise<number> => {
     let settled = 0;
     while (true) {
-      const pending = serverPending(await options.mutationQueue.listPending()).slice(0, batchSize);
+      const pending = serverPending(await options.mutationQueue.listPending()).slice(
+        0,
+        batchSize,
+      );
       if (pending.length === 0) return settled;
 
       const result = await options.transport.push(pending.map((item) => item.mutation));
