@@ -24,8 +24,7 @@ export interface SyncMutation<TPayload = unknown> {
 }
 
 export type MutationDestination =
-  | Readonly<{ kind: 'server' }>
-  | Readonly<{ kind: 'external_calendar'; provider: string }>;
+  Readonly<{ kind: 'server' }> | Readonly<{ kind: 'external_calendar'; provider: string }>;
 
 export type PendingMutation = Readonly<{
   sequence: number;
@@ -101,9 +100,7 @@ function assertMutation(mutation: unknown, accountId: string): asserts mutation 
   const baseVersion = mutation.baseVersion;
   if (
     baseVersion !== null &&
-    (typeof baseVersion !== 'number' ||
-      !Number.isSafeInteger(baseVersion) ||
-      baseVersion < 0)
+    (typeof baseVersion !== 'number' || !Number.isSafeInteger(baseVersion) || baseVersion < 0)
   ) {
     throw new TypeError('Mutation baseVersion must be a non-negative integer or null.');
   }
