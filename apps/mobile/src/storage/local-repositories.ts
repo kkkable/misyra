@@ -170,16 +170,15 @@ interface SearchDocumentRow {
   readonly occurrence_payload_json: string | null;
 }
 
-function parseJson<T>(source: string): T {
-  const value: unknown = JSON.parse(source);
-  return value as T;
+function parseJson(source: string): unknown {
+  return JSON.parse(source) as unknown;
 }
 
 function mapMission(row: MissionRow): LocalMission {
   return {
-    series: createMissionSeries(parseJson<MissionSeriesInput>(row.series_payload_json)),
+    series: createMissionSeries(parseJson(row.series_payload_json) as MissionSeriesInput),
     occurrence: createMissionOccurrence(
-      parseJson<MissionOccurrenceInput>(row.occurrence_payload_json),
+      parseJson(row.occurrence_payload_json) as MissionOccurrenceInput,
     ),
   };
 }
@@ -202,7 +201,9 @@ function assertWindow(window: CalendarWindow): void {
 
 function boundedLimit(limit: number): number {
   if (!Number.isSafeInteger(limit) || limit <= 0 || limit > MAX_BOUNDED_RESULTS) {
-    throw new RangeError(`Local query limit must be an integer from 1 to ${MAX_BOUNDED_RESULTS}.`);
+    throw new RangeError(
+      `Local query limit must be an integer from 1 to ${String(MAX_BOUNDED_RESULTS)}.`,
+    );
   }
   return limit;
 }
@@ -322,7 +323,7 @@ export function createLocalRepositories(database: LocalRepositoryDatabase, accou
           externalLinks: linkRows.map((link) => ({
             provider: link.provider,
             externalEventId: link.external_event_id,
-            payload: parseJson<unknown>(link.payload_json),
+            payload: parseJson(link.payload_json),
             updatedAt: link.updated_at,
           })),
         };
@@ -353,7 +354,7 @@ export function createLocalRepositories(database: LocalRepositoryDatabase, accou
         return rows
           .filter((row) => {
             const occurrence = createMissionOccurrence(
-              parseJson<MissionOccurrenceInput>(row.occurrence_payload_json),
+              parseJson(row.occurrence_payload_json) as MissionOccurrenceInput,
             );
             return occurrence.deletionState !== 'deleted';
           })
@@ -362,7 +363,7 @@ export function createLocalRepositories(database: LocalRepositoryDatabase, accou
             occurrenceId: row.occurrence_id,
             completedAt: row.completed_at,
             awardedXp: row.awarded_xp,
-            payload: parseJson<unknown>(row.payload_json),
+            payload: parseJson(row.payload_json),
             updatedAt: row.updated_at,
           }));
       },
@@ -400,7 +401,7 @@ export function createLocalRepositories(database: LocalRepositoryDatabase, accou
           hiddenEventId: row.hidden_event_id,
           startsAt: row.starts_at,
           endsAt: row.ends_at,
-          payload: parseJson<unknown>(row.payload_json),
+          payload: parseJson(row.payload_json),
           updatedAt: row.updated_at,
         }));
       },
@@ -417,7 +418,7 @@ export function createLocalRepositories(database: LocalRepositoryDatabase, accou
           ? null
           : {
               draftId: row.draft_id,
-              content: parseJson<unknown>(row.content_json),
+              content: parseJson(row.content_json),
               updatedAt: row.updated_at,
             };
       },
@@ -434,7 +435,7 @@ export function createLocalRepositories(database: LocalRepositoryDatabase, accou
           : {
               occurrenceId: row.occurrence_id,
               draftId: row.draft_id,
-              composition: parseJson<unknown>(row.composition_json),
+              composition: parseJson(row.composition_json),
               updatedAt: row.updated_at,
             };
       },
@@ -465,7 +466,7 @@ export function createLocalRepositories(database: LocalRepositoryDatabase, accou
           .filter((row) => {
             if (row.occurrence_id === null || row.occurrence_payload_json === null) return true;
             const occurrence = createMissionOccurrence(
-              parseJson<MissionOccurrenceInput>(row.occurrence_payload_json),
+              parseJson(row.occurrence_payload_json) as MissionOccurrenceInput,
             );
             return occurrence.deletionState !== 'deleted';
           })
