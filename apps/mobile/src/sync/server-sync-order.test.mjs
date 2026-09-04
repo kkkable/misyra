@@ -90,7 +90,12 @@ describe('MTS-031 synchronization ordering invariants', () => {
         mutationQueue: queue,
         transport: {
           push: async () => ({ acceptedMutationIds: ['second'] }),
-          pull: async () => ({ kind: 'incremental', changes: [], nextCursor: 0, hasMore: false }),
+          pull: async () => ({
+            kind: 'incremental',
+            changes: [],
+            nextCursor: 0,
+            hasMore: false,
+          }),
           snapshot: async () => ({ entries: [], nextCursor: 0 }),
         },
         applyChanges: async () => {},
@@ -118,7 +123,15 @@ describe('MTS-031 synchronization ordering invariants', () => {
           push: async () => ({ acceptedMutationIds: [] }),
           pull: async () => ({
             kind: 'incremental',
-            changes: [{ sequence: 2, entityType: 'mission', entityId: 'mission-a', operation: 'upsert', payload: {} }],
+            changes: [
+              {
+                sequence: 2,
+                entityType: 'mission',
+                entityId: 'mission-a',
+                operation: 'upsert',
+                payload: {},
+              },
+            ],
             nextCursor: 2,
             hasMore: false,
           }),
@@ -145,7 +158,11 @@ describe('MTS-031 synchronization ordering invariants', () => {
         mutationQueue: queue,
         transport: {
           push: async () => ({ acceptedMutationIds: [] }),
-          pull: async () => ({ kind: 'snapshot_required', reason: 'expired_cursor', nextCursor: 4 }),
+          pull: async () => ({
+            kind: 'snapshot_required',
+            reason: 'expired_cursor',
+            nextCursor: 4,
+          }),
           snapshot: async () => ({ entries: [], nextCursor: 4 }),
         },
         applyChanges: async () => {},
@@ -158,7 +175,9 @@ describe('MTS-031 synchronization ordering invariants', () => {
       });
 
       await expect(sync.run()).rejects.toThrow('removed an unsent mutation');
-      expect((await queue.listPending()).map((item) => item.mutation.mutationId)).toEqual(['unsent']);
+      expect((await queue.listPending()).map((item) => item.mutation.mutationId)).toEqual([
+        'unsent',
+      ]);
     } finally {
       database.close();
     }
