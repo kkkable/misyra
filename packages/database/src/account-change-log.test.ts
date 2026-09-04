@@ -69,6 +69,32 @@ describe('MTS-026 per-account change log and cursors', () => {
     expect(other.sequence).toBe(1);
   });
 
+  it('participates in a caller-owned transaction without committing independently', async () => {
+    const client = await pool.connect();
+    const entityId = randomUUID();
+    try {
+      await client.query('BEGIN');
+      await appendAccountChange(client, {
+        accountId: accountA,
+        entityType: 'mission',
+        entityId,
+        operation: 'upsert',
+        payload: { version: 1 },
+      });
+      await client.query('ROLLBACK');
+    } finally {
+      client.release();
+    }
+
+    const persisted = await pool.query<{ count: string }>(
+      `SELECT count(*)::text AS count
+       FROM account_change_log
+       WHERE account_id = $1 AND entity_id = $2`,
+      [accountA, entityId],
+    );
+    expect(persisted.rows[0]?.count).toBe('0');
+  });
+
   it(
     'replays ordered changes and tombstones from a cursor without cross-account leakage',
     async () => {
