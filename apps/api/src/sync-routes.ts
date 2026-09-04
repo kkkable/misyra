@@ -31,9 +31,7 @@ export function createSyncRoutes(services: SyncRouteServices): ApiRouteDefinitio
       handler: async (request, _reply, auth) => {
         const parsed = syncPushRequestSchema.safeParse(request.body);
         if (!parsed.success) throw new ApiError('validation_failed');
-        if (
-          parsed.data.mutations.some((mutation) => mutation.accountId !== auth.accountId)
-        ) {
+        if (parsed.data.mutations.some((mutation) => mutation.accountId !== auth.accountId)) {
           throw new ApiError('forbidden');
         }
         return syncPushResponseSchema.parse(
@@ -47,9 +45,7 @@ export function createSyncRoutes(services: SyncRouteServices): ApiRouteDefinitio
       handler: async (request, _reply, auth) => {
         const parsed = syncPullQuerySchema.safeParse(request.query);
         if (!parsed.success) throw new ApiError('validation_failed');
-        return syncPullResponseSchema.parse(
-          await services.pull(auth.accountId, parsed.data),
-        );
+        return syncPullResponseSchema.parse(await services.pull(auth.accountId, parsed.data));
       },
     },
     {
