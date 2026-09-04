@@ -38,8 +38,8 @@ export interface AccountSnapshot {
   nextCursor: number;
 }
 
-function isPool(client: DatabaseClient): client is Pool {
-  return 'connect' in client && typeof client.connect === 'function';
+function isPoolClient(client: DatabaseClient): client is PoolClient {
+  return 'release' in client && typeof client.release === 'function';
 }
 
 async function currentCursor(client: DatabaseClient, accountId: string): Promise<number> {
@@ -82,7 +82,7 @@ export async function appendAccountChange(
   client: DatabaseClient,
   input: AppendAccountChangeInput,
 ): Promise<AccountChange> {
-  if (!isPool(client)) {
+  if (isPoolClient(client)) {
     return appendWithClient(client, input);
   }
 
