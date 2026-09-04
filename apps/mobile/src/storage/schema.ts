@@ -4,7 +4,9 @@ export interface MigrationDatabase {
   execAsync(source: string): Promise<void>;
   runAsync(source: string, ...params: SqlBindValue[]): Promise<unknown>;
   getFirstAsync<T>(source: string, ...params: SqlBindValue[]): Promise<T | null>;
-  withExclusiveTransactionAsync(task: (transaction: MigrationDatabase) => Promise<void>): Promise<void>;
+  withExclusiveTransactionAsync(
+    task: (transaction: MigrationDatabase) => Promise<void>,
+  ): Promise<void>;
 }
 
 export type MobileMigration = Readonly<{
@@ -192,7 +194,9 @@ function validateMigrationPlan(migrations: readonly MobileMigration[]) {
   migrations.forEach((migration, index) => {
     const expectedVersion = index + 1;
     if (!Number.isSafeInteger(migration.version) || migration.version !== expectedVersion) {
-      throw new Error(`Mobile migration versions must be contiguous from 1; expected ${expectedVersion}`);
+      throw new Error(
+        `Mobile migration versions must be contiguous from 1; expected ${expectedVersion}`,
+      );
     }
   });
 }
