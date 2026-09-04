@@ -157,7 +157,9 @@ describe('MTS-029 review corrections', () => {
 
     for (let index = 1; index <= 100; index += 1) {
       const occurrenceId = await seedDeletedOccurrence(database, index);
-      const timestamp = `2026-09-05T${String(Math.floor((index - 1) / 60)).padStart(2, '0')}:${String((index - 1) % 60).padStart(2, '0')}:00.000Z`;
+      const timestamp =
+        `2026-09-05T${String(Math.floor((index - 1) / 60)).padStart(2, '0')}:` +
+        `${String((index - 1) % 60).padStart(2, '0')}:00.000Z`;
       await database.runAsync(
         `INSERT INTO completion_summaries
           (account_id, occurrence_id, completed_at, awarded_xp, payload_json, updated_at)
