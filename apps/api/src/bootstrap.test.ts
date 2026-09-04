@@ -9,10 +9,10 @@ describe('MTS-027 API bootstrap', () => {
         {
           method: 'GET',
           path: '/missions/:missionId',
-          handler: async () => ({ missionId: 'mission-1' }),
+          handler: () => ({ missionId: 'mission-1' }),
         },
       ],
-      authenticate: async () => ({ accountId: 'account-1' }),
+      authenticate: () => ({ accountId: 'account-1' }),
     });
 
     const versioned = await server.inject({ method: 'GET', url: '/v1/missions/mission-1' });
@@ -37,10 +37,10 @@ describe('MTS-027 API bootstrap', () => {
               properties: { title: { type: 'string', minLength: 1 } },
             },
           },
-          handler: async () => ({ created: true }),
+          handler: () => ({ created: true }),
         },
       ],
-      authenticate: async () => ({ accountId: 'account-1' }),
+      authenticate: () => ({ accountId: 'account-1' }),
     });
 
     const response = await server.inject({ method: 'POST', url: '/v1/missions', payload: {} });
@@ -61,10 +61,10 @@ describe('MTS-027 API bootstrap', () => {
   });
 
   it('authenticates before a protected route can disclose resource existence', async () => {
-    const handler = vi.fn(async () => ({ secret: 'resource-exists' }));
+    const handler = vi.fn(() => ({ secret: 'resource-exists' }));
     const server = createApiServer({
       routes: [{ method: 'GET', path: '/missions/:missionId', handler }],
-      authenticate: async () => null,
+      authenticate: () => null,
     });
 
     const response = await server.inject({ method: 'GET', url: '/v1/missions/nonexistent' });
@@ -82,10 +82,10 @@ describe('MTS-027 API bootstrap', () => {
         {
           method: 'POST',
           path: '/feedback',
-          handler: async () => ({ accepted: true }),
+          handler: () => ({ accepted: true }),
         },
       ],
-      authenticate: async () => ({ accountId: 'account-1' }),
+      authenticate: () => ({ accountId: 'account-1' }),
       auditLog: log,
     });
 
