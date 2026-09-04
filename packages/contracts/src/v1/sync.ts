@@ -161,12 +161,17 @@ export const serverAccountChangeSchema = z
   })
   .strict();
 
-export const syncPushRequestSchema = z.object({ mutations: z.array(syncMutationSchema).max(500) }).strict();
+export const syncPushRequestSchema = z
+  .object({ mutations: z.array(syncMutationSchema).max(500) })
+  .strict();
 export const syncPushResponseSchema = z
   .object({ acceptedMutationIds: z.array(z.string().min(1)) })
   .strict();
 export const syncPullQuerySchema = z
-  .object({ cursor: z.coerce.number().int().nonnegative(), limit: z.coerce.number().int().min(1).max(500).default(100) })
+  .object({
+    cursor: z.coerce.number().int().nonnegative(),
+    limit: z.coerce.number().int().min(1).max(500).default(100),
+  })
   .strict();
 export const syncPullResponseSchema = z.union([
   z
