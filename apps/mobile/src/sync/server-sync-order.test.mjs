@@ -182,4 +182,102 @@ describe('MTS-031 synchronization ordering invariants', () => {
       database.close();
     }
   });
+
+  it('serializes overlapping runs so a stale pull cannot move the cursor backward', async () => {
+    const database = await setup();
+    try {
+      let releaseFirstPull;
+      const firstPullGate = new Promise((resolve) => {
+        releaseFirstPull = resolve;
+      });
+      let firstPullStarted;
+      const firstPullStartedPromise = new Promise((resolve) => {
+        firstPullStarted = resolve;
+      });
+      const requestedCursors = [];
+      const sync = createServerSync({
+        database,
+        accountId: 'account-a',
+        mutationQueue: createMutationQueue(database, 'account-a'),
+        transport: {
+          push: async () => ({ acceptedMutationIds: [] }),
+          pull: async ({ cursor }) => {
+            requestedCursors.push(cursor);
+            if (requestedCursors.length === 1) {
+              firstPullStarted();
+              await firstPullGate;
+            }
+            return {
+              kind: 'incremental',
+              changes: [
+                {
+                  sequence: cursor + 1,
+                  entityType: 'mission',
+                  entityId: `mission-${cursor + 1}`,
+                  operation: 'upsert',
+                  payload: {},
+                },
+              ],
+              nextCursor: cursor + 1,
+              hasMore: false,
+            };
+          },
+          snapshot: async () => ({ entries: [], nextCursor: 0 }),
+        },
+        applyChanges: async () => {},
+        applySnapshot: async () => {},
+      });
+
+      const firstRun = sync.run();
+      await firstPullStartedPromise;
+      const secondRun = sync.run();
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(requestedCursors).toEqual([0]);
+      releaseFirstPull();
+      await Promise.all([firstRun, secondRun]);
+      expect(requestedCursors).toEqual([0, 1]);
+    } finally {
+      database.close();
+    }
+  });
+
+  it('protects mutations queued while a snapshot request is in flight', async () => {
+    const database = await setup();
+    try {
+      const queue = createMutationQueue(database, 'account-a');
+      const sync = createServerSync({
+        database,
+        accountId: 'account-a',
+        mutationQueue: queue,
+        transport: {
+          push: async () => ({ acceptedMutationIds: [] }),
+          pull: async () => ({
+            kind: 'snapshot_required',
+            reason: 'expired_cursor',
+            nextCursor: 4,
+          }),
+          snapshot: async () => {
+            await enqueue(queue, 'late-unsent');
+            return { entries: [], nextCursor: 4 };
+          },
+        },
+        applyChanges: async () => {},
+        applySnapshot: async (transaction) => {
+          await transaction.runAsync(
+            'DELETE FROM mutation_queue WHERE account_id = ?',
+            'account-a',
+          );
+        },
+      });
+
+      await expect(sync.run()).rejects.toThrow('removed an unsent mutation');
+      expect((await queue.listPending()).map((item) => item.mutation.mutationId)).toEqual([
+        'late-unsent',
+      ]);
+    } finally {
+      database.close();
+    }
+  });
 });
