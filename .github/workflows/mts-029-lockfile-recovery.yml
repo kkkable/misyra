@@ -1,4 +1,4 @@
-name: MTS-029 lockfile recovery
+name: MTS-029 recovery helper
 
 on:
   push:
@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  regenerate-lockfile:
+  format-target:
     runs-on: ubuntu-latest
     steps:
       - name: Check out target branch
@@ -30,18 +30,21 @@ jobs:
           node-version: '24'
           cache: pnpm
 
-      - name: Regenerate lockfile only
-        run: pnpm install --lockfile-only --ignore-scripts
+      - name: Install exact dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
-      - name: Commit lockfile correction to MTS-029 branch
+      - name: Format affected source
+        run: pnpm exec prettier --write apps/mobile/src/storage/local-repositories.ts --config packages/config/prettier.config.mjs
+
+      - name: Commit formatting correction to MTS-029 branch
         shell: bash
         run: |
-          if git diff --quiet -- pnpm-lock.yaml; then
-            echo "pnpm-lock.yaml already matches package manifests"
+          if git diff --quiet -- apps/mobile/src/storage/local-repositories.ts; then
+            echo "Source is already formatted"
             exit 0
           fi
           git config user.name "Misyra Auto Development"
           git config user.email "130823389+kkkable@users.noreply.github.com"
-          git add pnpm-lock.yaml
-          git commit -m "fix(mobile): sync lockfile for local repositories"
+          git add apps/mobile/src/storage/local-repositories.ts
+          git commit -m "style(mobile): format local repositories"
           git push origin HEAD:feat/mts-029-local-repositories
