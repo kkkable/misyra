@@ -69,9 +69,7 @@ function conflictTransport() {
   return {
     push: async () => ({
       acceptedMutationIds: [],
-      conflicts: [
-        { kind: 'mission_updated', mutationId: 'mutation-a', missionId: 'mission-a' },
-      ],
+      conflicts: [{ kind: 'mission_updated', mutationId: 'mutation-a', missionId: 'mission-a' }],
     }),
     pull: async ({ cursor }) => ({
       kind: 'incremental',
