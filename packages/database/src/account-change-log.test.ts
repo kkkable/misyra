@@ -158,4 +158,28 @@ describe('MTS-026 per-account change log and cursors', () => {
       ).resolves.toMatchObject({ kind: 'snapshot_required', reason: 'invalid_cursor' });
     },
   );
+
+  it('requests a snapshot when the retained sequence window has passed the cursor', async () => {
+    const retainedAccountId = randomUUID();
+    const entityId = randomUUID();
+    await pool.query(
+      `INSERT INTO accounts (id, provider, provider_subject)
+       VALUES ($1, 'google', $2)`,
+      [retainedAccountId, `mts026-retained-${retainedAccountId}`],
+    );
+    await pool.query(
+      `INSERT INTO account_change_log
+       (account_id, sequence, entity_type, entity_id, operation, payload)
+       VALUES ($1, 5, 'mission', $2, 'upsert', '{}'::jsonb)`,
+      [retainedAccountId, entityId],
+    );
+
+    await expect(
+      pullAccountChanges(pool, { accountId: retainedAccountId, cursor: 0 }),
+    ).resolves.toMatchObject({
+      kind: 'snapshot_required',
+      reason: 'expired_cursor',
+      nextCursor: 5,
+    });
+  });
 });
