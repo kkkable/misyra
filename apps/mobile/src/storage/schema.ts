@@ -186,6 +186,20 @@ export const mobileMigrations: readonly MobileMigration[] = [
         ON notification_registry (account_id, scheduled_at)`,
     ],
   },
+  {
+    version: 3,
+    name: 'account-local-settings',
+    statements: [
+      `ALTER TABLE local_accounts
+        ADD COLUMN language TEXT NOT NULL DEFAULT 'en'`,
+      `ALTER TABLE local_accounts
+        ADD COLUMN trust_mode INTEGER NOT NULL DEFAULT 0 CHECK (trust_mode IN (0, 1))`,
+      `ALTER TABLE local_accounts
+        ADD COLUMN app_time_zone TEXT NOT NULL DEFAULT 'UTC'`,
+      `ALTER TABLE local_accounts
+        ADD COLUMN settings_updated_at TEXT`,
+    ],
+  },
 ];
 
 export const MOBILE_SCHEMA_VERSION = mobileMigrations.length;
