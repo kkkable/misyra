@@ -55,9 +55,7 @@ export type AuthStore = {
 };
 
 export type AuthSecurityErrorCode =
-  | 'invalid_provider_proof'
-  | 'invalid_refresh_token'
-  | 'refresh_token_reuse';
+  'invalid_provider_proof' | 'invalid_refresh_token' | 'refresh_token_reuse';
 
 export class AuthSecurityError extends Error {
   readonly code: AuthSecurityErrorCode;
