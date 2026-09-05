@@ -48,11 +48,40 @@ function createDatabase() {
 }
 
 async function seedAccount(database, accountId) {
+  const now = '2026-09-05T00:00:00.000Z';
+  const seriesId = `series-${accountId}`;
+  const occurrenceId = `occurrence-${accountId}`;
+
   await applyMobileMigrations(database);
   await database.runAsync(
     'INSERT INTO local_accounts (account_id, created_at) VALUES (?, ?)',
     accountId,
-    '2026-09-05T00:00:00.000Z',
+    now,
+  );
+  await database.runAsync(
+    `INSERT INTO cached_mission_series
+      (account_id, series_id, title, timezone, payload_json, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    accountId,
+    seriesId,
+    'Mission title',
+    'Asia/Hong_Kong',
+    '{}',
+    now,
+  );
+  await database.runAsync(
+    `INSERT INTO cached_mission_occurrences
+      (account_id, occurrence_id, series_id, local_date, scheduled_start, scheduled_end, all_day, payload_json, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    accountId,
+    occurrenceId,
+    seriesId,
+    '2026-09-05',
+    '2026-09-05T01:00:00.000Z',
+    '2026-09-05T01:30:00.000Z',
+    0,
+    '{}',
+    now,
   );
   await database.runAsync(
     `INSERT INTO notification_registry
@@ -60,9 +89,9 @@ async function seedAccount(database, accountId) {
      VALUES (?, ?, ?, ?, ?)`,
     accountId,
     'notification-a',
-    'occurrence-a',
+    occurrenceId,
     '2026-09-06T01:00:00.000Z',
-    '2026-09-05T00:00:00.000Z',
+    now,
   );
 }
 
