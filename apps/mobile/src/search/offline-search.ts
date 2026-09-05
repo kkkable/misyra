@@ -42,11 +42,20 @@ function tokenContainsHan(token: string): boolean {
   return /\p{Script=Han}/u.test(token);
 }
 
+function normalizeFtsComparable(value: string): string {
+  return value.normalize('NFKD').toLocaleLowerCase().replace(/\p{M}+/gu, '');
+}
+
+function ftsComparableTokens(value: string): string[] {
+  return normalizeFtsComparable(value).match(/[\p{L}\p{N}_]+/gu) ?? [];
+}
+
 function fieldMatchesToken(value: string | null, token: string): boolean {
   if (value === null) return false;
   const normalized = value.normalize('NFKC').toLocaleLowerCase();
   if (tokenContainsHan(token)) return normalized.includes(token);
-  return searchTokens(value).some((word) => word.startsWith(token));
+  const comparableToken = normalizeFtsComparable(token);
+  return ftsComparableTokens(value).some((word) => word.startsWith(comparableToken));
 }
 
 function personalNoteCausedMatch(row: SearchRow, tokens: readonly string[]): boolean {
