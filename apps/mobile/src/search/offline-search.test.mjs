@@ -208,4 +208,31 @@ describe('MTS-033 offline Calendar search', () => {
     );
     expect(historyTables).toEqual([]);
   });
+
+  it('keeps search cleared when an in-flight query resolves after close', async () => {
+    let resolveQuery;
+    const search = {
+      query: () =>
+        new Promise((resolve) => {
+          resolveQuery = resolve;
+        }),
+    };
+    const session = createSearchSession(search);
+
+    const pending = session.search('Morning');
+    session.close();
+    resolveQuery([
+      {
+        documentId: 'late',
+        occurrenceId: null,
+        title: 'Late result',
+        location: null,
+        providerText: null,
+        personalNoteExcerpt: null,
+      },
+    ]);
+    await pending;
+
+    expect(session.getState()).toEqual({ query: '', results: [] });
+  });
 });
