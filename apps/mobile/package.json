@@ -13,6 +13,7 @@
     "test": "vitest run --config ../../packages/config/vitest.config.mjs --passWithNoTests"
   },
   "dependencies": {
+    "@misyra/contracts": "workspace:*",
     "@misyra/design-tokens": "workspace:*",
     "@misyra/domain": "workspace:*",
     "expo": "57.0.17",
