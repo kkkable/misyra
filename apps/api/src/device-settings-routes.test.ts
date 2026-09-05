@@ -1,10 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { createDeviceSettingsRoutes } from './device-settings-routes.js';
-import {
-  createDeviceSettingsService,
-  type DeviceRegistrationStore,
-} from './device-settings.js';
+import { createDeviceSettingsService, type DeviceRegistrationStore } from './device-settings.js';
 import { createApiServer } from './index.js';
 
 const accountId = '123e4567-e89b-42d3-a456-426614174000';
