@@ -232,21 +232,29 @@ export function createApiServer(options: ApiServerOptions = {}) {
 
   void server.register(
     (v1, _pluginOptions, done) => {
+      const authenticateProtected = async (request: FastifyRequest, reply: FastifyReply) => {
+        const auth = await authenticate(request);
+        if (!auth) {
+          return reply.code(401).send(errorEnvelope(request.id, 'unauthorized'));
+        }
+        request.authContext = auth;
+      };
+
       for (const route of routes) {
         const routeOptions = {
           method: route.method,
           url: route.path,
+          ...(route.public ? {} : { onRequest: authenticateProtected }),
           handler: async (request: FastifyRequest, reply: FastifyReply) => {
             let payload: unknown;
 
             if (route.public) {
               payload = await route.handler(request, reply, null);
             } else {
-              const auth = await authenticate(request);
+              const auth = request.authContext;
               if (!auth) {
                 return reply.code(401).send(errorEnvelope(request.id, 'unauthorized'));
               }
-              request.authContext = auth;
               payload = await route.handler(request, reply, auth);
             }
 
