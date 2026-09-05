@@ -112,7 +112,13 @@ export function createAuthSessionController({
         if (!isAuthSession(session)) {
           return { status: 'error', message: messages.signInFailed };
         }
-        if (activeSession !== null && activeSession.accountId !== session.accountId) {
+
+        const storedSession = activeSession ?? (await storage.read());
+        if (
+          storedSession !== null &&
+          isAuthSession(storedSession) &&
+          storedSession.accountId !== session.accountId
+        ) {
           return { status: 'error', message: messages.signInFailed };
         }
 
