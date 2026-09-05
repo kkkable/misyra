@@ -20,6 +20,11 @@ export type StoredAccountSettings = Readonly<{
   trustMode: boolean;
 }>;
 
+export type StoredAccountSettingsUpdate = Readonly<{
+  language?: 'en' | 'zh-HK';
+  trustMode?: boolean;
+}>;
+
 interface DeviceRow extends QueryResultRow {
   id: string;
 }
@@ -71,18 +76,18 @@ export function createPostgresDeviceSettingsStore(pool: Pool) {
 
     async updateAccountSettings(
       accountId: string,
-      settings: StoredAccountSettings,
+      settings: StoredAccountSettingsUpdate,
     ): Promise<StoredAccountSettings> {
       const result = await pool.query<SettingsRow>(
         `INSERT INTO user_settings (account_id, language, trust_mode)
-         VALUES ($1, $2, $3)
+         VALUES ($1, COALESCE($2::text, 'en'), COALESCE($3::boolean, false))
          ON CONFLICT (account_id)
          DO UPDATE SET
-           language = EXCLUDED.language,
-           trust_mode = EXCLUDED.trust_mode,
+           language = COALESCE(EXCLUDED.language, user_settings.language),
+           trust_mode = COALESCE($3::boolean, user_settings.trust_mode),
            updated_at = now()
          RETURNING language, trust_mode AS "trustMode"`,
-        [accountId, settings.language, settings.trustMode],
+        [accountId, settings.language ?? null, settings.trustMode ?? null],
       );
       const row = result.rows[0];
       if (!row) throw new Error('account settings update returned no row');
