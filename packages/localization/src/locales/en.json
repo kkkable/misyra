@@ -1,4 +1,8 @@
 {
+  "auth.signIn.title": "Sign in to Misyra",
+  "auth.signIn.apple": "Continue with Apple",
+  "auth.signIn.google": "Continue with Google",
+  "auth.signIn.failed": "Sign-in failed. Please try again.",
   "sync.conflict.missionUpdated": "This mission was updated on another device.",
   "sync.conflict.missionDeleted": "This mission was deleted on another device.",
   "sync.conflict.missionCompletedElsewhere": "This mission was already completed on another device.",
