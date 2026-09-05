@@ -68,7 +68,11 @@ describe('MTS-036 device session lifecycle', () => {
     expect(api.signOut).toHaveBeenCalledWith('refresh-rotated');
     expect(cleanup).toHaveBeenCalledWith(expiredAccessSession.accountId);
     expect(storage.clear).toHaveBeenCalledOnce();
-    expect(api.signOut.mock.invocationCallOrder[0]).toBeLessThan(cleanup.mock.invocationCallOrder[0]);
-    expect(cleanup.mock.invocationCallOrder[0]).toBeLessThan(storage.clear.mock.invocationCallOrder[0]);
+    expect(api.signOut.mock.invocationCallOrder[0]).toBeLessThan(
+      cleanup.mock.invocationCallOrder[0],
+    );
+    expect(cleanup.mock.invocationCallOrder[0]).toBeLessThan(
+      storage.clear.mock.invocationCallOrder[0],
+    );
   });
 });
