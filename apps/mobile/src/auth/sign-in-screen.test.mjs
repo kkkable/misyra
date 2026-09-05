@@ -94,9 +94,9 @@ describe('MTS-035 sign-in screen', () => {
       );
     });
 
-    expect(renderer.root.findByProps({ children: messages.title }).props.style.color).toBe(
-      darkColors.textPrimary,
-    );
+    expect(
+      renderer.root.findByProps({ children: messages.title }).props.style.color,
+    ).toBe(darkColors.textPrimary);
     expect(
       renderer.root.findByProps({ children: 'Sign-in failed. Please try again.' }).props.style.color,
     ).toBe(darkColors.textPrimary);
