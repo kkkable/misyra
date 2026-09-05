@@ -90,7 +90,6 @@ type ExchangeInput = {
   provider: AuthProvider;
   proof: string;
   nonce: string;
-  maxAgeSeconds?: number;
 };
 
 export type AuthTokenPair = {
@@ -124,9 +123,8 @@ function assertProviderProof(
   now: Date,
   expectedIssuer: string | readonly string[],
   expectedAudience: string,
-  defaultMaxAgeSeconds: number,
+  maxAgeSeconds: number,
 ) {
-  const maxAgeSeconds = input.maxAgeSeconds ?? defaultMaxAgeSeconds;
   const ageMs = now.getTime() - proof.issuedAt.getTime();
 
   if (
