@@ -9,7 +9,8 @@ export const localizationCatalogs = {
     'onboarding.notifications.enable': 'Enable notifications',
     'onboarding.notifications.notNow': 'Not now',
     'onboarding.calendar.title': 'Connect a calendar?',
-    'onboarding.calendar.body': 'Optionally connect one calendar. You can also do this later in Settings.',
+    'onboarding.calendar.body':
+      'Optionally connect one calendar. You can also do this later in Settings.',
     'onboarding.calendar.apple': 'Apple Calendar',
     'onboarding.calendar.google': 'Google Calendar',
     'onboarding.calendar.skip': 'Skip for now',
