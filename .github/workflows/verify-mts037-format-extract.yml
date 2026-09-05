@@ -1,0 +1,39 @@
+name: MTS-037 format extract
+
+on:
+  push:
+    branches:
+      - verify/mts-037-format-extract-20260905t1555z
+
+permissions:
+  contents: read
+
+jobs:
+  format-extract:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.5
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - name: Format exact API files and emit content
+        shell: bash
+        run: |
+          pnpm --filter @misyra/api exec prettier --write src/account-lifecycle.ts src/application.ts --config ../../packages/config/prettier.config.mjs
+          echo 'ACCOUNT_LIFECYCLE_BEGIN'
+          base64 -w0 apps/api/src/account-lifecycle.ts
+          echo
+          echo 'ACCOUNT_LIFECYCLE_END'
+          echo 'APPLICATION_BEGIN'
+          base64 -w0 apps/api/src/application.ts
+          echo
+          echo 'APPLICATION_END'
