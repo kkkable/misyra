@@ -25,6 +25,8 @@ export type ProviderSignInGateway = {
 
 export type AuthExchangeApi = {
   exchange(input: ProviderProof): Promise<AuthSession>;
+  refresh(refreshToken: string): Promise<AuthSession>;
+  signOut(refreshToken: string): Promise<void>;
 };
 
 export type AuthState =
@@ -35,12 +37,14 @@ export type AuthState =
 export type AuthSessionController = {
   restore(): Promise<AuthState>;
   signIn(provider: AuthProvider): Promise<AuthState>;
+  signOut(): Promise<AuthState>;
 };
 
 type AuthSessionControllerOptions = {
   readonly storage: AuthSessionStorage;
   readonly provider: ProviderSignInGateway;
   readonly api: AuthExchangeApi;
+  readonly cleanup?: (accountId: string) => Promise<void>;
   readonly now?: () => Date;
   readonly messages: {
     readonly signInFailed: string;
@@ -55,35 +59,75 @@ export function isAuthSession(value: unknown): value is AuthSession {
   return authTokenPairSchema.safeParse(value).success;
 }
 
-function isValidStoredSession(session: AuthSession, now: Date) {
-  return (
-    Date.parse(session.accessTokenExpiresAt) > now.getTime() &&
-    Date.parse(session.refreshTokenExpiresAt) > now.getTime()
-  );
+function isAccessTokenValid(session: AuthSession, now: Date) {
+  return Date.parse(session.accessTokenExpiresAt) > now.getTime();
+}
+
+function isRefreshTokenValid(session: AuthSession, now: Date) {
+  return Date.parse(session.refreshTokenExpiresAt) > now.getTime();
 }
 
 export function createAuthSessionController({
   storage,
   provider,
   api,
+  cleanup = () => Promise.resolve(),
   now = () => new Date(),
   messages,
 }: AuthSessionControllerOptions): AuthSessionController {
   let activeSession: AuthSession | null = null;
+  let refreshInFlight: Promise<AuthState> | null = null;
+
+  async function refreshStoredSession(stored: AuthSession): Promise<AuthState> {
+    if (refreshInFlight !== null) return refreshInFlight;
+
+    refreshInFlight = (async () => {
+      try {
+        const refreshed = await api.refresh(stored.refreshToken);
+        if (!isAuthSession(refreshed) || refreshed.accountId !== stored.accountId) {
+          await storage.clear();
+          activeSession = null;
+          return { status: 'signed_out' } as const;
+        }
+        await storage.write(refreshed);
+        activeSession = refreshed;
+        return { status: 'signed_in', session: refreshed } as const;
+      } catch {
+        await storage.clear();
+        activeSession = null;
+        return { status: 'signed_out' } as const;
+      } finally {
+        refreshInFlight = null;
+      }
+    })();
+
+    return refreshInFlight;
+  }
 
   return {
     async restore() {
       try {
         const stored = await storage.read();
-        if (stored !== null && isAuthSession(stored) && isValidStoredSession(stored, now())) {
+        if (stored === null || !isAuthSession(stored)) {
+          activeSession = null;
+          return { status: 'signed_out' };
+        }
+
+        const currentTime = now();
+        if (!isRefreshTokenValid(stored, currentTime)) {
+          await storage.clear();
+          activeSession = null;
+          return { status: 'signed_out' };
+        }
+        if (isAccessTokenValid(stored, currentTime)) {
           activeSession = stored;
           return { status: 'signed_in', session: stored };
         }
+        return await refreshStoredSession(stored);
       } catch {
         activeSession = null;
+        return { status: 'signed_out' };
       }
-      activeSession = null;
-      return { status: 'signed_out' };
     },
 
     async signIn(providerName) {
@@ -118,6 +162,38 @@ export function createAuthSessionController({
       } catch {
         return { status: 'error', message: messages.signInFailed };
       }
+    },
+
+    async signOut() {
+      const stored = activeSession ?? (await storage.read());
+      if (stored === null || !isAuthSession(stored)) {
+        await storage.clear();
+        activeSession = null;
+        return { status: 'signed_out' };
+      }
+
+      let failure: { readonly error: unknown } | null = null;
+      try {
+        await api.signOut(stored.refreshToken);
+      } catch (error) {
+        failure = { error };
+      }
+
+      try {
+        await cleanup(stored.accountId);
+      } catch (error) {
+        failure ??= { error };
+      }
+
+      try {
+        await storage.clear();
+      } catch (error) {
+        failure ??= { error };
+      }
+      activeSession = null;
+
+      if (failure !== null) throw failure.error;
+      return { status: 'signed_out' };
     },
   };
 }

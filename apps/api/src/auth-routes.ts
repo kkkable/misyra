@@ -1,9 +1,12 @@
 import {
   authProviderExchangeRequestSchema,
   authRefreshRequestSchema,
+  authSignOutRequestSchema,
+  authSignOutResponseSchema,
   authTokenPairSchema,
   type AuthProvider,
   type AuthProviderExchangeRequest,
+  type AuthSignOutResponse,
   type AuthTokenPair,
 } from '@misyra/contracts';
 
@@ -13,6 +16,7 @@ import { ApiError, type ApiRouteDefinition } from './index.js';
 export type AuthRouteService = {
   exchange(input: AuthProviderExchangeRequest & { provider: AuthProvider }): Promise<AuthTokenPair>;
   refresh(refreshToken: string): Promise<AuthTokenPair>;
+  signOut(refreshToken: string): Promise<AuthSignOutResponse>;
 };
 
 function parseExchangeBody(value: unknown): AuthProviderExchangeRequest {
@@ -23,6 +27,12 @@ function parseExchangeBody(value: unknown): AuthProviderExchangeRequest {
 
 function parseRefreshBody(value: unknown) {
   const parsed = authRefreshRequestSchema.safeParse(value);
+  if (!parsed.success) throw new ApiError('validation_failed');
+  return parsed.data.refreshToken;
+}
+
+function parseSignOutBody(value: unknown) {
+  const parsed = authSignOutRequestSchema.safeParse(value);
   if (!parsed.success) throw new ApiError('validation_failed');
   return parsed.data.refreshToken;
 }
@@ -55,6 +65,13 @@ export function createAuthRoutes(service: AuthRouteService): ApiRouteDefinition[
       path: '/auth/refresh',
       public: true,
       handler: (request) => runAuthOperation(() => service.refresh(parseRefreshBody(request.body))),
+    },
+    {
+      method: 'POST',
+      path: '/auth/sign-out',
+      public: true,
+      handler: async (request) =>
+        authSignOutResponseSchema.parse(await service.signOut(parseSignOutBody(request.body))),
     },
   ];
 }

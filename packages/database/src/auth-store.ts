@@ -30,6 +30,11 @@ export type DatabaseAuthRotateSessionResult =
   | { status: 'reused' }
   | { status: 'invalid' };
 
+export type DatabaseAuthRevokeSessionInput = {
+  presentedHash: string;
+  now: Date;
+};
+
 interface AccountRow extends QueryResultRow {
   id: string;
   provider: DatabaseAuthProvider;
@@ -161,6 +166,31 @@ export function createPostgresAuthStore(pool: Pool) {
           [input.now, reused.familyId],
         );
         return { status: 'reused' };
+      });
+    },
+
+    async revokeSession(input: DatabaseAuthRevokeSessionInput) {
+      return transaction(pool, async (client) => {
+        const result = await client.query<ReusedSessionRow>(
+          `SELECT family_id AS "familyId"
+             FROM account_sessions
+            WHERE refresh_token_hash = $1
+               OR $1 = ANY(rotated_refresh_token_hashes)
+            ORDER BY created_at DESC
+            LIMIT 1
+            FOR UPDATE`,
+          [input.presentedHash],
+        );
+        const session = result.rows[0];
+        if (!session) return false;
+
+        await client.query(
+          `UPDATE account_sessions
+              SET revoked_at = COALESCE(revoked_at, $1)
+            WHERE family_id = $2`,
+          [input.now, session.familyId],
+        );
+        return true;
       });
     },
   };

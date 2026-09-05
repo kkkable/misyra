@@ -15,11 +15,12 @@ const tokens = {
 function service() {
   const exchange = vi.fn(() => Promise.resolve(tokens));
   const refresh = vi.fn(() => Promise.resolve(tokens));
-  const authService: AuthRouteService = { exchange, refresh };
-  return { authService, exchange, refresh };
+  const signOut = vi.fn(() => Promise.resolve({ signedOut: true } as const));
+  const authService: AuthRouteService = { exchange, refresh, signOut };
+  return { authService, exchange, refresh, signOut };
 }
 
-describe('MTS-034 auth routes', () => {
+describe('MTS-034/036 auth routes', () => {
   it.each(['apple', 'google'] as const)(
     'exposes public %s provider exchange below /v1',
     async (provider) => {
@@ -68,8 +69,26 @@ describe('MTS-034 auth routes', () => {
     await server.close();
   });
 
-  it('rejects malformed exchange and refresh bodies before invoking auth services', async () => {
-    const { authService, exchange: exchangeSpy, refresh: refreshSpy } = service();
+  it('signs out using the current device refresh credential without access-token auth', async () => {
+    const { authService, signOut } = service();
+    const authenticate = vi.fn(() => null);
+    const server = createApiServer({ routes: createAuthRoutes(authService), authenticate });
+
+    const response = await server.inject({
+      method: 'POST',
+      url: '/v1/auth/sign-out',
+      payload: { refreshToken: 'current-device-refresh' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ ok: true, payload: { signedOut: true } });
+    expect(signOut).toHaveBeenCalledWith('current-device-refresh');
+    expect(authenticate).not.toHaveBeenCalled();
+    await server.close();
+  });
+
+  it('rejects malformed exchange, refresh, and sign-out bodies before invoking services', async () => {
+    const { authService, exchange: exchangeSpy, refresh: refreshSpy, signOut } = service();
     const server = createApiServer({ routes: createAuthRoutes(authService) });
 
     const exchange = await server.inject({
@@ -82,16 +101,23 @@ describe('MTS-034 auth routes', () => {
       url: '/v1/auth/refresh',
       payload: { refreshToken: '' },
     });
+    const signOutResponse = await server.inject({
+      method: 'POST',
+      url: '/v1/auth/sign-out',
+      payload: { refreshToken: '' },
+    });
 
     expect(exchange.statusCode).toBe(400);
     expect(refresh.statusCode).toBe(400);
+    expect(signOutResponse.statusCode).toBe(400);
     expect(exchangeSpy).not.toHaveBeenCalled();
     expect(refreshSpy).not.toHaveBeenCalled();
+    expect(signOut).not.toHaveBeenCalled();
     await server.close();
   });
 
   it('rejects unknown auth request fields through the shared strict contract', async () => {
-    const { authService, exchange, refresh } = service();
+    const { authService, exchange, refresh, signOut } = service();
     const server = createApiServer({ routes: createAuthRoutes(authService) });
 
     const exchangeResponse = await server.inject({
@@ -104,11 +130,18 @@ describe('MTS-034 auth routes', () => {
       url: '/v1/auth/refresh',
       payload: { refreshToken: 'refresh', ignored: 'not-allowed' },
     });
+    const signOutResponse = await server.inject({
+      method: 'POST',
+      url: '/v1/auth/sign-out',
+      payload: { refreshToken: 'refresh', ignored: 'not-allowed' },
+    });
 
     expect(exchangeResponse.statusCode).toBe(400);
     expect(refreshResponse.statusCode).toBe(400);
+    expect(signOutResponse.statusCode).toBe(400);
     expect(exchange).not.toHaveBeenCalled();
     expect(refresh).not.toHaveBeenCalled();
+    expect(signOut).not.toHaveBeenCalled();
     await server.close();
   });
 
@@ -117,7 +150,8 @@ describe('MTS-034 auth routes', () => {
       Promise.reject(new AuthSecurityError('invalid_provider_proof')),
     );
     const refreshSpy = vi.fn(() => Promise.reject(new AuthSecurityError('refresh_token_reuse')));
-    const authService: AuthRouteService = { exchange: exchangeSpy, refresh: refreshSpy };
+    const signOut = vi.fn(() => Promise.resolve({ signedOut: true } as const));
+    const authService: AuthRouteService = { exchange: exchangeSpy, refresh: refreshSpy, signOut };
     const server = createApiServer({ routes: createAuthRoutes(authService) });
 
     const exchange = await server.inject({

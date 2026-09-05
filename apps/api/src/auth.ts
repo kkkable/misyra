@@ -49,11 +49,17 @@ export type RotateSessionResult =
   | { status: 'reused' }
   | { status: 'invalid' };
 
+export type RevokeSessionInput = {
+  presentedHash: string;
+  now: Date;
+};
+
 export type AuthStore = {
   findOrCreateAccount(provider: AuthProvider, subject: string): Promise<AuthAccount>;
   consumeProviderNonce(provider: AuthProvider, subject: string, nonce: string): Promise<boolean>;
   createSession(input: CreateSessionInput): Promise<void>;
   rotateSession(input: RotateSessionInput): Promise<RotateSessionResult>;
+  revokeSession(input: RevokeSessionInput): Promise<boolean>;
 };
 
 export type AuthSecurityErrorCode =
@@ -222,6 +228,14 @@ export function createAuthService(options: AuthServiceOptions) {
         refreshToken: nextRefreshToken,
         refreshTokenExpiresAt: nextRefreshTokenExpiresAt.toISOString(),
       };
+    },
+
+    async signOut(presentedRefreshToken: string) {
+      await options.store.revokeSession({
+        presentedHash: sha256(presentedRefreshToken),
+        now: now(),
+      });
+      return { signedOut: true } as const;
     },
   };
 }

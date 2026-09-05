@@ -18,6 +18,20 @@ export const authRefreshRequestSchema = z
   .strict();
 export type AuthRefreshRequest = z.infer<typeof authRefreshRequestSchema>;
 
+export const authSignOutRequestSchema = z
+  .object({
+    refreshToken: z.string().min(1),
+  })
+  .strict();
+export type AuthSignOutRequest = z.infer<typeof authSignOutRequestSchema>;
+
+export const authSignOutResponseSchema = z
+  .object({
+    signedOut: z.literal(true),
+  })
+  .strict();
+export type AuthSignOutResponse = z.infer<typeof authSignOutResponseSchema>;
+
 export const authTokenPairSchema = z
   .object({
     accountId: z.string().uuid(),
