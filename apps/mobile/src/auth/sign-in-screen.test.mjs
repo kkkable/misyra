@@ -25,7 +25,9 @@ describe('MTS-035 sign-in screen', () => {
     expect(renderer.root.findByProps({ testID: 'auth-sign-in-screen' })).toBeTruthy();
     expect(renderer.root.findByProps({ testID: 'auth-sign-in-apple' })).toBeTruthy();
     expect(renderer.root.findByProps({ testID: 'auth-sign-in-google' })).toBeTruthy();
-    expect(renderer.root.findAll((node) => node.props?.testID === 'auth-sign-in-guest')).toHaveLength(0);
+    expect(
+      renderer.root.findAll((node) => node.props?.testID === 'auth-sign-in-guest'),
+    ).toHaveLength(0);
 
     act(() => renderer.root.findByProps({ testID: 'auth-sign-in-apple' }).props.onPress());
     expect(onSignIn).toHaveBeenCalledWith('apple');
@@ -44,6 +46,8 @@ describe('MTS-035 sign-in screen', () => {
       );
     });
 
-    expect(renderer.root.findAllByProps({ children: 'Sign-in failed. Please try again.' })).not.toHaveLength(0);
+    expect(
+      renderer.root.findAllByProps({ children: 'Sign-in failed. Please try again.' }),
+    ).not.toHaveLength(0);
   });
 });

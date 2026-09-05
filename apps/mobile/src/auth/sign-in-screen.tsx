@@ -27,9 +27,16 @@ export function SignInScreen({
   onSignIn,
 }: SignInScreenProps) {
   return (
-    <Screen colorScheme={colorScheme} accessibilityLabel={messages.title} testID="auth-sign-in-screen">
+    <Screen
+      accessibilityLabel={messages.title}
+      colorScheme={colorScheme}
+      testID="auth-sign-in-screen"
+    >
       <View style={{ flex: 1, justifyContent: 'center', gap: space[4] }}>
-        <Text accessibilityRole="header" style={{ fontSize: typography.title2.fontSize, fontWeight: '700' }}>
+        <Text
+          accessibilityRole="header"
+          style={{ fontSize: typography.title2.fontSize, fontWeight: '700' }}
+        >
           {messages.title}
         </Text>
         <PrimaryButton
@@ -49,7 +56,11 @@ export function SignInScreen({
           testID="auth-sign-in-google"
         />
         {errorMessage ? (
-          <Text accessibilityLiveRegion="polite" allowFontScaling style={{ fontSize: typography.body.fontSize }}>
+          <Text
+            accessibilityLiveRegion="polite"
+            allowFontScaling
+            style={{ fontSize: typography.body.fontSize }}
+          >
             {errorMessage}
           </Text>
         ) : null}
