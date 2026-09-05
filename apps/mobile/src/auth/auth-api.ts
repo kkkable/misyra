@@ -59,13 +59,17 @@ export function createAuthExchangeApi({
     },
 
     async refresh(refreshToken) {
-      const payload = await post(fetcher, `${normalizedBaseUrl}/v1/auth/refresh`, { refreshToken });
+      const payload = await post(fetcher, `${normalizedBaseUrl}/v1/auth/refresh`, {
+        refreshToken,
+      });
       if (!isAuthSession(payload)) throw new Error('auth_refresh_failed');
       return payload;
     },
 
     async signOut(refreshToken) {
-      const payload = await post(fetcher, `${normalizedBaseUrl}/v1/auth/sign-out`, { refreshToken });
+      const payload = await post(fetcher, `${normalizedBaseUrl}/v1/auth/sign-out`, {
+        refreshToken,
+      });
       if (
         typeof payload !== 'object' ||
         payload === null ||
