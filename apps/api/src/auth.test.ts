@@ -13,7 +13,7 @@ function hash(value: string) {
   return createHash('sha256').update(value).digest('hex');
 }
 
-function createHarness() {
+function createHarness(proofMaxAgeSeconds = 10 * 60) {
   let sequence = 0;
   const accounts = new Map<string, { id: string; provider: 'apple' | 'google'; subject: string }>();
   const sessions = new Map<
@@ -116,6 +116,7 @@ function createHarness() {
       apple: 'com.misyra.app',
       google: 'misyra-google-client',
     },
+    defaultProofMaxAgeSeconds: proofMaxAgeSeconds,
   });
 
   return { service, accounts, sessions };
@@ -159,14 +160,13 @@ describe('MTS-034 server provider-token exchange', () => {
     ).resolves.toMatchObject({ accountId: 'account-1' });
   });
 
-  it('rejects stale proofs even when the provider fake otherwise verifies them', async () => {
-    const { service } = createHarness();
+  it('rejects stale proofs using a server-controlled freshness window', async () => {
+    const { service } = createHarness(30);
     await expect(
       service.exchange({
         provider: 'google',
         proof: 'proof-a',
         nonce: 'nonce-1',
-        maxAgeSeconds: 30,
       }),
     ).rejects.toMatchObject({ code: 'invalid_provider_proof' });
   });
