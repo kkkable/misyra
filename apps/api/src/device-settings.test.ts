@@ -18,16 +18,16 @@ function createStore(): DeviceRegistrationStore & {
     get settings() {
       return settings;
     },
-    async registerDevice(input: unknown) {
+    registerDevice(input: unknown) {
       registrations.push(input);
-      return '22222222-2222-4222-8222-222222222222';
+      return Promise.resolve('22222222-2222-4222-8222-222222222222');
     },
-    async getAccountSettings() {
-      return settings;
+    getAccountSettings() {
+      return Promise.resolve(settings);
     },
-    async updateAccountSettings(_accountId: string, nextSettings: TestSettingsUpdate) {
+    updateAccountSettings(_accountId: string, nextSettings: TestSettingsUpdate) {
       settings = { ...settings, ...nextSettings };
-      return settings;
+      return Promise.resolve(settings);
     },
   };
   return state;
