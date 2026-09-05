@@ -8,7 +8,7 @@
   },
   "scripts": {
     "build": "tsc --project ./tsconfig.json --noEmit",
-    "format": "prettier --write src/device-settings-store.test.ts src/device-settings-store.ts --config ../config/prettier.config.mjs && printf '\\n---MTS039_DATABASE_FORMATTED---\\n' && cat src/device-settings-store.test.ts && printf '\\n---MTS039_DATABASE_NEXT---\\n' && cat src/device-settings-store.ts && false",
+    "format": "prettier --check . --config ../config/prettier.config.mjs",
     "lint": "eslint . --config ../config/eslint.config.mjs",
     "typecheck": "tsc --project ./tsconfig.json --noEmit",
     "test": "vitest run --config ../config/vitest.config.mjs --passWithNoTests"
