@@ -69,6 +69,14 @@ function parseJwks(value: unknown) {
   return keys;
 }
 
+function isAcceptedSigningKey(jwk: JsonWebKey) {
+  return (
+    jwk.kty === 'RSA' &&
+    (jwk.alg === undefined || jwk.alg === 'RS256') &&
+    (jwk.use === undefined || jwk.use === 'sig')
+  );
+}
+
 async function defaultFetchJson(url: string) {
   const response = await fetch(url, {
     headers: { accept: 'application/json' },
@@ -102,7 +110,7 @@ export function createProviderProofVerifier(
           'kid' in candidate &&
           (candidate as { kid?: unknown }).kid === keyId,
       );
-      if (!jwk || ('alg' in jwk && jwk.alg !== undefined && jwk.alg !== 'RS256')) return fail();
+      if (!jwk || !isAcceptedSigningKey(jwk)) return fail();
 
       let verified = false;
       try {
