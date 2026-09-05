@@ -43,9 +43,9 @@ export function AuthGate({ children, controller, messages }: AuthGateProps) {
 
   return (
     <SignInScreen
-      busyProvider={busyProvider}
+      {...(busyProvider === undefined ? {} : { busyProvider })}
       colorScheme={colorScheme}
-      errorMessage={state.status === 'error' ? state.message : undefined}
+      {...(state.status === 'error' ? { errorMessage: state.message } : {})}
       messages={messages}
       onSignIn={signIn}
     />
