@@ -68,7 +68,8 @@ function parseJwks(value: unknown): unknown[] {
   if (typeof value !== 'object' || value === null || !('keys' in value)) return fail();
   const keys: unknown = (value as { keys?: unknown }).keys;
   if (!Array.isArray(keys)) return fail();
-  return keys as unknown[];
+  const result: unknown[] = keys;
+  return result;
 }
 
 function isAcceptedSigningKey(jwk: JsonWebKey) {
@@ -79,13 +80,14 @@ function isAcceptedSigningKey(jwk: JsonWebKey) {
   );
 }
 
-async function defaultFetchJson(url: string) {
+async function defaultFetchJson(url: string): Promise<unknown> {
   const response = await fetch(url, {
     headers: { accept: 'application/json' },
     signal: AbortSignal.timeout(5_000),
   });
   if (!response.ok) fail();
-  return response.json() as Promise<unknown>;
+  const result: unknown = await response.json();
+  return result;
 }
 
 export function createProviderProofVerifier(
