@@ -38,10 +38,19 @@ function toFtsQuery(tokens: readonly string[]): string {
   return tokens.map((token) => `"${token.replaceAll('"', '""')}"*`).join(' AND ');
 }
 
-function fieldMatchesTokens(value: string | null, tokens: readonly string[]): boolean {
+function fieldMatchesToken(value: string | null, token: string): boolean {
   if (value === null) return false;
-  const words = searchTokens(value);
-  return tokens.every((token) => words.some((word) => word.startsWith(token)));
+  return searchTokens(value).some((word) => word.startsWith(token));
+}
+
+function personalNoteCausedMatch(row: SearchRow, tokens: readonly string[]): boolean {
+  return tokens.some((token) => {
+    const visibleMatched =
+      fieldMatchesToken(row.title, token) ||
+      fieldMatchesToken(row.location, token) ||
+      fieldMatchesToken(row.provider_text, token);
+    return !visibleMatched && fieldMatchesToken(row.personal_note, token);
+  });
 }
 
 function personalNoteExcerpt(note: string, tokens: readonly string[]): string {
@@ -161,24 +170,17 @@ export function createOfflineCalendarSearch(database: OfflineSearchDatabase, acc
         limit,
       );
 
-      return rows.map((row) => {
-        const visibleFieldMatched =
-          fieldMatchesTokens(row.title, tokens) ||
-          fieldMatchesTokens(row.location, tokens) ||
-          fieldMatchesTokens(row.provider_text, tokens);
-        const privateFieldMatched = fieldMatchesTokens(row.personal_note, tokens);
-        return {
-          documentId: row.document_id,
-          occurrenceId: row.occurrence_id,
-          title: row.title,
-          location: row.location,
-          providerText: row.provider_text,
-          personalNoteExcerpt:
-            privateFieldMatched && !visibleFieldMatched && row.personal_note !== null
-              ? personalNoteExcerpt(row.personal_note, tokens)
-              : null,
-        };
-      });
+      return rows.map((row) => ({
+        documentId: row.document_id,
+        occurrenceId: row.occurrence_id,
+        title: row.title,
+        location: row.location,
+        providerText: row.provider_text,
+        personalNoteExcerpt:
+          row.personal_note !== null && personalNoteCausedMatch(row, tokens)
+            ? personalNoteExcerpt(row.personal_note, tokens)
+            : null,
+      }));
     },
   };
 }
