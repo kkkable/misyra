@@ -155,4 +155,47 @@ describe('MTS-034 PostgreSQL auth store', () => {
     expect(session.rows[0]?.revokedAt).toBeInstanceOf(Date);
     expect(session.rows[0]?.rotatedHashes).toEqual([oldestHash, newerHash]);
   });
+
+  it('revokes only the presented device session family and leaves another device active', async () => {
+    const store = createPostgresAuthStore(pool);
+    const account = await store.findOrCreateAccount('google', `subject-${randomUUID()}`);
+    const firstSessionId = randomUUID();
+    const secondSessionId = randomUUID();
+    const firstRefreshHash = hash('device-one-refresh');
+    const secondRefreshHash = hash('device-two-refresh');
+    const expiresAt = new Date('2026-10-05T03:05:00.000Z');
+
+    await store.createSession({
+      id: firstSessionId,
+      accountId: account.id,
+      familyId: randomUUID(),
+      refreshTokenHash: firstRefreshHash,
+      expiresAt,
+    });
+    await store.createSession({
+      id: secondSessionId,
+      accountId: account.id,
+      familyId: randomUUID(),
+      refreshTokenHash: secondRefreshHash,
+      expiresAt,
+    });
+
+    await expect(
+      store.revokeSession({
+        presentedHash: firstRefreshHash,
+        now: new Date('2026-09-05T03:05:00.000Z'),
+      }),
+    ).resolves.toBe(true);
+
+    const sessions = await pool.query<{ id: string; revokedAt: Date | null }>(
+      `SELECT id, revoked_at AS "revokedAt"
+         FROM account_sessions
+        WHERE id = ANY($1::uuid[])
+        ORDER BY id`,
+      [[firstSessionId, secondSessionId]],
+    );
+    const byId = new Map(sessions.rows.map((row) => [row.id, row.revokedAt]));
+    expect(byId.get(firstSessionId)).toBeInstanceOf(Date);
+    expect(byId.get(secondSessionId)).toBeNull();
+  });
 });
