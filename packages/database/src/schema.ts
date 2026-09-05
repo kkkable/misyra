@@ -46,11 +46,21 @@ export const devices = pgTable(
     accountId: uuid('account_id')
       .notNull()
       .references(() => accounts.id, { onDelete: 'cascade' }),
+    installationId: text('installation_id').notNull(),
     platform: text('platform').notNull(),
+    appVersion: text('app_version').notNull(),
+    notificationCapability: text('notification_capability').notNull(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (table) => [index('devices_account_idx').on(table.accountId)],
+  (table) => [
+    index('devices_account_idx').on(table.accountId),
+    uniqueIndex('devices_account_installation_uidx').on(table.accountId, table.installationId),
+    check(
+      'devices_notification_capability_check',
+      sql`${table.notificationCapability} in ('not_determined', 'denied', 'authorized', 'unavailable')`,
+    ),
+  ],
 );
 
 export const accountSessions = pgTable(

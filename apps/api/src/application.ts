@@ -1,6 +1,10 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
-import { createPostgresAuthStore, deleteAccountTransaction } from '@misyra/database';
+import {
+  createPostgresAuthStore,
+  createPostgresDeviceSettingsStore,
+  deleteAccountTransaction,
+} from '@misyra/database';
 import type { AuthProvider } from '@misyra/contracts';
 import { Pool } from 'pg';
 
@@ -11,6 +15,8 @@ import {
 import { createAccountLifecycleRoutes } from './account-lifecycle-routes.js';
 import { createAuthRoutes } from './auth-routes.js';
 import { createAuthService, type AccessTokenInput, type ProviderProofVerifier } from './auth.js';
+import { createDeviceSettingsRoutes } from './device-settings-routes.js';
+import { createDeviceSettingsService } from './device-settings.js';
 import {
   createApiServer,
   type ApiAuditLog,
@@ -46,6 +52,7 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3
 
 export function createApiApplication(options: AuthApplicationOptions) {
   const authStore = createPostgresAuthStore(options.pool);
+  const deviceSettingsStore = createPostgresDeviceSettingsStore(options.pool);
   const verifier = options.verifier ?? createProviderProofVerifier();
   const reauthenticationProofCodec = createHmacReauthenticationProofCodec(
     options.reauthenticationProofSecret,
@@ -66,11 +73,13 @@ export function createApiApplication(options: AuthApplicationOptions) {
     deleteAccount: (accountId) => deleteAccountTransaction(options.pool, accountId),
     ...(options.now === undefined ? {} : { now: options.now }),
   });
+  const deviceSettingsService = createDeviceSettingsService(deviceSettingsStore);
 
   return createApiServer({
     routes: [
       ...createAuthRoutes(authService),
       ...createAccountLifecycleRoutes(accountLifecycleService),
+      ...createDeviceSettingsRoutes(deviceSettingsService),
     ],
     ...(options.readiness === undefined ? {} : { readiness: options.readiness }),
     ...(options.authenticate === undefined ? {} : { authenticate: options.authenticate }),

@@ -7,3 +7,4 @@ export * from './idempotency-outbox.js';
 export * from './account-change-log.js';
 export * from './auth-store.js';
 export * from './account-deletion.js';
+export * from './device-settings-store.js';
