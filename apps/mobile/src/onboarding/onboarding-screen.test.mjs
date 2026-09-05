@@ -56,7 +56,9 @@ describe('MTS-038 onboarding choice UI', () => {
     expect(renderer.root.findByProps({ children: messages.notificationsBody })).toBeTruthy();
     expect(renderer.root.findByProps({ testID: 'onboarding-enable-notifications' })).toBeTruthy();
     expect(renderer.root.findByProps({ testID: 'onboarding-not-now' })).toBeTruthy();
-    expect(renderer.root.findAll((node) => node.props?.testID === 'onboarding-calendar-google')).toHaveLength(0);
+    expect(
+      renderer.root.findAll((node) => node.props?.testID === 'onboarding-calendar-google'),
+    ).toHaveLength(0);
   });
 
   it('offers an optional calendar provider choice only on the calendar step', () => {
@@ -74,10 +76,14 @@ describe('MTS-038 onboarding choice UI', () => {
       );
     });
 
-    act(() => renderer.root.findByProps({ testID: 'onboarding-calendar-google' }).props.onPress());
+    act(() =>
+      renderer.root.findByProps({ testID: 'onboarding-calendar-google' }).props.onPress(),
+    );
     expect(onCalendarChoice).toHaveBeenCalledWith('google');
 
-    act(() => renderer.root.findByProps({ testID: 'onboarding-calendar-skip' }).props.onPress());
+    act(() =>
+      renderer.root.findByProps({ testID: 'onboarding-calendar-skip' }).props.onPress(),
+    );
     expect(onCalendarChoice).toHaveBeenCalledWith(null);
   });
 
