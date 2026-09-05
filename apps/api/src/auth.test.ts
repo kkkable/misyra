@@ -31,49 +31,56 @@ function createHarness() {
   const consumedNonces = new Set<string>();
 
   const store: AuthStore = {
-    async findOrCreateAccount(provider, subject) {
+    findOrCreateAccount(provider, subject) {
       const key = `${provider}:${subject}`;
       let account = accounts.get(key);
       if (!account) {
         account = { id: `account-${++sequence}`, provider, subject };
         accounts.set(key, account);
       }
-      return account;
+      return Promise.resolve(account);
     },
-    async consumeProviderNonce(provider, subject, nonce) {
+    consumeProviderNonce(provider, subject, nonce) {
       const key = `${provider}:${subject}:${nonce}`;
-      if (consumedNonces.has(key)) return false;
+      if (consumedNonces.has(key)) return Promise.resolve(false);
       consumedNonces.add(key);
-      return true;
+      return Promise.resolve(true);
     },
-    async createSession(input) {
+    createSession(input) {
       sessions.set(input.id, { ...input, previousRefreshTokenHash: null, revokedAt: null });
+      return Promise.resolve();
     },
-    async rotateSession(input) {
+    rotateSession(input) {
       const session = [...sessions.values()].find(
         (candidate) =>
           candidate.refreshTokenHash === input.presentedHash ||
           candidate.previousRefreshTokenHash === input.presentedHash,
       );
-      if (!session || session.revokedAt) return { status: 'invalid' as const };
+      if (!session || session.revokedAt) return Promise.resolve({ status: 'invalid' as const });
       if (session.previousRefreshTokenHash === input.presentedHash) {
         for (const candidate of sessions.values()) {
           if (candidate.familyId === session.familyId) candidate.revokedAt = input.now;
         }
-        return { status: 'reused' as const };
+        return Promise.resolve({ status: 'reused' as const });
       }
-      if (session.expiresAt <= input.now) return { status: 'invalid' as const };
+      if (session.expiresAt <= input.now) return Promise.resolve({ status: 'invalid' as const });
       session.previousRefreshTokenHash = session.refreshTokenHash;
       session.refreshTokenHash = input.nextHash;
       session.expiresAt = input.nextExpiresAt;
-      return { status: 'rotated' as const, accountId: session.accountId, sessionId: session.id };
+      return Promise.resolve({
+        status: 'rotated' as const,
+        accountId: session.accountId,
+        sessionId: session.id,
+      });
     },
   };
 
   const verifier: ProviderProofVerifier = {
-    async verify(provider, proof) {
-      if (proof === 'bad-signature') throw new AuthSecurityError('invalid_provider_proof');
-      return {
+    verify(provider, proof) {
+      if (proof === 'bad-signature') {
+        return Promise.reject(new AuthSecurityError('invalid_provider_proof'));
+      }
+      return Promise.resolve({
         provider,
         subject: proof === 'same-email-other-subject' ? 'subject-b' : 'subject-a',
         issuer:
@@ -94,7 +101,7 @@ function createHarness() {
         issuedAt: new Date('2026-09-05T03:00:00.000Z'),
         expiresAt: new Date('2026-09-05T03:10:00.000Z'),
         email: 'same@example.com',
-      };
+      });
     },
   };
 
