@@ -3,8 +3,14 @@ import { readFileSync } from 'node:fs';
 import type { Pool } from 'pg';
 import { describe, expect, it, vi } from 'vitest';
 
-import { createApiApplication, resolveAuthStartupConfiguration } from './application.js';
+import {
+  createApiApplication,
+  createHmacAccessTokenAuthenticator,
+  createHmacAccessTokenIssuer,
+  resolveAuthStartupConfiguration,
+} from './application.js';
 import type { ProviderProofVerifier } from './auth.js';
+import { createApiServer } from './index.js';
 
 type FakeQueryResult = {
   rows: Array<Record<string, unknown>>;
@@ -47,6 +53,7 @@ describe('MTS-034 executable API composition', () => {
       expectedAudience: { apple: 'apple-audience', google: 'google-audience' },
       now: () => new Date('2026-09-05T08:25:00.000Z'),
       issueAccessToken: () => 'fixture-access-value',
+      reauthenticationProofSecret: 'fixture-reauthentication-proof-secret',
     });
 
     const response = await server.inject({
@@ -102,5 +109,50 @@ describe('MTS-034 executable API composition', () => {
       },
       accessTokenSecret: 'production-auth-secret-at-least-32-characters',
     });
+  });
+});
+
+describe('MTS-037 session-backed access authentication', () => {
+  it('rejects an otherwise unexpired access token as soon as its server session is gone', async () => {
+    const accountId = '123e4567-e89b-42d3-a456-426614174000';
+    const sessionId = '123e4567-e89b-42d3-a456-426614174010';
+    const secret = 'fixture-session-backed-access-secret-32';
+    const now = new Date('2026-09-05T15:00:00.000Z');
+    let active = true;
+    const isSessionActive = vi.fn(() => Promise.resolve(active));
+    const authenticate = createHmacAccessTokenAuthenticator(secret, isSessionActive, () => now);
+    const accessToken = createHmacAccessTokenIssuer(secret)({
+      accountId,
+      sessionId,
+      expiresAt: new Date('2026-09-05T15:10:00.000Z'),
+    });
+    const server = createApiServer({
+      authenticate,
+      routes: [
+        {
+          method: 'GET',
+          path: '/account/session-proof',
+          handler: (_request, _reply, auth) => ({ accountId: auth.accountId }),
+        },
+      ],
+    });
+
+    const accepted = await server.inject({
+      method: 'GET',
+      url: '/v1/account/session-proof',
+      headers: { authorization: `Bearer ${accessToken}` },
+    });
+    active = false;
+    const rejected = await server.inject({
+      method: 'GET',
+      url: '/v1/account/session-proof',
+      headers: { authorization: `Bearer ${accessToken}` },
+    });
+
+    expect(accepted.statusCode).toBe(200);
+    expect(accepted.json()).toMatchObject({ ok: true, payload: { accountId } });
+    expect(rejected.statusCode).toBe(401);
+    expect(isSessionActive).toHaveBeenCalledTimes(2);
+    await server.close();
   });
 });
