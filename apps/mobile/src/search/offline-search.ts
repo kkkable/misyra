@@ -41,17 +41,82 @@ function fieldMatchesTokens(value: string | null, tokens: readonly string[]): bo
 
 function personalNoteExcerpt(note: string, tokens: readonly string[]): string {
   const normalized = note.normalize('NFKC').toLocaleLowerCase();
-  const firstIndex = tokens
-    .map((token) => normalized.indexOf(token))
-    .filter((index) => index >= 0)
-    .sort((left, right) => left - right)[0] ?? 0;
+  const firstIndex =
+    tokens
+      .map((token) => normalized.indexOf(token))
+      .filter((index) => index >= 0)
+      .sort((left, right) => left - right)[0] ?? 0;
   const radius = Math.floor(PERSONAL_NOTE_EXCERPT_LIMIT / 2);
   const start = Math.max(0, firstIndex - radius);
   const end = Math.min(note.length, start + PERSONAL_NOTE_EXCERPT_LIMIT);
   return note.slice(start, end);
 }
 
+async function ensureSearchIndex(database: OfflineSearchDatabase): Promise<void> {
+  const existing = await database.getFirstAsync<{ name: string }>(
+    "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'search_documents_fts'",
+  );
+  if (existing !== null) return;
+
+  await database.withExclusiveTransactionAsync(async (transaction) => {
+    await transaction.execAsync(`CREATE VIRTUAL TABLE IF NOT EXISTS search_documents_fts USING fts5(
+      account_id UNINDEXED,
+      document_id UNINDEXED,
+      title,
+      location,
+      provider_text,
+      personal_note,
+      content='search_documents',
+      content_rowid='rowid'
+    )`);
+    await transaction.execAsync(`CREATE TRIGGER IF NOT EXISTS search_documents_fts_insert
+      AFTER INSERT ON search_documents BEGIN
+        INSERT INTO search_documents_fts(
+          rowid, account_id, document_id, title, location, provider_text, personal_note
+        ) VALUES (
+          new.rowid, new.account_id, new.document_id, new.title, new.location,
+          new.provider_text, new.personal_note
+        );
+      END`);
+    await transaction.execAsync(`CREATE TRIGGER IF NOT EXISTS search_documents_fts_delete
+      AFTER DELETE ON search_documents BEGIN
+        INSERT INTO search_documents_fts(
+          search_documents_fts, rowid, account_id, document_id, title, location,
+          provider_text, personal_note
+        ) VALUES (
+          'delete', old.rowid, old.account_id, old.document_id, old.title, old.location,
+          old.provider_text, old.personal_note
+        );
+      END`);
+    await transaction.execAsync(`CREATE TRIGGER IF NOT EXISTS search_documents_fts_update
+      AFTER UPDATE ON search_documents BEGIN
+        INSERT INTO search_documents_fts(
+          search_documents_fts, rowid, account_id, document_id, title, location,
+          provider_text, personal_note
+        ) VALUES (
+          'delete', old.rowid, old.account_id, old.document_id, old.title, old.location,
+          old.provider_text, old.personal_note
+        );
+        INSERT INTO search_documents_fts(
+          rowid, account_id, document_id, title, location, provider_text, personal_note
+        ) VALUES (
+          new.rowid, new.account_id, new.document_id, new.title, new.location,
+          new.provider_text, new.personal_note
+        );
+      END`);
+    await transaction.execAsync(
+      "INSERT INTO search_documents_fts(search_documents_fts) VALUES ('rebuild')",
+    );
+  });
+}
+
 export function createOfflineCalendarSearch(database: OfflineSearchDatabase, accountId: string) {
+  let indexReady: Promise<void> | undefined;
+  const ensureIndex = () => {
+    indexReady ??= ensureSearchIndex(database);
+    return indexReady;
+  };
+
   return {
     query: async (query: string, limit = 20): Promise<OfflineSearchResult[]> => {
       if (!Number.isSafeInteger(limit) || limit <= 0 || limit > MAX_SEARCH_RESULTS) {
@@ -59,6 +124,7 @@ export function createOfflineCalendarSearch(database: OfflineSearchDatabase, acc
       }
       const tokens = searchTokens(query);
       if (tokens.length === 0) return [];
+      await ensureIndex();
 
       const rows = await database.getAllAsync<SearchRow>(
         `SELECT d.document_id,
