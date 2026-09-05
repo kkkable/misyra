@@ -43,7 +43,10 @@ function tokenContainsHan(token: string): boolean {
 }
 
 function normalizeFtsComparable(value: string): string {
-  return value.normalize('NFKD').toLocaleLowerCase().replace(/\p{M}+/gu, '');
+  return value
+    .normalize('NFKD')
+    .toLocaleLowerCase()
+    .replace(/\p{M}+/gu, '');
 }
 
 function ftsComparableTokens(value: string): string[] {
