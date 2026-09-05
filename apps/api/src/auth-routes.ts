@@ -1,4 +1,4 @@
-import type { AuthProvider, AuthTokenPair } from './auth.js';
+import { AuthSecurityError, type AuthProvider, type AuthTokenPair } from './auth.js';
 import { ApiError, type ApiRouteDefinition } from './index.js';
 
 export type AuthRouteService = {
@@ -33,6 +33,15 @@ function parseRefreshBody(value: unknown) {
   return refreshToken;
 }
 
+async function runAuthOperation<T>(operation: () => Promise<T>) {
+  try {
+    return await operation();
+  } catch (error) {
+    if (error instanceof AuthSecurityError) throw new ApiError('unauthorized');
+    throw error;
+  }
+}
+
 export function createAuthRoutes(service: AuthRouteService): ApiRouteDefinition[] {
   const exchangeRoute = (provider: AuthProvider): ApiRouteDefinition => ({
     method: 'POST',
@@ -40,7 +49,7 @@ export function createAuthRoutes(service: AuthRouteService): ApiRouteDefinition[
     public: true,
     handler: async (request) => {
       const body = parseExchangeBody(request.body);
-      return service.exchange({ provider, ...body });
+      return runAuthOperation(() => service.exchange({ provider, ...body }));
     },
   });
 
@@ -51,7 +60,8 @@ export function createAuthRoutes(service: AuthRouteService): ApiRouteDefinition[
       method: 'POST',
       path: '/auth/refresh',
       public: true,
-      handler: async (request) => service.refresh(parseRefreshBody(request.body)),
+      handler: async (request) =>
+        runAuthOperation(() => service.refresh(parseRefreshBody(request.body))),
     },
   ];
 }
