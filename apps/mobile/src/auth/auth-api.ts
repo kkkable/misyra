@@ -42,17 +42,14 @@ export function createAuthExchangeApi({
         typeof body !== 'object' ||
         body === null ||
         Array.isArray(body) ||
-        (body as Record<string, unknown>).ok !== true ||
-        !isAuthSession((body as Record<string, unknown>).payload)
+        (body as Record<string, unknown>).ok !== true
       ) {
         throw new Error('auth_exchange_failed');
       }
-      return (body as { payload: unknown }).payload as ReturnType<typeof assertSession>;
+
+      const payload = (body as Record<string, unknown>).payload;
+      if (!isAuthSession(payload)) throw new Error('auth_exchange_failed');
+      return payload;
     },
   };
-}
-
-function assertSession(value: unknown) {
-  if (!isAuthSession(value)) throw new Error('auth_exchange_failed');
-  return value;
 }
