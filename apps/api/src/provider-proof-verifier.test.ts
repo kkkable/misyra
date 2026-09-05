@@ -20,29 +20,32 @@ function createSignedProof(
 }
 
 describe('MTS-034 provider proof verifier', () => {
-  it.each(['apple', 'google'] as const)('cryptographically verifies %s provider proofs', async (provider) => {
-    const { publicKey, privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
-    const publicJwk = publicKey.export({ format: 'jwk' });
-    const verifier = createProviderProofVerifier({
-      jwksUrl: { apple: 'https://keys.test/apple', google: 'https://keys.test/google' },
-      fetchJson: async () => ({ keys: [{ ...publicJwk, kid: 'test-key', alg: 'RS256' }] }),
-    });
-    const token = createSignedProof(privateKey, {
-      iss: provider === 'apple' ? 'https://appleid.apple.com' : 'https://accounts.google.com',
-      aud: provider === 'apple' ? 'com.misyra.app' : 'misyra-google-client',
-      sub: 'provider-subject-1',
-      nonce: 'nonce-1',
-      iat: 1_788_579_600,
-      exp: 1_788_580_200,
-      email: 'ignored@example.com',
-    });
+  it.each(['apple', 'google'] as const)(
+    'cryptographically verifies %s provider proofs',
+    async (provider) => {
+      const { publicKey, privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
+      const publicJwk = publicKey.export({ format: 'jwk' });
+      const verifier = createProviderProofVerifier({
+        jwksUrl: { apple: 'https://keys.test/apple', google: 'https://keys.test/google' },
+        fetchJson: async () => ({ keys: [{ ...publicJwk, kid: 'test-key', alg: 'RS256' }] }),
+      });
+      const token = createSignedProof(privateKey, {
+        iss: provider === 'apple' ? 'https://appleid.apple.com' : 'https://accounts.google.com',
+        aud: provider === 'apple' ? 'com.misyra.app' : 'misyra-google-client',
+        sub: 'provider-subject-1',
+        nonce: 'nonce-1',
+        iat: 1_788_579_600,
+        exp: 1_788_580_200,
+        email: 'ignored@example.com',
+      });
 
-    await expect(verifier.verify(provider, token)).resolves.toMatchObject({
-      provider,
-      subject: 'provider-subject-1',
-      nonce: 'nonce-1',
-    });
-  });
+      await expect(verifier.verify(provider, token)).resolves.toMatchObject({
+        provider,
+        subject: 'provider-subject-1',
+        nonce: 'nonce-1',
+      });
+    },
+  );
 
   it('rejects a proof whose signature does not match the provider key', async () => {
     const trusted = generateKeyPairSync('rsa', { modulusLength: 2048 });
@@ -96,7 +99,9 @@ describe('MTS-034 provider proof verifier', () => {
       { alg: 'RS256', kid: 'unknown-key' },
     );
 
-    await expect(verifier.verify('apple', wrongAlgorithm)).rejects.toBeInstanceOf(AuthSecurityError);
+    await expect(verifier.verify('apple', wrongAlgorithm)).rejects.toBeInstanceOf(
+      AuthSecurityError,
+    );
     await expect(verifier.verify('apple', unknownKey)).rejects.toBeInstanceOf(AuthSecurityError);
   });
 });
