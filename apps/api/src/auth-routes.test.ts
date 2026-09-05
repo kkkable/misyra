@@ -90,6 +90,28 @@ describe('MTS-034 auth routes', () => {
     await server.close();
   });
 
+  it('rejects unknown auth request fields through the shared strict contract', async () => {
+    const { authService, exchange, refresh } = service();
+    const server = createApiServer({ routes: createAuthRoutes(authService) });
+
+    const exchangeResponse = await server.inject({
+      method: 'POST',
+      url: '/v1/auth/google/exchange',
+      payload: { proof: 'proof', nonce: 'nonce', ignored: 'not-allowed' },
+    });
+    const refreshResponse = await server.inject({
+      method: 'POST',
+      url: '/v1/auth/refresh',
+      payload: { refreshToken: 'refresh', ignored: 'not-allowed' },
+    });
+
+    expect(exchangeResponse.statusCode).toBe(400);
+    expect(refreshResponse.statusCode).toBe(400);
+    expect(exchange).not.toHaveBeenCalled();
+    expect(refresh).not.toHaveBeenCalled();
+    await server.close();
+  });
+
   it('maps proof and refresh security failures to the same unauthorized envelope', async () => {
     const exchangeSpy = vi.fn(() =>
       Promise.reject(new AuthSecurityError('invalid_provider_proof')),
