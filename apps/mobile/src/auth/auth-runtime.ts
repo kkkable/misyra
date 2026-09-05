@@ -9,6 +9,7 @@ import {
   type ProviderSignInGateway,
 } from './auth-session.js';
 import { createSecureSessionStorage } from './secure-session-storage.js';
+import { createSignOutCleanup } from './sign-out-cleanup.js';
 
 let providerGateway: ProviderSignInGateway | null = null;
 let apiBaseUrl = 'http://127.0.0.1:3000';
@@ -28,9 +29,19 @@ const configuredProviderGateway: ProviderSignInGateway = {
   },
 };
 
+function authApi() {
+  return createAuthExchangeApi({ baseUrl: apiBaseUrl });
+}
+
 const configuredAuthApi: AuthExchangeApi = {
   exchange(input) {
-    return createAuthExchangeApi({ baseUrl: apiBaseUrl }).exchange(input);
+    return authApi().exchange(input);
+  },
+  refresh(refreshToken) {
+    return authApi().refresh(refreshToken);
+  },
+  signOut(refreshToken) {
+    return authApi().signOut(refreshToken);
   },
 };
 
@@ -40,5 +51,6 @@ export const rootAuthController = createAuthSessionController({
   storage: createSecureSessionStorage(SecureStore),
   provider: configuredProviderGateway,
   api: configuredAuthApi,
+  cleanup: createSignOutCleanup(),
   messages: { signInFailed: rootAuthMessages.signInFailed },
 });
