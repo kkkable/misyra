@@ -171,12 +171,12 @@ export function createAuthService(options: AuthServiceOptions) {
         defaultProofMaxAgeSeconds,
       );
 
+      // Email is intentionally ignored. Provider + subject is the immutable account key.
+      const account = await options.store.findOrCreateAccount(input.provider, proof.subject);
       if (!(await options.store.consumeProviderNonce(input.provider, proof.subject, proof.nonce))) {
         throw new AuthSecurityError('invalid_provider_proof');
       }
 
-      // Email is intentionally ignored. Provider + subject is the immutable account key.
-      const account = await options.store.findOrCreateAccount(input.provider, proof.subject);
       const sessionId = randomUUID();
       const familyId = randomUUID();
       const refreshToken = issueOpaqueRefreshToken();
