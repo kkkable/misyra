@@ -73,6 +73,18 @@ function createHarness(proofMaxAgeSeconds = 10 * 60) {
         sessionId: session.id,
       });
     },
+    revokeSession(input) {
+      const session = [...sessions.values()].find(
+        (candidate) =>
+          candidate.refreshTokenHash === input.presentedHash ||
+          candidate.previousRefreshTokenHash === input.presentedHash,
+      );
+      if (!session) return Promise.resolve(false);
+      for (const candidate of sessions.values()) {
+        if (candidate.familyId === session.familyId) candidate.revokedAt ??= input.now;
+      }
+      return Promise.resolve(true);
+    },
   };
 
   const verifier: ProviderProofVerifier = {
@@ -122,7 +134,7 @@ function createHarness(proofMaxAgeSeconds = 10 * 60) {
   return { service, accounts, sessions };
 }
 
-describe('MTS-034 server provider-token exchange', () => {
+describe('MTS-034/036 server authentication lifecycle', () => {
   it('binds identity to provider subject rather than provider email', async () => {
     const { service, accounts } = createHarness();
 
@@ -227,6 +239,18 @@ describe('MTS-034 server provider-token exchange', () => {
     await expect(service.refresh(exchanged.refreshToken)).rejects.toMatchObject({
       code: 'refresh_token_reuse',
     });
+    expect([...sessions.values()].every((session) => session.revokedAt instanceof Date)).toBe(true);
+  });
+
+  it('revokes the session family identified by the current refresh credential on sign-out', async () => {
+    const { service, sessions } = createHarness();
+    const exchanged = await service.exchange({
+      provider: 'google',
+      proof: 'proof-a',
+      nonce: 'nonce-1',
+    });
+
+    await expect(service.signOut(exchanged.refreshToken)).resolves.toEqual({ signedOut: true });
     expect([...sessions.values()].every((session) => session.revokedAt instanceof Date)).toBe(true);
   });
 });
