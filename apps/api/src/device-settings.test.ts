@@ -5,7 +5,10 @@ import { createDeviceSettingsService, type DeviceRegistrationStore } from './dev
 const ACCOUNT_ID = '11111111-1111-4111-8111-111111111111';
 
 type TestSettings = { language: 'en' | 'zh-HK'; trustMode: boolean };
-type TestSettingsUpdate = Partial<TestSettings>;
+type TestSettingsUpdate = {
+  language?: 'en' | 'zh-HK' | undefined;
+  trustMode?: boolean | undefined;
+};
 
 function createStore(): DeviceRegistrationStore & {
   registrations: unknown[];
