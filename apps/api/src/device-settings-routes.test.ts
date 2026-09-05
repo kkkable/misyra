@@ -14,12 +14,11 @@ function fixture() {
   const getAccountSettings = vi.fn(() =>
     Promise.resolve({ language: 'en' as const, trustMode: false }),
   );
-  const updateAccountSettings = vi.fn(
-    (_accountId: string, settings: TestSettingsUpdate) =>
-      Promise.resolve({
-        language: settings.language ?? 'en',
-        trustMode: settings.trustMode ?? false,
-      }),
+  const updateAccountSettings = vi.fn((_accountId: string, settings: TestSettingsUpdate) =>
+    Promise.resolve({
+      language: settings.language ?? 'en',
+      trustMode: settings.trustMode ?? false,
+    }),
   );
   const store: DeviceRegistrationStore = {
     registerDevice,
