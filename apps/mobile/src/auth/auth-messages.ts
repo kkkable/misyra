@@ -1,7 +1,4 @@
-import {
-  localizationCatalogs,
-  type LocalizationLocale,
-} from '@misyra/localization';
+import { localizationCatalogs, type LocalizationLocale } from '@misyra/localization';
 
 type DeviceLocale = {
   readonly languageCode: string | null;
