@@ -1,3 +1,4 @@
+# Disposable verification workflow; never merge into main.
 name: MTS-037 format extract
 
 on:
