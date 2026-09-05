@@ -47,7 +47,7 @@ export function createAuthRoutes(service: AuthRouteService): ApiRouteDefinition[
     method: 'POST',
     path: `/auth/${provider}/exchange`,
     public: true,
-    handler: async (request) => {
+    handler: (request) => {
       const body = parseExchangeBody(request.body);
       return runAuthOperation(() => service.exchange({ provider, ...body }));
     },
@@ -60,7 +60,7 @@ export function createAuthRoutes(service: AuthRouteService): ApiRouteDefinition[
       method: 'POST',
       path: '/auth/refresh',
       public: true,
-      handler: async (request) =>
+      handler: (request) =>
         runAuthOperation(() => service.refresh(parseRefreshBody(request.body))),
     },
   ];
