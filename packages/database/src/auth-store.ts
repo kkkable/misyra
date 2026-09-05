@@ -75,6 +75,17 @@ async function transaction<T>(pool: Pool, work: (client: PoolClient) => Promise<
 
 export function createPostgresAuthStore(pool: Pool) {
   return {
+    async findAccountById(accountId: string): Promise<DatabaseAuthAccount | null> {
+      const result = await pool.query<AccountRow>(
+        `SELECT id, provider, provider_subject AS "providerSubject"
+           FROM accounts
+          WHERE id = $1`,
+        [accountId],
+      );
+      const row = result.rows[0];
+      return row ? { id: row.id, provider: row.provider, subject: row.providerSubject } : null;
+    },
+
     async findOrCreateAccount(
       provider: DatabaseAuthProvider,
       subject: string,
@@ -112,6 +123,20 @@ export function createPostgresAuthStore(pool: Pool) {
          VALUES ($1, $2, $3, $4, $5)`,
         [input.id, input.accountId, input.familyId, input.refreshTokenHash, input.expiresAt],
       );
+    },
+
+    async isSessionActive(accountId: string, sessionId: string, now: Date) {
+      const result = await pool.query(
+        `SELECT 1
+           FROM account_sessions
+          WHERE id = $1
+            AND account_id = $2
+            AND revoked_at IS NULL
+            AND expires_at > $3
+          LIMIT 1`,
+        [sessionId, accountId, now],
+      );
+      return result.rowCount === 1;
     },
 
     async rotateSession(
