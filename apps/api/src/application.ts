@@ -42,8 +42,7 @@ const LOCAL_AUTH_DEFAULTS = {
   googleAudience: 'fixture-google-auth-audience',
   accessTokenSecret: 'fixture-local-auth-access-token-secret',
 } as const;
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export function createApiApplication(options: AuthApplicationOptions) {
   const authStore = createPostgresAuthStore(options.pool);
