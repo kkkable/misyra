@@ -56,10 +56,11 @@ async function seedAccount(database, accountId) {
   );
   await database.runAsync(
     `INSERT INTO notification_registry
-      (account_id, notification_id, scheduled_at, updated_at)
-     VALUES (?, ?, ?, ?)`,
+      (account_id, notification_id, occurrence_id, scheduled_at, updated_at)
+     VALUES (?, ?, ?, ?, ?)`,
     accountId,
     'notification-a',
+    'occurrence-a',
     '2026-09-06T01:00:00.000Z',
     '2026-09-05T00:00:00.000Z',
   );
@@ -124,7 +125,10 @@ describe('MTS-036 sign-out cleanup', () => {
     expect(hooks.clearFeedbackDraft).toHaveBeenCalledWith(accountId);
     expect(hooks.clearAppKeys).toHaveBeenCalledWith(accountId);
     expect(
-      await database.getFirstAsync('SELECT account_id FROM local_accounts WHERE account_id = ?', accountId),
+      await database.getFirstAsync(
+        'SELECT account_id FROM local_accounts WHERE account_id = ?',
+        accountId,
+      ),
     ).toBeNull();
   });
 });
