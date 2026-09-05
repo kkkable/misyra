@@ -33,6 +33,18 @@ vi.mock('../auth/auth-runtime.js', () => ({
   rootAuthMessages: {},
 }));
 
+vi.mock('../onboarding/onboarding-gate.js', async () => {
+  const { createElement: createReactElement } = await import('react');
+  return {
+    OnboardingGate: ({ children }) => createReactElement('OnboardingGate', null, children),
+  };
+});
+
+vi.mock('../onboarding/onboarding-runtime.js', () => ({
+  rootOnboardingController: {},
+  rootOnboardingMessages: {},
+}));
+
 import TabLayout from '../../app/(tabs)/_layout.tsx';
 import * as RootLayoutModule from '../../app/_layout.tsx';
 
