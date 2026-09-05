@@ -17,15 +17,17 @@ export interface ConflictApplicationEffects {
   reloadStory(storyDraftId: string): Promise<void>;
   clearStoryUndoHistory(storyDraftId: string): void;
   deleteDuplicateEvidenceWorkingFiles(missionId: string): Promise<void>;
-  showMessage(message: string): void;
+  showMessage(messageKey: ConflictMessageKey): void;
 }
 
-export const conflictMessages = {
-  missionUpdated: 'This mission was updated on another device.',
-  missionDeleted: 'This mission was deleted on another device.',
-  missionCompletedElsewhere: 'This mission was already completed on another device.',
-  storyUpdated: 'This Story draft was updated on another device.',
+export const conflictMessageKeys = {
+  missionUpdated: 'sync.conflict.missionUpdated',
+  missionDeleted: 'sync.conflict.missionDeleted',
+  missionCompletedElsewhere: 'sync.conflict.missionCompletedElsewhere',
+  storyUpdated: 'sync.conflict.storyUpdated',
 } as const;
+
+export type ConflictMessageKey = (typeof conflictMessageKeys)[keyof typeof conflictMessageKeys];
 
 function isActiveMission(activeWork: ActiveConflictWork, missionId: string): boolean {
   return activeWork.missionId === missionId;
@@ -40,27 +42,27 @@ export async function applyServerConflict(
     case 'mission_updated':
       if (!isActiveMission(activeWork, conflict.missionId)) return;
       await effects.reloadMission(conflict.missionId);
-      effects.showMessage(conflictMessages.missionUpdated);
+      effects.showMessage(conflictMessageKeys.missionUpdated);
       return;
 
     case 'mission_deleted':
       if (!isActiveMission(activeWork, conflict.missionId)) return;
       await effects.reloadMission(conflict.missionId);
-      effects.showMessage(conflictMessages.missionDeleted);
+      effects.showMessage(conflictMessageKeys.missionDeleted);
       return;
 
     case 'mission_completed_elsewhere':
       await effects.deleteDuplicateEvidenceWorkingFiles(conflict.missionId);
       if (!isActiveMission(activeWork, conflict.missionId)) return;
       await effects.reloadMission(conflict.missionId);
-      effects.showMessage(conflictMessages.missionCompletedElsewhere);
+      effects.showMessage(conflictMessageKeys.missionCompletedElsewhere);
       return;
 
     case 'story_updated':
       if (activeWork.storyDraftId !== conflict.storyDraftId) return;
       await effects.reloadStory(conflict.storyDraftId);
       effects.clearStoryUndoHistory(conflict.storyDraftId);
-      effects.showMessage(conflictMessages.storyUpdated);
+      effects.showMessage(conflictMessageKeys.storyUpdated);
       return;
 
     case 'background_progress':

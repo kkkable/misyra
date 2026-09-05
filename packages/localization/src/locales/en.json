@@ -1,1 +1,6 @@
-{}
+{
+  "sync.conflict.missionUpdated": "This mission was updated on another device.",
+  "sync.conflict.missionDeleted": "This mission was deleted on another device.",
+  "sync.conflict.missionCompletedElsewhere": "This mission was already completed on another device.",
+  "sync.conflict.storyUpdated": "This Story draft was updated on another device."
+}
