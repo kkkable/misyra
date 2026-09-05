@@ -43,78 +43,96 @@ function createHarness(initialState = null) {
 }
 
 describe('MTS-038 onboarding permission timing', () => {
-  it('starts after authentication by resolving device language and explaining notifications without prompting early permissions', async () => {
-    const harness = createHarness();
+  it(
+    'starts after authentication by resolving device language and explaining notifications without prompting early permissions',
+    async () => {
+      const harness = createHarness();
 
-    const state = await harness.controller.restore();
+      const state = await harness.controller.restore();
 
-    expect(state).toEqual({ language: 'zh-HK', step: 'notifications' });
-    expect(harness.resolveLanguage).toHaveBeenCalledOnce();
-    expect(harness.calls).toEqual([]);
-  });
+      expect(state).toEqual({ language: 'zh-HK', step: 'notifications' });
+      expect(harness.resolveLanguage).toHaveBeenCalledOnce();
+      expect(harness.calls).toEqual([]);
+    },
+  );
 
-  it('requests notifications only after Enable notifications, then advances to optional calendar connection', async () => {
-    const harness = createHarness();
-    await harness.controller.restore();
+  it(
+    'requests notifications only after Enable notifications, then advances to optional calendar connection',
+    async () => {
+      const harness = createHarness();
+      await harness.controller.restore();
 
-    const state = await harness.controller.chooseNotifications('enable');
+      const state = await harness.controller.chooseNotifications('enable');
 
-    expect(state).toEqual({ language: 'zh-HK', step: 'calendar' });
-    expect(harness.permissions.requestNotifications).toHaveBeenCalledOnce();
-    expect(harness.permissions.requestCalendar).not.toHaveBeenCalled();
-    expect(harness.permissions.requestCamera).not.toHaveBeenCalled();
-    expect(harness.permissions.requestPhotoSave).not.toHaveBeenCalled();
-    expect(harness.permissions.showDiagnosticsNotice).not.toHaveBeenCalled();
-  });
+      expect(state).toEqual({ language: 'zh-HK', step: 'calendar' });
+      expect(harness.permissions.requestNotifications).toHaveBeenCalledOnce();
+      expect(harness.permissions.requestCalendar).not.toHaveBeenCalled();
+      expect(harness.permissions.requestCamera).not.toHaveBeenCalled();
+      expect(harness.permissions.requestPhotoSave).not.toHaveBeenCalled();
+      expect(harness.permissions.showDiagnosticsNotice).not.toHaveBeenCalled();
+    },
+  );
 
-  it('supports Not now without a notification prompt or repeated nag and resumes at calendar choice', async () => {
-    const harness = createHarness();
-    await harness.controller.restore();
-    await harness.controller.chooseNotifications('not_now');
+  it(
+    'supports Not now without a notification prompt or repeated nag and resumes at calendar choice',
+    async () => {
+      const harness = createHarness();
+      await harness.controller.restore();
+      await harness.controller.chooseNotifications('not_now');
 
-    const resumed = createHarness({ language: 'zh-HK', step: 'calendar' });
-    const state = await resumed.controller.restore();
+      const resumed = createHarness({ language: 'zh-HK', step: 'calendar' });
+      const state = await resumed.controller.restore();
 
-    expect(harness.permissions.requestNotifications).not.toHaveBeenCalled();
-    expect(state).toEqual({ language: 'zh-HK', step: 'calendar' });
-    expect(resumed.permissions.requestNotifications).not.toHaveBeenCalled();
-    expect(resumed.resolveLanguage).not.toHaveBeenCalled();
-  });
+      expect(harness.permissions.requestNotifications).not.toHaveBeenCalled();
+      expect(state).toEqual({ language: 'zh-HK', step: 'calendar' });
+      expect(resumed.permissions.requestNotifications).not.toHaveBeenCalled();
+      expect(resumed.resolveLanguage).not.toHaveBeenCalled();
+    },
+  );
 
-  it('requests calendar access only after a provider is chosen and denial still opens the internal Calendar', async () => {
-    const harness = createHarness({ language: 'en', step: 'calendar' });
-    await harness.controller.restore();
+  it(
+    'requests calendar access only after a provider is chosen and denial still opens the internal Calendar',
+    async () => {
+      const harness = createHarness({ language: 'en', step: 'calendar' });
+      await harness.controller.restore();
 
-    const state = await harness.controller.chooseCalendarProvider('google');
+      const state = await harness.controller.chooseCalendarProvider('google');
 
-    expect(harness.permissions.requestCalendar).toHaveBeenCalledWith('google');
-    expect(state).toEqual({ language: 'en', step: 'complete' });
-    expect(harness.openCalendar).toHaveBeenCalledOnce();
-    expect(harness.calls).toEqual(['calendar:google', 'open-calendar']);
-    expect(harness.permissions.requestCamera).not.toHaveBeenCalled();
-    expect(harness.permissions.requestPhotoSave).not.toHaveBeenCalled();
-    expect(harness.permissions.showDiagnosticsNotice).not.toHaveBeenCalled();
-  });
+      expect(harness.permissions.requestCalendar).toHaveBeenCalledWith('google');
+      expect(state).toEqual({ language: 'en', step: 'complete' });
+      expect(harness.openCalendar).toHaveBeenCalledOnce();
+      expect(harness.calls).toEqual(['calendar:google', 'open-calendar']);
+      expect(harness.permissions.requestCamera).not.toHaveBeenCalled();
+      expect(harness.permissions.requestPhotoSave).not.toHaveBeenCalled();
+      expect(harness.permissions.showDiagnosticsNotice).not.toHaveBeenCalled();
+    },
+  );
 
-  it('allows skipping external calendar connection and opens Calendar without requesting calendar access', async () => {
-    const harness = createHarness({ language: 'en', step: 'calendar' });
-    await harness.controller.restore();
+  it(
+    'allows skipping external calendar connection and opens Calendar without requesting calendar access',
+    async () => {
+      const harness = createHarness({ language: 'en', step: 'calendar' });
+      await harness.controller.restore();
 
-    const state = await harness.controller.chooseCalendarProvider(null);
+      const state = await harness.controller.chooseCalendarProvider(null);
 
-    expect(harness.permissions.requestCalendar).not.toHaveBeenCalled();
-    expect(state).toEqual({ language: 'en', step: 'complete' });
-    expect(harness.openCalendar).toHaveBeenCalledOnce();
-  });
+      expect(harness.permissions.requestCalendar).not.toHaveBeenCalled();
+      expect(state).toEqual({ language: 'en', step: 'complete' });
+      expect(harness.openCalendar).toHaveBeenCalledOnce();
+    },
+  );
 
-  it('resumes completed onboarding directly into Calendar without replaying permission prompts', async () => {
-    const harness = createHarness({ language: 'en', step: 'complete' });
+  it(
+    'resumes completed onboarding directly into Calendar without replaying permission prompts',
+    async () => {
+      const harness = createHarness({ language: 'en', step: 'complete' });
 
-    const state = await harness.controller.restore();
+      const state = await harness.controller.restore();
 
-    expect(state).toEqual({ language: 'en', step: 'complete' });
-    expect(harness.openCalendar).toHaveBeenCalledOnce();
-    expect(harness.permissions.requestNotifications).not.toHaveBeenCalled();
-    expect(harness.permissions.requestCalendar).not.toHaveBeenCalled();
-  });
+      expect(state).toEqual({ language: 'en', step: 'complete' });
+      expect(harness.openCalendar).toHaveBeenCalledOnce();
+      expect(harness.permissions.requestNotifications).not.toHaveBeenCalled();
+      expect(harness.permissions.requestCalendar).not.toHaveBeenCalled();
+    },
+  );
 });
