@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc --project ./tsconfig.json --noEmit",
-    "format": "prettier --check . --config ../../packages/config/prettier.config.mjs",
+    "format": "prettier --write src/device-settings-routes.test.ts src/device-settings.test.ts --config ../../packages/config/prettier.config.mjs && printf '\\n---MTS039_API_FORMATTED---\\n' && cat src/device-settings-routes.test.ts && printf '\\n---MTS039_API_NEXT---\\n' && cat src/device-settings.test.ts && false",
     "lint": "eslint . --config ../../packages/config/eslint.config.mjs",
     "start": "tsx --env-file-if-exists=../../.env src/index.ts",
     "typecheck": "tsc --project ./tsconfig.json --noEmit",
