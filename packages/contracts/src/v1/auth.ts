@@ -32,6 +32,37 @@ export const authSignOutResponseSchema = z
   .strict();
 export type AuthSignOutResponse = z.infer<typeof authSignOutResponseSchema>;
 
+export const authReauthenticateRequestSchema = z
+  .object({
+    provider: authProviderSchema,
+    proof: z.string().min(1),
+    nonce: z.string().min(1),
+  })
+  .strict();
+export type AuthReauthenticateRequest = z.infer<typeof authReauthenticateRequestSchema>;
+
+export const authReauthenticateResponseSchema = z
+  .object({
+    reauthenticationProof: z.string().min(1),
+    expiresAt: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type AuthReauthenticateResponse = z.infer<typeof authReauthenticateResponseSchema>;
+
+export const accountDeleteRequestSchema = z
+  .object({
+    reauthenticationProof: z.string().min(1),
+  })
+  .strict();
+export type AccountDeleteRequest = z.infer<typeof accountDeleteRequestSchema>;
+
+export const accountDeleteResponseSchema = z
+  .object({
+    deleted: z.literal(true),
+  })
+  .strict();
+export type AccountDeleteResponse = z.infer<typeof accountDeleteResponseSchema>;
+
 export const authTokenPairSchema = z
   .object({
     accountId: z.string().uuid(),
