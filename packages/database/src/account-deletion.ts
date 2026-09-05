@@ -4,9 +4,11 @@ export type AccountDeletionResult = Readonly<{
   deleted: true;
 }>;
 
-export async function deleteAccountTransaction(
-  _pool: Pool,
-  _accountId: string,
+export function deleteAccountTransaction(
+  pool: Pool,
+  accountId: string,
 ): Promise<AccountDeletionResult> {
-  throw new Error('account_deletion_not_implemented');
+  void pool;
+  void accountId;
+  return Promise.reject(new Error('account_deletion_not_implemented'));
 }
