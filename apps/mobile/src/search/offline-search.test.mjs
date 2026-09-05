@@ -195,6 +195,27 @@ describe('MTS-033 offline Calendar search', () => {
     ]);
   });
 
+  it('preserves prefix matching for non-Han tokens in a mixed Han query', async () => {
+    const database = new NodeSqliteAdapter();
+    await applyMobileMigrations(database);
+    await seed(database);
+    await database.runAsync(
+      `INSERT INTO search_documents
+        (account_id, document_id, occurrence_id, title, location, provider_text, personal_note, updated_at)
+       VALUES (?, ?, NULL, ?, ?, ?, ?, ?)`,
+      'account-a',
+      'mixed-visible-substring',
+      '中環 brunch',
+      null,
+      null,
+      'private memo',
+      '2026-09-05T00:00:01.000Z',
+    );
+    const search = createOfflineCalendarSearch(database, 'account-a');
+
+    await expect(search.query('中環 run')).resolves.toEqual([]);
+  });
+
   it('returns a personal-note excerpt only when the personal note caused the match', async () => {
     const database = new NodeSqliteAdapter();
     await applyMobileMigrations(database);
