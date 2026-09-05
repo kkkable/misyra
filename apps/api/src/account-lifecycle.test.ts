@@ -22,19 +22,21 @@ function createHarness(
   const account = { id: accountId, provider: 'google' as const, subject: 'subject-a' };
   const issuedAt = options.issuedAt ?? new Date('2026-09-05T13:59:00.000Z');
   const verifier = {
-    verify: vi.fn(async (provider: 'apple' | 'google') => ({
-      provider,
-      subject: options.proofSubject ?? 'subject-a',
-      issuer: 'https://accounts.google.com',
-      audience: 'misyra-google-client',
-      nonce: 'nonce-1',
-      issuedAt,
-      expiresAt: new Date('2026-09-05T14:10:00.000Z'),
-    })),
+    verify: vi.fn((provider: 'apple' | 'google') =>
+      Promise.resolve({
+        provider,
+        subject: options.proofSubject ?? 'subject-a',
+        issuer: 'https://accounts.google.com',
+        audience: 'misyra-google-client',
+        nonce: 'nonce-1',
+        issuedAt,
+        expiresAt: new Date('2026-09-05T14:10:00.000Z'),
+      }),
+    ),
   };
   const identityStore = {
-    findAccountById: vi.fn(async (id: string) => (id === accountId ? account : null)),
-    consumeProviderNonce: vi.fn(async () => options.consumeNonce ?? true),
+    findAccountById: vi.fn((id: string) => Promise.resolve(id === accountId ? account : null)),
+    consumeProviderNonce: vi.fn(() => Promise.resolve(options.consumeNonce ?? true)),
   };
   const grants = new Map<string, ReauthenticationProofClaims>();
   const issueReauthenticationProof = vi.fn((claims: ReauthenticationProofClaims) => {
@@ -43,7 +45,7 @@ function createHarness(
     return token;
   });
   const verifyReauthenticationProof = vi.fn((token: string) => grants.get(token) ?? null);
-  const deleteAccount = vi.fn(async () => ({ deleted: true as const }));
+  const deleteAccount = vi.fn(() => Promise.resolve({ deleted: true as const }));
   const service = createAccountLifecycleService({
     identityStore,
     verifier,
