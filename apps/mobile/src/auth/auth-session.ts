@@ -172,10 +172,27 @@ export function createAuthSessionController({
         return { status: 'signed_out' };
       }
 
-      await api.signOut(stored.refreshToken);
-      await cleanup(stored.accountId);
-      await storage.clear();
+      let failure: { readonly error: unknown } | null = null;
+      try {
+        await api.signOut(stored.refreshToken);
+      } catch (error) {
+        failure = { error };
+      }
+
+      try {
+        await cleanup(stored.accountId);
+      } catch (error) {
+        failure ??= { error };
+      }
+
+      try {
+        await storage.clear();
+      } catch (error) {
+        failure ??= { error };
+      }
       activeSession = null;
+
+      if (failure !== null) throw failure.error;
       return { status: 'signed_out' };
     },
   };
