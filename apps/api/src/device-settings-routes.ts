@@ -39,7 +39,7 @@ export function createDeviceSettingsRoutes(
         accountSettingsSchema.parse(await service.getAccountSettings(auth.accountId)),
     },
     {
-      method: 'PUT',
+      method: 'PATCH',
       path: '/account/settings',
       handler: async (request, _reply, auth) =>
         accountSettingsSchema.parse(
