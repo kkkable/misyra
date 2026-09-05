@@ -25,7 +25,7 @@ function normalizeBaseUrl(baseUrl: string) {
 
 export function createAuthExchangeApi({
   baseUrl,
-  fetcher = fetch as unknown as Fetcher,
+  fetcher = fetch,
 }: AuthExchangeApiOptions): AuthExchangeApi {
   const normalizedBaseUrl = normalizeBaseUrl(baseUrl);
 
