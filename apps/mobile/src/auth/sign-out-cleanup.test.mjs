@@ -79,7 +79,10 @@ describe('MTS-036 sign-out cleanup', () => {
     await cleanup(accountId);
 
     expect(
-      await database.getFirstAsync('SELECT account_id FROM local_accounts WHERE account_id = ?', accountId),
+      await database.getFirstAsync(
+        'SELECT account_id FROM local_accounts WHERE account_id = ?',
+        accountId,
+      ),
     ).toBeNull();
     expect(
       await database.getFirstAsync(
