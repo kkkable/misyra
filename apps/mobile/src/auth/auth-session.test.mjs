@@ -90,6 +90,18 @@ describe('MTS-035 mobile provider sign-in', () => {
     expect(storage.write).not.toHaveBeenCalled();
   });
 
+  it('checks the stored account before direct sign-in even when restore was not called', async () => {
+    const { controller, storage, api } = harness({ stored: validSession });
+    api.exchange.mockResolvedValue({ ...validSession, accountId: 'account-b' });
+
+    await expect(controller.signIn('apple')).resolves.toEqual({
+      status: 'error',
+      message: 'Sign-in failed. Please try again.',
+    });
+    expect(storage.read).toHaveBeenCalledOnce();
+    expect(storage.write).not.toHaveBeenCalled();
+  });
+
   it('maps provider and exchange failures to localized nontechnical copy', async () => {
     const { controller, provider } = harness();
     provider.signIn.mockRejectedValue(new Error('provider oauth internals'));
