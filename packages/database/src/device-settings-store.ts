@@ -2,10 +2,7 @@ import type { Pool, QueryResultRow } from 'pg';
 
 export type StoredDevicePlatform = 'ios' | 'android';
 export type StoredNotificationCapability =
-  | 'not_determined'
-  | 'denied'
-  | 'authorized'
-  | 'unavailable';
+  'not_determined' | 'denied' | 'authorized' | 'unavailable';
 
 export type RegisterDeviceInput = Readonly<{
   accountId: string;
