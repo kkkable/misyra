@@ -116,7 +116,11 @@ describe('MTS-034 server provider-token exchange', () => {
   it('binds identity to provider subject rather than provider email', async () => {
     const { service, accounts } = createHarness();
 
-    const first = await service.exchange({ provider: 'google', proof: 'proof-a', nonce: 'nonce-1' });
+    const first = await service.exchange({
+      provider: 'google',
+      proof: 'proof-a',
+      nonce: 'nonce-1',
+    });
     const second = await service.exchange({
       provider: 'google',
       proof: 'same-email-other-subject',
@@ -142,7 +146,12 @@ describe('MTS-034 server provider-token exchange', () => {
   it('rejects stale proofs even when the provider fake otherwise verifies them', async () => {
     const { service } = createHarness();
     await expect(
-      service.exchange({ provider: 'google', proof: 'proof-a', nonce: 'nonce-1', maxAgeSeconds: 30 }),
+      service.exchange({
+        provider: 'google',
+        proof: 'proof-a',
+        nonce: 'nonce-1',
+        maxAgeSeconds: 30,
+      }),
     ).rejects.toMatchObject({ code: 'invalid_provider_proof' });
   });
 
@@ -156,7 +165,11 @@ describe('MTS-034 server provider-token exchange', () => {
 
   it('stores only hashed refresh tokens and rotates them on refresh', async () => {
     const { service, sessions } = createHarness();
-    const exchanged = await service.exchange({ provider: 'apple', proof: 'proof-a', nonce: 'nonce-1' });
+    const exchanged = await service.exchange({
+      provider: 'apple',
+      proof: 'proof-a',
+      nonce: 'nonce-1',
+    });
     const session = [...sessions.values()][0]!;
 
     expect(session.refreshTokenHash).toBe(hash(exchanged.refreshToken));
@@ -169,7 +182,11 @@ describe('MTS-034 server provider-token exchange', () => {
 
   it('atomically rejects concurrent reuse of the same refresh token and revokes the family', async () => {
     const { service, sessions } = createHarness();
-    const exchanged = await service.exchange({ provider: 'google', proof: 'proof-a', nonce: 'nonce-1' });
+    const exchanged = await service.exchange({
+      provider: 'google',
+      proof: 'proof-a',
+      nonce: 'nonce-1',
+    });
 
     const outcomes = await Promise.allSettled([
       service.refresh(exchanged.refreshToken),
@@ -183,7 +200,11 @@ describe('MTS-034 server provider-token exchange', () => {
 
   it('revokes the whole session family when an already-rotated refresh token is reused', async () => {
     const { service, sessions } = createHarness();
-    const exchanged = await service.exchange({ provider: 'google', proof: 'proof-a', nonce: 'nonce-1' });
+    const exchanged = await service.exchange({
+      provider: 'google',
+      proof: 'proof-a',
+      nonce: 'nonce-1',
+    });
     await service.refresh(exchanged.refreshToken);
 
     await expect(service.refresh(exchanged.refreshToken)).rejects.toMatchObject({
