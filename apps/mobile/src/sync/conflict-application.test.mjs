@@ -42,9 +42,7 @@ describe('MTS-032 conflict application', () => {
     );
     expect(active.deleteDuplicateEvidenceWorkingFiles).toHaveBeenCalledWith('mission-a');
     expect(active.reloadMission).toHaveBeenCalledWith('mission-a');
-    expect(active.showMessage).toHaveBeenCalledWith(
-      'sync.conflict.missionCompletedElsewhere',
-    );
+    expect(active.showMessage).toHaveBeenCalledWith('sync.conflict.missionCompletedElsewhere');
 
     const background = effects();
     await applyServerConflict(
