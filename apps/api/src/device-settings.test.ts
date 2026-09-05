@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  createDeviceSettingsService,
-  type DeviceRegistrationStore,
-} from './device-settings.js';
+import { createDeviceSettingsService, type DeviceRegistrationStore } from './device-settings.js';
 
 const ACCOUNT_ID = '11111111-1111-4111-8111-111111111111';
 
