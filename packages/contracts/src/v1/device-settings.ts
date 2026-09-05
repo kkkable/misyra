@@ -39,8 +39,6 @@ export const accountSettingsUpdateSchema = accountSettingsSchema
   });
 
 export type DeviceRegistrationRequest = z.infer<typeof deviceRegistrationRequestSchema>;
-export type DeviceRegistrationResponse = z.infer<
-  typeof deviceRegistrationResponseSchema
->;
+export type DeviceRegistrationResponse = z.infer<typeof deviceRegistrationResponseSchema>;
 export type AccountSettings = z.infer<typeof accountSettingsSchema>;
 export type AccountSettingsUpdate = z.infer<typeof accountSettingsUpdateSchema>;
