@@ -4,7 +4,7 @@ import { createAuthSessionController } from './auth-session.js';
 
 const expiredAccessSession = {
   accountId: '123e4567-e89b-42d3-a456-426614174000',
-  accessToken: 'expired-access',
+  accessToken: 'fixture-expired-access',
   accessTokenExpiresAt: '2026-09-05T06:59:00.000Z',
   refreshToken: 'refresh-current',
   refreshTokenExpiresAt: '2026-10-05T07:00:00.000Z',
@@ -12,7 +12,7 @@ const expiredAccessSession = {
 
 const rotatedSession = {
   ...expiredAccessSession,
-  accessToken: 'fresh-access',
+  accessToken: 'fixture-fresh-access',
   accessTokenExpiresAt: '2026-09-05T07:15:00.000Z',
   refreshToken: 'refresh-rotated',
 };
