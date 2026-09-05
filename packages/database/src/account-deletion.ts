@@ -39,6 +39,9 @@ export async function deleteAccountTransaction(
       [accountId],
     );
 
+    await client.query('DELETE FROM idempotency_keys WHERE account_id = $1', [accountId]);
+    await client.query('DELETE FROM outbox_events WHERE account_id = $1', [accountId]);
+
     await client.query(
       `UPDATE feedback_reports
           SET account_id = NULL
