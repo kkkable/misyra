@@ -10,8 +10,10 @@ const postgresUser = process.env.POSTGRES_USER ?? 'misyra';
 const postgresPassword = process.env.POSTGRES_PASSWORD ?? 'misyra-local-only';
 const postgresPort = process.env.POSTGRES_PORT ?? '5432';
 const databaseName = `misyra_mts037_${randomUUID().replaceAll('-', '')}`;
-const databaseUrl = `postgresql://${postgresUser}:${postgresPassword}@127.0.0.1:${postgresPort}/${databaseName}`;
-const adminUrl = `postgresql://${postgresUser}:${postgresPassword}@127.0.0.1:${postgresPort}/postgres`;
+const databaseUrl =
+  `postgresql://${postgresUser}:${postgresPassword}@127.0.0.1:${postgresPort}/${databaseName}`;
+const adminUrl =
+  `postgresql://${postgresUser}:${postgresPassword}@127.0.0.1:${postgresPort}/postgres`;
 
 let pool: Pool;
 
@@ -142,7 +144,14 @@ async function seedAccount(): Promise<SeededAccount> {
     [randomUUID(), accountId, occurrenceId],
   );
 
-  return { accountId, connectionId, feedbackId, mediaId, occurrenceId, providerEventId };
+  return {
+    accountId,
+    connectionId,
+    feedbackId,
+    mediaId,
+    occurrenceId,
+    providerEventId,
+  };
 }
 
 async function countRows(table: string, accountId: string) {
@@ -154,100 +163,109 @@ async function countRows(table: string, accountId: string) {
 }
 
 describe('MTS-037 account deletion transaction', () => {
-  it('deletes account-owned app data immediately and invalidates every device session', async () => {
-    const seeded = await seedAccount();
+  it(
+    'deletes account-owned app data immediately and invalidates every device session',
+    async () => {
+      const seeded = await seedAccount();
 
-    await expect(deleteAccountTransaction(pool, seeded.accountId)).resolves.toEqual({
-      deleted: true,
-    });
+      await expect(deleteAccountTransaction(pool, seeded.accountId)).resolves.toEqual({
+        deleted: true,
+      });
 
-    await expect(countRows('accounts', seeded.accountId)).resolves.toBe(0);
-    await expect(countRows('account_sessions', seeded.accountId)).resolves.toBe(0);
-    await expect(countRows('user_settings', seeded.accountId)).resolves.toBe(0);
-    await expect(countRows('mission_occurrences', seeded.accountId)).resolves.toBe(0);
-    await expect(countRows('reward_ledger', seeded.accountId)).resolves.toBe(0);
-    await expect(countRows('idempotency_keys', seeded.accountId)).resolves.toBe(0);
-  });
+      await expect(countRows('accounts', seeded.accountId)).resolves.toBe(0);
+      await expect(countRows('account_sessions', seeded.accountId)).resolves.toBe(0);
+      await expect(countRows('user_settings', seeded.accountId)).resolves.toBe(0);
+      await expect(countRows('mission_occurrences', seeded.accountId)).resolves.toBe(0);
+      await expect(countRows('reward_ledger', seeded.accountId)).resolves.toBe(0);
+      await expect(countRows('idempotency_keys', seeded.accountId)).resolves.toBe(0);
+    },
+  );
 
-  it('retains deliberately submitted feedback and feedback media while unlinking the deleted account', async () => {
-    const seeded = await seedAccount();
+  it(
+    'retains deliberately submitted feedback and feedback media while unlinking the deleted account',
+    async () => {
+      const seeded = await seedAccount();
 
-    await deleteAccountTransaction(pool, seeded.accountId);
+      await deleteAccountTransaction(pool, seeded.accountId);
 
-    const feedback = await pool.query<{
-      accountId: string | null;
-      email: string | null;
-      description: string;
-      technicalDetails: unknown;
-      mediaCount: string;
-    }>(
-      `SELECT f.account_id AS "accountId",
-              f.email,
-              f.description,
-              f.technical_details AS "technicalDetails",
-              count(m.id)::text AS "mediaCount"
-         FROM feedback_reports f
-         LEFT JOIN feedback_media_assets m ON m.feedback_report_id = f.id
-        WHERE f.id = $1
-        GROUP BY f.id`,
-      [seeded.feedbackId],
-    );
+      const feedback = await pool.query<{
+        accountId: string | null;
+        email: string | null;
+        description: string;
+        technicalDetails: unknown;
+        mediaCount: string;
+      }>(
+        `SELECT f.account_id AS "accountId",
+                f.email,
+                f.description,
+                f.technical_details AS "technicalDetails",
+                count(m.id)::text AS "mediaCount"
+           FROM feedback_reports f
+           LEFT JOIN feedback_media_assets m ON m.feedback_report_id = f.id
+          WHERE f.id = $1
+          GROUP BY f.id`,
+        [seeded.feedbackId],
+      );
 
-    expect(feedback.rows[0]).toEqual({
-      accountId: null,
-      email: 'kept@example.test',
-      description: 'Keep this submitted report',
-      technicalDetails: { appVersion: '1.0.0' },
-      mediaCount: '1',
-    });
-  });
-
-  it('queues only disconnect and product-media deletion work without an external-event delete command', async () => {
-    const seeded = await seedAccount();
-
-    await deleteAccountTransaction(pool, seeded.accountId);
-
-    const events = await pool.query<{
-      accountId: string | null;
-      eventType: string;
-      aggregateId: string;
-      payload: unknown;
-    }>(
-      `SELECT account_id AS "accountId",
-              event_type AS "eventType",
-              aggregate_id AS "aggregateId",
-              payload
-         FROM outbox_events
-        WHERE aggregate_id = ANY($1::uuid[])
-        ORDER BY event_type`,
-      [[seeded.connectionId, seeded.mediaId]],
-    );
-
-    expect(events.rows).toEqual([
-      {
+      expect(feedback.rows[0]).toEqual({
         accountId: null,
-        eventType: 'account.product_media.delete',
-        aggregateId: seeded.mediaId,
-        payload: {
-          protectedReference: {
-            kind: 'media_storage_key',
-            id: `evidence-working/${seeded.accountId}/proof.jpg`,
+        email: 'kept@example.test',
+        description: 'Keep this submitted report',
+        technicalDetails: { appVersion: '1.0.0' },
+        mediaCount: '1',
+      });
+    },
+  );
+
+  it(
+    'queues only disconnect and product-media deletion work without an external-event delete command',
+    async () => {
+      const seeded = await seedAccount();
+
+      await deleteAccountTransaction(pool, seeded.accountId);
+
+      const events = await pool.query<{
+        accountId: string | null;
+        eventType: string;
+        aggregateId: string;
+        payload: unknown;
+      }>(
+        `SELECT account_id AS "accountId",
+                event_type AS "eventType",
+                aggregate_id AS "aggregateId",
+                payload
+           FROM outbox_events
+          WHERE aggregate_id = ANY($1::uuid[])
+          ORDER BY event_type`,
+        [[seeded.connectionId, seeded.mediaId]],
+      );
+
+      expect(events.rows).toEqual([
+        {
+          accountId: null,
+          eventType: 'account.product_media.delete',
+          aggregateId: seeded.mediaId,
+          payload: {
+            protectedReference: {
+              kind: 'media_storage_key',
+              id: `evidence-working/${seeded.accountId}/proof.jpg`,
+            },
           },
         },
-      },
-      {
-        accountId: null,
-        eventType: 'calendar.connection.disconnect',
-        aggregateId: seeded.connectionId,
-        payload: {
-          protectedReference: { kind: 'calendar_connection', id: seeded.connectionId },
+        {
+          accountId: null,
+          eventType: 'calendar.connection.disconnect',
+          aggregateId: seeded.connectionId,
+          payload: {
+            protectedReference: { kind: 'calendar_connection', id: seeded.connectionId },
+          },
         },
-      },
-    ]);
-    expect(JSON.stringify(events.rows)).not.toContain(seeded.providerEventId);
-    expect(JSON.stringify(events.rows)).not.toContain('calendar.event.delete');
-    await expect(countRows('outbox_events', seeded.accountId)).resolves.toBe(0);
-  });
+      ]);
+      expect(JSON.stringify(events.rows)).not.toContain(seeded.providerEventId);
+      expect(JSON.stringify(events.rows)).not.toContain('calendar.event.delete');
+      await expect(countRows('outbox_events', seeded.accountId)).resolves.toBe(0);
+    },
+  );
 
   it('rolls the deletion back if required post-delete cleanup work cannot be recorded', async () => {
     const seeded = await seedAccount();
