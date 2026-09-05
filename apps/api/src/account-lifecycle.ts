@@ -41,16 +41,21 @@ export class AccountLifecycleSecurityError extends Error {
   }
 }
 
-export function createAccountLifecycleService(_options: AccountLifecycleServiceOptions) {
+export function createAccountLifecycleService(options: AccountLifecycleServiceOptions) {
+  void options;
   return {
-    async reauthenticate(
-      _accountId: string,
-      _input: ReauthenticationInput,
+    reauthenticate(
+      accountId: string,
+      input: ReauthenticationInput,
     ): Promise<ReauthenticationGrant> {
-      throw new Error('reauthentication_not_implemented');
+      void accountId;
+      void input;
+      return Promise.reject(new Error('reauthentication_not_implemented'));
     },
-    async deleteAccount(_accountId: string, _reauthenticationProof: string) {
-      throw new Error('account_deletion_authorization_not_implemented');
+    deleteAccount(accountId: string, reauthenticationProof: string) {
+      void accountId;
+      void reauthenticationProof;
+      return Promise.reject(new Error('account_deletion_authorization_not_implemented'));
     },
   };
 }
