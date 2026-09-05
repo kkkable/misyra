@@ -44,7 +44,7 @@ describe('MTS-034 executable API composition', () => {
       verifier,
       expectedAudience: { apple: 'apple-audience', google: 'google-audience' },
       now: () => new Date('2026-09-05T08:25:00.000Z'),
-      issueAccessToken: () => 'signed-access-token',
+      issueAccessToken: () => 'fixture-access-value',
     });
 
     const response = await server.inject({
@@ -56,7 +56,7 @@ describe('MTS-034 executable API composition', () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
       ok: true,
-      payload: { accountId, accessToken: 'signed-access-token' },
+      payload: { accountId, accessToken: 'fixture-access-value' },
     });
     expect(query).toHaveBeenCalledTimes(3);
     await server.close();
