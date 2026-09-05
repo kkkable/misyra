@@ -11,8 +11,10 @@ const postgresUser = process.env.POSTGRES_USER ?? 'misyra';
 const postgresPassword = process.env.POSTGRES_PASSWORD ?? 'misyra-local-only';
 const postgresPort = process.env.POSTGRES_PORT ?? '5432';
 const databaseName = `misyra_mts039_${randomUUID().replaceAll('-', '')}`;
-const databaseUrl = `postgresql://${postgresUser}:${postgresPassword}@127.0.0.1:${postgresPort}/${databaseName}`;
-const adminUrl = `postgresql://${postgresUser}:${postgresPassword}@127.0.0.1:${postgresPort}/postgres`;
+const databaseUrl =
+  `postgresql://${postgresUser}:${postgresPassword}@127.0.0.1:${postgresPort}/${databaseName}`;
+const adminUrl =
+  `postgresql://${postgresUser}:${postgresPassword}@127.0.0.1:${postgresPort}/postgres`;
 let pool: Pool;
 
 beforeAll(async () => {
