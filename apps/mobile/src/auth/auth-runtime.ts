@@ -1,6 +1,8 @@
+import { getLocales } from 'expo-localization';
 import * as SecureStore from 'expo-secure-store';
 
 import { createAuthExchangeApi } from './auth-api.js';
+import { authMessagesForLocale, resolveAuthLocale } from './auth-messages.js';
 import {
   createAuthSessionController,
   type AuthExchangeApi,
@@ -32,12 +34,7 @@ const configuredAuthApi: AuthExchangeApi = {
   },
 };
 
-export const rootAuthMessages = {
-  title: 'Sign in to Misyra',
-  apple: 'Continue with Apple',
-  google: 'Continue with Google',
-  signInFailed: 'Sign-in failed. Please try again.',
-} as const;
+export const rootAuthMessages = authMessagesForLocale(resolveAuthLocale(getLocales()[0]));
 
 export const rootAuthController = createAuthSessionController({
   storage: createSecureSessionStorage(SecureStore),
