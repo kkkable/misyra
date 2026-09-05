@@ -79,9 +79,11 @@ function createHarness() {
         issuer:
           proof === 'wrong-issuer'
             ? 'https://attacker.example'
-            : provider === 'apple'
-              ? 'https://appleid.apple.com'
-              : 'https://accounts.google.com',
+            : proof === 'google-issuer-bare'
+              ? 'accounts.google.com'
+              : provider === 'apple'
+                ? 'https://appleid.apple.com'
+                : 'https://accounts.google.com',
         audience:
           proof === 'wrong-audience'
             ? 'attacker-client'
@@ -143,6 +145,13 @@ describe('MTS-034 server provider-token exchange', () => {
     );
   });
 
+  it('accepts the documented bare Google issuer form', async () => {
+    const { service } = createHarness();
+    await expect(
+      service.exchange({ provider: 'google', proof: 'google-issuer-bare', nonce: 'nonce-1' }),
+    ).resolves.toMatchObject({ accountId: 'account-1' });
+  });
+
   it('rejects stale proofs even when the provider fake otherwise verifies them', async () => {
     const { service } = createHarness();
     await expect(
@@ -170,7 +179,8 @@ describe('MTS-034 server provider-token exchange', () => {
       proof: 'proof-a',
       nonce: 'nonce-1',
     });
-    const session = [...sessions.values()][0]!;
+    const session = [...sessions.values()][0];
+    if (!session) throw new Error('expected auth session');
 
     expect(session.refreshTokenHash).toBe(hash(exchanged.refreshToken));
     expect(JSON.stringify([...sessions.values()])).not.toContain(exchanged.refreshToken);
