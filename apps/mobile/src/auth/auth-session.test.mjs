@@ -3,10 +3,10 @@ import { describe, expect, it, vi } from 'vitest';
 import { createAuthSessionController } from './auth-session.js';
 
 const validSession = {
-  accountId: 'account-a',
-  accessToken: 'access-a',
+  accountId: '123e4567-e89b-42d3-a456-426614174000',
+  accessToken: 'fixture-access-value',
   accessTokenExpiresAt: '2026-09-05T08:00:00.000Z',
-  refreshToken: 'refresh-a',
+  refreshToken: 'fixture-refresh-value',
   refreshTokenExpiresAt: '2026-10-05T08:00:00.000Z',
 };
 
@@ -80,7 +80,10 @@ describe('MTS-035 mobile provider sign-in', () => {
 
   it('does not replace a different active account on the same device', async () => {
     const { controller, storage, api } = harness({ stored: validSession });
-    api.exchange.mockResolvedValue({ ...validSession, accountId: 'account-b' });
+    api.exchange.mockResolvedValue({
+      ...validSession,
+      accountId: '223e4567-e89b-42d3-a456-426614174000',
+    });
 
     await controller.restore();
     await expect(controller.signIn('google')).resolves.toEqual({
@@ -92,7 +95,10 @@ describe('MTS-035 mobile provider sign-in', () => {
 
   it('checks the stored account before direct sign-in even when restore was not called', async () => {
     const { controller, storage, api } = harness({ stored: validSession });
-    api.exchange.mockResolvedValue({ ...validSession, accountId: 'account-b' });
+    api.exchange.mockResolvedValue({
+      ...validSession,
+      accountId: '223e4567-e89b-42d3-a456-426614174000',
+    });
 
     await expect(controller.signIn('apple')).resolves.toEqual({
       status: 'error',
