@@ -153,8 +153,9 @@ async function seedAccount(): Promise<SeededAccount> {
 }
 
 async function countRows(table: string, accountId: string) {
+  const column = table === 'accounts' ? 'id' : 'account_id';
   const result = await pool.query<{ count: string }>(
-    `SELECT count(*)::text AS count FROM ${table} WHERE account_id = $1`,
+    `SELECT count(*)::text AS count FROM ${table} WHERE ${column} = $1`,
     [accountId],
   );
   return Number(result.rows[0]?.count ?? '0');
