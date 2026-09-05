@@ -88,10 +88,38 @@ async function seed(database) {
   );
 
   const rows = [
-    ['title', '22222222-2222-4222-8222-222222222222', 'Morning Run', 'Kowloon', 'training plan', 'remember shoes'],
-    ['location', '33333333-3333-4333-8333-333333333333', 'Lunch', 'Central Pier', 'team meal', 'window seat'],
-    ['provider', '44444444-4444-4444-8444-444444444444', 'Meeting', 'Office', 'Quarterly budget review', 'bring notebook'],
-    ['private', '55555555-5555-4555-8555-555555555555', 'Appointment', 'Clinic', 'routine visit', 'allergy follow-up phrase'],
+    [
+      'title',
+      '22222222-2222-4222-8222-222222222222',
+      'Morning Run',
+      'Kowloon',
+      'training plan',
+      'remember shoes',
+    ],
+    [
+      'location',
+      '33333333-3333-4333-8333-333333333333',
+      'Lunch',
+      'Central Pier',
+      'team meal',
+      'window seat',
+    ],
+    [
+      'provider',
+      '44444444-4444-4444-8444-444444444444',
+      'Meeting',
+      'Office',
+      'Quarterly budget review',
+      'bring notebook',
+    ],
+    [
+      'private',
+      '55555555-5555-4555-8555-555555555555',
+      'Appointment',
+      'Clinic',
+      'routine visit',
+      'allergy follow-up phrase',
+    ],
   ];
   for (const [documentId, occurrenceId, title, location, providerText, personalNote] of rows) {
     await database.runAsync(
@@ -167,7 +195,10 @@ describe('MTS-033 offline Calendar search', () => {
     const session = createSearchSession(search);
 
     await session.search('Morning');
-    expect(session.getState()).toMatchObject({ query: 'Morning', results: [{ documentId: 'title' }] });
+    expect(session.getState()).toMatchObject({
+      query: 'Morning',
+      results: [{ documentId: 'title' }],
+    });
 
     session.close();
     expect(session.getState()).toEqual({ query: '', results: [] });
