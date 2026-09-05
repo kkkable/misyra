@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+
 import type { Pool } from 'pg';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -60,5 +62,15 @@ describe('MTS-034 executable API composition', () => {
     });
     expect(query).toHaveBeenCalledTimes(3);
     await server.close();
+  });
+
+  it('loads documented local auth startup configuration from the repository env file', () => {
+    const manifest = readFileSync(new URL('../package.json', import.meta.url), 'utf8');
+    const envExample = readFileSync(new URL('../../../.env.example', import.meta.url), 'utf8');
+
+    expect(manifest).toContain('"start": "tsx --env-file-if-exists=../../.env src/index.ts"');
+    expect(envExample).toMatch(/^APPLE_AUTH_AUDIENCE=.+$/m);
+    expect(envExample).toMatch(/^GOOGLE_AUTH_AUDIENCE=.+$/m);
+    expect(envExample).toMatch(/^AUTH_ACCESS_TOKEN_SECRET=.+$/m);
   });
 });
