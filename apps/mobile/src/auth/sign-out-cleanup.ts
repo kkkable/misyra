@@ -15,13 +15,13 @@ type SignOutCleanupOptions = Readonly<{
 
 export function createSignOutCleanup({ openDatabase, hooks = {} }: SignOutCleanupOptions) {
   return async (accountId: string) => {
-    let failure: { readonly error: unknown } | null = null;
+    const failures: unknown[] = [];
 
     async function attempt(operation: () => Promise<void>) {
       try {
         await operation();
       } catch (error) {
-        failure ??= { error };
+        failures.push(error);
       }
     }
 
@@ -35,6 +35,6 @@ export function createSignOutCleanup({ openDatabase, hooks = {} }: SignOutCleanu
     });
     await attempt(() => hooks.clearAppKeys?.(accountId) ?? Promise.resolve());
 
-    if (failure !== null) throw failure.error;
+    if (failures.length > 0) throw failures[0];
   };
 }
