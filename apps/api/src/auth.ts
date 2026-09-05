@@ -1,6 +1,8 @@
 import { createHash, randomUUID } from 'node:crypto';
 
-export type AuthProvider = 'apple' | 'google';
+import type { AuthProvider, AuthTokenPair } from '@misyra/contracts';
+
+export type { AuthProvider, AuthTokenPair } from '@misyra/contracts';
 
 export type VerifiedProviderProof = {
   provider: AuthProvider;
@@ -67,7 +69,7 @@ export class AuthSecurityError extends Error {
   }
 }
 
-type AccessTokenInput = {
+export type AccessTokenInput = {
   accountId: string;
   sessionId: string;
   expiresAt: Date;
@@ -90,14 +92,6 @@ type ExchangeInput = {
   provider: AuthProvider;
   proof: string;
   nonce: string;
-};
-
-export type AuthTokenPair = {
-  accountId: string;
-  accessToken: string;
-  accessTokenExpiresAt: string;
-  refreshToken: string;
-  refreshTokenExpiresAt: string;
 };
 
 const DEFAULT_ISSUERS: Record<AuthProvider, readonly string[]> = {

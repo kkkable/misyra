@@ -279,10 +279,9 @@ declare module 'fastify' {
   }
 }
 
-export async function startApiServer() {
-  const server = createApiServer();
-  await server.listen({ host: '127.0.0.1', port: 3000 });
-  return server;
+export async function startApiServer(env: NodeJS.ProcessEnv = process.env) {
+  const { startApiApplication } = await import('./application.js');
+  return startApiApplication(env);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

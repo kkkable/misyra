@@ -21,7 +21,7 @@ describe('MTS-032 conflict application', () => {
       updated,
     );
     expect(updated.reloadMission).toHaveBeenCalledWith('mission-a');
-    expect(updated.showMessage).toHaveBeenCalledWith('This mission was updated on another device.');
+    expect(updated.showMessage).toHaveBeenCalledWith('sync.conflict.missionUpdated');
 
     const deleted = effects();
     await applyServerConflict(
@@ -30,7 +30,7 @@ describe('MTS-032 conflict application', () => {
       deleted,
     );
     expect(deleted.reloadMission).toHaveBeenCalledWith('mission-a');
-    expect(deleted.showMessage).toHaveBeenCalledWith('This mission was deleted on another device.');
+    expect(deleted.showMessage).toHaveBeenCalledWith('sync.conflict.missionDeleted');
   });
 
   it('cleans duplicate evidence and shows completion copy only for affected active work', async () => {
@@ -42,9 +42,7 @@ describe('MTS-032 conflict application', () => {
     );
     expect(active.deleteDuplicateEvidenceWorkingFiles).toHaveBeenCalledWith('mission-a');
     expect(active.reloadMission).toHaveBeenCalledWith('mission-a');
-    expect(active.showMessage).toHaveBeenCalledWith(
-      'This mission was already completed on another device.',
-    );
+    expect(active.showMessage).toHaveBeenCalledWith('sync.conflict.missionCompletedElsewhere');
 
     const background = effects();
     await applyServerConflict(
@@ -65,7 +63,7 @@ describe('MTS-032 conflict application', () => {
     );
     expect(fx.reloadStory).toHaveBeenCalledWith('story-a');
     expect(fx.clearStoryUndoHistory).toHaveBeenCalledWith('story-a');
-    expect(fx.showMessage).toHaveBeenCalledWith('This Story draft was updated on another device.');
+    expect(fx.showMessage).toHaveBeenCalledWith('sync.conflict.storyUpdated');
   });
 
   it('keeps unrelated background progress silent', async () => {

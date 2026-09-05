@@ -8,7 +8,8 @@
     "./v1": "./src/v1/index.ts",
     "./v1/api": "./src/v1/api.ts",
     "./v1/events": "./src/v1/events.ts",
-    "./v1/sync": "./src/v1/sync.ts"
+    "./v1/sync": "./src/v1/sync.ts",
+    "./v1/auth": "./src/v1/auth.ts"
   },
   "scripts": {
     "build": "tsc --project ./tsconfig.json --noEmit",

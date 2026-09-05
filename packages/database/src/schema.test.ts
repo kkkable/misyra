@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { getTableConfig } from 'drizzle-orm/pg-core';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { coreTables } from './schema.js';
+import { coreTables, idempotencyKeys, outboxEvents } from './schema.js';
 
 type DatabaseModule = Record<string, unknown>;
 type AsyncDatabaseFunction = (...args: unknown[]) => Promise<unknown>;
@@ -275,6 +275,28 @@ describe('MTS-022 PostgreSQL schema contract', () => {
       .sort();
 
     expect(migratedUniqueIndexes).toEqual(drizzleUniqueIndexSignatures());
+  });
+
+  it('keeps retention-sensitive account references aligned between Drizzle and migrated PostgreSQL', async () => {
+    const { applyMigrations } = await loadDatabaseContract();
+    await applyMigrations(databaseUrl);
+
+    const migratedForeignKeys = dockerPsql(
+      databaseName,
+      `SELECT tc.table_name || ':' || ccu.table_name
+       FROM information_schema.table_constraints tc
+       JOIN information_schema.constraint_column_usage ccu
+         ON ccu.constraint_name = tc.constraint_name
+        AND ccu.constraint_schema = tc.constraint_schema
+       WHERE tc.constraint_type = 'FOREIGN KEY'
+         AND tc.constraint_schema = 'public'
+         AND tc.table_name IN ('outbox_events', 'idempotency_keys')
+       ORDER BY 1`,
+    );
+
+    expect(migratedForeignKeys).toBe('');
+    expect(getTableConfig(outboxEvents).foreignKeys).toHaveLength(0);
+    expect(getTableConfig(idempotencyKeys).foreignKeys).toHaveLength(0);
   });
 
   it('enforces account provider, completion, reward, and active Story uniqueness', async () => {
