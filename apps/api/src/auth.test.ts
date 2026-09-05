@@ -63,7 +63,6 @@ function createHarness() {
     },
   };
 
-  const proofs = new Map<string, Parameters<ProviderProofVerifier['verify']>[1] extends never ? never : never>();
   const verifier: ProviderProofVerifier = {
     async verify(provider, proof) {
       if (proof === 'bad-signature') throw new AuthSecurityError('invalid_provider_proof');
