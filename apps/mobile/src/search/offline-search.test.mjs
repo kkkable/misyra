@@ -187,6 +187,22 @@ describe('MTS-033 offline Calendar search', () => {
     expect(privateMatch[0]?.personalNoteExcerpt.length).toBeLessThanOrEqual(96);
   });
 
+  it('shows the personal-note excerpt when a multi-token match depends on both visible and private fields', async () => {
+    const database = new NodeSqliteAdapter();
+    await applyMobileMigrations(database);
+    await seed(database);
+    const search = createOfflineCalendarSearch(database, 'account-a');
+
+    const mixedMatch = await search.query('Appointment allergy');
+
+    expect(mixedMatch).toEqual([
+      expect.objectContaining({
+        documentId: 'private',
+        personalNoteExcerpt: expect.stringContaining('allergy'),
+      }),
+    ]);
+  });
+
   it('clears in-memory query/results when search closes and never persists recent-query history', async () => {
     const database = new NodeSqliteAdapter();
     await applyMobileMigrations(database);
