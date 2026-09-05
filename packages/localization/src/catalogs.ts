@@ -1,5 +1,9 @@
 export const localizationCatalogs = {
   en: {
+    'auth.signIn.title': 'Sign in to Misyra',
+    'auth.signIn.apple': 'Continue with Apple',
+    'auth.signIn.google': 'Continue with Google',
+    'auth.signIn.failed': 'Sign-in failed. Please try again.',
     'sync.conflict.missionUpdated': 'This mission was updated on another device.',
     'sync.conflict.missionDeleted': 'This mission was deleted on another device.',
     'sync.conflict.missionCompletedElsewhere':
@@ -7,6 +11,10 @@ export const localizationCatalogs = {
     'sync.conflict.storyUpdated': 'This Story draft was updated on another device.',
   },
   'zh-HK': {
+    'auth.signIn.title': '登入 Misyra',
+    'auth.signIn.apple': '使用 Apple 繼續',
+    'auth.signIn.google': '使用 Google 繼續',
+    'auth.signIn.failed': '登入失敗，請再試一次。',
     'sync.conflict.missionUpdated': '此任務已在另一部裝置上更新。',
     'sync.conflict.missionDeleted': '此任務已在另一部裝置上刪除。',
     'sync.conflict.missionCompletedElsewhere': '此任務已在另一部裝置上完成。',
