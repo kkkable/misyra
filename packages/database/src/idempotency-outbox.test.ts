@@ -50,7 +50,7 @@ describe('MTS-025 idempotency and transactional outbox', () => {
         accountId,
         key,
         requestHash: 'hash-a',
-        expiresAt: new Date('2026-09-05T00:00:00Z'),
+        expiresAt: new Date('2099-01-01T00:00:00Z'),
         async work({ enqueueOutbox }) {
           executions += 1;
           await enqueueOutbox({
@@ -79,7 +79,7 @@ describe('MTS-025 idempotency and transactional outbox', () => {
       accountId,
       key: randomUUID(),
       requestHash: 'hash-b',
-      expiresAt: new Date('2026-09-05T00:00:00Z'),
+      expiresAt: new Date('2099-01-01T00:00:00Z'),
       async work({ enqueueOutbox }) {
         await enqueueOutbox({
           eventType: 'ai.requested',
@@ -115,7 +115,7 @@ describe('MTS-025 idempotency and transactional outbox', () => {
         accountId: deletionAccountId,
         key,
         requestHash: 'delete-account-v1',
-        expiresAt: new Date('2026-09-05T00:00:00Z'),
+        expiresAt: new Date('2099-01-01T00:00:00Z'),
         async work({ client, enqueueOutbox }) {
           executions += 1;
           await enqueueOutbox({
@@ -205,7 +205,7 @@ describe('MTS-025 idempotency and transactional outbox', () => {
       accountId,
       key: randomUUID(),
       requestHash: 'hash-c',
-      expiresAt: new Date('2026-09-05T00:00:00Z'),
+      expiresAt: new Date('2099-01-01T00:00:00Z'),
       async work({ enqueueOutbox }) {
         await enqueueOutbox({ eventType: 'sync.command', aggregateType: 'mission', aggregateId });
         return { queued: true };
@@ -249,7 +249,7 @@ describe('MTS-025 idempotency and transactional outbox', () => {
       accountId,
       key: randomUUID(),
       requestHash: 'hash-d',
-      expiresAt: new Date('2026-09-05T00:00:00Z'),
+      expiresAt: new Date('2099-01-01T00:00:00Z'),
       async work({ enqueueOutbox }) {
         await enqueueOutbox({
           eventType: 'cleanup.requested',
