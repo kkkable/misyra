@@ -42,7 +42,9 @@ describe('MTS-034 PostgreSQL auth store', () => {
     expect(replay.id).toBe(first.id);
     expect(other.id).not.toBe(first.id);
     await expect(store.consumeProviderNonce('google', subject, 'nonce-secret')).resolves.toBe(true);
-    await expect(store.consumeProviderNonce('google', subject, 'nonce-secret')).resolves.toBe(false);
+    await expect(store.consumeProviderNonce('google', subject, 'nonce-secret')).resolves.toBe(
+      false,
+    );
 
     const nonceRows = await pool.query<{ nonceHash: string }>(
       `SELECT nonce_hash AS "nonceHash"
