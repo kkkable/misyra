@@ -2,6 +2,8 @@ import { createElement } from 'react';
 import { act, create } from 'react-test-renderer';
 import { describe, expect, it, vi } from 'vitest';
 
+import { darkColors } from '@misyra/design-tokens';
+
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 vi.mock('react-native', async () => {
@@ -77,5 +79,26 @@ describe('MTS-035 sign-in screen', () => {
     expect(renderer.root.findAllByProps({ children: '登入失敗，請再試一次。' })).not.toHaveLength(
       0,
     );
+  });
+
+  it('uses the dark theme foreground for sign-in and provider-error text', () => {
+    let renderer;
+    act(() => {
+      renderer = create(
+        createElement(SignInScreen, {
+          colorScheme: 'dark',
+          messages,
+          errorMessage: 'Sign-in failed. Please try again.',
+          onSignIn: vi.fn(),
+        }),
+      );
+    });
+
+    expect(renderer.root.findByProps({ children: messages.title }).props.style.color).toBe(
+      darkColors.textPrimary,
+    );
+    expect(
+      renderer.root.findByProps({ children: 'Sign-in failed. Please try again.' }).props.style.color,
+    ).toBe(darkColors.textPrimary);
   });
 });
