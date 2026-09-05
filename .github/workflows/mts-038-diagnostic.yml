@@ -1,0 +1,44 @@
+name: MTS-038 diagnostic
+on:
+  push:
+    branches:
+      - verify/mts-038-test-diagnostic-20260905
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24.19.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - id: tests
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          pnpm test 2>&1 | tee /tmp/test-output.txt
+          echo "exit_code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+      - if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          {
+            echo 'MTS-038 DIAGNOSTIC OUTPUT'
+            echo '```text'
+            tail -n 180 /tmp/test-output.txt
+            echo '```'
+            echo "Exit code: ${{ steps.tests.outputs.exit_code }}"
+          } > /tmp/comment.md
+          gh issue comment 4 --repo "$GITHUB_REPOSITORY" --body-file /tmp/comment.md
+      - if: steps.tests.outputs.exit_code != '0'
+        run: exit 1
