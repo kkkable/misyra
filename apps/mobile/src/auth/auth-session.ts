@@ -2,7 +2,7 @@ import {
   authTokenPairSchema,
   type AuthProvider as SharedAuthProvider,
   type AuthTokenPair,
-} from '@misyra/contracts';
+} from '@misyra/contracts/v1/auth';
 
 export type AuthProvider = SharedAuthProvider;
 export type AuthSession = AuthTokenPair;
