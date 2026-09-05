@@ -18,8 +18,8 @@ export type StoredAccountSettings = Readonly<{
 }>;
 
 export type StoredAccountSettingsUpdate = Readonly<{
-  language?: 'en' | 'zh-HK';
-  trustMode?: boolean;
+  language?: 'en' | 'zh-HK' | undefined;
+  trustMode?: boolean | undefined;
 }>;
 
 interface DeviceRow extends QueryResultRow {
