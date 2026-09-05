@@ -146,71 +146,78 @@ export function createOfflineCalendarSearch(database: OfflineSearchDatabase, acc
       }
       const tokens = searchTokens(query);
       if (tokens.length === 0) return [];
-      const hasHanToken = tokens.some(tokenContainsHan);
-      if (!hasHanToken) await ensureIndex();
+      const hanTokens = tokens.filter(tokenContainsHan);
+      const nonHanTokens = tokens.filter((token) => !tokenContainsHan(token));
+      if (nonHanTokens.length > 0) await ensureIndex();
 
-      const rows = hasHanToken
-        ? await database.getAllAsync<SearchRow>(
-            `SELECT d.document_id,
-                    d.occurrence_id,
-                    d.title,
-                    d.location,
-                    d.provider_text,
-                    d.personal_note
-               FROM search_documents d
-               LEFT JOIN cached_mission_occurrences o
-                 ON o.account_id = d.account_id
-                AND o.occurrence_id = d.occurrence_id
-              WHERE d.account_id = ?
-                AND ${tokens
-                  .map(
-                    () =>
-                      `(instr(lower(d.title), ?) > 0
-                        OR instr(lower(coalesce(d.location, '')), ?) > 0
-                        OR instr(lower(coalesce(d.provider_text, '')), ?) > 0
-                        OR instr(lower(coalesce(d.personal_note, '')), ?) > 0)`,
+      const rows =
+        hanTokens.length > 0
+          ? await database.getAllAsync<SearchRow>(
+              `SELECT d.document_id,
+                      d.occurrence_id,
+                      d.title,
+                      d.location,
+                      d.provider_text,
+                      d.personal_note
+                 FROM search_documents d
+                 ${nonHanTokens.length > 0 ? 'JOIN search_documents_fts f ON f.rowid = d.rowid' : ''}
+                 LEFT JOIN cached_mission_occurrences o
+                   ON o.account_id = d.account_id
+                  AND o.occurrence_id = d.occurrence_id
+                WHERE d.account_id = ?
+                  AND ${hanTokens
+                    .map(
+                      () =>
+                        `(instr(lower(d.title), ?) > 0
+                          OR instr(lower(coalesce(d.location, '')), ?) > 0
+                          OR instr(lower(coalesce(d.provider_text, '')), ?) > 0
+                          OR instr(lower(coalesce(d.personal_note, '')), ?) > 0)`,
+                    )
+                    .join(' AND ')}
+                  ${nonHanTokens.length > 0 ? 'AND search_documents_fts MATCH ?' : ''}
+                  AND (
+                    d.occurrence_id IS NULL
+                    OR (
+                      o.payload_json IS NOT NULL
+                      AND json_extract(o.payload_json, '$.deletionState') <> 'deleted'
+                    )
                   )
-                  .join(' AND ')}
-                AND (
-                  d.occurrence_id IS NULL
-                  OR (
-                    o.payload_json IS NOT NULL
-                    AND json_extract(o.payload_json, '$.deletionState') <> 'deleted'
+                ORDER BY ${nonHanTokens.length > 0 ? 'bm25(search_documents_fts),' : ''}
+                         d.updated_at DESC,
+                         d.document_id
+                LIMIT ?`,
+              accountId,
+              ...hanTokens.flatMap((token) => [token, token, token, token]),
+              ...(nonHanTokens.length > 0 ? [toFtsQuery(nonHanTokens)] : []),
+              limit,
+            )
+          : await database.getAllAsync<SearchRow>(
+              `SELECT d.document_id,
+                      d.occurrence_id,
+                      d.title,
+                      d.location,
+                      d.provider_text,
+                      d.personal_note
+                 FROM search_documents_fts f
+                 JOIN search_documents d ON d.rowid = f.rowid
+                 LEFT JOIN cached_mission_occurrences o
+                   ON o.account_id = d.account_id
+                  AND o.occurrence_id = d.occurrence_id
+                WHERE f.account_id = ?
+                  AND search_documents_fts MATCH ?
+                  AND (
+                    d.occurrence_id IS NULL
+                    OR (
+                      o.payload_json IS NOT NULL
+                      AND json_extract(o.payload_json, '$.deletionState') <> 'deleted'
+                    )
                   )
-                )
-              ORDER BY d.updated_at DESC, d.document_id
-              LIMIT ?`,
-            accountId,
-            ...tokens.flatMap((token) => [token, token, token, token]),
-            limit,
-          )
-        : await database.getAllAsync<SearchRow>(
-            `SELECT d.document_id,
-                    d.occurrence_id,
-                    d.title,
-                    d.location,
-                    d.provider_text,
-                    d.personal_note
-               FROM search_documents_fts f
-               JOIN search_documents d ON d.rowid = f.rowid
-               LEFT JOIN cached_mission_occurrences o
-                 ON o.account_id = d.account_id
-                AND o.occurrence_id = d.occurrence_id
-              WHERE f.account_id = ?
-                AND search_documents_fts MATCH ?
-                AND (
-                  d.occurrence_id IS NULL
-                  OR (
-                    o.payload_json IS NOT NULL
-                    AND json_extract(o.payload_json, '$.deletionState') <> 'deleted'
-                  )
-                )
-              ORDER BY bm25(search_documents_fts), d.updated_at DESC, d.document_id
-              LIMIT ?`,
-            accountId,
-            toFtsQuery(tokens),
-            limit,
-          );
+                ORDER BY bm25(search_documents_fts), d.updated_at DESC, d.document_id
+                LIMIT ?`,
+              accountId,
+              toFtsQuery(tokens),
+              limit,
+            );
 
       return rows.map((row) => ({
         documentId: row.document_id,
