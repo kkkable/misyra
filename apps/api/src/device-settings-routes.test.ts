@@ -7,7 +7,10 @@ import { createApiServer } from './index.js';
 const accountId = '123e4567-e89b-42d3-a456-426614174000';
 const deviceId = '223e4567-e89b-42d3-a456-426614174000';
 
-type TestSettingsUpdate = Partial<{ language: 'en' | 'zh-HK'; trustMode: boolean }>;
+type TestSettingsUpdate = {
+  language?: 'en' | 'zh-HK' | undefined;
+  trustMode?: boolean | undefined;
+};
 
 function fixture() {
   const registerDevice = vi.fn(() => Promise.resolve(deviceId));
