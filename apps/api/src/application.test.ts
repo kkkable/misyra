@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import type { Pool } from 'pg';
 import { describe, expect, it, vi } from 'vitest';
 
-import { createApiApplication } from './application.js';
+import { createApiApplication, resolveAuthStartupConfiguration } from './application.js';
 import type { ProviderProofVerifier } from './auth.js';
 
 type FakeQueryResult = {
@@ -72,5 +72,34 @@ describe('MTS-034 executable API composition', () => {
     expect(envExample).toMatch(/^APPLE_AUTH_AUDIENCE=.+$/m);
     expect(envExample).toMatch(/^GOOGLE_AUTH_AUDIENCE=.+$/m);
     expect(envExample).toMatch(/^AUTH_ACCESS_TOKEN_SECRET=.+$/m);
+  });
+
+  it('provides safe fresh-checkout auth defaults locally but requires explicit production values', () => {
+    expect(resolveAuthStartupConfiguration({})).toEqual({
+      expectedAudience: {
+        apple: 'fixture-apple-auth-audience',
+        google: 'fixture-google-auth-audience',
+      },
+      accessTokenSecret: 'fixture-local-auth-access-token-secret',
+    });
+
+    expect(() => resolveAuthStartupConfiguration({ NODE_ENV: 'production' })).toThrow(
+      'Missing required environment variable: APPLE_AUTH_AUDIENCE',
+    );
+
+    expect(
+      resolveAuthStartupConfiguration({
+        NODE_ENV: 'production',
+        APPLE_AUTH_AUDIENCE: 'production-apple-audience',
+        GOOGLE_AUTH_AUDIENCE: 'production-google-audience',
+        AUTH_ACCESS_TOKEN_SECRET: 'production-auth-secret-at-least-32-characters',
+      }),
+    ).toEqual({
+      expectedAudience: {
+        apple: 'production-apple-audience',
+        google: 'production-google-audience',
+      },
+      accessTokenSecret: 'production-auth-secret-at-least-32-characters',
+    });
   });
 });
