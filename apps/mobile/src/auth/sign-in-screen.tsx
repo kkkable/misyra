@@ -2,7 +2,7 @@ import { Text, View } from 'react-native';
 
 import { space, typography } from '@misyra/design-tokens';
 
-import { PrimaryButton, Screen, SecondaryButton } from '../design-system/index.js';
+import { PrimaryButton, Screen, SecondaryButton, themeColors } from '../design-system/index.js';
 import type { AuthProvider } from './auth-session.js';
 
 export type SignInMessages = {
@@ -26,6 +26,8 @@ export function SignInScreen({
   busyProvider,
   onSignIn,
 }: SignInScreenProps) {
+  const colors = themeColors(colorScheme);
+
   return (
     <Screen
       accessibilityLabel={messages.title}
@@ -35,7 +37,11 @@ export function SignInScreen({
       <View style={{ flex: 1, justifyContent: 'center', gap: space[4] }}>
         <Text
           accessibilityRole="header"
-          style={{ fontSize: typography.title2.fontSize, fontWeight: '700' }}
+          style={{
+            color: colors.textPrimary,
+            fontSize: typography.title2.fontSize,
+            fontWeight: '700',
+          }}
         >
           {messages.title}
         </Text>
@@ -63,7 +69,7 @@ export function SignInScreen({
           <Text
             accessibilityLiveRegion="polite"
             allowFontScaling
-            style={{ fontSize: typography.body.fontSize }}
+            style={{ color: colors.textPrimary, fontSize: typography.body.fontSize }}
           >
             {errorMessage}
           </Text>
