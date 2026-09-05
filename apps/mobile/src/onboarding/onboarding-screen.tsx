@@ -87,14 +87,14 @@ export function OnboardingScreen({
                 accessibilityLabel={messages.enableNotifications}
                 colorScheme={colorScheme}
                 label={messages.enableNotifications}
-                onPress={() => onNotificationChoice('enable')}
+                onPress={() => { onNotificationChoice('enable'); }}
                 testID="onboarding-enable-notifications"
               />
               <SecondaryButton
                 accessibilityLabel={messages.notNow}
                 colorScheme={colorScheme}
                 label={messages.notNow}
-                onPress={() => onNotificationChoice('not_now')}
+                onPress={() => { onNotificationChoice('not_now'); }}
                 testID="onboarding-not-now"
               />
             </>
@@ -105,7 +105,7 @@ export function OnboardingScreen({
                   accessibilityLabel={messages.appleCalendar}
                   colorScheme={colorScheme}
                   label={messages.appleCalendar}
-                  onPress={() => onCalendarChoice('apple')}
+                  onPress={() => { onCalendarChoice('apple'); }}
                   testID="onboarding-calendar-apple"
                 />
               ) : null}
@@ -114,7 +114,7 @@ export function OnboardingScreen({
                   accessibilityLabel={messages.googleCalendar}
                   colorScheme={colorScheme}
                   label={messages.googleCalendar}
-                  onPress={() => onCalendarChoice('google')}
+                  onPress={() => { onCalendarChoice('google'); }}
                   testID="onboarding-calendar-google"
                 />
               ) : null}
@@ -122,7 +122,7 @@ export function OnboardingScreen({
                 accessibilityLabel={messages.skipCalendar}
                 colorScheme={colorScheme}
                 label={messages.skipCalendar}
-                onPress={() => onCalendarChoice(null)}
+                onPress={() => { onCalendarChoice(null); }}
                 testID="onboarding-calendar-skip"
               />
             </>
