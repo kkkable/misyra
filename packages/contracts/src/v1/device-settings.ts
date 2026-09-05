@@ -32,7 +32,11 @@ export const accountSettingsSchema = z
   })
   .strict();
 
-export const accountSettingsUpdateSchema = accountSettingsSchema;
+export const accountSettingsUpdateSchema = accountSettingsSchema
+  .partial()
+  .refine((value) => value.language !== undefined || value.trustMode !== undefined, {
+    message: 'At least one account setting is required.',
+  });
 
 export type DeviceRegistrationRequest = z.infer<typeof deviceRegistrationRequestSchema>;
 export type DeviceRegistrationResponse = z.infer<
