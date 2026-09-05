@@ -75,4 +75,21 @@ describe('MTS-036 device session lifecycle', () => {
       storage.clear.mock.invocationCallOrder[0],
     );
   });
+
+  it('still removes local private state when remote session revocation fails', async () => {
+    const { controller, storage, api, cleanup } = createHarness();
+    await controller.restore();
+    api.signOut.mockRejectedValueOnce(new Error('network unavailable'));
+
+    await expect(controller.signOut()).rejects.toThrow('network unavailable');
+
+    expect(cleanup).toHaveBeenCalledWith(expiredAccessSession.accountId);
+    expect(storage.clear).toHaveBeenCalledOnce();
+    expect(api.signOut.mock.invocationCallOrder[0]).toBeLessThan(
+      cleanup.mock.invocationCallOrder[0],
+    );
+    expect(cleanup.mock.invocationCallOrder[0]).toBeLessThan(
+      storage.clear.mock.invocationCallOrder[0],
+    );
+  });
 });
