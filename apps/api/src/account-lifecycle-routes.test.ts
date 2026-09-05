@@ -9,11 +9,13 @@ import { createApiServer } from './index.js';
 const accountId = '123e4567-e89b-42d3-a456-426614174000';
 
 function service() {
-  const reauthenticate = vi.fn(async () => ({
-    reauthenticationProof: 'reauth-proof',
-    expiresAt: '2026-09-05T14:05:00.000Z',
-  }));
-  const deleteAccount = vi.fn(async () => ({ deleted: true as const }));
+  const reauthenticate = vi.fn(() =>
+    Promise.resolve({
+      reauthenticationProof: 'reauth-proof',
+      expiresAt: '2026-09-05T14:05:00.000Z',
+    }),
+  );
+  const deleteAccount = vi.fn(() => Promise.resolve({ deleted: true as const }));
   const lifecycleService: AccountLifecycleRouteService = { reauthenticate, deleteAccount };
   return { lifecycleService, reauthenticate, deleteAccount };
 }
