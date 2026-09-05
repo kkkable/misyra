@@ -1,1 +1,6 @@
-{}
+{
+  "sync.conflict.missionUpdated": "此任務已在另一部裝置上更新。",
+  "sync.conflict.missionDeleted": "此任務已在另一部裝置上刪除。",
+  "sync.conflict.missionCompletedElsewhere": "此任務已在另一部裝置上完成。",
+  "sync.conflict.storyUpdated": "此 Story 草稿已在另一部裝置上更新。"
+}

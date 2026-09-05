@@ -1,41 +1,35 @@
-import { AuthSecurityError, type AuthProvider, type AuthTokenPair } from './auth.js';
+import {
+  authProviderExchangeRequestSchema,
+  authRefreshRequestSchema,
+  authTokenPairSchema,
+  type AuthProvider,
+  type AuthProviderExchangeRequest,
+  type AuthTokenPair,
+} from '@misyra/contracts';
+
+import { AuthSecurityError } from './auth.js';
 import { ApiError, type ApiRouteDefinition } from './index.js';
 
 export type AuthRouteService = {
-  exchange(input: { provider: AuthProvider; proof: string; nonce: string }): Promise<AuthTokenPair>;
+  exchange(input: AuthProviderExchangeRequest & { provider: AuthProvider }): Promise<AuthTokenPair>;
   refresh(refreshToken: string): Promise<AuthTokenPair>;
 };
 
-function parseExchangeBody(value: unknown) {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    throw new ApiError('validation_failed');
-  }
-  const { proof, nonce } = value as Record<string, unknown>;
-  if (
-    typeof proof !== 'string' ||
-    proof.length === 0 ||
-    typeof nonce !== 'string' ||
-    nonce.length === 0
-  ) {
-    throw new ApiError('validation_failed');
-  }
-  return { proof, nonce };
+function parseExchangeBody(value: unknown): AuthProviderExchangeRequest {
+  const parsed = authProviderExchangeRequestSchema.safeParse(value);
+  if (!parsed.success) throw new ApiError('validation_failed');
+  return parsed.data;
 }
 
 function parseRefreshBody(value: unknown) {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    throw new ApiError('validation_failed');
-  }
-  const { refreshToken } = value as Record<string, unknown>;
-  if (typeof refreshToken !== 'string' || refreshToken.length === 0) {
-    throw new ApiError('validation_failed');
-  }
-  return refreshToken;
+  const parsed = authRefreshRequestSchema.safeParse(value);
+  if (!parsed.success) throw new ApiError('validation_failed');
+  return parsed.data.refreshToken;
 }
 
-async function runAuthOperation<T>(operation: () => Promise<T>) {
+async function runAuthOperation(operation: () => Promise<AuthTokenPair>) {
   try {
-    return await operation();
+    return authTokenPairSchema.parse(await operation());
   } catch (error) {
     if (error instanceof AuthSecurityError) throw new ApiError('unauthorized');
     throw error;

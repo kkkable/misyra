@@ -120,6 +120,14 @@ async function seed(database) {
       'routine visit',
       'allergy follow-up phrase',
     ],
+    [
+      'zh-hk',
+      '66666666-6666-4666-8666-666666666666',
+      '聽日中環食飯',
+      '灣仔',
+      '朋友聚餐',
+      '記得帶八達通',
+    ],
   ];
   for (const [documentId, occurrenceId, title, location, providerText, personalNote] of rows) {
     await database.runAsync(
@@ -170,6 +178,68 @@ describe('MTS-033 offline Calendar search', () => {
     ]);
     await expect(search.query('allergy')).resolves.toEqual([
       expect.objectContaining({ documentId: 'private' }),
+    ]);
+  });
+
+  it('matches normal Traditional-Chinese substrings inside an indexed Han sequence', async () => {
+    const database = new NodeSqliteAdapter();
+    await applyMobileMigrations(database);
+    await seed(database);
+    const search = createOfflineCalendarSearch(database, 'account-a');
+
+    await expect(search.query('中環')).resolves.toEqual([
+      expect.objectContaining({ documentId: 'zh-hk' }),
+    ]);
+    await expect(search.query('食飯')).resolves.toEqual([
+      expect.objectContaining({ documentId: 'zh-hk' }),
+    ]);
+  });
+
+  it('preserves prefix matching for non-Han tokens in a mixed Han query', async () => {
+    const database = new NodeSqliteAdapter();
+    await applyMobileMigrations(database);
+    await seed(database);
+    await database.runAsync(
+      `INSERT INTO search_documents
+        (account_id, document_id, occurrence_id, title, location, provider_text, personal_note, updated_at)
+       VALUES (?, ?, NULL, ?, ?, ?, ?, ?)`,
+      'account-a',
+      'mixed-visible-substring',
+      '中環 brunch',
+      null,
+      null,
+      'private memo',
+      '2026-09-05T00:00:01.000Z',
+    );
+    const search = createOfflineCalendarSearch(database, 'account-a');
+
+    await expect(search.query('中環 run')).resolves.toEqual([]);
+  });
+
+  it('uses FTS-equivalent diacritic normalization before attributing a mixed-query match to private notes', async () => {
+    const database = new NodeSqliteAdapter();
+    await applyMobileMigrations(database);
+    await seed(database);
+    await database.runAsync(
+      `INSERT INTO search_documents
+        (account_id, document_id, occurrence_id, title, location, provider_text, personal_note, updated_at)
+       VALUES (?, ?, NULL, ?, ?, ?, ?, ?)`,
+      'account-a',
+      'mixed-diacritic-visible',
+      '中環 Café',
+      null,
+      null,
+      'cafe private memo',
+      '2026-09-05T00:00:02.000Z',
+    );
+    const search = createOfflineCalendarSearch(database, 'account-a');
+
+    const matches = await search.query('中環 cafe');
+    expect(matches).toEqual([
+      expect.objectContaining({
+        documentId: 'mixed-diacritic-visible',
+        personalNoteExcerpt: null,
+      }),
     ]);
   });
 
