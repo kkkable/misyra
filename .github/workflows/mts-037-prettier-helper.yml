@@ -1,0 +1,46 @@
+name: MTS-037 Prettier Helper
+
+on:
+  push:
+    branches:
+      - verify/mts-037-prettier-20260905
+
+permissions:
+  contents: read
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout verification branch
+        uses: actions/checkout@v4
+      - name: Install pinned pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.5
+          run_install: false
+      - name: Set up pinned Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - name: Install from lockfile
+        run: pnpm install --frozen-lockfile
+      - name: Format MTS-037 RED tests
+        run: >-
+          pnpm exec prettier --write
+          apps/api/src/account-lifecycle.test.ts
+          packages/database/src/account-deletion.test.ts
+          --config packages/config/prettier.config.mjs
+      - name: Emit exact formatted files
+        shell: bash
+        run: |
+          echo 'BEGIN_ACCOUNT_LIFECYCLE_TEST_BASE64'
+          base64 -w 0 apps/api/src/account-lifecycle.test.ts
+          echo
+          echo 'END_ACCOUNT_LIFECYCLE_TEST_BASE64'
+          echo 'BEGIN_ACCOUNT_DELETION_TEST_BASE64'
+          base64 -w 0 packages/database/src/account-deletion.test.ts
+          echo
+          echo 'END_ACCOUNT_DELETION_TEST_BASE64'
