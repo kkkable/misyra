@@ -8,6 +8,7 @@ import {
 const ACCOUNT_ID = '11111111-1111-4111-8111-111111111111';
 
 type TestSettings = { language: 'en' | 'zh-HK'; trustMode: boolean };
+type TestSettingsUpdate = Partial<TestSettings>;
 
 function createStore(): DeviceRegistrationStore & {
   registrations: unknown[];
@@ -27,8 +28,8 @@ function createStore(): DeviceRegistrationStore & {
     async getAccountSettings() {
       return settings;
     },
-    async updateAccountSettings(_accountId: string, nextSettings: TestSettings) {
-      settings = nextSettings;
+    async updateAccountSettings(_accountId: string, nextSettings: TestSettingsUpdate) {
+      settings = { ...settings, ...nextSettings };
       return settings;
     },
   };
@@ -85,10 +86,10 @@ describe('MTS-039 device registration and account settings sync', () => {
       const service = createDeviceSettingsService(store);
 
       await expect(
-        service.updateAccountSettings(ACCOUNT_ID, {
-          language: 'zh-HK',
-          trustMode: true,
-        }),
+        service.updateAccountSettings(ACCOUNT_ID, { language: 'zh-HK' }),
+      ).resolves.toEqual({ language: 'zh-HK', trustMode: false });
+      await expect(
+        service.updateAccountSettings(ACCOUNT_ID, { trustMode: true }),
       ).resolves.toEqual({ language: 'zh-HK', trustMode: true });
 
       await expect(service.getAccountSettings(ACCOUNT_ID)).resolves.toEqual({
@@ -96,10 +97,10 @@ describe('MTS-039 device registration and account settings sync', () => {
         trustMode: true,
       });
 
+      expect(() => service.parseAccountSettingsUpdate({})).toThrow();
       expect(() =>
         service.parseAccountSettingsUpdate({
           language: 'en',
-          trustMode: false,
           notificationPermission: 'authorized',
         }),
       ).toThrow();
