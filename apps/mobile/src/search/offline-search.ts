@@ -192,13 +192,19 @@ export interface SearchSessionState {
 
 export function createSearchSession(search: OfflineCalendarSearch) {
   let state: SearchSessionState = { query: '', results: [] };
+  let generation = 0;
   return {
     getState: (): SearchSessionState => state,
     search: async (query: string): Promise<SearchSessionState> => {
-      state = { query, results: await search.query(query) };
+      const requestGeneration = ++generation;
+      const results = await search.query(query);
+      if (requestGeneration === generation) {
+        state = { query, results };
+      }
       return state;
     },
     close: (): void => {
+      generation += 1;
       state = { query: '', results: [] };
     },
   };
