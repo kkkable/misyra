@@ -39,7 +39,9 @@ function requiredString(value: unknown) {
 }
 
 function requiredNumericDate(value: unknown) {
-  return typeof value === 'number' && Number.isFinite(value) ? new Date(value * 1_000) : fail();
+  if (typeof value !== 'number' || !Number.isFinite(value)) return fail();
+  const date = new Date(value * 1_000);
+  return Number.isNaN(date.getTime()) ? fail() : date;
 }
 
 function parseAudience(value: unknown) {
@@ -62,11 +64,11 @@ function parseVerifiedClaims(provider: AuthProvider, payload: JsonObject): Verif
   };
 }
 
-function parseJwks(value: unknown) {
+function parseJwks(value: unknown): unknown[] {
   if (typeof value !== 'object' || value === null || !('keys' in value)) return fail();
-  const keys = (value as { keys?: unknown }).keys;
+  const keys: unknown = (value as { keys?: unknown }).keys;
   if (!Array.isArray(keys)) return fail();
-  return keys;
+  return keys as unknown[];
 }
 
 function isAcceptedSigningKey(jwk: JsonWebKey) {
