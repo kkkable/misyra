@@ -20,7 +20,7 @@ export type AuthSessionStorage = {
 };
 
 export type ProviderSignInGateway = {
-  signIn(provider: AuthProvider): Promise<ProviderProof>;
+  signIn(provider: AuthProvider): Promise<ProviderProof | null>;
 };
 
 export type AuthExchangeApi = {
@@ -89,6 +89,7 @@ export function createAuthSessionController({
     async signIn(providerName) {
       try {
         const proof = await provider.signIn(providerName);
+        if (proof === null) return { status: 'signed_out' };
         if (
           proof.provider !== providerName ||
           !isNonEmptyString(proof.proof) ||
