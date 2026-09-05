@@ -61,8 +61,8 @@ export function createApiApplication(options: AuthApplicationOptions) {
     identityStore: authStore,
     verifier,
     expectedAudience: options.expectedAudience,
-    issueReauthenticationProof: reauthenticationProofCodec.issue,
-    verifyReauthenticationProof: reauthenticationProofCodec.verify,
+    issueReauthenticationProof: (claims) => reauthenticationProofCodec.issue(claims),
+    verifyReauthenticationProof: (proof) => reauthenticationProofCodec.verify(proof),
     deleteAccount: (accountId) => deleteAccountTransaction(options.pool, accountId),
     ...(options.now === undefined ? {} : { now: options.now }),
   });
@@ -204,7 +204,8 @@ export async function startApiApplication(env: NodeJS.ProcessEnv = process.env) 
     reauthenticationProofSecret: authConfiguration.accessTokenSecret,
     authenticate: createHmacAccessTokenAuthenticator(
       authConfiguration.accessTokenSecret,
-      authStore.isSessionActive,
+      (accountId, sessionId, currentTime) =>
+        authStore.isSessionActive(accountId, sessionId, currentTime),
     ),
   });
   server.addHook('onClose', async () => {
