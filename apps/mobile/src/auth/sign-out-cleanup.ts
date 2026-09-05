@@ -15,14 +15,26 @@ type SignOutCleanupOptions = Readonly<{
 
 export function createSignOutCleanup({ openDatabase, hooks = {} }: SignOutCleanupOptions) {
   return async (accountId: string) => {
-    await hooks.stopSync?.(accountId);
-    await hooks.cancelNotifications?.(accountId);
-    await hooks.clearWorkingMedia?.(accountId);
-    await hooks.clearFeedbackDraft?.(accountId);
+    let failure: { readonly error: unknown } | null = null;
 
-    const database = await openDatabase();
-    await wipeAccountData(database, accountId);
+    async function attempt(operation: () => Promise<void>) {
+      try {
+        await operation();
+      } catch (error) {
+        failure ??= { error };
+      }
+    }
 
-    await hooks.clearAppKeys?.(accountId);
+    await attempt(() => hooks.stopSync?.(accountId) ?? Promise.resolve());
+    await attempt(() => hooks.cancelNotifications?.(accountId) ?? Promise.resolve());
+    await attempt(() => hooks.clearWorkingMedia?.(accountId) ?? Promise.resolve());
+    await attempt(() => hooks.clearFeedbackDraft?.(accountId) ?? Promise.resolve());
+    await attempt(async () => {
+      const database = await openDatabase();
+      await wipeAccountData(database, accountId);
+    });
+    await attempt(() => hooks.clearAppKeys?.(accountId) ?? Promise.resolve());
+
+    if (failure !== null) throw failure.error;
   };
 }
