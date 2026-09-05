@@ -1,0 +1,103 @@
+name: Disposable MTS-033 CJK search remediation
+
+on:
+  push:
+    branches:
+      - automation/mts033-cjk-search-remediation-20260905
+
+permissions:
+  contents: write
+
+jobs:
+  remediate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/audit-corrections-025-034
+          fetch-depth: 0
+          token: ${{ github.token }}
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.5
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Add RED zh-HK substring contract
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('apps/mobile/src/search/offline-search.test.mjs')
+          s = p.read_text()
+          anchor = "    [\n      'private',\n      '55555555-5555-4555-8555-555555555555',\n      'Appointment',\n      'Clinic',\n      'routine visit',\n      'allergy follow-up phrase',\n    ],\n"
+          chinese = "    [\n      'zh-hk',\n      '66666666-6666-4666-8666-666666666666',\n      '聽日中環食飯',\n      '灣仔',\n      '朋友聚餐',\n      '記得帶八達通',\n    ],\n"
+          if chinese not in s:
+              if anchor not in s:
+                  raise SystemExit('English seed anchor not found')
+              s = s.replace(anchor, anchor + chinese)
+          test_anchor = "  it('returns a personal-note excerpt only when the personal note caused the match', async () => {"
+          test = """  it('matches normal Traditional-Chinese substrings inside an indexed Han sequence', async () => {\n    const database = new NodeSqliteAdapter();\n    await applyMobileMigrations(database);\n    await seed(database);\n    const search = createOfflineCalendarSearch(database, 'account-a');\n\n    await expect(search.query('中環')).resolves.toEqual([\n      expect.objectContaining({ documentId: 'zh-hk' }),\n    ]);\n    await expect(search.query('食飯')).resolves.toEqual([\n      expect.objectContaining({ documentId: 'zh-hk' }),\n    ]);\n  });\n\n"""
+          if test not in s:
+              if test_anchor not in s:
+                  raise SystemExit('Test insertion anchor not found')
+              s = s.replace(test_anchor, test + test_anchor)
+          p.write_text(s)
+          PY
+          pnpm exec prettier --write apps/mobile/src/search/offline-search.test.mjs --config packages/config/prettier.config.mjs
+          git config user.name "Misyra Auto Development"
+          git config user.email "actions@users.noreply.github.com"
+          git add apps/mobile/src/search/offline-search.test.mjs
+          git commit -m "test(search): expose zh-HK substring gap"
+          git push origin HEAD:fix/audit-corrections-025-034
+
+      - name: Prove RED
+        shell: bash
+        run: |
+          set +e
+          pnpm --filter @misyra/mobile test -- offline-search.test.mjs
+          status=$?
+          set -e
+          if [ "$status" -eq 0 ]; then
+            echo "Expected zh-HK substring search contract to fail before GREEN."
+            exit 1
+          fi
+          echo "Observed intended RED exit code: $status"
+
+      - name: Apply GREEN CJK-compatible search
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('apps/mobile/src/search/offline-search.ts')
+          s = p.read_text()
+          old_field = """function fieldMatchesToken(value: string | null, token: string): boolean {\n  if (value === null) return false;\n  return searchTokens(value).some((word) => word.startsWith(token));\n}\n"""
+          new_field = """function tokenContainsHan(token: string): boolean {\n  return /\\p{Script=Han}/u.test(token);\n}\n\nfunction fieldMatchesToken(value: string | null, token: string): boolean {\n  if (value === null) return false;\n  const normalized = value.normalize('NFKC').toLocaleLowerCase();\n  if (tokenContainsHan(token)) return normalized.includes(token);\n  return searchTokens(value).some((word) => word.startsWith(token));\n}\n"""
+          if old_field not in s:
+              raise SystemExit('fieldMatchesToken anchor not found')
+          s = s.replace(old_field, new_field)
+          old_query = """      await ensureIndex();\n\n      const rows = await database.getAllAsync<SearchRow>(\n        `SELECT d.document_id,\n                d.occurrence_id,\n                d.title,\n                d.location,\n                d.provider_text,\n                d.personal_note\n           FROM search_documents_fts f\n           JOIN search_documents d ON d.rowid = f.rowid\n           LEFT JOIN cached_mission_occurrences o\n             ON o.account_id = d.account_id\n            AND o.occurrence_id = d.occurrence_id\n          WHERE f.account_id = ?\n            AND search_documents_fts MATCH ?\n            AND (\n              d.occurrence_id IS NULL\n              OR (\n                o.payload_json IS NOT NULL\n                AND json_extract(o.payload_json, '$.deletionState') <> 'deleted'\n              )\n            )\n          ORDER BY bm25(search_documents_fts), d.updated_at DESC, d.document_id\n          LIMIT ?`,\n        accountId,\n        toFtsQuery(tokens),\n        limit,\n      );\n"""
+          new_query = """      const hasHanToken = tokens.some(tokenContainsHan);\n      if (!hasHanToken) await ensureIndex();\n\n      const rows = hasHanToken\n        ? await database.getAllAsync<SearchRow>(\n            `SELECT d.document_id,\n                    d.occurrence_id,\n                    d.title,\n                    d.location,\n                    d.provider_text,\n                    d.personal_note\n               FROM search_documents d\n               LEFT JOIN cached_mission_occurrences o\n                 ON o.account_id = d.account_id\n                AND o.occurrence_id = d.occurrence_id\n              WHERE d.account_id = ?\n                AND ${tokens\n                  .map(\n                    () =>\n                      `(instr(lower(d.title), ?) > 0\n                        OR instr(lower(coalesce(d.location, '')), ?) > 0\n                        OR instr(lower(coalesce(d.provider_text, '')), ?) > 0\n                        OR instr(lower(coalesce(d.personal_note, '')), ?) > 0)`,\n                  )\n                  .join(' AND ')}\n                AND (\n                  d.occurrence_id IS NULL\n                  OR (\n                    o.payload_json IS NOT NULL\n                    AND json_extract(o.payload_json, '$.deletionState') <> 'deleted'\n                  )\n                )\n              ORDER BY d.updated_at DESC, d.document_id\n              LIMIT ?`,\n            accountId,\n            ...tokens.flatMap((token) => [token, token, token, token]),\n            limit,\n          )\n        : await database.getAllAsync<SearchRow>(\n            `SELECT d.document_id,\n                    d.occurrence_id,\n                    d.title,\n                    d.location,\n                    d.provider_text,\n                    d.personal_note\n               FROM search_documents_fts f\n               JOIN search_documents d ON d.rowid = f.rowid\n               LEFT JOIN cached_mission_occurrences o\n                 ON o.account_id = d.account_id\n                AND o.occurrence_id = d.occurrence_id\n              WHERE f.account_id = ?\n                AND search_documents_fts MATCH ?\n                AND (\n                  d.occurrence_id IS NULL\n                  OR (\n                    o.payload_json IS NOT NULL\n                    AND json_extract(o.payload_json, '$.deletionState') <> 'deleted'\n                  )\n                )\n              ORDER BY bm25(search_documents_fts), d.updated_at DESC, d.document_id\n              LIMIT ?`,\n            accountId,\n            toFtsQuery(tokens),\n            limit,\n          );\n"""
+          if old_query not in s:
+              raise SystemExit('FTS query anchor not found')
+          s = s.replace(old_query, new_query)
+          p.write_text(s)
+          PY
+          pnpm exec prettier --write apps/mobile/src/search/offline-search.ts --config packages/config/prettier.config.mjs
+          git add apps/mobile/src/search/offline-search.ts
+          git commit -m "fix(search): support Traditional-Chinese substring matching"
+          git push origin HEAD:fix/audit-corrections-025-034
+
+      - name: Verify GREEN
+        run: |
+          pnpm exec prettier --check apps/mobile/src/search/offline-search.ts apps/mobile/src/search/offline-search.test.mjs --config packages/config/prettier.config.mjs
+          pnpm --filter @misyra/mobile typecheck
+          pnpm --filter @misyra/mobile lint
+          pnpm --filter @misyra/mobile test -- offline-search.test.mjs
