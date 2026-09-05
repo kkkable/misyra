@@ -10,6 +10,7 @@ import {
 } from './auth-session.js';
 import { createSecureSessionStorage } from './secure-session-storage.js';
 import { createSignOutCleanup } from './sign-out-cleanup.js';
+import { openMobileDatabase } from '../storage/database.js';
 
 let providerGateway: ProviderSignInGateway | null = null;
 let apiBaseUrl = 'http://127.0.0.1:3000';
@@ -51,6 +52,6 @@ export const rootAuthController = createAuthSessionController({
   storage: createSecureSessionStorage(SecureStore),
   provider: configuredProviderGateway,
   api: configuredAuthApi,
-  cleanup: createSignOutCleanup(),
+  cleanup: createSignOutCleanup({ openDatabase: openMobileDatabase }),
   messages: { signInFailed: rootAuthMessages.signInFailed },
 });
