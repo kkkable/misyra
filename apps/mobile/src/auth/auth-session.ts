@@ -71,7 +71,7 @@ export function createAuthSessionController({
   storage,
   provider,
   api,
-  cleanup = async () => undefined,
+  cleanup = () => Promise.resolve(),
   now = () => new Date(),
   messages,
 }: AuthSessionControllerOptions): AuthSessionController {
@@ -123,7 +123,7 @@ export function createAuthSessionController({
           activeSession = stored;
           return { status: 'signed_in', session: stored };
         }
-        return refreshStoredSession(stored);
+        return await refreshStoredSession(stored);
       } catch {
         activeSession = null;
         return { status: 'signed_out' };
