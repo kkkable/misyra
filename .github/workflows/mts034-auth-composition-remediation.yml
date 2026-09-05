@@ -1,0 +1,460 @@
+name: Disposable MTS-034 auth composition remediation
+
+on:
+  push:
+    branches:
+      - automation/mts034-auth-composition-remediation-20260905
+
+permissions:
+  contents: write
+
+jobs:
+  remediate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/audit-corrections-025-034
+          fetch-depth: 0
+          token: ${{ github.token }}
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.5
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Add RED shared-contract and composition contracts
+        shell: bash
+        run: |
+          cat > packages/contracts/src/v1/auth.test.ts <<'EOF'
+          import { describe, expect, it } from 'vitest';
+
+          import {
+            authProviderExchangeRequestSchema,
+            authRefreshRequestSchema,
+            authTokenPairSchema,
+          } from './auth.js';
+
+          describe('shared v1 authentication contracts', () => {
+            it('rejects unknown request fields and validates token pairs', () => {
+              expect(
+                authProviderExchangeRequestSchema.safeParse({
+                  proof: 'proof',
+                  nonce: 'nonce',
+                  ignored: 'not-allowed',
+                }).success,
+              ).toBe(false);
+              expect(
+                authRefreshRequestSchema.safeParse({
+                  refreshToken: 'refresh',
+                  ignored: 'not-allowed',
+                }).success,
+              ).toBe(false);
+              expect(
+                authTokenPairSchema.safeParse({
+                  accountId: '123e4567-e89b-42d3-a456-426614174000',
+                  accessToken: 'access',
+                  accessTokenExpiresAt: '2026-09-05T08:45:00.000Z',
+                  refreshToken: 'refresh',
+                  refreshTokenExpiresAt: '2026-10-05T08:30:00.000Z',
+                }).success,
+              ).toBe(true);
+            });
+          });
+          EOF
+
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('apps/api/src/auth-routes.test.ts')
+          s = p.read_text()
+          anchor = "  it('maps proof and refresh security failures to the same unauthorized envelope', async () => {"
+          test = """  it('rejects unknown auth request fields through the shared strict contract', async () => {\n    const { authService, exchange, refresh } = service();\n    const server = createApiServer({ routes: createAuthRoutes(authService) });\n\n    const exchangeResponse = await server.inject({\n      method: 'POST',\n      url: '/v1/auth/google/exchange',\n      payload: { proof: 'proof', nonce: 'nonce', ignored: 'not-allowed' },\n    });\n    const refreshResponse = await server.inject({\n      method: 'POST',\n      url: '/v1/auth/refresh',\n      payload: { refreshToken: 'refresh', ignored: 'not-allowed' },\n    });\n\n    expect(exchangeResponse.statusCode).toBe(400);\n    expect(refreshResponse.statusCode).toBe(400);\n    expect(exchange).not.toHaveBeenCalled();\n    expect(refresh).not.toHaveBeenCalled();\n    await server.close();\n  });\n\n"""
+          if test not in s:
+              if anchor not in s:
+                  raise SystemExit('auth-route test anchor not found')
+              s = s.replace(anchor, test + anchor)
+          p.write_text(s)
+          PY
+
+          cat > apps/api/src/application.test.ts <<'EOF'
+          import type { Pool } from 'pg';
+          import { describe, expect, it, vi } from 'vitest';
+
+          import { createApiApplication } from './application.js';
+          import type { ProviderProofVerifier } from './auth.js';
+
+          describe('MTS-034 executable API composition', () => {
+            it('wires provider exchange through the PostgreSQL auth store and auth routes', async () => {
+              const accountId = '123e4567-e89b-42d3-a456-426614174000';
+              const query = vi.fn(async (sql: string) => {
+                if (sql.includes('INSERT INTO accounts')) {
+                  return {
+                    rows: [{ id: accountId, provider: 'google', providerSubject: 'subject-1' }],
+                    rowCount: 1,
+                  };
+                }
+                if (sql.includes('consumed_provider_nonce_hashes')) {
+                  return { rows: [], rowCount: 1 };
+                }
+                if (sql.includes('INSERT INTO account_sessions')) {
+                  return { rows: [], rowCount: 1 };
+                }
+                throw new Error(`unexpected SQL: ${sql}`);
+              });
+              const pool = { query } as unknown as Pool;
+              const verifier: ProviderProofVerifier = {
+                verify: vi.fn(async (provider) => ({
+                  provider,
+                  subject: 'subject-1',
+                  issuer: 'https://accounts.google.com',
+                  audience: 'google-audience',
+                  nonce: 'nonce-1',
+                  issuedAt: new Date('2026-09-05T08:20:00.000Z'),
+                  expiresAt: new Date('2026-09-05T09:20:00.000Z'),
+                })),
+              };
+              const server = createApiApplication({
+                pool,
+                verifier,
+                expectedAudience: { apple: 'apple-audience', google: 'google-audience' },
+                now: () => new Date('2026-09-05T08:25:00.000Z'),
+                issueAccessToken: () => 'signed-access-token',
+              });
+
+              const response = await server.inject({
+                method: 'POST',
+                url: '/v1/auth/google/exchange',
+                payload: { proof: 'provider-proof', nonce: 'nonce-1' },
+              });
+
+              expect(response.statusCode).toBe(200);
+              expect(response.json()).toMatchObject({
+                ok: true,
+                payload: { accountId, accessToken: 'signed-access-token' },
+              });
+              expect(query).toHaveBeenCalledTimes(3);
+              await server.close();
+            });
+          });
+          EOF
+
+          pnpm exec prettier --write packages/contracts/src/v1/auth.test.ts apps/api/src/auth-routes.test.ts apps/api/src/application.test.ts --config packages/config/prettier.config.mjs
+          git config user.name "Misyra Auto Development"
+          git config user.email "actions@users.noreply.github.com"
+          git add packages/contracts/src/v1/auth.test.ts apps/api/src/auth-routes.test.ts apps/api/src/application.test.ts
+          git commit -m "test(auth): expose shared contract and composition gaps"
+          git push origin HEAD:fix/audit-corrections-025-034
+
+      - name: Prove RED
+        shell: bash
+        run: |
+          set +e
+          pnpm --filter @misyra/contracts test -- auth.test.ts
+          contracts_status=$?
+          pnpm --filter @misyra/api test -- auth-routes.test.ts application.test.ts
+          api_status=$?
+          set -e
+          if [ "$contracts_status" -eq 0 ] || [ "$api_status" -eq 0 ]; then
+            echo "Expected both shared-contract and composition checks to fail before GREEN."
+            exit 1
+          fi
+          echo "Observed intended RED statuses: contracts=$contracts_status api=$api_status"
+
+      - name: Apply GREEN shared auth contracts
+        shell: bash
+        run: |
+          cat > packages/contracts/src/v1/auth.ts <<'EOF'
+          import { z } from 'zod';
+
+          export const authProviderSchema = z.enum(['apple', 'google']);
+          export type AuthProvider = z.infer<typeof authProviderSchema>;
+
+          export const authProviderExchangeRequestSchema = z
+            .object({
+              proof: z.string().min(1),
+              nonce: z.string().min(1),
+            })
+            .strict();
+          export type AuthProviderExchangeRequest = z.infer<
+            typeof authProviderExchangeRequestSchema
+          >;
+
+          export const authRefreshRequestSchema = z
+            .object({
+              refreshToken: z.string().min(1),
+            })
+            .strict();
+          export type AuthRefreshRequest = z.infer<typeof authRefreshRequestSchema>;
+
+          export const authTokenPairSchema = z
+            .object({
+              accountId: z.string().uuid(),
+              accessToken: z.string().min(1),
+              accessTokenExpiresAt: z.string().datetime({ offset: true }),
+              refreshToken: z.string().min(1),
+              refreshTokenExpiresAt: z.string().datetime({ offset: true }),
+            })
+            .strict();
+          export type AuthTokenPair = z.infer<typeof authTokenPairSchema>;
+          EOF
+          printf "\nexport * from './auth.js';\n" >> packages/contracts/src/v1/index.ts
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path('packages/contracts/package.json')
+          data = json.loads(p.read_text())
+          data['exports']['./v1/auth'] = './src/v1/auth.ts'
+          p.write_text(json.dumps(data, indent=2) + '\n')
+          PY
+          pnpm exec prettier --write packages/contracts/src/v1/auth.ts packages/contracts/src/v1/auth.test.ts packages/contracts/src/v1/index.ts packages/contracts/package.json --config packages/config/prettier.config.mjs
+          git add packages/contracts/src/v1/auth.ts packages/contracts/src/v1/auth.test.ts packages/contracts/src/v1/index.ts packages/contracts/package.json
+          git commit -m "feat(contracts): define shared authentication schemas"
+          git push origin HEAD:fix/audit-corrections-025-034
+
+      - name: Apply GREEN server contract boundary
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('apps/api/src/auth.ts')
+          s = p.read_text()
+          s = s.replace(
+              "import { createHash, randomUUID } from 'node:crypto';\n\nexport type AuthProvider = 'apple' | 'google';\n",
+              "import { createHash, randomUUID } from 'node:crypto';\n\nimport type { AuthProvider, AuthTokenPair } from '@misyra/contracts';\n\nexport type { AuthProvider, AuthTokenPair } from '@misyra/contracts';\n",
+          )
+          token_block = """export type AuthTokenPair = {\n  accountId: string;\n  accessToken: string;\n  accessTokenExpiresAt: string;\n  refreshToken: string;\n  refreshTokenExpiresAt: string;\n};\n\n"""
+          if token_block not in s:
+              raise SystemExit('local AuthTokenPair block not found')
+          s = s.replace(token_block, '')
+          s = s.replace('type AccessTokenInput = {', 'export type AccessTokenInput = {')
+          p.write_text(s)
+          PY
+
+          cat > apps/api/src/auth-routes.ts <<'EOF'
+          import {
+            authProviderExchangeRequestSchema,
+            authRefreshRequestSchema,
+            authTokenPairSchema,
+            type AuthProvider,
+            type AuthProviderExchangeRequest,
+            type AuthTokenPair,
+          } from '@misyra/contracts';
+
+          import { AuthSecurityError } from './auth.js';
+          import { ApiError, type ApiRouteDefinition } from './index.js';
+
+          export type AuthRouteService = {
+            exchange(
+              input: AuthProviderExchangeRequest & { provider: AuthProvider },
+            ): Promise<AuthTokenPair>;
+            refresh(refreshToken: string): Promise<AuthTokenPair>;
+          };
+
+          function parseExchangeBody(value: unknown): AuthProviderExchangeRequest {
+            const parsed = authProviderExchangeRequestSchema.safeParse(value);
+            if (!parsed.success) throw new ApiError('validation_failed');
+            return parsed.data;
+          }
+
+          function parseRefreshBody(value: unknown) {
+            const parsed = authRefreshRequestSchema.safeParse(value);
+            if (!parsed.success) throw new ApiError('validation_failed');
+            return parsed.data.refreshToken;
+          }
+
+          async function runAuthOperation(operation: () => Promise<AuthTokenPair>) {
+            try {
+              return authTokenPairSchema.parse(await operation());
+            } catch (error) {
+              if (error instanceof AuthSecurityError) throw new ApiError('unauthorized');
+              throw error;
+            }
+          }
+
+          export function createAuthRoutes(service: AuthRouteService): ApiRouteDefinition[] {
+            const exchangeRoute = (provider: AuthProvider): ApiRouteDefinition => ({
+              method: 'POST',
+              path: `/auth/${provider}/exchange`,
+              public: true,
+              handler: (request) => {
+                const body = parseExchangeBody(request.body);
+                return runAuthOperation(() => service.exchange({ provider, ...body }));
+              },
+            });
+
+            return [
+              exchangeRoute('apple'),
+              exchangeRoute('google'),
+              {
+                method: 'POST',
+                path: '/auth/refresh',
+                public: true,
+                handler: (request) =>
+                  runAuthOperation(() => service.refresh(parseRefreshBody(request.body))),
+              },
+            ];
+          }
+          EOF
+          pnpm exec prettier --write apps/api/src/auth.ts apps/api/src/auth-routes.ts apps/api/src/auth-routes.test.ts --config packages/config/prettier.config.mjs
+          git add apps/api/src/auth.ts apps/api/src/auth-routes.ts apps/api/src/auth-routes.test.ts
+          git commit -m "fix(api): consume shared strict auth contracts"
+          git push origin HEAD:fix/audit-corrections-025-034
+
+      - name: Apply GREEN executable application composition
+        shell: bash
+        run: |
+          cat > apps/api/src/application.ts <<'EOF'
+          import { createHmac } from 'node:crypto';
+
+          import { createPostgresAuthStore } from '@misyra/database';
+          import type { AuthProvider } from '@misyra/contracts';
+          import { Pool } from 'pg';
+
+          import { createAuthRoutes } from './auth-routes.js';
+          import {
+            createAuthService,
+            type AccessTokenInput,
+            type ProviderProofVerifier,
+          } from './auth.js';
+          import {
+            createApiServer,
+            type ApiAuditLog,
+            type AuthenticateRequest,
+            type ReadinessCheck,
+          } from './index.js';
+          import { createProviderProofVerifier } from './provider-proof-verifier.js';
+
+          type AuthApplicationOptions = {
+            pool: Pool;
+            expectedAudience: Record<AuthProvider, string>;
+            issueAccessToken: (input: AccessTokenInput) => string | Promise<string>;
+            verifier?: ProviderProofVerifier;
+            now?: () => Date;
+            readiness?: ReadinessCheck;
+            authenticate?: AuthenticateRequest;
+            auditLog?: ApiAuditLog;
+          };
+
+          export function createApiApplication(options: AuthApplicationOptions) {
+            const authService = createAuthService({
+              store: createPostgresAuthStore(options.pool),
+              verifier: options.verifier ?? createProviderProofVerifier(),
+              expectedAudience: options.expectedAudience,
+              issueAccessToken: options.issueAccessToken,
+              ...(options.now === undefined ? {} : { now: options.now }),
+            });
+
+            return createApiServer({
+              routes: createAuthRoutes(authService),
+              ...(options.readiness === undefined ? {} : { readiness: options.readiness }),
+              ...(options.authenticate === undefined ? {} : { authenticate: options.authenticate }),
+              ...(options.auditLog === undefined ? {} : { auditLog: options.auditLog }),
+            });
+          }
+
+          function requiredEnv(env: NodeJS.ProcessEnv, name: string) {
+            const value = env[name];
+            if (!value) throw new Error(`Missing required environment variable: ${name}`);
+            return value;
+          }
+
+          function databaseUrl(env: NodeJS.ProcessEnv) {
+            if (env.DATABASE_URL) return env.DATABASE_URL;
+            const user = encodeURIComponent(env.POSTGRES_USER ?? 'misyra');
+            const password = encodeURIComponent(env.POSTGRES_PASSWORD ?? 'misyra-local-only');
+            const port = env.POSTGRES_PORT ?? '5432';
+            const database = encodeURIComponent(env.POSTGRES_DB ?? 'misyra');
+            return `postgresql://${user}:${password}@127.0.0.1:${port}/${database}`;
+          }
+
+          export function createHmacAccessTokenIssuer(secret: string) {
+            if (secret.length < 32) throw new Error('AUTH_ACCESS_TOKEN_SECRET must be at least 32 characters');
+            return (input: AccessTokenInput) => {
+              const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString(
+                'base64url',
+              );
+              const payload = Buffer.from(
+                JSON.stringify({
+                  sub: input.accountId,
+                  sid: input.sessionId,
+                  exp: Math.floor(input.expiresAt.getTime() / 1_000),
+                }),
+              ).toString('base64url');
+              const signature = createHmac('sha256', secret)
+                .update(`${header}.${payload}`)
+                .digest('base64url');
+              return `${header}.${payload}.${signature}`;
+            };
+          }
+
+          export async function startApiApplication(env: NodeJS.ProcessEnv = process.env) {
+            const pool = new Pool({ connectionString: databaseUrl(env) });
+            const server = createApiApplication({
+              pool,
+              expectedAudience: {
+                apple: requiredEnv(env, 'APPLE_AUTH_AUDIENCE'),
+                google: requiredEnv(env, 'GOOGLE_AUTH_AUDIENCE'),
+              },
+              issueAccessToken: createHmacAccessTokenIssuer(
+                requiredEnv(env, 'AUTH_ACCESS_TOKEN_SECRET'),
+              ),
+            });
+            server.addHook('onClose', async () => {
+              await pool.end();
+            });
+            try {
+              await server.listen({ host: '127.0.0.1', port: 3000 });
+            } catch (error) {
+              await pool.end();
+              throw error;
+            }
+            return server;
+          }
+          EOF
+
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('apps/api/src/index.ts')
+          s = p.read_text()
+          old = """export async function startApiServer() {\n  const server = createApiServer();\n  await server.listen({ host: '127.0.0.1', port: 3000 });\n  return server;\n}\n"""
+          new = """export async function startApiServer(env: NodeJS.ProcessEnv = process.env) {\n  const { startApiApplication } = await import('./application.js');\n  return startApiApplication(env);\n}\n"""
+          if old not in s:
+              raise SystemExit('health-only startApiServer block not found')
+          p.write_text(s.replace(old, new))
+          PY
+
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path('apps/api/package.json')
+          data = json.loads(p.read_text())
+          deps = data['dependencies']
+          deps['@misyra/database'] = 'workspace:*'
+          deps['pg'] = '8.23.0'
+          data.setdefault('devDependencies', {})['@types/pg'] = '8.23.1'
+          p.write_text(json.dumps(data, indent=2) + '\n')
+          PY
+          pnpm install --lockfile-only
+          pnpm exec prettier --write apps/api/src/application.ts apps/api/src/application.test.ts apps/api/src/index.ts apps/api/package.json pnpm-lock.yaml --config packages/config/prettier.config.mjs
+          git add apps/api/src/application.ts apps/api/src/application.test.ts apps/api/src/index.ts apps/api/package.json pnpm-lock.yaml
+          git commit -m "fix(api): compose executable authentication application"
+          git push origin HEAD:fix/audit-corrections-025-034
+
+      - name: Verify GREEN
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm exec prettier --check packages/contracts/src/v1/auth.ts packages/contracts/src/v1/auth.test.ts packages/contracts/src/v1/index.ts packages/contracts/package.json apps/api/src/auth.ts apps/api/src/auth-routes.ts apps/api/src/auth-routes.test.ts apps/api/src/application.ts apps/api/src/application.test.ts apps/api/src/index.ts apps/api/package.json pnpm-lock.yaml --config packages/config/prettier.config.mjs
+          pnpm --filter @misyra/contracts typecheck
+          pnpm --filter @misyra/contracts lint
+          pnpm --filter @misyra/contracts test
+          pnpm --filter @misyra/api typecheck
+          pnpm --filter @misyra/api lint
+          pnpm --filter @misyra/api test
+          pnpm --filter @misyra/api build
