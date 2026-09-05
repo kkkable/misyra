@@ -1,12 +1,11 @@
-export type AuthProvider = 'apple' | 'google';
+import {
+  authTokenPairSchema,
+  type AuthProvider as SharedAuthProvider,
+  type AuthTokenPair,
+} from '@misyra/contracts';
 
-export type AuthSession = {
-  readonly accountId: string;
-  readonly accessToken: string;
-  readonly accessTokenExpiresAt: string;
-  readonly refreshToken: string;
-  readonly refreshTokenExpiresAt: string;
-};
+export type AuthProvider = SharedAuthProvider;
+export type AuthSession = AuthTokenPair;
 
 export type ProviderProof = {
   readonly provider: AuthProvider;
@@ -53,17 +52,7 @@ function isNonEmptyString(value: unknown): value is string {
 }
 
 export function isAuthSession(value: unknown): value is AuthSession {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
-  const record = value as Record<string, unknown>;
-  return (
-    isNonEmptyString(record.accountId) &&
-    isNonEmptyString(record.accessToken) &&
-    isNonEmptyString(record.accessTokenExpiresAt) &&
-    isNonEmptyString(record.refreshToken) &&
-    isNonEmptyString(record.refreshTokenExpiresAt) &&
-    Number.isFinite(Date.parse(record.accessTokenExpiresAt)) &&
-    Number.isFinite(Date.parse(record.refreshTokenExpiresAt))
-  );
+  return authTokenPairSchema.safeParse(value).success;
 }
 
 function isValidStoredSession(session: AuthSession, now: Date) {
