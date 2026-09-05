@@ -20,9 +20,7 @@ function parseSettingsBody(value: unknown) {
   return parsed.data;
 }
 
-export function createDeviceSettingsRoutes(
-  service: DeviceSettingsService,
-): ApiRouteDefinition[] {
+export function createDeviceSettingsRoutes(service: DeviceSettingsService): ApiRouteDefinition[] {
   return [
     {
       method: 'POST',
