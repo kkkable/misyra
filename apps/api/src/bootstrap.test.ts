@@ -92,6 +92,36 @@ describe('MTS-027 API bootstrap', () => {
     await server.close();
   });
 
+  it('authenticates protected routes before schema validation', async () => {
+    const authenticate = vi.fn(() => null);
+    const handler = vi.fn(() => ({ created: true }));
+    const server = createApiServer({
+      routes: [
+        {
+          method: 'POST',
+          path: '/missions',
+          schema: {
+            body: {
+              type: 'object',
+              required: ['title'],
+              properties: { title: { type: 'string', minLength: 1 } },
+            },
+          },
+          handler,
+        },
+      ],
+      authenticate,
+    });
+
+    const response = await server.inject({ method: 'POST', url: '/v1/missions', payload: {} });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toMatchObject({ error: { code: 'unauthorized' } });
+    expect(authenticate).toHaveBeenCalledOnce();
+    expect(handler).not.toHaveBeenCalled();
+    await server.close();
+  });
+
   it('maps domain failures to stable client-action codes without internal details', async () => {
     const server = createApiServer({
       routes: [

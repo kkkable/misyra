@@ -26,6 +26,10 @@ export const accounts = pgTable(
     id: uuid('id').primaryKey().defaultRandom(),
     provider: text('provider').notNull(),
     providerSubject: text('provider_subject').notNull(),
+    consumedProviderNonceHashes: text('consumed_provider_nonce_hashes')
+      .array()
+      .notNull()
+      .default(sql`ARRAY[]::text[]`),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -57,13 +61,19 @@ export const accountSessions = pgTable(
       .notNull()
       .references(() => accounts.id, { onDelete: 'cascade' }),
     deviceId: uuid('device_id').references(() => devices.id, { onDelete: 'set null' }),
+    familyId: uuid('family_id').notNull().defaultRandom(),
     refreshTokenHash: text('refresh_token_hash').notNull(),
+    rotatedRefreshTokenHashes: text('rotated_refresh_token_hashes')
+      .array()
+      .notNull()
+      .default(sql`ARRAY[]::text[]`),
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
     revokedAt: timestamp('revoked_at', { withTimezone: true }),
     createdAt: createdAt(),
   },
   (table) => [
     index('account_sessions_account_idx').on(table.accountId),
+    index('account_sessions_family_idx').on(table.familyId),
     uniqueIndex('account_sessions_refresh_hash_uidx').on(table.refreshTokenHash),
   ],
 );

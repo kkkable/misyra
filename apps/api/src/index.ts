@@ -33,12 +33,23 @@ export type ApiAuditEntry = {
 
 export type ApiAuditLog = (entry: ApiAuditEntry) => void;
 
-export type ApiRouteDefinition = {
+type ApiRouteBase = {
   method: HTTPMethods | HTTPMethods[];
   path: `/${string}`;
   schema?: FastifySchema;
+};
+
+export type ApiProtectedRouteDefinition = ApiRouteBase & {
+  public?: false;
   handler: (request: FastifyRequest, reply: FastifyReply, auth: AuthContext) => unknown;
 };
+
+export type ApiPublicRouteDefinition = ApiRouteBase & {
+  public: true;
+  handler: (request: FastifyRequest, reply: FastifyReply, auth: null) => unknown;
+};
+
+export type ApiRouteDefinition = ApiProtectedRouteDefinition | ApiPublicRouteDefinition;
 
 type ApiServerOptions = {
   readiness?: ReadinessCheck;
@@ -221,25 +232,32 @@ export function createApiServer(options: ApiServerOptions = {}) {
 
   void server.register(
     (v1, _pluginOptions, done) => {
-      v1.addHook('onRequest', async (request, reply) => {
+      const authenticateProtected = async (request: FastifyRequest, reply: FastifyReply) => {
         const auth = await authenticate(request);
         if (!auth) {
           return reply.code(401).send(errorEnvelope(request.id, 'unauthorized'));
         }
         request.authContext = auth;
-      });
+      };
 
       for (const route of routes) {
         const routeOptions = {
           method: route.method,
           url: route.path,
+          ...(route.public ? {} : { onRequest: authenticateProtected }),
           handler: async (request: FastifyRequest, reply: FastifyReply) => {
-            const auth = request.authContext;
-            if (!auth) {
-              return reply.code(401).send(errorEnvelope(request.id, 'unauthorized'));
+            let payload: unknown;
+
+            if (route.public) {
+              payload = await route.handler(request, reply, null);
+            } else {
+              const auth = request.authContext;
+              if (!auth) {
+                return reply.code(401).send(errorEnvelope(request.id, 'unauthorized'));
+              }
+              payload = await route.handler(request, reply, auth);
             }
 
-            const payload = await route.handler(request, reply, auth);
             if (reply.sent) return;
             return successEnvelope(request.id, payload);
           },

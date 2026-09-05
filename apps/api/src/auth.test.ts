@@ -1,0 +1,232 @@
+import { createHash } from 'node:crypto';
+
+import { describe, expect, it } from 'vitest';
+
+import {
+  AuthSecurityError,
+  createAuthService,
+  type AuthStore,
+  type ProviderProofVerifier,
+} from './auth.js';
+
+function hash(value: string) {
+  return createHash('sha256').update(value).digest('hex');
+}
+
+function createHarness(proofMaxAgeSeconds = 10 * 60) {
+  let sequence = 0;
+  const accounts = new Map<string, { id: string; provider: 'apple' | 'google'; subject: string }>();
+  const sessions = new Map<
+    string,
+    {
+      id: string;
+      accountId: string;
+      familyId: string;
+      refreshTokenHash: string;
+      previousRefreshTokenHash: string | null;
+      expiresAt: Date;
+      revokedAt: Date | null;
+    }
+  >();
+  const consumedNonces = new Set<string>();
+
+  const store: AuthStore = {
+    findOrCreateAccount(provider, subject) {
+      const key = `${provider}:${subject}`;
+      let account = accounts.get(key);
+      if (!account) {
+        account = { id: `account-${String(++sequence)}`, provider, subject };
+        accounts.set(key, account);
+      }
+      return Promise.resolve(account);
+    },
+    consumeProviderNonce(provider, subject, nonce) {
+      const key = `${provider}:${subject}:${nonce}`;
+      if (consumedNonces.has(key)) return Promise.resolve(false);
+      consumedNonces.add(key);
+      return Promise.resolve(true);
+    },
+    createSession(input) {
+      sessions.set(input.id, { ...input, previousRefreshTokenHash: null, revokedAt: null });
+      return Promise.resolve();
+    },
+    rotateSession(input) {
+      const session = [...sessions.values()].find(
+        (candidate) =>
+          candidate.refreshTokenHash === input.presentedHash ||
+          candidate.previousRefreshTokenHash === input.presentedHash,
+      );
+      if (!session || session.revokedAt) return Promise.resolve({ status: 'invalid' as const });
+      if (session.previousRefreshTokenHash === input.presentedHash) {
+        for (const candidate of sessions.values()) {
+          if (candidate.familyId === session.familyId) candidate.revokedAt = input.now;
+        }
+        return Promise.resolve({ status: 'reused' as const });
+      }
+      if (session.expiresAt <= input.now) return Promise.resolve({ status: 'invalid' as const });
+      session.previousRefreshTokenHash = session.refreshTokenHash;
+      session.refreshTokenHash = input.nextHash;
+      session.expiresAt = input.nextExpiresAt;
+      return Promise.resolve({
+        status: 'rotated' as const,
+        accountId: session.accountId,
+        sessionId: session.id,
+      });
+    },
+  };
+
+  const verifier: ProviderProofVerifier = {
+    verify(provider, proof) {
+      if (proof === 'bad-signature') {
+        return Promise.reject(new AuthSecurityError('invalid_provider_proof'));
+      }
+      return Promise.resolve({
+        provider,
+        subject: proof === 'same-email-other-subject' ? 'subject-b' : 'subject-a',
+        issuer:
+          proof === 'wrong-issuer'
+            ? 'https://attacker.example'
+            : proof === 'google-issuer-bare'
+              ? 'accounts.google.com'
+              : provider === 'apple'
+                ? 'https://appleid.apple.com'
+                : 'https://accounts.google.com',
+        audience:
+          proof === 'wrong-audience'
+            ? 'attacker-client'
+            : provider === 'apple'
+              ? 'com.misyra.app'
+              : 'misyra-google-client',
+        nonce: proof === 'wrong-nonce' ? 'other' : 'nonce-1',
+        issuedAt: new Date('2026-09-05T03:00:00.000Z'),
+        expiresAt: new Date('2026-09-05T03:10:00.000Z'),
+        email: 'same@example.com',
+      });
+    },
+  };
+
+  const tokens = ['refresh-1', 'refresh-2', 'refresh-3', 'refresh-4', 'refresh-5'];
+  const service = createAuthService({
+    store,
+    verifier,
+    now: () => new Date('2026-09-05T03:05:00.000Z'),
+    issueOpaqueRefreshToken: () => tokens.shift() ?? `refresh-${String(++sequence)}`,
+    issueAccessToken: ({ accountId, sessionId }) => `access:${accountId}:${sessionId}`,
+    expectedAudience: {
+      apple: 'com.misyra.app',
+      google: 'misyra-google-client',
+    },
+    defaultProofMaxAgeSeconds: proofMaxAgeSeconds,
+  });
+
+  return { service, accounts, sessions };
+}
+
+describe('MTS-034 server provider-token exchange', () => {
+  it('binds identity to provider subject rather than provider email', async () => {
+    const { service, accounts } = createHarness();
+
+    const first = await service.exchange({
+      provider: 'google',
+      proof: 'proof-a',
+      nonce: 'nonce-1',
+    });
+    const second = await service.exchange({
+      provider: 'google',
+      proof: 'same-email-other-subject',
+      nonce: 'nonce-1',
+    });
+
+    expect(first.accountId).not.toBe(second.accountId);
+    expect(accounts.size).toBe(2);
+  });
+
+  it.each([
+    ['wrong nonce', 'wrong-nonce', 'nonce-1'],
+    ['invalid signature', 'bad-signature', 'nonce-1'],
+    ['wrong issuer', 'wrong-issuer', 'nonce-1'],
+    ['wrong audience', 'wrong-audience', 'nonce-1'],
+  ])('rejects %s provider proofs', async (_label, proof, nonce) => {
+    const { service } = createHarness();
+    await expect(service.exchange({ provider: 'google', proof, nonce })).rejects.toBeInstanceOf(
+      AuthSecurityError,
+    );
+  });
+
+  it('accepts the documented bare Google issuer form', async () => {
+    const { service } = createHarness();
+    await expect(
+      service.exchange({ provider: 'google', proof: 'google-issuer-bare', nonce: 'nonce-1' }),
+    ).resolves.toMatchObject({ accountId: 'account-1' });
+  });
+
+  it('rejects stale proofs using a server-controlled freshness window', async () => {
+    const { service } = createHarness(30);
+    await expect(
+      service.exchange({
+        provider: 'google',
+        proof: 'proof-a',
+        nonce: 'nonce-1',
+      }),
+    ).rejects.toMatchObject({ code: 'invalid_provider_proof' });
+  });
+
+  it('consumes a provider nonce exactly once so a verified proof cannot be replayed', async () => {
+    const { service } = createHarness();
+    await service.exchange({ provider: 'google', proof: 'proof-a', nonce: 'nonce-1' });
+    await expect(
+      service.exchange({ provider: 'google', proof: 'proof-a', nonce: 'nonce-1' }),
+    ).rejects.toMatchObject({ code: 'invalid_provider_proof' });
+  });
+
+  it('stores only hashed refresh tokens and rotates them on refresh', async () => {
+    const { service, sessions } = createHarness();
+    const exchanged = await service.exchange({
+      provider: 'apple',
+      proof: 'proof-a',
+      nonce: 'nonce-1',
+    });
+    const session = [...sessions.values()][0];
+    if (!session) throw new Error('expected auth session');
+
+    expect(session.refreshTokenHash).toBe(hash(exchanged.refreshToken));
+    expect(JSON.stringify([...sessions.values()])).not.toContain(exchanged.refreshToken);
+
+    const rotated = await service.refresh(exchanged.refreshToken);
+    expect(rotated.refreshToken).not.toBe(exchanged.refreshToken);
+    expect(session.refreshTokenHash).toBe(hash(rotated.refreshToken));
+  });
+
+  it('atomically rejects concurrent reuse of the same refresh token and revokes the family', async () => {
+    const { service, sessions } = createHarness();
+    const exchanged = await service.exchange({
+      provider: 'google',
+      proof: 'proof-a',
+      nonce: 'nonce-1',
+    });
+
+    const outcomes = await Promise.allSettled([
+      service.refresh(exchanged.refreshToken),
+      service.refresh(exchanged.refreshToken),
+    ]);
+
+    expect(outcomes.filter((outcome) => outcome.status === 'fulfilled')).toHaveLength(1);
+    expect(outcomes.filter((outcome) => outcome.status === 'rejected')).toHaveLength(1);
+    expect([...sessions.values()].every((session) => session.revokedAt instanceof Date)).toBe(true);
+  });
+
+  it('revokes the whole session family when an already-rotated refresh token is reused', async () => {
+    const { service, sessions } = createHarness();
+    const exchanged = await service.exchange({
+      provider: 'google',
+      proof: 'proof-a',
+      nonce: 'nonce-1',
+    });
+    await service.refresh(exchanged.refreshToken);
+
+    await expect(service.refresh(exchanged.refreshToken)).rejects.toMatchObject({
+      code: 'refresh_token_reuse',
+    });
+    expect([...sessions.values()].every((session) => session.revokedAt instanceof Date)).toBe(true);
+  });
+});
