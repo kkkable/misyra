@@ -1,0 +1,112 @@
+name: Disposable MTS-025 schema parity remediation
+
+on:
+  push:
+    branches:
+      - automation/mts025-schema-parity-20260905
+
+permissions:
+  contents: write
+
+jobs:
+  remediate:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: misyra
+          POSTGRES_PASSWORD: misyra-local-only
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U misyra -d postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/audit-corrections-025-034
+          fetch-depth: 0
+          token: ${{ github.token }}
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.5
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Add RED parity contract
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('packages/database/src/schema.test.ts')
+          s = p.read_text()
+          s = s.replace("import { coreTables } from './schema.js';", "import { coreTables, idempotencyKeys, outboxEvents } from './schema.js';")
+          marker = "  it('enforces account provider, completion, reward, and active Story uniqueness', async () => {"
+          test = '''  it('keeps retention-sensitive account references aligned between Drizzle and migrated PostgreSQL', async () => {\n    const { applyMigrations } = await loadDatabaseContract();\n    await applyMigrations(databaseUrl);\n\n    const migratedForeignKeys = dockerPsql(\n      databaseName,\n      `SELECT tc.table_name || ':' || ccu.table_name\n       FROM information_schema.table_constraints tc\n       JOIN information_schema.constraint_column_usage ccu\n         ON ccu.constraint_name = tc.constraint_name\n        AND ccu.constraint_schema = tc.constraint_schema\n       WHERE tc.constraint_type = 'FOREIGN KEY'\n         AND tc.constraint_schema = 'public'\n         AND tc.table_name IN ('outbox_events', 'idempotency_keys')\n       ORDER BY 1`,\n    );\n\n    expect(migratedForeignKeys).toBe('');\n    expect(getTableConfig(outboxEvents).foreignKeys).toHaveLength(0);\n    expect(getTableConfig(idempotencyKeys).foreignKeys).toHaveLength(0);\n  });\n\n'''
+          if test not in s:
+              s = s.replace(marker, test + marker)
+          p.write_text(s)
+          PY
+          git config user.name "Misyra Auto Development"
+          git config user.email "actions@users.noreply.github.com"
+          git add packages/database/src/schema.test.ts
+          git commit -m "test(database): expose MTS-025 schema parity drift"
+          git push origin HEAD:fix/audit-corrections-025-034
+
+      - name: Prove RED
+        shell: bash
+        env:
+          POSTGRES_USER: misyra
+          POSTGRES_PASSWORD: misyra-local-only
+          POSTGRES_PORT: '5432'
+        run: |
+          set +e
+          pnpm --filter @misyra/database test -- schema.test.ts
+          status=$?
+          set -e
+          if [ "$status" -eq 0 ]; then
+            echo "Expected the parity contract to fail before the schema correction."
+            exit 1
+          fi
+          echo "Observed intended RED exit code: $status"
+
+      - name: Apply GREEN schema correction
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('packages/database/src/schema.ts')
+          s = p.read_text()
+          old_outbox = "accountId: uuid('account_id').references(() => accounts.id, { onDelete: 'cascade' }),"
+          old_idem = "accountId: uuid('account_id')\n      .notNull()\n      .references(() => accounts.id, { onDelete: 'cascade' }),\n    key: text('key').notNull(),"
+          if old_outbox not in s or old_idem not in s:
+              raise SystemExit('Expected MTS-025 drift patterns were not found')
+          s = s.replace(old_outbox, "accountId: uuid('account_id'),", 1)
+          s = s.replace(old_idem, "accountId: uuid('account_id').notNull(),\n    key: text('key').notNull(),", 1)
+          p.write_text(s)
+          PY
+          git add packages/database/src/schema.ts
+          git commit -m "fix(database): align idempotency outbox account constraints"
+          git push origin HEAD:fix/audit-corrections-025-034
+
+      - name: Verify GREEN
+        env:
+          POSTGRES_USER: misyra
+          POSTGRES_PASSWORD: misyra-local-only
+          POSTGRES_PORT: '5432'
+        run: |
+          pnpm exec prettier --check packages/database/src/schema.ts packages/database/src/schema.test.ts --config packages/config/prettier.config.mjs
+          pnpm --filter @misyra/database typecheck
+          pnpm --filter @misyra/database lint
+          pnpm --filter @misyra/database test -- schema.test.ts
