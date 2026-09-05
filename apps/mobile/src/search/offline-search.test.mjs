@@ -216,6 +216,33 @@ describe('MTS-033 offline Calendar search', () => {
     await expect(search.query('中環 run')).resolves.toEqual([]);
   });
 
+  it('uses FTS-equivalent diacritic normalization before attributing a mixed-query match to private notes', async () => {
+    const database = new NodeSqliteAdapter();
+    await applyMobileMigrations(database);
+    await seed(database);
+    await database.runAsync(
+      `INSERT INTO search_documents
+        (account_id, document_id, occurrence_id, title, location, provider_text, personal_note, updated_at)
+       VALUES (?, ?, NULL, ?, ?, ?, ?, ?)`,
+      'account-a',
+      'mixed-diacritic-visible',
+      '中環 Café',
+      null,
+      null,
+      'cafe private memo',
+      '2026-09-05T00:00:02.000Z',
+    );
+    const search = createOfflineCalendarSearch(database, 'account-a');
+
+    const matches = await search.query('中環 cafe');
+    expect(matches).toEqual([
+      expect.objectContaining({
+        documentId: 'mixed-diacritic-visible',
+        personalNoteExcerpt: null,
+      }),
+    ]);
+  });
+
   it('returns a personal-note excerpt only when the personal note caused the match', async () => {
     const database = new NodeSqliteAdapter();
     await applyMobileMigrations(database);
