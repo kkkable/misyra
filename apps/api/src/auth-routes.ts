@@ -11,7 +11,12 @@ function parseExchangeBody(value: unknown) {
     throw new ApiError('validation_failed');
   }
   const { proof, nonce } = value as Record<string, unknown>;
-  if (typeof proof !== 'string' || proof.length === 0 || typeof nonce !== 'string' || nonce.length === 0) {
+  if (
+    typeof proof !== 'string' ||
+    proof.length === 0 ||
+    typeof nonce !== 'string' ||
+    nonce.length === 0
+  ) {
     throw new ApiError('validation_failed');
   }
   return { proof, nonce };
