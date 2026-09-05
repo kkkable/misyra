@@ -60,8 +60,7 @@ export function createAuthRoutes(service: AuthRouteService): ApiRouteDefinition[
       method: 'POST',
       path: '/auth/refresh',
       public: true,
-      handler: (request) =>
-        runAuthOperation(() => service.refresh(parseRefreshBody(request.body))),
+      handler: (request) => runAuthOperation(() => service.refresh(parseRefreshBody(request.body))),
     },
   ];
 }
