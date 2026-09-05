@@ -46,13 +46,13 @@ describe('MTS-034 PostgreSQL auth store', () => {
       false,
     );
 
-    const nonceRows = await pool.query<{ nonceHash: string }>(
-      `SELECT nonce_hash AS "nonceHash"
-         FROM provider_proof_nonces
+    const nonceRows = await pool.query<{ nonceHashes: string[] }>(
+      `SELECT consumed_provider_nonce_hashes AS "nonceHashes"
+         FROM accounts
         WHERE provider = 'google' AND provider_subject = $1`,
       [subject],
     );
-    expect(nonceRows.rows[0]?.nonceHash).toBe(hash('nonce-secret'));
+    expect(nonceRows.rows[0]?.nonceHashes).toEqual([hash('nonce-secret')]);
     expect(JSON.stringify(nonceRows.rows)).not.toContain('nonce-secret');
   });
 
@@ -89,23 +89,22 @@ describe('MTS-034 PostgreSQL auth store', () => {
     ]);
 
     expect(outcomes.map((outcome) => outcome.status).sort()).toEqual(['reused', 'rotated']);
-    const session = await pool.query<{ revokedAt: Date | null; refreshTokenHash: string }>(
-      `SELECT revoked_at AS "revokedAt", refresh_token_hash AS "refreshTokenHash"
+    const session = await pool.query<{
+      revokedAt: Date | null;
+      refreshTokenHash: string;
+      rotatedRefreshTokenHashes: string[];
+    }>(
+      `SELECT revoked_at AS "revokedAt",
+              refresh_token_hash AS "refreshTokenHash",
+              rotated_refresh_token_hashes AS "rotatedRefreshTokenHashes"
          FROM account_sessions
         WHERE id = $1`,
       [sessionId],
     );
     expect(session.rows[0]?.revokedAt).toBeInstanceOf(Date);
     expect(session.rows[0]?.refreshTokenHash).not.toBe(originalHash);
-
-    const history = await pool.query<{ refreshTokenHash: string }>(
-      `SELECT refresh_token_hash AS "refreshTokenHash"
-         FROM account_session_rotated_tokens
-        WHERE family_id = $1`,
-      [familyId],
-    );
-    expect(history.rows).toEqual([{ refreshTokenHash: originalHash }]);
-    expect(JSON.stringify([...session.rows, ...history.rows])).not.toContain(original);
+    expect(session.rows[0]?.rotatedRefreshTokenHashes).toEqual([originalHash]);
+    expect(JSON.stringify(session.rows)).not.toContain(original);
   });
 
   it('detects reuse of any older rotated token, not only the immediately previous token', async () => {
@@ -146,10 +145,14 @@ describe('MTS-034 PostgreSQL auth store', () => {
       }),
     ).resolves.toEqual({ status: 'reused' });
 
-    const session = await pool.query<{ revokedAt: Date | null }>(
-      `SELECT revoked_at AS "revokedAt" FROM account_sessions WHERE id = $1`,
+    const session = await pool.query<{ revokedAt: Date | null; rotatedHashes: string[] }>(
+      `SELECT revoked_at AS "revokedAt",
+              rotated_refresh_token_hashes AS "rotatedHashes"
+         FROM account_sessions
+        WHERE id = $1`,
       [sessionId],
     );
     expect(session.rows[0]?.revokedAt).toBeInstanceOf(Date);
+    expect(session.rows[0]?.rotatedHashes).toEqual([oldestHash, newerHash]);
   });
 });
