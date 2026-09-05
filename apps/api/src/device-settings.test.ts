@@ -7,26 +7,28 @@ import {
 
 const ACCOUNT_ID = '11111111-1111-4111-8111-111111111111';
 
+type TestSettings = { language: 'en' | 'zh-HK'; trustMode: boolean };
+
 function createStore(): DeviceRegistrationStore & {
   registrations: unknown[];
-  settings: { language: 'en' | 'zh-HK'; trustMode: boolean };
+  settings: TestSettings;
 } {
   const registrations: unknown[] = [];
+  let settings: TestSettings = { language: 'en', trustMode: false };
   const state = {
     registrations,
-    settings: { language: 'en' as const, trustMode: false },
+    get settings() {
+      return settings;
+    },
     async registerDevice(input: unknown) {
       registrations.push(input);
       return '22222222-2222-4222-8222-222222222222';
     },
     async getAccountSettings() {
-      return state.settings;
+      return settings;
     },
-    async updateAccountSettings(
-      _accountId: string,
-      settings: { language: 'en' | 'zh-HK'; trustMode: boolean },
-    ) {
-      state.settings = settings;
+    async updateAccountSettings(_accountId: string, nextSettings: TestSettings) {
+      settings = nextSettings;
       return settings;
     },
   };
@@ -52,22 +54,24 @@ describe('MTS-039 device registration and account settings sync', () => {
     });
 
     expect(first.deviceId).toBe(second.deviceId);
-    expect(store.registrations).toEqual([
-      {
-        accountId: ACCOUNT_ID,
-        installationId: 'install-abc',
-        platform: 'ios',
-        appVersion: '1.2.3',
-        notificationCapability: 'authorized',
-      },
-      {
-        accountId: ACCOUNT_ID,
-        installationId: 'install-abc',
-        platform: 'ios',
-        appVersion: '1.2.4',
-        notificationCapability: 'denied',
-      },
-    ]);
+    expect(store.registrations).toMatchInlineSnapshot(`
+      [
+        {
+          "accountId": "11111111-1111-4111-8111-111111111111",
+          "appVersion": "1.2.3",
+          "installationId": "install-abc",
+          "notificationCapability": "authorized",
+          "platform": "ios",
+        },
+        {
+          "accountId": "11111111-1111-4111-8111-111111111111",
+          "appVersion": "1.2.4",
+          "installationId": "install-abc",
+          "notificationCapability": "denied",
+          "platform": "ios",
+        },
+      ]
+    `);
     expect(JSON.stringify(store.registrations)).not.toMatch(/latitude|longitude|location/i);
   });
 
