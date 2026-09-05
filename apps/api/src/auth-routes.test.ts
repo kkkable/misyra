@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { createAuthRoutes, type AuthRouteService } from './auth-routes.js';
+import { AuthSecurityError } from './auth.js';
 import { createApiServer } from './index.js';
 
 const tokens = {
@@ -86,6 +87,35 @@ describe('MTS-034 auth routes', () => {
     expect(refresh.statusCode).toBe(400);
     expect(authService.exchange).not.toHaveBeenCalled();
     expect(authService.refresh).not.toHaveBeenCalled();
+    await server.close();
+  });
+
+  it('maps proof and refresh security failures to the same unauthorized envelope', async () => {
+    const authService: AuthRouteService = {
+      exchange: vi.fn(async () => {
+        throw new AuthSecurityError('invalid_provider_proof');
+      }),
+      refresh: vi.fn(async () => {
+        throw new AuthSecurityError('refresh_token_reuse');
+      }),
+    };
+    const server = createApiServer({ routes: createAuthRoutes(authService) });
+
+    const exchange = await server.inject({
+      method: 'POST',
+      url: '/v1/auth/apple/exchange',
+      payload: { proof: 'invalid-proof', nonce: 'nonce-1' },
+    });
+    const refresh = await server.inject({
+      method: 'POST',
+      url: '/v1/auth/refresh',
+      payload: { refreshToken: 'reused-token' },
+    });
+
+    expect(exchange.statusCode).toBe(401);
+    expect(refresh.statusCode).toBe(401);
+    expect(exchange.json()).toMatchObject({ ok: false, error: { code: 'unauthorized' } });
+    expect(refresh.json()).toMatchObject({ ok: false, error: { code: 'unauthorized' } });
     await server.close();
   });
 });
