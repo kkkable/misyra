@@ -116,7 +116,7 @@ export function createProviderProofVerifier(
       );
       if (!jwk || !isAcceptedSigningKey(jwk)) return fail();
 
-      let verified = false;
+      let verified: boolean;
       try {
         const key = createPublicKey({ key: jwk, format: 'jwk' });
         verified = verify(
