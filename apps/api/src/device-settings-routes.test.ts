@@ -10,16 +10,19 @@ import { createApiServer } from './index.js';
 const accountId = '123e4567-e89b-42d3-a456-426614174000';
 const deviceId = '223e4567-e89b-42d3-a456-426614174000';
 
+type TestSettingsUpdate = Partial<{ language: 'en' | 'zh-HK'; trustMode: boolean }>;
+
 function fixture() {
   const registerDevice = vi.fn(() => Promise.resolve(deviceId));
   const getAccountSettings = vi.fn(() =>
     Promise.resolve({ language: 'en' as const, trustMode: false }),
   );
   const updateAccountSettings = vi.fn(
-    (
-      _accountId: string,
-      settings: { language: 'en' | 'zh-HK'; trustMode: boolean },
-    ) => Promise.resolve(settings),
+    (_accountId: string, settings: TestSettingsUpdate) =>
+      Promise.resolve({
+        language: settings.language ?? 'en',
+        trustMode: settings.trustMode ?? false,
+      }),
   );
   const store: DeviceRegistrationStore = {
     registerDevice,
@@ -71,15 +74,12 @@ describe('MTS-039 device and account-settings routes', () => {
     const update = await server.inject({
       method: 'PATCH',
       url: '/v1/account/settings',
-      payload: { language: 'zh-HK', trustMode: true },
+      payload: { trustMode: true },
     });
     const read = await server.inject({ method: 'GET', url: '/v1/account/settings' });
 
     expect(update.statusCode).toBe(200);
-    expect(updateAccountSettings).toHaveBeenCalledWith(accountId, {
-      language: 'zh-HK',
-      trustMode: true,
-    });
+    expect(updateAccountSettings).toHaveBeenCalledWith(accountId, { trustMode: true });
     expect(read.statusCode).toBe(200);
     expect(getAccountSettings).toHaveBeenCalledWith(accountId);
     await server.close();
@@ -106,7 +106,7 @@ describe('MTS-039 device and account-settings routes', () => {
     const settings = await authenticated.inject({
       method: 'PATCH',
       url: '/v1/account/settings',
-      payload: { language: 'en', trustMode: false, cameraPermission: 'authorized' },
+      payload: { language: 'en', cameraPermission: 'authorized' },
     });
 
     expect(registration.statusCode).toBe(400);
