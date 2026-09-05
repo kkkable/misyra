@@ -45,7 +45,7 @@ interface SessionRow extends QueryResultRow {
   revokedAt: Date | null;
 }
 
-interface RotatedTokenRow extends QueryResultRow {
+interface ReusedSessionRow extends QueryResultRow {
   familyId: string;
 }
 
@@ -88,11 +88,14 @@ export function createPostgresAuthStore(pool: Pool) {
     },
 
     async consumeProviderNonce(provider: DatabaseAuthProvider, subject: string, nonce: string) {
+      const nonceHash = sha256(nonce);
       const result = await pool.query(
-        `INSERT INTO provider_proof_nonces (provider, provider_subject, nonce_hash)
-         VALUES ($1, $2, $3)
-         ON CONFLICT DO NOTHING`,
-        [provider, subject, sha256(nonce)],
+        `UPDATE accounts
+            SET consumed_provider_nonce_hashes = array_append(consumed_provider_nonce_hashes, $3)
+          WHERE provider = $1
+            AND provider_subject = $2
+            AND NOT ($3 = ANY(consumed_provider_nonce_hashes))`,
+        [provider, subject, nonceHash],
       );
       return result.rowCount === 1;
     },
@@ -128,14 +131,12 @@ export function createPostgresAuthStore(pool: Pool) {
           if (session.revokedAt || session.expiresAt <= input.now) return { status: 'invalid' };
 
           await client.query(
-            `INSERT INTO account_session_rotated_tokens
-               (refresh_token_hash, session_id, family_id, rotated_at)
-             VALUES ($1, $2, $3, $4)`,
-            [session.refreshTokenHash, session.id, session.familyId, input.now],
-          );
-          await client.query(
             `UPDATE account_sessions
-                SET refresh_token_hash = $1,
+                SET rotated_refresh_token_hashes = array_append(
+                      rotated_refresh_token_hashes,
+                      refresh_token_hash
+                    ),
+                    refresh_token_hash = $1,
                     expires_at = $2
               WHERE id = $3`,
             [input.nextHash, input.nextExpiresAt, session.id],
@@ -143,10 +144,10 @@ export function createPostgresAuthStore(pool: Pool) {
           return { status: 'rotated', accountId: session.accountId, sessionId: session.id };
         }
 
-        const rotated = await client.query<RotatedTokenRow>(
+        const rotated = await client.query<ReusedSessionRow>(
           `SELECT family_id AS "familyId"
-             FROM account_session_rotated_tokens
-            WHERE refresh_token_hash = $1
+             FROM account_sessions
+            WHERE $1 = ANY(rotated_refresh_token_hashes)
             FOR UPDATE`,
           [input.presentedHash],
         );
