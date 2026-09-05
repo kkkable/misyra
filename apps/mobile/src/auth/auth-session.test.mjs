@@ -22,7 +22,11 @@ function harness(overrides = {}) {
     }),
   };
   const provider = {
-    signIn: vi.fn(async (name) => ({ provider: name, proof: `${name}-proof`, nonce: 'nonce-a' })),
+    signIn: vi.fn(async (name) => ({
+      provider: name,
+      proof: `${name}-proof`,
+      nonce: 'nonce-a',
+    })),
   };
   const api = {
     exchange: vi.fn(async () => validSession),
@@ -43,7 +47,10 @@ describe('MTS-035 mobile provider sign-in', () => {
   it('restores a valid stored session silently without invoking a provider', async () => {
     const { controller, provider } = harness({ stored: validSession });
 
-    await expect(controller.restore()).resolves.toEqual({ status: 'signed_in', session: validSession });
+    await expect(controller.restore()).resolves.toEqual({
+      status: 'signed_in',
+      session: validSession,
+    });
     expect(provider.signIn).not.toHaveBeenCalled();
   });
 
@@ -52,14 +59,24 @@ describe('MTS-035 mobile provider sign-in', () => {
     await expect(controller.restore()).resolves.toEqual({ status: 'signed_out' });
   });
 
-  it.each(['apple', 'google'])('exchanges %s provider proof and persists the resulting session', async (providerName) => {
-    const { controller, storage, provider, api } = harness();
+  it.each(['apple', 'google'])(
+    'exchanges %s provider proof and persists the resulting session',
+    async (providerName) => {
+      const { controller, storage, provider, api } = harness();
 
-    await expect(controller.signIn(providerName)).resolves.toEqual({ status: 'signed_in', session: validSession });
-    expect(provider.signIn).toHaveBeenCalledWith(providerName);
-    expect(api.exchange).toHaveBeenCalledWith({ provider: providerName, proof: `${providerName}-proof`, nonce: 'nonce-a' });
-    expect(storage.write).toHaveBeenCalledWith(validSession);
-  });
+      await expect(controller.signIn(providerName)).resolves.toEqual({
+        status: 'signed_in',
+        session: validSession,
+      });
+      expect(provider.signIn).toHaveBeenCalledWith(providerName);
+      expect(api.exchange).toHaveBeenCalledWith({
+        provider: providerName,
+        proof: `${providerName}-proof`,
+        nonce: 'nonce-a',
+      });
+      expect(storage.write).toHaveBeenCalledWith(validSession);
+    },
+  );
 
   it('does not replace a different active account on the same device', async () => {
     const { controller, storage, api } = harness({ stored: validSession });
