@@ -28,6 +28,7 @@ function createHarness() {
       revokedAt: Date | null;
     }
   >();
+  const consumedNonces = new Set<string>();
 
   const store: AuthStore = {
     async findOrCreateAccount(provider, subject) {
@@ -38,6 +39,12 @@ function createHarness() {
         accounts.set(key, account);
       }
       return account;
+    },
+    async consumeProviderNonce(provider, subject, nonce) {
+      const key = `${provider}:${subject}:${nonce}`;
+      if (consumedNonces.has(key)) return false;
+      consumedNonces.add(key);
+      return true;
     },
     async createSession(input) {
       sessions.set(input.id, { ...input, previousRefreshTokenHash: null, revokedAt: null });
@@ -69,8 +76,18 @@ function createHarness() {
       return {
         provider,
         subject: proof === 'same-email-other-subject' ? 'subject-b' : 'subject-a',
-        issuer: provider === 'apple' ? 'https://appleid.apple.com' : 'https://accounts.google.com',
-        audience: provider === 'apple' ? 'com.misyra.app' : 'misyra-google-client',
+        issuer:
+          proof === 'wrong-issuer'
+            ? 'https://attacker.example'
+            : provider === 'apple'
+              ? 'https://appleid.apple.com'
+              : 'https://accounts.google.com',
+        audience:
+          proof === 'wrong-audience'
+            ? 'attacker-client'
+            : provider === 'apple'
+              ? 'com.misyra.app'
+              : 'misyra-google-client',
         nonce: proof === 'wrong-nonce' ? 'other' : 'nonce-1',
         issuedAt: new Date('2026-09-05T03:00:00.000Z'),
         expiresAt: new Date('2026-09-05T03:10:00.000Z'),
@@ -79,7 +96,7 @@ function createHarness() {
     },
   };
 
-  const tokens = ['refresh-1', 'refresh-2', 'refresh-3', 'refresh-4'];
+  const tokens = ['refresh-1', 'refresh-2', 'refresh-3', 'refresh-4', 'refresh-5'];
   const service = createAuthService({
     store,
     verifier,
@@ -113,6 +130,8 @@ describe('MTS-034 server provider-token exchange', () => {
   it.each([
     ['wrong nonce', 'wrong-nonce', 'nonce-1'],
     ['invalid signature', 'bad-signature', 'nonce-1'],
+    ['wrong issuer', 'wrong-issuer', 'nonce-1'],
+    ['wrong audience', 'wrong-audience', 'nonce-1'],
   ])('rejects %s provider proofs', async (_label, proof, nonce) => {
     const { service } = createHarness();
     await expect(service.exchange({ provider: 'google', proof, nonce })).rejects.toBeInstanceOf(
@@ -127,6 +146,14 @@ describe('MTS-034 server provider-token exchange', () => {
     ).rejects.toMatchObject({ code: 'invalid_provider_proof' });
   });
 
+  it('consumes a provider nonce exactly once so a verified proof cannot be replayed', async () => {
+    const { service } = createHarness();
+    await service.exchange({ provider: 'google', proof: 'proof-a', nonce: 'nonce-1' });
+    await expect(
+      service.exchange({ provider: 'google', proof: 'proof-a', nonce: 'nonce-1' }),
+    ).rejects.toMatchObject({ code: 'invalid_provider_proof' });
+  });
+
   it('stores only hashed refresh tokens and rotates them on refresh', async () => {
     const { service, sessions } = createHarness();
     const exchanged = await service.exchange({ provider: 'apple', proof: 'proof-a', nonce: 'nonce-1' });
@@ -138,6 +165,20 @@ describe('MTS-034 server provider-token exchange', () => {
     const rotated = await service.refresh(exchanged.refreshToken);
     expect(rotated.refreshToken).not.toBe(exchanged.refreshToken);
     expect(session.refreshTokenHash).toBe(hash(rotated.refreshToken));
+  });
+
+  it('atomically rejects concurrent reuse of the same refresh token and revokes the family', async () => {
+    const { service, sessions } = createHarness();
+    const exchanged = await service.exchange({ provider: 'google', proof: 'proof-a', nonce: 'nonce-1' });
+
+    const outcomes = await Promise.allSettled([
+      service.refresh(exchanged.refreshToken),
+      service.refresh(exchanged.refreshToken),
+    ]);
+
+    expect(outcomes.filter((outcome) => outcome.status === 'fulfilled')).toHaveLength(1);
+    expect(outcomes.filter((outcome) => outcome.status === 'rejected')).toHaveLength(1);
+    expect([...sessions.values()].every((session) => session.revokedAt instanceof Date)).toBe(true);
   });
 
   it('revokes the whole session family when an already-rotated refresh token is reused', async () => {
