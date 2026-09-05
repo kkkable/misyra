@@ -76,14 +76,10 @@ describe('MTS-038 onboarding choice UI', () => {
       );
     });
 
-    act(() =>
-      renderer.root.findByProps({ testID: 'onboarding-calendar-google' }).props.onPress(),
-    );
+    act(() => renderer.root.findByProps({ testID: 'onboarding-calendar-google' }).props.onPress());
     expect(onCalendarChoice).toHaveBeenCalledWith('google');
 
-    act(() =>
-      renderer.root.findByProps({ testID: 'onboarding-calendar-skip' }).props.onPress(),
-    );
+    act(() => renderer.root.findByProps({ testID: 'onboarding-calendar-skip' }).props.onPress());
     expect(onCalendarChoice).toHaveBeenCalledWith(null);
   });
 

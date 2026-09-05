@@ -9,11 +9,7 @@ import {
   themeColors,
   type ColorScheme,
 } from '../design-system/index.js';
-import type {
-  CalendarProvider,
-  NotificationChoice,
-  OnboardingState,
-} from './onboarding-flow.js';
+import type { CalendarProvider, NotificationChoice, OnboardingState } from './onboarding-flow.js';
 
 export type OnboardingMessages = {
   readonly notificationsTitle: string;

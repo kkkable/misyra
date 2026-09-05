@@ -16,9 +16,8 @@ import type { OnboardingMessages } from './onboarding-screen.js';
 const ONBOARDING_STATE_KEY = 'misyra.onboarding.v1';
 
 let notificationPermissionRequest: (() => Promise<PermissionResult>) | null = null;
-let calendarPermissionRequest:
-  | ((provider: CalendarProvider) => Promise<PermissionResult>)
-  | null = null;
+let calendarPermissionRequest: ((provider: CalendarProvider) => Promise<PermissionResult>) | null =
+  null;
 
 export function configureOnboardingPermissionGateway(gateway: OnboardingPermissionGateway) {
   notificationPermissionRequest = () => gateway.requestNotifications();
