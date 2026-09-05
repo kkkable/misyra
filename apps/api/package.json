@@ -7,7 +7,7 @@
     "build": "tsc --project ./tsconfig.json --noEmit",
     "format": "prettier --check . --config ../../packages/config/prettier.config.mjs",
     "lint": "eslint . --config ../../packages/config/eslint.config.mjs",
-    "start": "tsx src/index.ts",
+    "start": "tsx --env-file-if-exists=../../.env src/index.ts",
     "typecheck": "tsc --project ./tsconfig.json --noEmit",
     "test": "vitest run --config ../../packages/config/vitest.config.mjs --passWithNoTests"
   },
