@@ -49,6 +49,7 @@ export type RotateSessionResult =
 
 export type AuthStore = {
   findOrCreateAccount(provider: AuthProvider, subject: string): Promise<AuthAccount>;
+  consumeProviderNonce(provider: AuthProvider, subject: string, nonce: string): Promise<boolean>;
   createSession(input: CreateSessionInput): Promise<void>;
   rotateSession(input: RotateSessionInput): Promise<RotateSessionResult>;
 };
@@ -165,6 +166,10 @@ export function createAuthService(options: AuthServiceOptions) {
         options.expectedAudience[input.provider],
         defaultProofMaxAgeSeconds,
       );
+
+      if (!(await options.store.consumeProviderNonce(input.provider, proof.subject, proof.nonce))) {
+        throw new AuthSecurityError('invalid_provider_proof');
+      }
 
       // Email is intentionally ignored. Provider + subject is the immutable account key.
       const account = await options.store.findOrCreateAccount(input.provider, proof.subject);
