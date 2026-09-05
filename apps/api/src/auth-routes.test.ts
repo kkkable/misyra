@@ -6,7 +6,7 @@ import { createApiServer } from './index.js';
 
 const tokens = {
   accountId: '123e4567-e89b-42d3-a456-426614174000',
-  accessToken: 'access-token',
+  accessToken: 'fixture-access-value',
   accessTokenExpiresAt: '2026-09-05T03:20:00.000Z',
   refreshToken: 'refresh-token',
   refreshTokenExpiresAt: '2026-10-05T03:05:00.000Z',
