@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { createDeviceSettingsRoutes } from './device-settings-routes.js';
-import { createDeviceSettingsService, type DeviceRegistrationStore } from './device-settings.js';
+import {
+  createDeviceSettingsService,
+  type DeviceRegistrationStore,
+} from './device-settings.js';
 import { createApiServer } from './index.js';
 
 const accountId = '123e4567-e89b-42d3-a456-426614174000';
@@ -9,9 +12,20 @@ const deviceId = '223e4567-e89b-42d3-a456-426614174000';
 
 function fixture() {
   const registerDevice = vi.fn(() => Promise.resolve(deviceId));
-  const getAccountSettings = vi.fn(() => Promise.resolve({ language: 'en' as const, trustMode: false }));
-  const updateAccountSettings = vi.fn((_accountId: string, settings: { language: 'en' | 'zh-HK'; trustMode: boolean }) => Promise.resolve(settings));
-  const store: DeviceRegistrationStore = { registerDevice, getAccountSettings, updateAccountSettings };
+  const getAccountSettings = vi.fn(() =>
+    Promise.resolve({ language: 'en' as const, trustMode: false }),
+  );
+  const updateAccountSettings = vi.fn(
+    (
+      _accountId: string,
+      settings: { language: 'en' | 'zh-HK'; trustMode: boolean },
+    ) => Promise.resolve(settings),
+  );
+  const store: DeviceRegistrationStore = {
+    registerDevice,
+    getAccountSettings,
+    updateAccountSettings,
+  };
   const service = createDeviceSettingsService(store);
   return { service, registerDevice, getAccountSettings, updateAccountSettings };
 }
