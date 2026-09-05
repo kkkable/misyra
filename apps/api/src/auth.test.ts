@@ -35,7 +35,7 @@ function createHarness(proofMaxAgeSeconds = 10 * 60) {
       const key = `${provider}:${subject}`;
       let account = accounts.get(key);
       if (!account) {
-        account = { id: `account-${++sequence}`, provider, subject };
+        account = { id: `account-${String(++sequence)}`, provider, subject };
         accounts.set(key, account);
       }
       return Promise.resolve(account);
@@ -110,7 +110,7 @@ function createHarness(proofMaxAgeSeconds = 10 * 60) {
     store,
     verifier,
     now: () => new Date('2026-09-05T03:05:00.000Z'),
-    issueOpaqueRefreshToken: () => tokens.shift() ?? `refresh-${++sequence}`,
+    issueOpaqueRefreshToken: () => tokens.shift() ?? `refresh-${String(++sequence)}`,
     issueAccessToken: ({ accountId, sessionId }) => `access:${accountId}:${sessionId}`,
     expectedAudience: {
       apple: 'com.misyra.app',
