@@ -44,7 +44,9 @@ export function SignInScreen({
           colorScheme={colorScheme}
           label={messages.apple}
           loading={busyProvider === 'apple'}
-          onPress={() => onSignIn('apple')}
+          onPress={() => {
+            onSignIn('apple');
+          }}
           testID="auth-sign-in-apple"
         />
         <SecondaryButton
@@ -52,7 +54,9 @@ export function SignInScreen({
           colorScheme={colorScheme}
           label={messages.google}
           loading={busyProvider === 'google'}
-          onPress={() => onSignIn('google')}
+          onPress={() => {
+            onSignIn('google');
+          }}
           testID="auth-sign-in-google"
         />
         {errorMessage ? (
