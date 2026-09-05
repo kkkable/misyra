@@ -1,0 +1,28 @@
+name: MTS-034 format preview
+
+on:
+  push:
+    branches:
+      - verify/mts-034-format-preview-20260905
+
+permissions:
+  contents: read
+
+jobs:
+  preview:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.5
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec prettier --write apps/api/src/auth.ts apps/api/src/auth.test.ts --config packages/config/prettier.config.mjs
+      - name: Show exact formatting diff
+        run: git diff -- apps/api/src/auth.ts apps/api/src/auth.test.ts
