@@ -24,7 +24,7 @@ describe('shared v1 authentication contracts', () => {
     expect(
       authTokenPairSchema.safeParse({
         accountId: '123e4567-e89b-42d3-a456-426614174000',
-        accessToken: 'access',
+        accessToken: 'fixture-access-value',
         accessTokenExpiresAt: '2026-09-05T08:45:00.000Z',
         refreshToken: 'refresh',
         refreshTokenExpiresAt: '2026-10-05T08:30:00.000Z',
