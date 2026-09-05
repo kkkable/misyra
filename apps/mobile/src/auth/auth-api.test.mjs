@@ -29,7 +29,11 @@ describe('MTS-035/036 auth client', () => {
   });
 
   it('posts refresh credentials and accepts only a strict rotated session payload', async () => {
-    const rotated = { ...session, accessToken: 'fresh-access', refreshToken: 'fresh-refresh' };
+    const rotated = {
+      ...session,
+      accessToken: 'fixture-fresh-access',
+      refreshToken: 'fresh-refresh',
+    };
     const fetcher = vi.fn(async () => ({
       ok: true,
       json: async () => ({ ok: true, payload: rotated }),
