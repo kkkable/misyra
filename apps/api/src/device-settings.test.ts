@@ -29,7 +29,10 @@ function createStore(): DeviceRegistrationStore & {
       return Promise.resolve(settings);
     },
     updateAccountSettings(_accountId: string, nextSettings: TestSettingsUpdate) {
-      settings = { ...settings, ...nextSettings };
+      settings = {
+        language: nextSettings.language ?? settings.language,
+        trustMode: nextSettings.trustMode ?? settings.trustMode,
+      };
       return Promise.resolve(settings);
     },
   };
