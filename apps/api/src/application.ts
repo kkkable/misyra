@@ -25,6 +25,12 @@ type AuthApplicationOptions = {
   auditLog?: ApiAuditLog;
 };
 
+const LOCAL_AUTH_DEFAULTS = {
+  appleAudience: 'fixture-apple-auth-audience',
+  googleAudience: 'fixture-google-auth-audience',
+  accessTokenSecret: 'fixture-local-auth-access-token-secret',
+} as const;
+
 export function createApiApplication(options: AuthApplicationOptions) {
   const authService = createAuthService({
     store: createPostgresAuthStore(options.pool),
@@ -46,6 +52,27 @@ function requiredEnv(env: NodeJS.ProcessEnv, name: string) {
   const value = env[name];
   if (!value) throw new Error(`Missing required environment variable: ${name}`);
   return value;
+}
+
+function localOrRequiredEnv(env: NodeJS.ProcessEnv, name: string, localDefault: string) {
+  const value = env[name];
+  if (value) return value;
+  if (env.NODE_ENV !== 'production') return localDefault;
+  return requiredEnv(env, name);
+}
+
+export function resolveAuthStartupConfiguration(env: NodeJS.ProcessEnv) {
+  return {
+    expectedAudience: {
+      apple: localOrRequiredEnv(env, 'APPLE_AUTH_AUDIENCE', LOCAL_AUTH_DEFAULTS.appleAudience),
+      google: localOrRequiredEnv(env, 'GOOGLE_AUTH_AUDIENCE', LOCAL_AUTH_DEFAULTS.googleAudience),
+    },
+    accessTokenSecret: localOrRequiredEnv(
+      env,
+      'AUTH_ACCESS_TOKEN_SECRET',
+      LOCAL_AUTH_DEFAULTS.accessTokenSecret,
+    ),
+  };
 }
 
 function databaseUrl(env: NodeJS.ProcessEnv) {
@@ -78,13 +105,11 @@ export function createHmacAccessTokenIssuer(secret: string) {
 
 export async function startApiApplication(env: NodeJS.ProcessEnv = process.env) {
   const pool = new Pool({ connectionString: databaseUrl(env) });
+  const authConfiguration = resolveAuthStartupConfiguration(env);
   const server = createApiApplication({
     pool,
-    expectedAudience: {
-      apple: requiredEnv(env, 'APPLE_AUTH_AUDIENCE'),
-      google: requiredEnv(env, 'GOOGLE_AUTH_AUDIENCE'),
-    },
-    issueAccessToken: createHmacAccessTokenIssuer(requiredEnv(env, 'AUTH_ACCESS_TOKEN_SECRET')),
+    expectedAudience: authConfiguration.expectedAudience,
+    issueAccessToken: createHmacAccessTokenIssuer(authConfiguration.accessTokenSecret),
   });
   server.addHook('onClose', async () => {
     await pool.end();
