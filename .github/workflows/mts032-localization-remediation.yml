@@ -1,0 +1,108 @@
+name: Disposable MTS-032 localization remediation
+
+on:
+  push:
+    branches:
+      - automation/mts032-localization-remediation-20260905
+
+permissions:
+  contents: write
+
+jobs:
+  remediate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/audit-corrections-025-034
+          fetch-depth: 0
+          token: ${{ github.token }}
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.5
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Add RED localization contracts
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('apps/mobile/src/sync/conflict-application.test.mjs')
+          s = p.read_text()
+          replacements = {
+            "'This mission was updated on another device.'": "'sync.conflict.missionUpdated'",
+            "'This mission was deleted on another device.'": "'sync.conflict.missionDeleted'",
+            "'This mission was already completed on another device.'": "'sync.conflict.missionCompletedElsewhere'",
+            "'This Story draft was updated on another device.'": "'sync.conflict.storyUpdated'",
+          }
+          for old, new in replacements.items():
+              if old not in s:
+                  raise SystemExit(f'missing expected conflict copy: {old}')
+              s = s.replace(old, new)
+          p.write_text(s)
+
+          Path('packages/localization/src/conflict-messages.test.ts').write_text('''import { readFileSync } from 'node:fs';\n\nimport { describe, expect, it } from 'vitest';\n\nconst requiredConflictKeys = [\n  'sync.conflict.missionUpdated',\n  'sync.conflict.missionDeleted',\n  'sync.conflict.missionCompletedElsewhere',\n  'sync.conflict.storyUpdated',\n] as const;\n\nfunction catalog(name: 'en' | 'zh-HK'): Record<string, unknown> {\n  return JSON.parse(\n    readFileSync(new URL(`./locales/${name}.json`, import.meta.url), 'utf8'),\n  ) as Record<string, unknown>;\n}\n\ndescribe('MTS-032 conflict localization', () => {\n  it('provides non-empty English and zh-HK catalog entries for every conflict message key', () => {\n    const en = catalog('en');\n    const zhHK = catalog('zh-HK');\n\n    expect(Object.keys(en).sort()).toEqual(Object.keys(zhHK).sort());\n    for (const key of requiredConflictKeys) {\n      expect(en[key]).toEqual(expect.any(String));\n      expect(String(en[key]).length).toBeGreaterThan(0);\n      expect(zhHK[key]).toEqual(expect.any(String));\n      expect(String(zhHK[key]).length).toBeGreaterThan(0);\n    }\n  });\n});\n''')
+          PY
+          git config user.name "Misyra Auto Development"
+          git config user.email "actions@users.noreply.github.com"
+          git add apps/mobile/src/sync/conflict-application.test.mjs packages/localization/src/conflict-messages.test.ts
+          git commit -m "test(sync): expose conflict localization gap"
+          git push origin HEAD:fix/audit-corrections-025-034
+
+      - name: Prove RED
+        shell: bash
+        run: |
+          set +e
+          pnpm --filter @misyra/mobile test -- conflict-application.test.mjs
+          mobile_status=$?
+          pnpm --filter @misyra/localization test -- conflict-messages.test.ts
+          localization_status=$?
+          set -e
+          if [ "$mobile_status" -eq 0 ] || [ "$localization_status" -eq 0 ]; then
+            echo "Expected both localization contracts to fail before GREEN."
+            exit 1
+          fi
+          echo "Observed intended RED statuses: mobile=$mobile_status localization=$localization_status"
+
+      - name: Apply GREEN localization correction
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('apps/mobile/src/sync/conflict-application.ts')
+          s = p.read_text()
+          if 'showMessage(message: string): void;' not in s:
+              raise SystemExit('expected showMessage string boundary not found')
+          s = s.replace('showMessage(message: string): void;', 'showMessage(messageKey: ConflictMessageKey): void;')
+          old = '''export const conflictMessages = {\n  missionUpdated: 'This mission was updated on another device.',\n  missionDeleted: 'This mission was deleted on another device.',\n  missionCompletedElsewhere: 'This mission was already completed on another device.',\n  storyUpdated: 'This Story draft was updated on another device.',\n} as const;'''
+          new = '''export const conflictMessageKeys = {\n  missionUpdated: 'sync.conflict.missionUpdated',\n  missionDeleted: 'sync.conflict.missionDeleted',\n  missionCompletedElsewhere: 'sync.conflict.missionCompletedElsewhere',\n  storyUpdated: 'sync.conflict.storyUpdated',\n} as const;\n\nexport type ConflictMessageKey = (typeof conflictMessageKeys)[keyof typeof conflictMessageKeys];'''
+          if old not in s:
+              raise SystemExit('expected hard-coded conflict message block not found')
+          s = s.replace(old, new)
+          s = s.replace('conflictMessages.', 'conflictMessageKeys.')
+          p.write_text(s)
+
+          Path('packages/localization/src/locales/en.json').write_text('''{\n  "sync.conflict.missionUpdated": "This mission was updated on another device.",\n  "sync.conflict.missionDeleted": "This mission was deleted on another device.",\n  "sync.conflict.missionCompletedElsewhere": "This mission was already completed on another device.",\n  "sync.conflict.storyUpdated": "This Story draft was updated on another device."\n}\n''')
+          Path('packages/localization/src/locales/zh-HK.json').write_text('''{\n  "sync.conflict.missionUpdated": "此任務已在另一部裝置上更新。",\n  "sync.conflict.missionDeleted": "此任務已在另一部裝置上刪除。",\n  "sync.conflict.missionCompletedElsewhere": "此任務已在另一部裝置上完成。",\n  "sync.conflict.storyUpdated": "此 Story 草稿已在另一部裝置上更新。"\n}\n''')
+          PY
+          git add apps/mobile/src/sync/conflict-application.ts packages/localization/src/locales/en.json packages/localization/src/locales/zh-HK.json
+          git commit -m "fix(sync): route conflict copy through localization keys"
+          git push origin HEAD:fix/audit-corrections-025-034
+
+      - name: Verify GREEN
+        run: |
+          pnpm exec prettier --check apps/mobile/src/sync/conflict-application.ts apps/mobile/src/sync/conflict-application.test.mjs packages/localization/src/conflict-messages.test.ts packages/localization/src/locales/en.json packages/localization/src/locales/zh-HK.json --config packages/config/prettier.config.mjs
+          pnpm --filter @misyra/mobile typecheck
+          pnpm --filter @misyra/mobile lint
+          pnpm --filter @misyra/mobile test -- conflict-application.test.mjs
+          pnpm --filter @misyra/localization typecheck
+          pnpm --filter @misyra/localization lint
+          pnpm --filter @misyra/localization test -- conflict-messages.test.ts
