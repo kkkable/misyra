@@ -1,0 +1,38 @@
+name: MTS-035 lockfile helper
+
+on:
+  push:
+    branches:
+      - verify/mts-035-lockfile-20260905
+
+permissions:
+  contents: read
+
+jobs:
+  generate:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout active ticket branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/mts-035-mobile-provider-signin
+          persist-credentials: false
+      - name: Install pinned pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.5
+          run_install: false
+      - name: Set up pinned Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - name: Generate exact SecureStore lockfile
+        run: pnpm --filter @misyra/mobile add expo-secure-store@~57.0.1 --lockfile-only
+      - name: Upload generated lockfile
+        uses: actions/upload-artifact@v4
+        with:
+          name: mts-035-pnpm-lock
+          path: pnpm-lock.yaml
+          if-no-files-found: error
