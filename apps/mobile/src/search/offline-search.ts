@@ -26,7 +26,12 @@ interface SearchRow {
 }
 
 function searchTokens(query: string): string[] {
-  return query.normalize('NFKC').toLocaleLowerCase().match(/[\p{L}\p{N}_]+/gu) ?? [];
+  return (
+    query
+      .normalize('NFKC')
+      .toLocaleLowerCase()
+      .match(/[\p{L}\p{N}_]+/gu) ?? []
+  );
 }
 
 function toFtsQuery(tokens: readonly string[]): string {
