@@ -69,7 +69,7 @@ describe('MTS-039 device and account-settings routes', () => {
     });
 
     const update = await server.inject({
-      method: 'PUT',
+      method: 'PATCH',
       url: '/v1/account/settings',
       payload: { language: 'zh-HK', trustMode: true },
     });
@@ -104,7 +104,7 @@ describe('MTS-039 device and account-settings routes', () => {
       },
     });
     const settings = await authenticated.inject({
-      method: 'PUT',
+      method: 'PATCH',
       url: '/v1/account/settings',
       payload: { language: 'en', trustMode: false, cameraPermission: 'authorized' },
     });
