@@ -75,6 +75,7 @@ describe('MTS-034 executable API composition', () => {
   });
 
   it('provides safe fresh-checkout auth defaults locally but requires explicit production values', () => {
+    // Local fallbacks are fixtures only; production must provide every auth value explicitly.
     expect(resolveAuthStartupConfiguration({})).toEqual({
       expectedAudience: {
         apple: 'fixture-apple-auth-audience',
