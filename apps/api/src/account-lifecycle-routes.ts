@@ -14,7 +14,8 @@ export type AccountLifecycleRouteService = {
 };
 
 export function createAccountLifecycleRoutes(
-  _service: AccountLifecycleRouteService,
+  service: AccountLifecycleRouteService,
 ): ApiRouteDefinition[] {
+  void service;
   return [];
 }
