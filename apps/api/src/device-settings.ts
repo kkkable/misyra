@@ -26,10 +26,7 @@ export function createDeviceSettingsService(store: DeviceRegistrationStore) {
       return accountSettingsUpdateSchema.parse(input);
     },
 
-    async registerDevice(
-      accountId: string,
-      input: unknown,
-    ): Promise<DeviceRegistrationResponse> {
+    async registerDevice(accountId: string, input: unknown): Promise<DeviceRegistrationResponse> {
       const registration = deviceRegistrationRequestSchema.parse(input);
       const deviceId = await store.registerDevice({ accountId, ...registration });
       return deviceRegistrationResponseSchema.parse({ deviceId });
@@ -39,10 +36,7 @@ export function createDeviceSettingsService(store: DeviceRegistrationStore) {
       return accountSettingsSchema.parse(await store.getAccountSettings(accountId));
     },
 
-    async updateAccountSettings(
-      accountId: string,
-      input: unknown,
-    ): Promise<AccountSettings> {
+    async updateAccountSettings(accountId: string, input: unknown): Promise<AccountSettings> {
       const settings = accountSettingsUpdateSchema.parse(input);
       return accountSettingsSchema.parse(await store.updateAccountSettings(accountId, settings));
     },
