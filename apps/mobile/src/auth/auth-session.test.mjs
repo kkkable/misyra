@@ -78,6 +78,15 @@ describe('MTS-035 mobile provider sign-in', () => {
     },
   );
 
+  it('returns to signed-out state without an error when the provider flow is cancelled', async () => {
+    const { controller, storage, provider, api } = harness();
+    provider.signIn.mockResolvedValue(null);
+
+    await expect(controller.signIn('apple')).resolves.toEqual({ status: 'signed_out' });
+    expect(api.exchange).not.toHaveBeenCalled();
+    expect(storage.write).not.toHaveBeenCalled();
+  });
+
   it('does not replace a different active account on the same device', async () => {
     const { controller, storage, api } = harness({ stored: validSession });
     api.exchange.mockResolvedValue({
