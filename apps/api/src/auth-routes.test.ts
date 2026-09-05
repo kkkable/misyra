@@ -19,30 +19,33 @@ function service(): AuthRouteService {
 }
 
 describe('MTS-034 auth routes', () => {
-  it.each(['apple', 'google'] as const)('exposes public %s provider exchange below /v1', async (provider) => {
-    const authService = service();
-    const authenticate = vi.fn(() => null);
-    const server = createApiServer({
-      routes: createAuthRoutes(authService),
-      authenticate,
-    });
+  it.each(['apple', 'google'] as const)(
+    'exposes public %s provider exchange below /v1',
+    async (provider) => {
+      const authService = service();
+      const authenticate = vi.fn(() => null);
+      const server = createApiServer({
+        routes: createAuthRoutes(authService),
+        authenticate,
+      });
 
-    const response = await server.inject({
-      method: 'POST',
-      url: `/v1/auth/${provider}/exchange`,
-      payload: { proof: 'provider-proof', nonce: 'nonce-1' },
-    });
+      const response = await server.inject({
+        method: 'POST',
+        url: `/v1/auth/${provider}/exchange`,
+        payload: { proof: 'provider-proof', nonce: 'nonce-1' },
+      });
 
-    expect(response.statusCode).toBe(200);
-    expect(response.json()).toMatchObject({ ok: true, payload: tokens });
-    expect(authService.exchange).toHaveBeenCalledWith({
-      provider,
-      proof: 'provider-proof',
-      nonce: 'nonce-1',
-    });
-    expect(authenticate).not.toHaveBeenCalled();
-    await server.close();
-  });
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toMatchObject({ ok: true, payload: tokens });
+      expect(authService.exchange).toHaveBeenCalledWith({
+        provider,
+        proof: 'provider-proof',
+        nonce: 'nonce-1',
+      });
+      expect(authenticate).not.toHaveBeenCalled();
+      await server.close();
+    },
+  );
 
   it('exposes refresh without requiring a still-valid access token', async () => {
     const authService = service();
