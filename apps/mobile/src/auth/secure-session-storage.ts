@@ -1,5 +1,3 @@
-import * as ExpoSecureStore from 'expo-secure-store';
-
 import { isAuthSession, type AuthSessionStorage } from './auth-session.js';
 
 export type SecureStoreDriver = {
@@ -10,9 +8,7 @@ export type SecureStoreDriver = {
 
 const SESSION_KEY = 'misyra.auth.session.v1';
 
-export function createSecureSessionStorage(
-  secureStore: SecureStoreDriver = ExpoSecureStore,
-): AuthSessionStorage {
+export function createSecureSessionStorage(secureStore: SecureStoreDriver): AuthSessionStorage {
   return {
     async read() {
       const encoded = await secureStore.getItemAsync(SESSION_KEY);
