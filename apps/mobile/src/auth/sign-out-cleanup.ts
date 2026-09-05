@@ -1,4 +1,3 @@
-import { openMobileDatabase } from '../storage/database.js';
 import { wipeAccountData, type MigrationDatabase } from '../storage/schema.js';
 
 export type SignOutCleanupHooks = Readonly<{
@@ -10,14 +9,11 @@ export type SignOutCleanupHooks = Readonly<{
 }>;
 
 type SignOutCleanupOptions = Readonly<{
-  openDatabase?: () => Promise<MigrationDatabase>;
+  openDatabase: () => Promise<MigrationDatabase>;
   hooks?: SignOutCleanupHooks;
 }>;
 
-export function createSignOutCleanup({
-  openDatabase = openMobileDatabase,
-  hooks = {},
-}: SignOutCleanupOptions = {}) {
+export function createSignOutCleanup({ openDatabase, hooks = {} }: SignOutCleanupOptions) {
   return async (accountId: string) => {
     await hooks.stopSync?.(accountId);
     await hooks.cancelNotifications?.(accountId);
