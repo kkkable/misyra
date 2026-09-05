@@ -2,6 +2,11 @@ import { Stack } from 'expo-router';
 
 import { AuthGate } from '../src/auth/auth-gate.js';
 import { rootAuthController, rootAuthMessages } from '../src/auth/auth-runtime.js';
+import { OnboardingGate } from '../src/onboarding/onboarding-gate.js';
+import {
+  rootOnboardingController,
+  rootOnboardingMessages,
+} from '../src/onboarding/onboarding-runtime.js';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -10,17 +15,19 @@ export const unstable_settings = {
 export default function RootLayout() {
   return (
     <AuthGate controller={rootAuthController} messages={rootAuthMessages}>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen
-          name="evidence"
-          options={{ gestureEnabled: true, headerShown: false, presentation: 'fullScreenModal' }}
-        />
-        <Stack.Screen
-          name="story"
-          options={{ gestureEnabled: true, headerShown: false, presentation: 'fullScreenModal' }}
-        />
-      </Stack>
+      <OnboardingGate controller={rootOnboardingController} messages={rootOnboardingMessages}>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen
+            name="evidence"
+            options={{ gestureEnabled: true, headerShown: false, presentation: 'fullScreenModal' }}
+          />
+          <Stack.Screen
+            name="story"
+            options={{ gestureEnabled: true, headerShown: false, presentation: 'fullScreenModal' }}
+          />
+        </Stack>
+      </OnboardingGate>
     </AuthGate>
   );
 }
