@@ -583,7 +583,7 @@ export const outboxEvents = pgTable(
   'outbox_events',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    accountId: uuid('account_id').references(() => accounts.id, { onDelete: 'cascade' }),
+    accountId: uuid('account_id'),
     eventType: text('event_type').notNull(),
     aggregateType: text('aggregate_type').notNull(),
     aggregateId: uuid('aggregate_id').notNull(),
@@ -613,9 +613,7 @@ export const idempotencyKeys = pgTable(
   'idempotency_keys',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    accountId: uuid('account_id')
-      .notNull()
-      .references(() => accounts.id, { onDelete: 'cascade' }),
+    accountId: uuid('account_id').notNull(),
     key: text('key').notNull(),
     requestHash: text('request_hash').notNull(),
     response: jsonb('response'),
