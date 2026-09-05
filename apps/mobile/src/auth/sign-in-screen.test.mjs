@@ -29,7 +29,9 @@ describe('MTS-035 sign-in screen', () => {
       renderer.root.findAll((node) => node.props?.testID === 'auth-sign-in-guest'),
     ).toHaveLength(0);
 
-    act(() => renderer.root.findByProps({ testID: 'auth-sign-in-apple' }).props.onPress());
+    act(() =>
+      renderer.root.findByProps({ testID: 'auth-sign-in-apple' }).props.onPress(),
+    );
     expect(onSignIn).toHaveBeenCalledWith('apple');
   });
 
