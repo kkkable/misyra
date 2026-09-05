@@ -83,7 +83,7 @@ export function createPostgresDeviceSettingsStore(pool: Pool) {
          VALUES ($1, COALESCE($2::text, 'en'), COALESCE($3::boolean, false))
          ON CONFLICT (account_id)
          DO UPDATE SET
-           language = COALESCE(EXCLUDED.language, user_settings.language),
+           language = COALESCE($2::text, user_settings.language),
            trust_mode = COALESCE($3::boolean, user_settings.trust_mode),
            updated_at = now()
          RETURNING language, trust_mode AS "trustMode"`,
