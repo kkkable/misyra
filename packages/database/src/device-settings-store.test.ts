@@ -88,9 +88,10 @@ describe('MTS-039 PostgreSQL device registration and account settings', () => {
       await expect(
         store.updateAccountSettings(account.id, { language: 'zh-HK' }),
       ).resolves.toEqual({ language: 'zh-HK', trustMode: false });
-      await expect(
-        store.updateAccountSettings(account.id, { trustMode: true }),
-      ).resolves.toEqual({ language: 'zh-HK', trustMode: true });
+      await expect(store.updateAccountSettings(account.id, { trustMode: true })).resolves.toEqual({
+        language: 'zh-HK',
+        trustMode: true,
+      });
       await expect(store.getAccountSettings(account.id)).resolves.toEqual({
         language: 'zh-HK',
         trustMode: true,
