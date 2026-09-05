@@ -17,9 +17,7 @@ describe('MTS-035 sign-in screen', () => {
     const onSignIn = vi.fn();
     let renderer;
     act(() => {
-      renderer = create(
-        createElement(SignInScreen, { colorScheme: 'light', messages, onSignIn }),
-      );
+      renderer = create(createElement(SignInScreen, { colorScheme: 'light', messages, onSignIn }));
     });
 
     expect(renderer.root.findByProps({ testID: 'auth-sign-in-screen' })).toBeTruthy();
@@ -29,9 +27,7 @@ describe('MTS-035 sign-in screen', () => {
       renderer.root.findAll((node) => node.props?.testID === 'auth-sign-in-guest'),
     ).toHaveLength(0);
 
-    act(() =>
-      renderer.root.findByProps({ testID: 'auth-sign-in-apple' }).props.onPress(),
-    );
+    act(() => renderer.root.findByProps({ testID: 'auth-sign-in-apple' }).props.onPress());
     expect(onSignIn).toHaveBeenCalledWith('apple');
   });
 
