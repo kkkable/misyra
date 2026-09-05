@@ -77,7 +77,7 @@ type AuthServiceOptions = {
   store: AuthStore;
   verifier: ProviderProofVerifier;
   expectedAudience: Record<AuthProvider, string>;
-  expectedIssuer?: Record<AuthProvider, string>;
+  expectedIssuer?: Record<AuthProvider, string | readonly string[]>;
   now?: () => Date;
   issueOpaqueRefreshToken?: () => string;
   issueAccessToken: (input: AccessTokenInput) => string | Promise<string>;
@@ -101,9 +101,9 @@ export type AuthTokenPair = {
   refreshTokenExpiresAt: string;
 };
 
-const DEFAULT_ISSUERS: Record<AuthProvider, string> = {
-  apple: 'https://appleid.apple.com',
-  google: 'https://accounts.google.com',
+const DEFAULT_ISSUERS: Record<AuthProvider, readonly string[]> = {
+  apple: ['https://appleid.apple.com'],
+  google: ['https://accounts.google.com', 'accounts.google.com'],
 };
 
 const sha256 = (value: string) => createHash('sha256').update(value).digest('hex');
@@ -112,11 +112,17 @@ function plusSeconds(date: Date, seconds: number) {
   return new Date(date.getTime() + seconds * 1_000);
 }
 
+function issuerMatches(expectedIssuer: string | readonly string[], actualIssuer: string) {
+  return typeof expectedIssuer === 'string'
+    ? actualIssuer === expectedIssuer
+    : expectedIssuer.includes(actualIssuer);
+}
+
 function assertProviderProof(
   proof: VerifiedProviderProof,
   input: ExchangeInput,
   now: Date,
-  expectedIssuer: string,
+  expectedIssuer: string | readonly string[],
   expectedAudience: string,
   defaultMaxAgeSeconds: number,
 ) {
@@ -125,7 +131,7 @@ function assertProviderProof(
 
   if (
     proof.provider !== input.provider ||
-    proof.issuer !== expectedIssuer ||
+    !issuerMatches(expectedIssuer, proof.issuer) ||
     proof.audience !== expectedAudience ||
     proof.nonce !== input.nonce ||
     proof.subject.length === 0 ||
