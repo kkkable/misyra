@@ -113,32 +113,33 @@ describe('MTS-034 PostgreSQL auth store', () => {
     const account = await store.findOrCreateAccount('google', `subject-${randomUUID()}`);
     const sessionId = randomUUID();
     const familyId = randomUUID();
-    const hashes = ['old-1', 'old-2', 'current'].map(hash);
+    const [oldestHash, newerHash, currentHash] = ['old-1', 'old-2', 'current'].map(hash);
+    if (!oldestHash || !newerHash || !currentHash) throw new Error('expected three token hashes');
     const now = new Date('2026-09-05T03:05:00.000Z');
 
     await store.createSession({
       id: sessionId,
       accountId: account.id,
       familyId,
-      refreshTokenHash: hashes[0]!,
+      refreshTokenHash: oldestHash,
       expiresAt: new Date('2026-10-05T03:05:00.000Z'),
     });
     await store.rotateSession({
-      presentedHash: hashes[0]!,
-      nextHash: hashes[1]!,
+      presentedHash: oldestHash,
+      nextHash: newerHash,
       nextExpiresAt: new Date('2026-10-05T03:06:00.000Z'),
       now,
     });
     await store.rotateSession({
-      presentedHash: hashes[1]!,
-      nextHash: hashes[2]!,
+      presentedHash: newerHash,
+      nextHash: currentHash,
       nextExpiresAt: new Date('2026-10-05T03:07:00.000Z'),
       now,
     });
 
     await expect(
       store.rotateSession({
-        presentedHash: hashes[0]!,
+        presentedHash: oldestHash,
         nextHash: hash('unused'),
         nextExpiresAt: new Date('2026-10-05T03:08:00.000Z'),
         now,
