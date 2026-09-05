@@ -1,0 +1,55 @@
+name: Disposable MTS-034 cleanup and verification
+
+on:
+  push:
+    branches:
+      - automation/mts034-clean-verify-20260905
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/audit-corrections-025-034
+          fetch-depth: 0
+          token: ${{ github.token }}
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.5
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+          cache: pnpm
+
+      - name: Normalize lockfile to minimal dependency update
+        shell: bash
+        run: |
+          git checkout origin/main -- pnpm-lock.yaml
+          pnpm install --lockfile-only
+          if ! git diff --quiet -- pnpm-lock.yaml; then
+            git config user.name "Misyra Auto Development"
+            git config user.email "actions@users.noreply.github.com"
+            git add pnpm-lock.yaml
+            git commit -m "chore(api): minimize auth dependency lockfile update"
+            git push origin HEAD:fix/audit-corrections-025-034
+          fi
+
+      - name: Install exact lockfile
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify affected packages
+        run: |
+          pnpm exec prettier --check packages/contracts/src/v1/auth.ts packages/contracts/src/v1/auth.test.ts packages/contracts/src/v1/index.ts packages/contracts/package.json apps/api/src/auth.ts apps/api/src/auth-routes.ts apps/api/src/auth-routes.test.ts apps/api/src/application.ts apps/api/src/application.test.ts apps/api/src/index.ts apps/api/package.json --config packages/config/prettier.config.mjs
+          pnpm --filter @misyra/contracts typecheck
+          pnpm --filter @misyra/contracts lint
+          pnpm --filter @misyra/contracts test
+          pnpm --filter @misyra/api typecheck
+          pnpm --filter @misyra/api lint
+          pnpm --filter @misyra/api test
+          pnpm --filter @misyra/api build
