@@ -39,7 +39,10 @@ export function createDeviceSettingsService(store: DeviceRegistrationStore) {
       return accountSettingsSchema.parse(await store.getAccountSettings(accountId));
     },
 
-    async updateAccountSettings(accountId: string, input: unknown): Promise<AccountSettings> {
+    async updateAccountSettings(
+      accountId: string,
+      input: unknown,
+    ): Promise<AccountSettings> {
       const settings = accountSettingsUpdateSchema.parse(input);
       return accountSettingsSchema.parse(await store.updateAccountSettings(accountId, settings));
     },
