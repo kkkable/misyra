@@ -27,7 +27,8 @@ describe('MTS-034 provider proof verifier', () => {
       const publicJwk = publicKey.export({ format: 'jwk' });
       const verifier = createProviderProofVerifier({
         jwksUrl: { apple: 'https://keys.test/apple', google: 'https://keys.test/google' },
-        fetchJson: async () => ({ keys: [{ ...publicJwk, kid: 'test-key', alg: 'RS256' }] }),
+        fetchJson: () =>
+          Promise.resolve({ keys: [{ ...publicJwk, kid: 'test-key', alg: 'RS256' }] }),
       });
       const token = createSignedProof(privateKey, {
         iss: provider === 'apple' ? 'https://appleid.apple.com' : 'https://accounts.google.com',
@@ -53,7 +54,7 @@ describe('MTS-034 provider proof verifier', () => {
     const publicJwk = trusted.publicKey.export({ format: 'jwk' });
     const verifier = createProviderProofVerifier({
       jwksUrl: { apple: 'https://keys.test/apple', google: 'https://keys.test/google' },
-      fetchJson: async () => ({ keys: [{ ...publicJwk, kid: 'test-key', alg: 'RS256' }] }),
+      fetchJson: () => Promise.resolve({ keys: [{ ...publicJwk, kid: 'test-key', alg: 'RS256' }] }),
     });
     const token = createSignedProof(attacker.privateKey, {
       iss: 'https://accounts.google.com',
@@ -72,7 +73,8 @@ describe('MTS-034 provider proof verifier', () => {
     const publicJwk = publicKey.export({ format: 'jwk' });
     const verifier = createProviderProofVerifier({
       jwksUrl: { apple: 'https://keys.test/apple', google: 'https://keys.test/google' },
-      fetchJson: async () => ({ keys: [{ ...publicJwk, kid: 'trusted-key', alg: 'RS256' }] }),
+      fetchJson: () =>
+        Promise.resolve({ keys: [{ ...publicJwk, kid: 'trusted-key', alg: 'RS256' }] }),
     });
     const wrongAlgorithm = createSignedProof(
       privateKey,
