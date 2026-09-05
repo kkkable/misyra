@@ -41,39 +41,50 @@ class NodeSqliteAdapter {
 
 const databases = [];
 
+function createDatabase() {
+  const database = new NodeSqliteAdapter();
+  databases.push(database);
+  return database;
+}
+
+async function seedAccount(database, accountId) {
+  await applyMobileMigrations(database);
+  await database.runAsync(
+    'INSERT INTO local_accounts (account_id, created_at) VALUES (?, ?)',
+    accountId,
+    '2026-09-05T00:00:00.000Z',
+  );
+  await database.runAsync(
+    `INSERT INTO notification_registry
+      (account_id, notification_id, scheduled_at, updated_at)
+     VALUES (?, ?, ?, ?)`,
+    accountId,
+    'notification-a',
+    '2026-09-06T01:00:00.000Z',
+    '2026-09-05T00:00:00.000Z',
+  );
+}
+
+function cleanupHooks() {
+  return {
+    stopSync: vi.fn(async () => undefined),
+    cancelNotifications: vi.fn(async () => undefined),
+    clearWorkingMedia: vi.fn(async () => undefined),
+    clearFeedbackDraft: vi.fn(async () => undefined),
+    clearAppKeys: vi.fn(async () => undefined),
+  };
+}
+
 afterEach(() => {
   while (databases.length > 0) databases.pop()?.close();
 });
 
 describe('MTS-036 sign-out cleanup', () => {
   it('wipes account-scoped SQLite state and invokes private-resource cleanup hooks', async () => {
-    const database = new NodeSqliteAdapter();
-    databases.push(database);
-    await applyMobileMigrations(database);
-
+    const database = createDatabase();
     const accountId = '123e4567-e89b-42d3-a456-426614174000';
-    await database.runAsync(
-      'INSERT INTO local_accounts (account_id, created_at) VALUES (?, ?)',
-      accountId,
-      '2026-09-05T00:00:00.000Z',
-    );
-    await database.runAsync(
-      `INSERT INTO notification_registry
-        (account_id, notification_id, scheduled_at, updated_at)
-       VALUES (?, ?, ?, ?)`,
-      accountId,
-      'notification-a',
-      '2026-09-06T01:00:00.000Z',
-      '2026-09-05T00:00:00.000Z',
-    );
-
-    const hooks = {
-      stopSync: vi.fn(async () => undefined),
-      cancelNotifications: vi.fn(async () => undefined),
-      clearWorkingMedia: vi.fn(async () => undefined),
-      clearFeedbackDraft: vi.fn(async () => undefined),
-      clearAppKeys: vi.fn(async () => undefined),
-    };
+    await seedAccount(database, accountId);
+    const hooks = cleanupHooks();
     const cleanup = createSignOutCleanup({ openDatabase: async () => database, hooks });
 
     await cleanup(accountId);
@@ -95,5 +106,25 @@ describe('MTS-036 sign-out cleanup', () => {
     expect(hooks.clearWorkingMedia).toHaveBeenCalledWith(accountId);
     expect(hooks.clearFeedbackDraft).toHaveBeenCalledWith(accountId);
     expect(hooks.clearAppKeys).toHaveBeenCalledWith(accountId);
+  });
+
+  it('attempts every private-state cleanup step even when an earlier hook fails', async () => {
+    const database = createDatabase();
+    const accountId = '123e4567-e89b-42d3-a456-426614174000';
+    await seedAccount(database, accountId);
+    const hooks = cleanupHooks();
+    hooks.cancelNotifications.mockRejectedValueOnce(new Error('notification cleanup failed'));
+    const cleanup = createSignOutCleanup({ openDatabase: async () => database, hooks });
+
+    await expect(cleanup(accountId)).rejects.toThrow('notification cleanup failed');
+
+    expect(hooks.stopSync).toHaveBeenCalledWith(accountId);
+    expect(hooks.cancelNotifications).toHaveBeenCalledWith(accountId);
+    expect(hooks.clearWorkingMedia).toHaveBeenCalledWith(accountId);
+    expect(hooks.clearFeedbackDraft).toHaveBeenCalledWith(accountId);
+    expect(hooks.clearAppKeys).toHaveBeenCalledWith(accountId);
+    expect(
+      await database.getFirstAsync('SELECT account_id FROM local_accounts WHERE account_id = ?', accountId),
+    ).toBeNull();
   });
 });
