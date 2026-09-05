@@ -138,9 +138,7 @@ export function createHmacReauthenticationProofCodec(secret: string) {
           return null;
         }
         const expiresAt = new Date(parsed.exp);
-        return Number.isNaN(expiresAt.getTime())
-          ? null
-          : { accountId: parsed.sub, expiresAt };
+        return Number.isNaN(expiresAt.getTime()) ? null : { accountId: parsed.sub, expiresAt };
       } catch {
         return null;
       }
