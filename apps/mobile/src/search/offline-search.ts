@@ -26,7 +26,12 @@ interface SearchRow {
 }
 
 function searchTokens(query: string): string[] {
-  return query.normalize('NFKC').toLocaleLowerCase().match(/[\p{L}\p{N}_]+/gu) ?? [];
+  return (
+    query
+      .normalize('NFKC')
+      .toLocaleLowerCase()
+      .match(/[\p{L}\p{N}_]+/gu) ?? []
+  );
 }
 
 function toFtsQuery(tokens: readonly string[]): string {
@@ -110,7 +115,10 @@ async function ensureSearchIndex(database: OfflineSearchDatabase): Promise<void>
   });
 }
 
-export function createOfflineCalendarSearch(database: OfflineSearchDatabase, accountId: string) {
+export function createOfflineCalendarSearch(
+  database: OfflineSearchDatabase,
+  accountId: string,
+) {
   let indexReady: Promise<void> | undefined;
   const ensureIndex = () => {
     indexReady ??= ensureSearchIndex(database);
@@ -120,7 +128,9 @@ export function createOfflineCalendarSearch(database: OfflineSearchDatabase, acc
   return {
     query: async (query: string, limit = 20): Promise<OfflineSearchResult[]> => {
       if (!Number.isSafeInteger(limit) || limit <= 0 || limit > MAX_SEARCH_RESULTS) {
-        throw new RangeError(`Search limit must be an integer from 1 to ${String(MAX_SEARCH_RESULTS)}.`);
+        throw new RangeError(
+          `Search limit must be an integer from 1 to ${String(MAX_SEARCH_RESULTS)}.`,
+        );
       }
       const tokens = searchTokens(query);
       if (tokens.length === 0) return [];
