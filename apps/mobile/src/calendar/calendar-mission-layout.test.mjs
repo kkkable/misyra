@@ -146,16 +146,8 @@ describe('MTS-043 overlap matrix', () => {
       mission('c', 560, 640),
     ]);
 
-    expect(groups[0].cards.map((card) => card.leftPercent)).toEqual([
-      0,
-      100 / 3,
-      (100 / 3) * 2,
-    ]);
-    expect(groups[0].cards.map((card) => card.widthPercent)).toEqual([
-      100 / 3,
-      100 / 3,
-      100 / 3,
-    ]);
+    expect(groups[0].cards.map((card) => card.leftPercent)).toEqual([0, 100 / 3, (100 / 3) * 2]);
+    expect(groups[0].cards.map((card) => card.widthPercent)).toEqual([100 / 3, 100 / 3, 100 / 3]);
   });
 
   it('limits a true four-way concurrency group to two visible columns and deterministic overflow', () => {
@@ -297,7 +289,9 @@ describe('MTS-043 status and accessibility', () => {
   ])('keeps a %i-minute card at an effective 44-point vertical target', (duration, inset) => {
     const card = renderMissionCard(540, 540 + duration);
     expect(card.props.hitSlop).toEqual({ bottom: inset, left: 0, right: 0, top: inset });
-    expect(duration + card.props.hitSlop.top + card.props.hitSlop.bottom).toBeGreaterThanOrEqual(44);
+    expect(duration + card.props.hitSlop.top + card.props.hitSlop.bottom).toBeGreaterThanOrEqual(
+      44,
+    );
   });
 });
 

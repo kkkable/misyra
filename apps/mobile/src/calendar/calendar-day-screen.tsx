@@ -25,10 +25,7 @@ import {
   resolveResponsiveCalendarLayout,
   shouldShowTodayButton,
 } from './calendar-day-shell.js';
-import {
-  TimedMissionLayer,
-  type TimedMissionSummary,
-} from './calendar-mission-layout.js';
+import { TimedMissionLayer, type TimedMissionSummary } from './calendar-mission-layout.js';
 import { TimedTimeline } from './calendar-timeline.js';
 
 const messages = {
