@@ -7,7 +7,7 @@ on:
       - main
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -16,13 +16,16 @@ concurrency:
 jobs:
   quality:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
+    env:
+      MTS004_INTEGRATION: '1'
+      TURBO_TELEMETRY_DISABLED: '1'
+      CI_CONTRACT_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
     steps:
-      - name: Checkout feature head for disposable lint correction
+      - name: Checkout clean repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          persist-credentials: true
+          persist-credentials: false
           fetch-depth: 0
 
       - name: Install pinned pnpm
@@ -31,7 +34,7 @@ jobs:
           version: 10.34.5
           run_install: false
 
-      - name: Set up pinned Node
+      - name: Set up pinned Node with pnpm cache
         uses: actions/setup-node@v4
         with:
           node-version: 24.19.0
@@ -41,54 +44,54 @@ jobs:
       - name: Install from lockfile
         run: pnpm install --frozen-lockfile
 
-      - name: Apply strict-lint corrections and commit exact output
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
+      - name: Install Bicep compiler in runner only
+        run: az bicep install
 
-          screen = Path('apps/mobile/src/calendar/calendar-day-screen.tsx')
-          text = screen.read_text()
-          text = text.replace("const locale = getLocales()[0]?.languageTag ?? 'en';", "const locale = getLocales()[0].languageTag;")
-          text = text.replace("const regionalFirstWeekday = getCalendars()[0]?.firstWeekday;", "const regionalFirstWeekday = Number(getCalendars()[0].firstWeekday);")
-          screen.write_text(text)
+      - name: Start deterministic local dependencies
+        run: docker compose --file compose.yaml up -d --wait postgres azurite
 
-          shell = Path('apps/mobile/src/calendar/calendar-day-shell.ts')
-          text = shell.read_text()
-          text = text.replace(
-              "export function resolveInitialCalendarDate(deepLinkDate: unknown, today: string): string {\n  const candidate = Array.isArray(deepLinkDate) ? deepLinkDate[0] : deepLinkDate;",
-              "export function resolveInitialCalendarDate(\n  deepLinkDate: string | readonly string[] | undefined,\n  today: string,\n): string {\n  const candidate = typeof deepLinkDate === 'string' ? deepLinkDate : deepLinkDate?.[0];",
-          )
-          shell.write_text(text)
+      - name: Prove failing-fixture gates reject bad inputs
+        run: pnpm ci:fixtures
 
-          test = Path('apps/mobile/src/calendar/calendar-day-shell.test.mjs')
-          text = test.read_text()
-          text = text.replace("const DAY = 24 * 60 * 60 * 1000;\n\nfunction iso(day) {\n  return new Date(Date.UTC(2026, 8, day, 12)).toISOString();\n}\n\n", "")
-          test.write_text(text)
-          PY
+      - name: Check workspace formatting
+        run: pnpm format
 
-          pnpm exec eslint \
-            apps/mobile/src/calendar/calendar-day-screen.tsx \
-            apps/mobile/src/calendar/calendar-day-shell.ts \
-            apps/mobile/src/calendar/calendar-day-shell.test.mjs \
-            --config packages/config/eslint.config.mjs \
-            --fix
-          pnpm exec prettier --write \
-            apps/mobile/src/calendar/calendar-day-screen.tsx \
-            apps/mobile/src/calendar/calendar-day-shell.ts \
-            apps/mobile/src/calendar/calendar-day-shell.test.mjs \
-            --config packages/config/prettier.config.mjs
-          pnpm exec eslint \
-            apps/mobile/src/calendar/calendar-day-screen.tsx \
-            apps/mobile/src/calendar/calendar-day-shell.ts \
-            apps/mobile/src/calendar/calendar-day-shell.test.mjs \
-            --config packages/config/eslint.config.mjs
-          git add \
-            apps/mobile/src/calendar/calendar-day-screen.tsx \
-            apps/mobile/src/calendar/calendar-day-shell.ts \
-            apps/mobile/src/calendar/calendar-day-shell.test.mjs
-          if ! git diff --cached --quiet; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git commit -m "fix(mts-040): satisfy strict mobile lint"
-            git push origin HEAD:${{ github.head_ref }}
-          fi
+      - name: Check CI-owned formatting
+        run: pnpm format:ci
+
+      - name: Lint workspaces
+        run: pnpm lint
+
+      - name: Lint CI-owned scripts and tests
+        run: pnpm lint:ci
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Run unit, integration, and mobile component tests
+        run: pnpm test
+
+      - name: Build all workspaces
+        run: pnpm build
+
+      - name: Reject high and critical dependency findings
+        run: pnpm audit --audit-level high
+
+      - name: Scan tracked implementation and configuration for secrets
+        run: pnpm ci:secrets
+
+      - name: Verify localization completeness
+        run: pnpm ci:localization
+
+      - name: Verify privacy and logging boundaries
+        run: pnpm ci:privacy
+
+      - name: Compile Bicep and environment parameter shapes
+        run: pnpm validate:infra
+
+      - name: Verify contract compatibility boundary
+        run: pnpm ci:contracts
+
+      - name: Stop local dependencies
+        if: always()
+        run: docker compose --file compose.yaml down --volumes
