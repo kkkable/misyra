@@ -26,10 +26,12 @@ vi.mock('react-native', async () => {
       props,
       typeof children === 'function' ? children({ pressed: false }) : children,
     );
+  const ScrollView = ({ children, ...props }) => createReactElement('ScrollView', props, children);
 
   return {
     Modal: 'Modal',
     Pressable,
+    ScrollView,
     StyleSheet: {
       create: (styles) => styles,
     },
