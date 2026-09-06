@@ -146,6 +146,30 @@ describe('MTS-044 two-tap slot selection', () => {
       0,
     );
   });
+
+  it('starts a newly created future mission as reward eligible', () => {
+    const onCreateMission = vi.fn();
+    mockState.deepLinkDate = '2026-09-07';
+    const renderer = renderScreen({
+      now: new Date('2026-09-06T10:00:00.000Z'),
+      onCreateMission,
+    });
+    const slot = renderer.root.findByProps({ testID: 'calendar-slot-540' });
+
+    act(() => slot.props.onPress());
+    act(() => slot.props.onPress());
+    const title = renderer.root.findByProps({ testID: 'calendar-create-title' });
+    act(() => title.props.onChangeText('Future mission'));
+    const save = renderer.root.findByProps({ testID: 'calendar-create-save' });
+    act(() => save.props.onPress());
+
+    expect(onCreateMission).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Future mission',
+        rewardEligibility: 'eligible',
+      }),
+    );
+  });
 });
 
 describe('MTS-044 past-create eligibility', () => {
