@@ -49,10 +49,30 @@ afterEach(() => {
   while (databases.length > 0) databases.pop()?.close();
 });
 
-describe('MTS-044 authenticated mission synchronization', () => {
-  it('projects an authoritative mission upsert into Calendar and search read models', async () => {
-    const database = new NodeSqliteAdapter();
-    databases.push(database);
+function createDatabase() {
+  const database = new NodeSqliteAdapter();
+  databases.push(database);
+  return database;
+}
+
+function syncApi(change) {
+  return {
+    push: vi.fn(() => Promise.resolve({ acceptedMutationIds: [], conflicts: [] })),
+    pull: vi.fn(() =>
+      Promise.resolve({
+        kind: 'incremental',
+        changes: [change],
+        nextCursor: 1,
+        hasMore: false,
+      }),
+    ),
+    snapshot: vi.fn(() => Promise.resolve({ entries: [], nextCursor: 1 })),
+  };
+}
+
+describe('authenticated mission synchronization', () => {
+  it('projects an authoritative timed mission upsert into Calendar and search read models', async () => {
+    const database = createDatabase();
     await applyMobileMigrations(database);
     const accountId = '11111111-1111-4111-8111-111111111111';
     const seriesId = '33333333-3333-4333-8333-333333333333';
@@ -88,27 +108,16 @@ describe('MTS-044 authenticated mission synchronization', () => {
         storyState: 'none',
         deletionState: 'active',
       },
+      location: null,
+      personalNote: null,
     };
-    const api = {
-      push: vi.fn(() => Promise.resolve({ acceptedMutationIds: [], conflicts: [] })),
-      pull: vi.fn(() =>
-        Promise.resolve({
-          kind: 'incremental',
-          changes: [
-            {
-              sequence: 1,
-              entityType: 'mission',
-              entityId: occurrenceId,
-              operation: 'upsert',
-              payload,
-            },
-          ],
-          nextCursor: 1,
-          hasMore: false,
-        }),
-      ),
-      snapshot: vi.fn(() => Promise.resolve({ entries: [], nextCursor: 1 })),
-    };
+    const api = syncApi({
+      sequence: 1,
+      entityType: 'mission',
+      entityId: occurrenceId,
+      operation: 'upsert',
+      payload,
+    });
 
     await expect(runAuthenticatedServerSync({ database, accountId, api })).resolves.toEqual({
       settledMutations: 0,
@@ -136,5 +145,87 @@ describe('MTS-044 authenticated mission synchronization', () => {
     });
     expect(JSON.parse(occurrence.payload_json).synchronizationState).toBe('synced');
     expect(searchDocument).toEqual({ title: 'Morning mission', occurrence_id: occurrenceId });
+  });
+
+  it('projects MTS-045 all-day, Private, location, and personal-note data on another device', async () => {
+    const database = createDatabase();
+    await applyMobileMigrations(database);
+    const accountId = '11111111-1111-4111-8111-111111111111';
+    const seriesId = '55555555-5555-4555-8555-555555555555';
+    const occurrenceId = '66666666-6666-4666-8666-666666666666';
+    await database.runAsync(
+      'INSERT INTO local_accounts (account_id, created_at) VALUES (?, ?)',
+      accountId,
+      '2026-09-06T17:00:00.000Z',
+    );
+    const payload = {
+      series: { id: seriesId, title: 'Private all-day mission', recurrence: null },
+      occurrence: {
+        id: occurrenceId,
+        seriesId,
+        schedule: {
+          localStart: '2026-09-08T00:00:00',
+          localFinish: '2026-09-09T00:00:00',
+          startInstant: '2026-09-07T16:00:00.000Z',
+          finishInstant: '2026-09-08T16:00:00.000Z',
+          timeZone: 'Asia/Hong_Kong',
+          timeBehavior: 'local_time',
+          allDay: true,
+          estimatedEffortMinutes: 45,
+        },
+        scheduleState: 'scheduled',
+        completionState: 'incomplete',
+        evidenceState: 'not_required',
+        rewardEligibility: 'eligible',
+        rewardIssuance: 'not_issued',
+        calendarSource: 'internal',
+        fieldOwnership: 'app_owned',
+        synchronizationState: 'synced',
+        storyState: 'none',
+        deletionState: 'active',
+      },
+      location: 'Central',
+      personalNote: 'Bring documents',
+    };
+    const api = syncApi({
+      sequence: 1,
+      entityType: 'mission',
+      entityId: occurrenceId,
+      operation: 'upsert',
+      payload,
+    });
+
+    await expect(runAuthenticatedServerSync({ database, accountId, api })).resolves.toEqual({
+      settledMutations: 0,
+      cursor: 1,
+    });
+
+    expect(
+      await database.getFirstAsync(
+        `SELECT local_date, scheduled_start, scheduled_end, all_day
+           FROM cached_mission_occurrences
+          WHERE account_id = ? AND occurrence_id = ?`,
+        accountId,
+        occurrenceId,
+      ),
+    ).toEqual({
+      local_date: '2026-09-08',
+      scheduled_start: null,
+      scheduled_end: null,
+      all_day: 1,
+    });
+    expect(
+      await database.getFirstAsync(
+        `SELECT title, location, personal_note
+           FROM search_documents
+          WHERE account_id = ? AND document_id = ?`,
+        accountId,
+        occurrenceId,
+      ),
+    ).toEqual({
+      title: 'Private all-day mission',
+      location: 'Central',
+      personal_note: 'Bring documents',
+    });
   });
 });
