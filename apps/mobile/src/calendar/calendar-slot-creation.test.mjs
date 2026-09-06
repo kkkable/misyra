@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mockState = vi.hoisted(() => ({
   deepLinkDate: '2026-09-06',
   firstWeekday: 2,
+  timeZone: 'UTC',
   uses24hourClock: true,
 }));
 
@@ -16,6 +17,7 @@ vi.mock('expo-localization', () => ({
   getCalendars: () => [
     {
       firstWeekday: mockState.firstWeekday,
+      timeZone: mockState.timeZone,
       uses24hourClock: mockState.uses24hourClock,
     },
   ],
@@ -75,6 +77,7 @@ function renderScreen(props = {}) {
 beforeEach(() => {
   mockState.deepLinkDate = '2026-09-06';
   mockState.firstWeekday = 2;
+  mockState.timeZone = 'UTC';
   mockState.uses24hourClock = true;
 });
 
@@ -203,12 +206,10 @@ describe('MTS-044 past-create eligibility', () => {
     expect(tooOld.root.findAllByProps({ testID: 'calendar-slot-600' })).toHaveLength(0);
   });
 
-  it('evaluates the historical window in the same saved IANA time zone used by save', () => {
+  it('evaluates the historical window in the phone mission time zone used by default save', () => {
     mockState.deepLinkDate = '2026-08-07';
-    const renderer = renderScreen({
-      now: new Date('2026-09-06T10:00:00.000Z'),
-      timeZone: 'Asia/Hong_Kong',
-    });
+    mockState.timeZone = 'Asia/Hong_Kong';
+    const renderer = renderScreen({ now: new Date('2026-09-06T10:00:00.000Z') });
 
     expect(renderer.root.findAllByProps({ testID: 'calendar-slot-600' })).toHaveLength(0);
   });
