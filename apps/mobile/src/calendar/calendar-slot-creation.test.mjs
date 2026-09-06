@@ -185,39 +185,46 @@ describe('MTS-044 two-tap slot selection', () => {
 });
 
 describe('MTS-044 past-create eligibility', () => {
-  it('allows a mission exactly 30 days in the past, locks it to 0 XP after confirmation, and rejects anything older', () => {
-    const onCreateMission = vi.fn();
-    mockState.deepLinkDate = '2026-08-07';
-    const renderer = renderScreen({
-      now: new Date('2026-09-06T10:00:00.000Z'),
-      onCreateMission,
-    });
-    const slot = renderer.root.findByProps({ testID: 'calendar-slot-600' });
+  it(
+    'allows a mission exactly 30 days in the past, locks it to 0 XP after confirmation, and rejects anything older',
+    () => {
+      const onCreateMission = vi.fn();
+      mockState.deepLinkDate = '2026-08-07';
+      const renderer = renderScreen({
+        now: new Date('2026-09-06T10:00:00.000Z'),
+        onCreateMission,
+      });
+      const slot = renderer.root.findByProps({ testID: 'calendar-slot-600' });
 
-    act(() => slot.props.onPress());
-    act(() => slot.props.onPress());
-    const title = renderer.root.findByProps({ testID: 'calendar-create-title' });
-    act(() => title.props.onChangeText('Historical mission'));
-    const save = renderer.root.findByProps({ testID: 'calendar-create-save' });
-    act(() => save.props.onPress());
+      act(() => slot.props.onPress());
+      act(() => slot.props.onPress());
+      const title = renderer.root.findByProps({ testID: 'calendar-create-title' });
+      act(() => title.props.onChangeText('Historical mission'));
+      const save = renderer.root.findByProps({ testID: 'calendar-create-save' });
+      act(() => save.props.onPress());
 
-    expect(onCreateMission).not.toHaveBeenCalled();
-    expect(renderer.root.findByProps({ testID: 'calendar-create-zero-xp-warning' })).toBeDefined();
-    act(() => renderer.root.findByProps({ testID: 'calendar-create-confirm-zero-xp' }).props.onPress());
+      expect(onCreateMission).not.toHaveBeenCalled();
+      expect(
+        renderer.root.findByProps({ testID: 'calendar-create-zero-xp-warning' }),
+      ).toBeDefined();
+      act(() =>
+        renderer.root.findByProps({ testID: 'calendar-create-confirm-zero-xp' }).props.onPress(),
+      );
 
-    expect(onCreateMission).toHaveBeenCalledWith(
-      expect.objectContaining({
-        title: 'Historical mission',
-        startMinute: 600,
-        endMinute: 630,
-        rewardEligibility: 'ineligible',
-      }),
-    );
+      expect(onCreateMission).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Historical mission',
+          startMinute: 600,
+          endMinute: 630,
+          rewardEligibility: 'ineligible',
+        }),
+      );
 
-    mockState.deepLinkDate = '2026-08-06';
-    const tooOld = renderScreen({ now: new Date('2026-09-06T10:00:00.000Z') });
-    expect(tooOld.root.findAllByProps({ testID: 'calendar-slot-600' })).toHaveLength(0);
-  });
+      mockState.deepLinkDate = '2026-08-06';
+      const tooOld = renderScreen({ now: new Date('2026-09-06T10:00:00.000Z') });
+      expect(tooOld.root.findAllByProps({ testID: 'calendar-slot-600' })).toHaveLength(0);
+    },
+  );
 
   it('evaluates the historical window in the phone mission time zone used by default save', () => {
     mockState.deepLinkDate = '2026-08-07';
