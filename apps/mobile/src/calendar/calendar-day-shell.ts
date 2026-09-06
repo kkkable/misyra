@@ -133,7 +133,8 @@ export function buildMonthGrid(selectedDate: string, firstWeekday: number): Cale
     throw new TypeError('Selected Calendar date must use a valid YYYY-MM-DD value.');
   const monthStart = new Date(Date.UTC(selected.getUTCFullYear(), selected.getUTCMonth(), 1));
   const monthStartValue = formatLocalDate(monthStart);
-  const firstVisible = buildSevenDayStrip(monthStartValue, firstWeekday)[0];
+  const [firstVisible] = buildSevenDayStrip(monthStartValue, firstWeekday);
+  if (firstVisible === undefined) throw new TypeError('Unable to build Calendar month grid.');
   const start = parseLocalDate(firstVisible.date);
   if (start === null) throw new TypeError('Unable to build Calendar month grid.');
 

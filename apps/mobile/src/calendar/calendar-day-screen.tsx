@@ -55,8 +55,8 @@ function supportedLanguage(languageTag: string | undefined): SupportedLanguage {
 }
 
 function parseLocalDateParts(value: string): { year: number; month: number; day: number } {
-  const [year, month, day] = value.split('-').map(Number);
-  return { year, month, day };
+  const [yearText = '0', monthText = '0', dayText = '0'] = value.split('-');
+  return { year: Number(yearText), month: Number(monthText), day: Number(dayText) };
 }
 
 function localDateAtMonthOffset(value: string, offset: number): string {
@@ -137,8 +137,8 @@ export function CalendarDayScreen({
         selectedDate,
         today,
         currentMinute: minuteOfDay(now),
-        firstTimedMissionMinute,
-        preservedMinute,
+        ...(firstTimedMissionMinute === undefined ? {} : { firstTimedMissionMinute }),
+        ...(preservedMinute === undefined ? {} : { preservedMinute }),
         returningFromBackground,
       }),
     [firstTimedMissionMinute, now, preservedMinute, returningFromBackground, selectedDate, today],
