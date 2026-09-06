@@ -16,15 +16,17 @@ function generateInstallationId() {
   return `misyra-${Date.now().toString(36)}-${randomPart}`;
 }
 
-async function deviceMetadata() {
-  if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
-    throw new Error('unsupported_mobile_platform');
-  }
-  return {
-    platform: Platform.OS,
+function deviceMetadata() {
+  let platform: 'ios' | 'android';
+  if (Platform.OS === 'ios') platform = 'ios';
+  else if (Platform.OS === 'android') platform = 'android';
+  else throw new Error('unsupported_mobile_platform');
+
+  return Promise.resolve({
+    platform,
     appVersion: process.env.EXPO_PUBLIC_APP_VERSION ?? '0.0.0',
     notificationCapability: 'not_determined' as const,
-  };
+  });
 }
 
 export const rootSyncRuntime = createAuthenticatedSyncRuntime({
