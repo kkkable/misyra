@@ -71,12 +71,26 @@ type SettingsPatch = Readonly<{
   trustMode?: boolean;
 }>;
 
-function parseClientTime(source: string): Date {
+type ClientTiming = Readonly<{
+  clientOccurredAt: Date;
+  effectiveTime: Date;
+  validationResult: 'valid' | 'invalid_replaced';
+}>;
+
+function resolveClientTiming(source: string, serverReceiptTime: Date): ClientTiming {
   const parsed = new Date(source);
   if (!Number.isFinite(parsed.getTime())) {
-    throw new SyncMutationValidationError('Sync clientOccurredAt must be a valid timestamp');
+    return {
+      clientOccurredAt: serverReceiptTime,
+      effectiveTime: serverReceiptTime,
+      validationResult: 'invalid_replaced',
+    };
   }
-  return parsed;
+  return {
+    clientOccurredAt: parsed,
+    effectiveTime: parsed,
+    validationResult: 'valid',
+  };
 }
 
 function changeOperation(operation: string): 'upsert' | 'delete' {
@@ -125,7 +139,7 @@ async function requireDeviceOwnership(
 async function existingMutationMatches(
   client: PoolClient,
   mutation: StoredSyncMutation,
-  clientOccurredAt: Date,
+  timing: ClientTiming,
 ): Promise<boolean | null> {
   const result = await client.query<MutationMatchRow>(
     `SELECT
@@ -135,8 +149,9 @@ async function existingMutationMatches(
        AND entity_id = $5
        AND operation = $6
        AND base_version IS NOT DISTINCT FROM $7
-       AND client_occurred_at = $8
-       AND payload = $9::jsonb AS "exactMatch"
+       AND validation_result = $8
+       AND ($8 = 'invalid_replaced' OR client_occurred_at = $9)
+       AND payload = $10::jsonb AS "exactMatch"
      FROM device_sync_mutations
      WHERE id = $1
      FOR UPDATE`,
@@ -148,7 +163,8 @@ async function existingMutationMatches(
       mutation.entityId,
       mutation.operation,
       mutation.baseVersion,
-      clientOccurredAt,
+      timing.validationResult,
+      timing.clientOccurredAt,
       JSON.stringify(mutation.payload),
     ],
   );
@@ -187,9 +203,9 @@ async function acceptMutation(
   serverReceiptTime: Date,
 ): Promise<void> {
   await requireDeviceOwnership(client, mutation.accountId, mutation.deviceId);
-  const clientOccurredAt = parseClientTime(mutation.clientOccurredAt);
+  const timing = resolveClientTiming(mutation.clientOccurredAt, serverReceiptTime);
 
-  const existingMatch = await existingMutationMatches(client, mutation, clientOccurredAt);
+  const existingMatch = await existingMutationMatches(client, mutation, timing);
   if (existingMatch === true) return;
   if (existingMatch === false) throw new SyncMutationConflictError();
 
@@ -228,10 +244,10 @@ async function acceptMutation(
       mutation.entityId,
       mutation.operation,
       mutation.baseVersion,
-      clientOccurredAt,
+      timing.clientOccurredAt,
       serverReceiptTime,
-      clientOccurredAt,
-      'valid',
+      timing.effectiveTime,
+      timing.validationResult,
       JSON.stringify(mutation.payload),
     ],
   );
