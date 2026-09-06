@@ -71,11 +71,48 @@ type SettingsPatch = Readonly<{
   trustMode?: boolean;
 }>;
 
+type MissionSchedulePayload = Readonly<{
+  localStart: string;
+  localFinish: string;
+  startInstant: string;
+  finishInstant: string;
+  timeZone: string;
+  timeBehavior: 'local_time' | 'fixed_instant';
+  allDay: false;
+  estimatedEffortMinutes: null;
+}>;
+
+type MissionCreatePayload = Readonly<{
+  series: Readonly<{
+    id: string;
+    title: string;
+    recurrence: null;
+  }>;
+  occurrence: Readonly<{
+    id: string;
+    seriesId: string;
+    schedule: MissionSchedulePayload;
+    scheduleState: 'scheduled';
+    completionState: 'incomplete';
+    evidenceState: 'not_submitted';
+    rewardEligibility: 'undetermined' | 'eligible' | 'ineligible';
+    rewardIssuance: 'not_issued';
+    calendarSource: 'internal';
+    fieldOwnership: 'app_owned';
+    synchronizationState: 'pending' | 'synced';
+    storyState: 'none';
+    deletionState: 'active';
+  }>;
+}>;
+
 type ClientTiming = Readonly<{
   clientOccurredAt: Date;
   effectiveTime: Date;
   validationResult: 'valid' | 'invalid_replaced';
 }>;
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const LOCAL_DATE_TIME_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/;
 
 function resolveClientTiming(source: string, serverReceiptTime: Date): ClientTiming {
   const parsed = new Date(source);
@@ -94,32 +131,74 @@ function resolveClientTiming(source: string, serverReceiptTime: Date): ClientTim
 }
 
 function assertExecutableMutationShape(mutation: StoredSyncMutation): void {
-  if (mutation.entityType !== 'settings') {
-    throw new SyncMutationValidationError(
-      `No executable server projector is registered for ${mutation.entityType}`,
-    );
+  if (mutation.entityType === 'settings') {
+    if (mutation.entityId !== mutation.accountId) {
+      throw new SyncMutationValidationError(
+        'Settings mutations must target the authenticated account',
+      );
+    }
+    if (mutation.operation !== 'update') {
+      throw new SyncMutationValidationError(
+        'Settings synchronization only supports update operations',
+      );
+    }
+    return;
   }
-  if (mutation.entityId !== mutation.accountId) {
-    throw new SyncMutationValidationError(
-      'Settings mutations must target the authenticated account',
-    );
+
+  if (mutation.entityType === 'mission') {
+    if (mutation.operation !== 'create' || mutation.baseVersion !== null) {
+      throw new SyncMutationValidationError(
+        'Mission synchronization currently supports create operations only',
+      );
+    }
+    return;
   }
-  if (mutation.operation !== 'update') {
-    throw new SyncMutationValidationError(
-      'Settings synchronization only supports update operations',
-    );
-  }
+
+  throw new SyncMutationValidationError(
+    `No executable server projector is registered for ${mutation.entityType}`,
+  );
 }
 
 function changeOperation(operation: string): 'upsert' | 'delete' {
   return operation === 'delete' ? 'delete' : 'upsert';
 }
 
-function parseSettingsPatch(payload: unknown): SettingsPatch {
-  if (typeof payload !== 'object' || payload === null || Array.isArray(payload)) {
-    throw new SyncMutationValidationError('Settings mutation payload must be an object');
+function asRecord(value: unknown, label: string): Record<string, unknown> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new SyncMutationValidationError(`${label} must be an object`);
   }
-  const source = payload as Record<string, unknown>;
+  return value as Record<string, unknown>;
+}
+
+function requireString(source: Record<string, unknown>, key: string, label: string): string {
+  const value = source[key];
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    throw new SyncMutationValidationError(`${label} must be a non-empty string`);
+  }
+  return value;
+}
+
+function requireUuid(source: Record<string, unknown>, key: string, label: string): string {
+  const value = requireString(source, key, label);
+  if (!UUID_PATTERN.test(value)) throw new SyncMutationValidationError(`${label} must be a UUID`);
+  return value;
+}
+
+function requireLiteral<T extends string>(
+  source: Record<string, unknown>,
+  key: string,
+  allowed: readonly T[],
+  label: string,
+): T {
+  const value = source[key];
+  if (typeof value !== 'string' || !allowed.includes(value as T)) {
+    throw new SyncMutationValidationError(`${label} is invalid`);
+  }
+  return value as T;
+}
+
+function parseSettingsPatch(payload: unknown): SettingsPatch {
+  const source = asRecord(payload, 'Settings mutation payload');
   const keys = Object.keys(source);
   if (keys.length === 0 || keys.some((key) => key !== 'language' && key !== 'trustMode')) {
     throw new SyncMutationValidationError('Settings mutation contains unsupported fields');
@@ -138,6 +217,126 @@ function parseSettingsPatch(payload: unknown): SettingsPatch {
     patch.trustMode = source.trustMode;
   }
   return patch;
+}
+
+function parseMissionCreatePayload(
+  payload: unknown,
+  expectedOccurrenceId: string,
+): MissionCreatePayload {
+  const root = asRecord(payload, 'Mission mutation payload');
+  const seriesSource = asRecord(root.series, 'Mission series');
+  const occurrenceSource = asRecord(root.occurrence, 'Mission occurrence');
+  const scheduleSource = asRecord(occurrenceSource.schedule, 'Mission schedule');
+  const seriesId = requireUuid(seriesSource, 'id', 'Mission series id');
+  const occurrenceId = requireUuid(occurrenceSource, 'id', 'Mission occurrence id');
+  const occurrenceSeriesId = requireUuid(occurrenceSource, 'seriesId', 'Mission occurrence series id');
+  if (occurrenceId !== expectedOccurrenceId) {
+    throw new SyncMutationValidationError('Mission mutation entity id must match occurrence id');
+  }
+  if (occurrenceSeriesId !== seriesId) {
+    throw new SyncMutationValidationError('Mission occurrence must belong to its supplied series');
+  }
+  if (seriesSource.recurrence !== null) {
+    throw new SyncMutationValidationError('MTS-044 mission create must be non-recurring');
+  }
+
+  const localStart = requireString(scheduleSource, 'localStart', 'Mission local start');
+  const localFinish = requireString(scheduleSource, 'localFinish', 'Mission local finish');
+  if (!LOCAL_DATE_TIME_PATTERN.test(localStart) || !LOCAL_DATE_TIME_PATTERN.test(localFinish)) {
+    throw new SyncMutationValidationError('Mission local times must use ISO local date-time format');
+  }
+  const startInstant = requireString(scheduleSource, 'startInstant', 'Mission start instant');
+  const finishInstant = requireString(scheduleSource, 'finishInstant', 'Mission finish instant');
+  const start = Date.parse(startInstant);
+  const finish = Date.parse(finishInstant);
+  if (!Number.isFinite(start) || !Number.isFinite(finish) || finish <= start) {
+    throw new SyncMutationValidationError('Mission absolute schedule is invalid');
+  }
+  if (scheduleSource.allDay !== false || scheduleSource.estimatedEffortMinutes !== null) {
+    throw new SyncMutationValidationError('MTS-044 mission create must be a timed mission');
+  }
+
+  return {
+    series: {
+      id: seriesId,
+      title: requireString(seriesSource, 'title', 'Mission title').trim(),
+      recurrence: null,
+    },
+    occurrence: {
+      id: occurrenceId,
+      seriesId,
+      schedule: {
+        localStart,
+        localFinish,
+        startInstant,
+        finishInstant,
+        timeZone: requireString(scheduleSource, 'timeZone', 'Mission time zone'),
+        timeBehavior: requireLiteral(
+          scheduleSource,
+          'timeBehavior',
+          ['local_time', 'fixed_instant'] as const,
+          'Mission time behavior',
+        ),
+        allDay: false,
+        estimatedEffortMinutes: null,
+      },
+      scheduleState: requireLiteral(
+        occurrenceSource,
+        'scheduleState',
+        ['scheduled'] as const,
+        'Mission schedule state',
+      ),
+      completionState: requireLiteral(
+        occurrenceSource,
+        'completionState',
+        ['incomplete'] as const,
+        'Mission completion state',
+      ),
+      evidenceState: requireLiteral(
+        occurrenceSource,
+        'evidenceState',
+        ['not_submitted'] as const,
+        'Mission evidence state',
+      ),
+      rewardEligibility: requireLiteral(
+        occurrenceSource,
+        'rewardEligibility',
+        ['undetermined', 'eligible', 'ineligible'] as const,
+        'Mission reward eligibility',
+      ),
+      rewardIssuance: requireLiteral(
+        occurrenceSource,
+        'rewardIssuance',
+        ['not_issued'] as const,
+        'Mission reward issuance',
+      ),
+      calendarSource: requireLiteral(
+        occurrenceSource,
+        'calendarSource',
+        ['internal'] as const,
+        'Mission calendar source',
+      ),
+      fieldOwnership: requireLiteral(
+        occurrenceSource,
+        'fieldOwnership',
+        ['app_owned'] as const,
+        'Mission field ownership',
+      ),
+      synchronizationState: 'synced',
+      storyState: requireLiteral(
+        occurrenceSource,
+        'storyState',
+        ['none'] as const,
+        'Mission Story state',
+      ),
+      deletionState: requireLiteral(
+        occurrenceSource,
+        'deletionState',
+        ['active'] as const,
+        'Mission deletion state',
+      ),
+    },
+  };
 }
 
 async function requireDeviceOwnership(
@@ -215,6 +414,83 @@ async function applySettingsMutation(
   return row;
 }
 
+async function applyMissionCreateMutation(
+  client: PoolClient,
+  accountId: string,
+  entityId: string,
+  payload: unknown,
+): Promise<MissionCreatePayload> {
+  const mission = parseMissionCreatePayload(payload, entityId);
+  await client.query(
+    `INSERT INTO mission_series (id, account_id, title, recurrence_rule)
+     VALUES ($1, $2, $3, NULL)`,
+    [mission.series.id, accountId, mission.series.title],
+  );
+  const schedule = mission.occurrence.schedule;
+  await client.query(
+    `INSERT INTO mission_occurrences (
+       id, account_id, series_id, local_date, local_start, local_finish,
+       start_instant, finish_instant, time_zone, time_behavior, all_day,
+       estimated_effort_minutes, schedule_state, completion_state, evidence_state,
+       reward_eligibility, reward_issuance, calendar_source, field_ownership,
+       synchronization_state, story_state, deletion_state
+     ) VALUES (
+       $1, $2, $3, $4, $5, $6,
+       $7, $8, $9, $10, FALSE,
+       NULL, $11, $12, $13,
+       $14, $15, $16, $17,
+       'synced', $18, $19
+     )`,
+    [
+      mission.occurrence.id,
+      accountId,
+      mission.series.id,
+      schedule.localStart.slice(0, 10),
+      schedule.localStart,
+      schedule.localFinish,
+      schedule.startInstant,
+      schedule.finishInstant,
+      schedule.timeZone,
+      schedule.timeBehavior,
+      mission.occurrence.scheduleState,
+      mission.occurrence.completionState,
+      mission.occurrence.evidenceState,
+      mission.occurrence.rewardEligibility,
+      mission.occurrence.rewardIssuance,
+      mission.occurrence.calendarSource,
+      mission.occurrence.fieldOwnership,
+      mission.occurrence.storyState,
+      mission.occurrence.deletionState,
+    ],
+  );
+  return mission;
+}
+
+async function applyExecutableMutation(
+  client: PoolClient,
+  mutation: StoredSyncMutation,
+): Promise<unknown> {
+  if (mutation.entityType === 'settings') {
+    return applySettingsMutation(
+      client,
+      mutation.accountId,
+      mutation.operation,
+      mutation.payload,
+    );
+  }
+  if (mutation.entityType === 'mission') {
+    return applyMissionCreateMutation(
+      client,
+      mutation.accountId,
+      mutation.entityId,
+      mutation.payload,
+    );
+  }
+  throw new SyncMutationValidationError(
+    `No executable server projector is registered for ${mutation.entityType}`,
+  );
+}
+
 async function acceptMutation(
   client: PoolClient,
   mutation: StoredSyncMutation,
@@ -228,12 +504,7 @@ async function acceptMutation(
   if (existingMatch === true) return;
   if (existingMatch === false) throw new SyncMutationConflictError();
 
-  const authoritativePayload = await applySettingsMutation(
-    client,
-    mutation.accountId,
-    mutation.operation,
-    mutation.payload,
-  );
+  const authoritativePayload = await applyExecutableMutation(client, mutation);
 
   await client.query(
     `INSERT INTO device_sync_mutations (
