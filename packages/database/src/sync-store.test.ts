@@ -102,6 +102,74 @@ describe('MTS-031/MTS-039 PostgreSQL executable sync store', () => {
     });
   });
 
+  it('silently replaces an invalid device timestamp with first server receipt time and keeps retry idempotent', async () => {
+    const auth = createPostgresAuthStore(pool);
+    const devices = createPostgresDeviceSettingsStore(pool);
+    const account = await auth.findOrCreateAccount('google', `sync-invalid-time-${randomUUID()}`);
+    const deviceId = await devices.registerDevice({
+      accountId: account.id,
+      installationId: 'installation-invalid-time',
+      platform: 'android',
+      appVersion: '1.0.0',
+      notificationCapability: 'not_determined',
+    });
+    const mutationId = randomUUID();
+    const mutation = {
+      mutationId,
+      accountId: account.id,
+      deviceId,
+      entityType: 'settings',
+      entityId: account.id,
+      operation: 'update',
+      baseVersion: null,
+      clientOccurredAt: 'not-a-valid-device-timestamp',
+      payload: { trustMode: true },
+    } as const;
+    const receiptTimes = [
+      new Date('2026-09-06T09:30:00.000Z'),
+      new Date('2026-09-06T09:31:00.000Z'),
+    ];
+    let receiptIndex = 0;
+    const store = createPostgresSyncStore(
+      pool,
+      () => receiptTimes[Math.min(receiptIndex++, receiptTimes.length - 1)]!,
+    );
+
+    await expect(store.push(account.id, [mutation])).resolves.toEqual({
+      acceptedMutationIds: [mutationId],
+    });
+    await expect(store.push(account.id, [mutation])).resolves.toEqual({
+      acceptedMutationIds: [mutationId],
+    });
+
+    const persisted = await pool.query<{
+      clientOccurredAt: Date;
+      serverReceiptTime: Date;
+      effectiveTime: Date;
+      validationResult: string;
+    }>(
+      `SELECT client_occurred_at AS "clientOccurredAt",
+              server_receipt_time AS "serverReceiptTime",
+              effective_time AS "effectiveTime",
+              validation_result AS "validationResult"
+         FROM device_sync_mutations
+        WHERE id = $1`,
+      [mutationId],
+    );
+    expect(persisted.rows).toHaveLength(1);
+    expect(persisted.rows[0]?.clientOccurredAt.toISOString()).toBe('2026-09-06T09:30:00.000Z');
+    expect(persisted.rows[0]?.serverReceiptTime.toISOString()).toBe('2026-09-06T09:30:00.000Z');
+    expect(persisted.rows[0]?.effectiveTime.toISOString()).toBe('2026-09-06T09:30:00.000Z');
+    expect(persisted.rows[0]?.validationResult).toBe('invalid_replaced');
+
+    const pulled = await store.pull(account.id, { cursor: 0, limit: 25 });
+    expect(pulled.kind).toBe('incremental');
+    if (pulled.kind === 'incremental') {
+      expect(pulled.changes).toHaveLength(1);
+      expect(pulled.nextCursor).toBe(1);
+    }
+  });
+
   it('rejects mutation-id reuse with different content and rejects a device owned by another account', async () => {
     const auth = createPostgresAuthStore(pool);
     const devices = createPostgresDeviceSettingsStore(pool);
