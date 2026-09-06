@@ -57,15 +57,11 @@ function geometry(groups) {
 }
 
 function hostPressables(renderer, testID) {
-  return renderer.root.findAll(
-    (node) => node.type === 'Pressable' && node.props.testID === testID,
-  );
+  return renderer.root.findAll((node) => node.type === 'Pressable' && node.props.testID === testID);
 }
 
 function hostPressable(renderer, testID) {
-  return renderer.root.find(
-    (node) => node.type === 'Pressable' && node.props.testID === testID,
-  );
+  return renderer.root.find((node) => node.type === 'Pressable' && node.props.testID === testID);
 }
 
 describe('MTS-043 overlap matrix', () => {
