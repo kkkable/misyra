@@ -8,7 +8,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 
-import { radius, space, typography } from '@misyra/design-tokens';
+import { layout, radius, space, typography } from '@misyra/design-tokens';
 import { localizationCatalogs, type LocalizationLocale } from '@misyra/localization';
 
 import { themeColors, type ColorScheme } from '../design-system/index.js';
@@ -65,13 +65,20 @@ function missionFrame(
   };
 }
 
+function compareStableText(left: string, right: string): number {
+  if (left === right) {
+    return 0;
+  }
+  return left < right ? -1 : 1;
+}
+
 function compareMissions(left: TimedMissionSummary, right: TimedMissionSummary): number {
   if (left.startMinute !== right.startMinute) {
     return left.startMinute - right.startMinute;
   }
 
-  const order = left.orderKey.localeCompare(right.orderKey);
-  return order === 0 ? left.id.localeCompare(right.id) : order;
+  const order = compareStableText(left.orderKey, right.orderKey);
+  return order === 0 ? compareStableText(left.id, right.id) : order;
 }
 
 export function buildMissionOverlapGroups(
@@ -158,7 +165,7 @@ interface MissionCardProps {
   readonly language: LocalizationLocale;
   readonly mission: TimedMissionSummary;
   readonly selected: boolean;
-  readonly onPress?: (mission: TimedMissionSummary) => void;
+  readonly onPress?: ((mission: TimedMissionSummary) => void) | undefined;
   readonly style?: StyleProp<ViewStyle>;
   readonly testID?: string;
 }
@@ -180,7 +187,9 @@ export function MissionCard({
       accessibilityLabel={accessibilityLabel(mission, language)}
       accessibilityRole="button"
       hitSlop={space[2]}
-      onPress={() => onPress?.(mission)}
+      onPress={() => {
+        onPress?.(mission);
+      }}
       style={[
         styles.card,
         {
@@ -208,7 +217,7 @@ interface TimedMissionLayerProps {
   readonly language: LocalizationLocale;
   readonly missions: readonly TimedMissionSummary[];
   readonly selectedMissionId?: string;
-  readonly onMissionPress?: (mission: TimedMissionSummary) => void;
+  readonly onMissionPress?: ((mission: TimedMissionSummary) => void) | undefined;
 }
 
 function formatMore(language: LocalizationLocale, count: number): string {
@@ -241,10 +250,10 @@ function groupList(
           key={mission.id}
           language={language}
           mission={mission}
+          onPress={onMissionPress}
           selected={selectedMissionId === mission.id}
           style={styles.overflowListCard}
           testID={`calendar-overlap-list-mission-${mission.id}`}
-          {...(onMissionPress === undefined ? {} : { onPress: onMissionPress })}
         />
       ))}
     </View>
@@ -282,18 +291,18 @@ export function TimedMissionLayer({
               key={card.mission.id}
               language={language}
               mission={card.mission}
+              onPress={onMissionPress}
               selected={selectedMissionId === card.mission.id}
               style={missionPositionStyle(card)}
-              {...(onMissionPress === undefined ? {} : { onPress: onMissionPress })}
             />
           ))}
           {group.hiddenMissions.length > 0 ? (
             <Pressable
               accessibilityLabel={formatMore(language, group.hiddenMissions.length)}
               accessibilityRole="button"
-              onPress={() =>
-                setExpandedGroupId((current) => (current === group.id ? null : group.id))
-              }
+              onPress={() => {
+                setExpandedGroupId((current) => (current === group.id ? null : group.id));
+              }}
               style={[
                 styles.moreButton,
                 {
@@ -363,7 +372,7 @@ const styles = StyleSheet.create({
     zIndex: 4,
   },
   overflowListCard: {
-    minHeight: 44,
+    minHeight: layout.minimumTouchTarget,
     position: 'relative',
   },
 });
