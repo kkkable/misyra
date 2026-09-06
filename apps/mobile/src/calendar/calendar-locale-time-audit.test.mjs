@@ -84,16 +84,13 @@ beforeEach(() => {
 describe('MTS-040 Calendar app-language audit correction', () => {
   it('uses the authoritative app language for Calendar copy even when device language differs', () => {
     const renderer = renderScreen({ language: 'zh-HK' });
+    const picker = renderer.root.findByProps({ testID: 'calendar-date-picker-trigger' });
+    const week = renderer.root.findByProps({ testID: 'calendar-week-strip' });
+    const today = renderer.root.findByProps({ testID: 'calendar-today-button' });
 
-    expect(
-      renderer.root.findByProps({ testID: 'calendar-date-picker-trigger' }).props.accessibilityLabel,
-    ).toBe('選擇日期');
-    expect(renderer.root.findByProps({ testID: 'calendar-week-strip' }).props.accessibilityLabel).toBe(
-      '日曆',
-    );
-    expect(renderer.root.findByProps({ testID: 'calendar-today-button' }).props.accessibilityLabel).toBe(
-      '今天',
-    );
+    expect(picker.props.accessibilityLabel).toBe('選擇日期');
+    expect(week.props.accessibilityLabel).toBe('日曆');
+    expect(today.props.accessibilityLabel).toBe('今天');
   });
 });
 
@@ -108,10 +105,11 @@ describe('MTS-041 Calendar phone-time and accessibility audit correction', () =>
   it('exposes localized human-readable current-time semantics and no diagnostic day-body label', () => {
     const renderer = renderScreen({ language: 'en' });
     const ruler = renderer.root.findByProps({ testID: 'calendar-current-time-ruler' });
+    const dayBody = renderer.root.findByProps({ testID: 'calendar-day-body' });
 
     expect(ruler.props.accessibilityLabel).toMatch(/^Current time,/);
     expect(ruler.props.accessibilityLabel).not.toContain('current-time:');
-    expect(renderer.root.findByProps({ testID: 'calendar-day-body' }).props.accessibilityLabel).toBeUndefined();
+    expect(dayBody.props.accessibilityLabel).toBeUndefined();
   });
 });
 
@@ -128,9 +126,8 @@ describe('MTS-042 all-day app-language audit correction', () => {
         ],
       },
     });
+    const more = renderer.root.findByProps({ testID: 'calendar-all-day-more' });
 
-    expect(renderer.root.findByProps({ testID: 'calendar-all-day-more' }).props.accessibilityLabel).toBe(
-      '另外 1 項',
-    );
+    expect(more.props.accessibilityLabel).toBe('另外 1 項');
   });
 });
