@@ -60,6 +60,7 @@ function renderScreen(props = {}) {
 function renderedDayButtons(renderer) {
   return renderer.root.findAll(
     (node) =>
+      node.type === 'Pressable' &&
       typeof node.props.testID === 'string' &&
       /^calendar-day-\d{4}-\d{2}-\d{2}$/.test(node.props.testID),
   );
