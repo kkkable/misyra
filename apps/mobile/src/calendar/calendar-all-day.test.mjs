@@ -130,7 +130,11 @@ describe('MTS-042 all-day expansion and accessibility', () => {
     expect(renderedMissionCards(renderer)).toHaveLength(5);
     expect(renderer.root.findAllByProps({ testID: 'calendar-all-day-more' })).toHaveLength(0);
 
-    const first = renderer.root.findByProps({ testID: 'calendar-all-day-mission-first-imported' });
+    const first = renderer.root.find(
+      (node) =>
+        node.type === 'Pressable' &&
+        node.props.testID === 'calendar-all-day-mission-first-imported',
+    );
     expect(first.props.accessibilityRole).toBe('button');
     expect(first.props.style).toEqual(
       expect.arrayContaining([expect.objectContaining({ minHeight: 44 })]),
