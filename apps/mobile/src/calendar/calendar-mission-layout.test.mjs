@@ -56,6 +56,18 @@ function geometry(groups) {
   }));
 }
 
+function hostPressables(renderer, testID) {
+  return renderer.root.findAll(
+    (node) => node.type === 'Pressable' && node.props.testID === testID,
+  );
+}
+
+function hostPressable(renderer, testID) {
+  return renderer.root.find(
+    (node) => node.type === 'Pressable' && node.props.testID === testID,
+  );
+}
+
 describe('MTS-043 overlap matrix', () => {
   it('uses full width for one, side-by-side columns for two/three, and two cards plus overflow for four+', () => {
     const one = buildMissionOverlapGroups([mission('a')]);
@@ -219,10 +231,10 @@ describe('MTS-043 grouped overflow', () => {
       );
     });
 
-    expect(renderer.root.findAllByProps({ testID: 'calendar-mission-card-a' })).toHaveLength(1);
-    expect(renderer.root.findAllByProps({ testID: 'calendar-mission-card-b' })).toHaveLength(1);
-    expect(renderer.root.findAllByProps({ testID: 'calendar-mission-card-c' })).toHaveLength(0);
-    const more = renderer.root.findByProps({ testID: 'calendar-overlap-more-overlap-0' });
+    expect(hostPressables(renderer, 'calendar-mission-card-a')).toHaveLength(1);
+    expect(hostPressables(renderer, 'calendar-mission-card-b')).toHaveLength(1);
+    expect(hostPressables(renderer, 'calendar-mission-card-c')).toHaveLength(0);
+    const more = hostPressable(renderer, 'calendar-overlap-more-overlap-0');
     expect(more.findByType('Text').children.join('')).toContain('+2 more');
 
     act(() => more.props.onPress());
@@ -231,6 +243,7 @@ describe('MTS-043 grouped overflow', () => {
     expect(
       list.findAll(
         (node) =>
+          node.type === 'Pressable' &&
           typeof node.props.testID === 'string' &&
           node.props.testID.startsWith('calendar-overlap-list-mission-'),
       ),
