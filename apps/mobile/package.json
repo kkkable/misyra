@@ -6,7 +6,7 @@
   "main": "expo-router/entry",
   "scripts": {
     "build": "tsc --project ./tsconfig.json --noEmit",
-    "format": "prettier --write src/calendar/calendar-day-screen.tsx src/calendar/calendar-interactive-timeline.tsx src/calendar/calendar-slot-creation.test.mjs --config ../../packages/config/prettier.config.mjs && git diff -- src/calendar/calendar-day-screen.tsx src/calendar/calendar-interactive-timeline.tsx src/calendar/calendar-slot-creation.test.mjs && exit 1",
+    "format": "prettier --check . --config ../../packages/config/prettier.config.mjs",
     "lint": "eslint . --config ../../packages/config/eslint.config.mjs",
     "start": "expo start --dev-client",
     "typecheck": "tsc --project ./tsconfig.json --noEmit",
