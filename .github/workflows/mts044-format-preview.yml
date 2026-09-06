@@ -1,0 +1,51 @@
+name: MTS-044 format correction
+
+on:
+  push:
+    branches:
+      - verify/mts-044-format-20260906t1824z
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout active implementation branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/mts-044-two-tap-creation
+          fetch-depth: 0
+      - name: Install pinned pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.5
+          run_install: false
+      - name: Set up pinned Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - name: Install from lockfile
+        run: pnpm install --frozen-lockfile
+      - name: Apply repository Prettier to exact failing files
+        run: >-
+          pnpm exec prettier --write
+          packages/database/src/sync-store.ts
+          apps/mobile/src/calendar/calendar-mission-create.test.mjs
+          apps/mobile/src/calendar/calendar-route-screen.tsx
+          --config packages/config/prettier.config.mjs
+      - name: Commit exact formatting correction to active branch
+        run: |
+          git diff --check
+          git config user.name "Misyra Auto Development"
+          git config user.email "130823389+kkkable@users.noreply.github.com"
+          git add packages/database/src/sync-store.ts apps/mobile/src/calendar/calendar-mission-create.test.mjs apps/mobile/src/calendar/calendar-route-screen.tsx
+          if git diff --cached --quiet; then
+            echo "No formatting changes needed"
+            exit 0
+          fi
+          git commit -m "style: format MTS-044 persistence corrections"
+          git push origin HEAD:feat/mts-044-two-tap-creation
