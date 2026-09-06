@@ -95,35 +95,36 @@ export function CalendarInteractiveTimeline({
 
   const slotLayer = (
     <View pointerEvents="box-none" style={styles.slotLayer} testID="calendar-slot-layer">
-      {Array.from({ length: MINUTES_PER_DAY / SLOT_MINUTES }, (_, index) => index * SLOT_MINUTES).map(
-        (minute) => {
-          const placement = placementForSlot(selectedDate, minute, now);
-          if (!placement.allowed) return null;
+      {Array.from(
+        { length: MINUTES_PER_DAY / SLOT_MINUTES },
+        (_, index) => index * SLOT_MINUTES,
+      ).map((minute) => {
+        const placement = placementForSlot(selectedDate, minute, now);
+        if (!placement.allowed) return null;
 
-          return (
-            <Pressable
-              accessibilityLabel={catalog['calendar.create.selectSlot'].replace(
-                '{time}',
-                formatMinute(minute),
-              )}
-              accessibilityRole="button"
-              key={minute}
-              onPress={() => {
-                if (selectedSlotMinute === minute) {
-                  setCreationSlotMinute(minute);
-                  setTitle('');
-                  return;
-                }
-                setCreationSlotMinute(null);
-                setSelectedSlotMinute(minute);
-                haptics.triggerNonBlocking('timeSlotSelection');
-              }}
-              style={[styles.slot, { top: minute }]}
-              testID={`calendar-slot-${String(minute)}`}
-            />
-          );
-        },
-      )}
+        return (
+          <Pressable
+            accessibilityLabel={catalog['calendar.create.selectSlot'].replace(
+              '{time}',
+              formatMinute(minute),
+            )}
+            accessibilityRole="button"
+            key={minute}
+            onPress={() => {
+              if (selectedSlotMinute === minute) {
+                setCreationSlotMinute(minute);
+                setTitle('');
+                return;
+              }
+              setCreationSlotMinute(null);
+              setSelectedSlotMinute(minute);
+              haptics.triggerNonBlocking('timeSlotSelection');
+            }}
+            style={[styles.slot, { top: minute }]}
+            testID={`calendar-slot-${String(minute)}`}
+          />
+        );
+      })}
       {selectedSlotMinute === null ? null : (
         <View
           accessibilityValue={{ now: selectedSlotMinute, min: 0, max: MINUTES_PER_DAY }}
