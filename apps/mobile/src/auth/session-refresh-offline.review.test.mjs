@@ -1,5 +1,6 @@
-import { AuthSessionUnauthorizedError, createAuthSessionController } from './auth-session.js';
 import { describe, expect, it, vi } from 'vitest';
+
+import { AuthSessionUnauthorizedError, createAuthSessionController } from './auth-session.js';
 
 const expiredSession = {
   accountId: '123e4567-e89b-42d3-a456-426614174000',
