@@ -7,7 +7,7 @@ on:
       - main
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -16,13 +16,16 @@ concurrency:
 jobs:
   quality:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
+    env:
+      MTS004_INTEGRATION: '1'
+      TURBO_TELEMETRY_DISABLED: '1'
+      CI_CONTRACT_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
     steps:
-      - name: Checkout feature head for disposable type correction
+      - name: Checkout clean repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          persist-credentials: true
+          persist-credentials: false
           fetch-depth: 0
 
       - name: Install pinned pnpm
@@ -31,7 +34,7 @@ jobs:
           version: 10.34.5
           run_install: false
 
-      - name: Set up pinned Node
+      - name: Set up pinned Node with pnpm cache
         uses: actions/setup-node@v4
         with:
           node-version: 24.19.0
@@ -41,44 +44,54 @@ jobs:
       - name: Install from lockfile
         run: pnpm install --frozen-lockfile
 
-      - name: Apply strict TypeScript corrections and commit exact output
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
+      - name: Install Bicep compiler in runner only
+        run: az bicep install
 
-          screen = Path('apps/mobile/src/calendar/calendar-day-screen.tsx')
-          text = screen.read_text()
-          text = text.replace(
-              "  const [year, month, day] = value.split('-').map(Number);\n  return { year, month, day };",
-              "  const [yearText = '0', monthText = '0', dayText = '0'] = value.split('-');\n  return { year: Number(yearText), month: Number(monthText), day: Number(dayText) };",
-          )
-          text = text.replace(
-              "      resolveCalendarLaunch({\n        selectedDate,\n        today,\n        currentMinute: minuteOfDay(now),\n        firstTimedMissionMinute,\n        preservedMinute,\n        returningFromBackground,\n      }),",
-              "      resolveCalendarLaunch({\n        selectedDate,\n        today,\n        currentMinute: minuteOfDay(now),\n        ...(firstTimedMissionMinute === undefined ? {} : { firstTimedMissionMinute }),\n        ...(preservedMinute === undefined ? {} : { preservedMinute }),\n        returningFromBackground,\n      }),",
-          )
-          screen.write_text(text)
+      - name: Start deterministic local dependencies
+        run: docker compose --file compose.yaml up -d --wait postgres azurite
 
-          shell = Path('apps/mobile/src/calendar/calendar-day-shell.ts')
-          text = shell.read_text()
-          text = text.replace(
-              "  const firstVisible = buildSevenDayStrip(monthStartValue, firstWeekday)[0];\n  const start = parseLocalDate(firstVisible.date);",
-              "  const [firstVisible] = buildSevenDayStrip(monthStartValue, firstWeekday);\n  if (firstVisible === undefined) throw new TypeError('Unable to build Calendar month grid.');\n  const start = parseLocalDate(firstVisible.date);",
-          )
-          shell.write_text(text)
-          PY
+      - name: Prove failing-fixture gates reject bad inputs
+        run: pnpm ci:fixtures
 
-          pnpm exec prettier --write \
-            apps/mobile/src/calendar/calendar-day-screen.tsx \
-            apps/mobile/src/calendar/calendar-day-shell.ts \
-            --config packages/config/prettier.config.mjs
-          pnpm --filter @misyra/mobile lint
-          pnpm --filter @misyra/mobile typecheck
-          git add \
-            apps/mobile/src/calendar/calendar-day-screen.tsx \
-            apps/mobile/src/calendar/calendar-day-shell.ts
-          if ! git diff --cached --quiet; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git commit -m "fix(mts-040): satisfy strict mobile types"
-            git push origin HEAD:${{ github.head_ref }}
-          fi
+      - name: Check workspace formatting
+        run: pnpm format
+
+      - name: Check CI-owned formatting
+        run: pnpm format:ci
+
+      - name: Lint workspaces
+        run: pnpm lint
+
+      - name: Lint CI-owned scripts and tests
+        run: pnpm lint:ci
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Run unit, integration, and mobile component tests
+        run: pnpm test
+
+      - name: Build all workspaces
+        run: pnpm build
+
+      - name: Reject high and critical dependency findings
+        run: pnpm audit --audit-level high
+
+      - name: Scan tracked implementation and configuration for secrets
+        run: pnpm ci:secrets
+
+      - name: Verify localization completeness
+        run: pnpm ci:localization
+
+      - name: Verify privacy and logging boundaries
+        run: pnpm ci:privacy
+
+      - name: Compile Bicep and environment parameter shapes
+        run: pnpm validate:infra
+
+      - name: Verify contract compatibility boundary
+        run: pnpm ci:contracts
+
+      - name: Stop local dependencies
+        if: always()
+        run: docker compose --file compose.yaml down --volumes
