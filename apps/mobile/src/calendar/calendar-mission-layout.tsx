@@ -1,12 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import {
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-  type StyleProp,
-  type ViewStyle,
-} from 'react-native';
+import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { layout, radius, space, typography } from '@misyra/design-tokens';
 import { localizationCatalogs, type LocalizationLocale } from '@misyra/localization';
@@ -44,9 +37,10 @@ export interface MissionOverlapGroup {
   readonly height: number;
 }
 
-function missionFrame(
-  mission: TimedMissionSummary,
-): { readonly top: number; readonly height: number } {
+function missionFrame(mission: TimedMissionSummary): {
+  readonly top: number;
+  readonly height: number;
+} {
   const { startMinute, endMinute } = mission;
   if (
     !Number.isInteger(startMinute) ||
@@ -313,10 +307,7 @@ export function TimedMissionLayer({
               ]}
               testID={`calendar-overlap-more-${group.id}`}
             >
-              <Text
-                allowFontScaling
-                style={[styles.moreText, { color: colors.textPrimary }]}
-              >
+              <Text allowFontScaling style={[styles.moreText, { color: colors.textPrimary }]}>
                 {formatMore(language, group.hiddenMissions.length)}
               </Text>
             </Pressable>
