@@ -41,7 +41,11 @@ export function createSyncService(store: PostgresSyncStore): SyncRouteServices {
   return {
     push: (accountId, mutations) =>
       mapStoreErrors(async () => {
-        const result = await store.push(accountId, mutations);
+        const storedMutations = mutations.map((mutation) => ({
+          ...mutation,
+          payload: mutation.payload,
+        }));
+        const result = await store.push(accountId, storedMutations);
         return { acceptedMutationIds: [...result.acceptedMutationIds], conflicts: [] };
       }),
 
