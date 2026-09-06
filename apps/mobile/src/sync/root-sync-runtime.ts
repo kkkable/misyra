@@ -14,6 +14,10 @@ const installationStore = {
   setItem: (key: string, value: string) => SecureStore.setItemAsync(key, value),
 };
 
+function registeredDeviceIdKey(accountId: string) {
+  return `misyra.device-id.v1:${accountId}`;
+}
+
 function generateInstallationId() {
   const randomPart = Math.random().toString(36).slice(2);
   return `misyra-${Date.now().toString(36)}-${randomPart}`;
@@ -50,3 +54,16 @@ export const rootSyncRuntime = createAuthenticatedSyncRuntime({
   generateInstallationId,
   deviceMetadata,
 });
+
+export async function requireRegisteredDeviceId(accountId: string): Promise<string> {
+  const key = registeredDeviceIdKey(accountId);
+  let deviceId = await installationStore.getItem(key);
+  if (deviceId === null || deviceId.length === 0) {
+    await rootSyncRuntime.run();
+    deviceId = await installationStore.getItem(key);
+  }
+  if (deviceId === null || deviceId.length === 0) {
+    throw new Error('registered_device_id_unavailable');
+  }
+  return deviceId;
+}
