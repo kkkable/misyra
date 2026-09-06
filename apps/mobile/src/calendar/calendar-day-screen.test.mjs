@@ -78,13 +78,7 @@ function allDayMission(id, orderKey) {
   return { id, title: id, orderKey, completed: false };
 }
 
-function timedMission(
-  id,
-  orderKey,
-  startMinute = 540,
-  endMinute = 600,
-  status = 'unfinished',
-) {
+function timedMission(id, orderKey, startMinute = 540, endMinute = 600, status = 'unfinished') {
   return { id, title: id, orderKey, startMinute, endMinute, status };
 }
 
