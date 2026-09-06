@@ -14,13 +14,13 @@ export type CalendarMissionCreateInput = Readonly<{
   startMinute: number;
   endMinute: number;
   rewardEligibility: RewardEligibility;
+  timeZone: string;
 }>;
 
 type CalendarMissionCreateOptions = Readonly<{
   database: MutationQueueDatabase;
   accountId: string;
   deviceId: string;
-  timeZone: string;
   input: CalendarMissionCreateInput;
   now: Date;
   generateId: () => string;
@@ -64,14 +64,13 @@ export async function createCalendarMission({
   database,
   accountId,
   deviceId,
-  timeZone,
   input,
   now,
   generateId,
 }: CalendarMissionCreateOptions): Promise<OneTimeMission> {
   assertNonEmpty(accountId, 'Account ID');
   assertNonEmpty(deviceId, 'Device ID');
-  assertNonEmpty(timeZone, 'Time zone');
+  assertNonEmpty(input.timeZone, 'Time zone');
   assertMinute(input.startMinute, 'Mission start minute');
   assertMinute(input.endMinute, 'Mission end minute');
   if (input.endMinute <= input.startMinute) {
@@ -81,7 +80,7 @@ export async function createCalendarMission({
   const schedule = createZonedTimedSchedule({
     localStart: localDateTime(input.selectedDate, input.startMinute),
     localFinish: localDateTime(input.selectedDate, input.endMinute),
-    timeZone,
+    timeZone: input.timeZone,
     timeBehavior: 'local_time',
   });
   const placement = evaluateSchedulePlacement({
@@ -139,7 +138,7 @@ export async function createCalendarMission({
         accountId,
         mission.series.id,
         mission.series.title,
-        timeZone,
+        input.timeZone,
         JSON.stringify(mission.series),
         occurredAt,
       );
