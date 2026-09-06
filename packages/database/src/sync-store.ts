@@ -220,6 +220,36 @@ function parseSettingsPatch(payload: unknown): SettingsPatch {
   return patch;
 }
 
+function instantAsLocalDateTime(instant: string, timeZone: string): string {
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hourCycle: 'h23',
+    }).formatToParts(new Date(instant));
+    const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+    return `${values.year}-${values.month}-${values.day}T${values.hour}:${values.minute}:${values.second}`;
+  } catch {
+    throw new SyncMutationValidationError('Mission time zone is invalid');
+  }
+}
+
+function assertMissionScheduleCoherence(schedule: MissionSchedulePayload): void {
+  if (
+    instantAsLocalDateTime(schedule.startInstant, schedule.timeZone) !== schedule.localStart ||
+    instantAsLocalDateTime(schedule.finishInstant, schedule.timeZone) !== schedule.localFinish
+  ) {
+    throw new SyncMutationValidationError(
+      'Mission local schedule must match its absolute instants in the supplied time zone',
+    );
+  }
+}
+
 function parseMissionCreatePayload(
   payload: unknown,
   expectedOccurrenceId: string,
@@ -263,6 +293,23 @@ function parseMissionCreatePayload(
     throw new SyncMutationValidationError('MTS-044 mission create must be a timed mission');
   }
 
+  const schedule: MissionSchedulePayload = {
+    localStart,
+    localFinish,
+    startInstant,
+    finishInstant,
+    timeZone: requireString(scheduleSource, 'timeZone', 'Mission time zone'),
+    timeBehavior: requireLiteral(
+      scheduleSource,
+      'timeBehavior',
+      ['local_time', 'fixed_instant'] as const,
+      'Mission time behavior',
+    ),
+    allDay: false,
+    estimatedEffortMinutes: null,
+  };
+  assertMissionScheduleCoherence(schedule);
+
   return {
     series: {
       id: seriesId,
@@ -272,21 +319,7 @@ function parseMissionCreatePayload(
     occurrence: {
       id: occurrenceId,
       seriesId,
-      schedule: {
-        localStart,
-        localFinish,
-        startInstant,
-        finishInstant,
-        timeZone: requireString(scheduleSource, 'timeZone', 'Mission time zone'),
-        timeBehavior: requireLiteral(
-          scheduleSource,
-          'timeBehavior',
-          ['local_time', 'fixed_instant'] as const,
-          'Mission time behavior',
-        ),
-        allDay: false,
-        estimatedEffortMinutes: null,
-      },
+      schedule,
       scheduleState: requireLiteral(
         occurrenceSource,
         'scheduleState',
