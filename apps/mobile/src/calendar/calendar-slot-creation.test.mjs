@@ -96,6 +96,23 @@ describe('MTS-044 two-tap slot selection', () => {
     expect(renderer.root.findByProps({ testID: 'calendar-create-end' }).props.value).toBe('09:30');
   });
 
+  it('uses the phone 12-hour preference for slot and prefilled time copy', () => {
+    mockState.uses24hourClock = false;
+    const renderer = renderScreen();
+    const slot = renderer.root.findByProps({ testID: 'calendar-slot-540' });
+
+    expect(slot.props.accessibilityLabel).toMatch(/9:00.*AM/i);
+    act(() => slot.props.onPress());
+    act(() => slot.props.onPress());
+
+    expect(renderer.root.findByProps({ testID: 'calendar-create-start' }).props.value).toMatch(
+      /9:00.*AM/i,
+    );
+    expect(renderer.root.findByProps({ testID: 'calendar-create-end' }).props.value).toMatch(
+      /9:30.*AM/i,
+    );
+  });
+
   it('moves selection to another slot instead of opening creation', () => {
     const renderer = renderScreen();
     const first = renderer.root.findByProps({ testID: 'calendar-slot-540' });
