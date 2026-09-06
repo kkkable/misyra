@@ -20,12 +20,19 @@ export interface AllDayMissionProjection {
   readonly hiddenCount: number;
 }
 
+function compareStableText(left: string, right: string): number {
+  if (left === right) {
+    return 0;
+  }
+  return left < right ? -1 : 1;
+}
+
 export function orderAllDayMissions(
   missions: readonly AllDayMissionSummary[],
 ): readonly AllDayMissionSummary[] {
   return [...missions].sort((left, right) => {
-    const keyOrder = left.orderKey.localeCompare(right.orderKey);
-    return keyOrder === 0 ? left.id.localeCompare(right.id) : keyOrder;
+    const keyOrder = compareStableText(left.orderKey, right.orderKey);
+    return keyOrder === 0 ? compareStableText(left.id, right.id) : keyOrder;
   });
 }
 
