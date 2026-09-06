@@ -257,10 +257,10 @@ function groupList(
 function missionPositionStyle(card: MissionCardLayout): ViewStyle {
   return {
     height: card.height,
-    left: `${card.leftPercent}%` as `${number}%`,
+    left: `${String(card.leftPercent)}%`,
     position: 'absolute',
     top: card.top,
-    width: `${card.widthPercent}%` as `${number}%`,
+    width: `${String(card.widthPercent)}%`,
   };
 }
 
