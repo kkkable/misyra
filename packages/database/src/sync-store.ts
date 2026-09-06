@@ -605,7 +605,6 @@ async function acceptMutation(
       mutation.entityId,
       mutation.operation,
       mutation.baseVersion,
-      timing.validationResult,
       timing.clientOccurredAt,
       serverReceiptTime,
       timing.effectiveTime,
