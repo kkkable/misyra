@@ -71,16 +71,27 @@ type SettingsPatch = Readonly<{
   trustMode?: boolean;
 }>;
 
-type MissionSchedulePayload = Readonly<{
+type MissionScheduleBase = Readonly<{
   localStart: string;
   localFinish: string;
   startInstant: string;
   finishInstant: string;
   timeZone: string;
   timeBehavior: 'local_time' | 'fixed_instant';
-  allDay: false;
-  estimatedEffortMinutes: null;
 }>;
+
+type MissionSchedulePayload =
+  | (MissionScheduleBase &
+      Readonly<{
+        allDay: false;
+        estimatedEffortMinutes: null;
+      }>)
+  | (MissionScheduleBase &
+      Readonly<{
+        allDay: true;
+        estimatedEffortMinutes: number;
+        timeBehavior: 'local_time';
+      }>);
 
 type MissionCreatePayload = Readonly<{
   series: Readonly<{
@@ -94,7 +105,7 @@ type MissionCreatePayload = Readonly<{
     schedule: MissionSchedulePayload;
     scheduleState: 'scheduled';
     completionState: 'incomplete';
-    evidenceState: 'not_submitted';
+    evidenceState: 'not_submitted' | 'not_required';
     rewardEligibility: 'undetermined' | 'eligible' | 'ineligible';
     rewardIssuance: 'not_issued';
     calendarSource: 'internal';
@@ -103,6 +114,8 @@ type MissionCreatePayload = Readonly<{
     storyState: 'none';
     deletionState: 'active';
   }>;
+  location: string | null;
+  personalNote: string | null;
 }>;
 
 type ClientTiming = Readonly<{
@@ -177,6 +190,16 @@ function requireString(source: Record<string, unknown>, key: string, label: stri
     throw new SyncMutationValidationError(`${label} must be a non-empty string`);
   }
   return value;
+}
+
+function optionalString(source: Record<string, unknown>, key: string, label: string): string | null {
+  const value = source[key];
+  if (value === undefined || value === null) return null;
+  if (typeof value !== 'string') {
+    throw new SyncMutationValidationError(`${label} must be a string or null`);
+  }
+  const trimmed = value.trim();
+  return trimmed.length === 0 ? null : trimmed;
 }
 
 function requireUuid(source: Record<string, unknown>, key: string, label: string): string {
@@ -264,6 +287,72 @@ function assertMissionScheduleCoherence(schedule: MissionSchedulePayload): void 
   }
 }
 
+function parseMissionSchedule(scheduleSource: Record<string, unknown>): MissionSchedulePayload {
+  const localStart = requireString(scheduleSource, 'localStart', 'Mission local start');
+  const localFinish = requireString(scheduleSource, 'localFinish', 'Mission local finish');
+  if (!LOCAL_DATE_TIME_PATTERN.test(localStart) || !LOCAL_DATE_TIME_PATTERN.test(localFinish)) {
+    throw new SyncMutationValidationError(
+      'Mission local times must use ISO local date-time format',
+    );
+  }
+  const startInstant = requireString(scheduleSource, 'startInstant', 'Mission start instant');
+  const finishInstant = requireString(scheduleSource, 'finishInstant', 'Mission finish instant');
+  const start = Date.parse(startInstant);
+  const finish = Date.parse(finishInstant);
+  if (!Number.isFinite(start) || !Number.isFinite(finish) || finish <= start) {
+    throw new SyncMutationValidationError('Mission absolute schedule is invalid');
+  }
+  const timeZone = requireString(scheduleSource, 'timeZone', 'Mission time zone');
+  const timeBehavior = requireLiteral(
+    scheduleSource,
+    'timeBehavior',
+    ['local_time', 'fixed_instant'] as const,
+    'Mission time behavior',
+  );
+  const allDay = scheduleSource.allDay;
+  const estimatedEffortMinutes = scheduleSource.estimatedEffortMinutes;
+  let schedule: MissionSchedulePayload;
+  if (allDay === false) {
+    if (estimatedEffortMinutes !== null) {
+      throw new SyncMutationValidationError('Timed missions cannot set estimated effort minutes');
+    }
+    schedule = {
+      localStart,
+      localFinish,
+      startInstant,
+      finishInstant,
+      timeZone,
+      timeBehavior,
+      allDay: false,
+      estimatedEffortMinutes: null,
+    };
+  } else if (allDay === true) {
+    if (
+      timeBehavior !== 'local_time' ||
+      !Number.isInteger(estimatedEffortMinutes) ||
+      (estimatedEffortMinutes as number) <= 0
+    ) {
+      throw new SyncMutationValidationError(
+        'All-day missions require local-time behavior and positive estimated effort minutes',
+      );
+    }
+    schedule = {
+      localStart,
+      localFinish,
+      startInstant,
+      finishInstant,
+      timeZone,
+      timeBehavior: 'local_time',
+      allDay: true,
+      estimatedEffortMinutes: estimatedEffortMinutes as number,
+    };
+  } else {
+    throw new SyncMutationValidationError('Mission all-day flag must be boolean');
+  }
+  assertMissionScheduleCoherence(schedule);
+  return schedule;
+}
+
 function parseMissionCreatePayload(
   payload: unknown,
   expectedOccurrenceId: string,
@@ -286,43 +375,10 @@ function parseMissionCreatePayload(
     throw new SyncMutationValidationError('Mission occurrence must belong to its supplied series');
   }
   if (seriesSource.recurrence !== null) {
-    throw new SyncMutationValidationError('MTS-044 mission create must be non-recurring');
+    throw new SyncMutationValidationError('MTS-045 mission create must be non-recurring');
   }
 
-  const localStart = requireString(scheduleSource, 'localStart', 'Mission local start');
-  const localFinish = requireString(scheduleSource, 'localFinish', 'Mission local finish');
-  if (!LOCAL_DATE_TIME_PATTERN.test(localStart) || !LOCAL_DATE_TIME_PATTERN.test(localFinish)) {
-    throw new SyncMutationValidationError(
-      'Mission local times must use ISO local date-time format',
-    );
-  }
-  const startInstant = requireString(scheduleSource, 'startInstant', 'Mission start instant');
-  const finishInstant = requireString(scheduleSource, 'finishInstant', 'Mission finish instant');
-  const start = Date.parse(startInstant);
-  const finish = Date.parse(finishInstant);
-  if (!Number.isFinite(start) || !Number.isFinite(finish) || finish <= start) {
-    throw new SyncMutationValidationError('Mission absolute schedule is invalid');
-  }
-  if (scheduleSource.allDay !== false || scheduleSource.estimatedEffortMinutes !== null) {
-    throw new SyncMutationValidationError('MTS-044 mission create must be a timed mission');
-  }
-
-  const schedule: MissionSchedulePayload = {
-    localStart,
-    localFinish,
-    startInstant,
-    finishInstant,
-    timeZone: requireString(scheduleSource, 'timeZone', 'Mission time zone'),
-    timeBehavior: requireLiteral(
-      scheduleSource,
-      'timeBehavior',
-      ['local_time', 'fixed_instant'] as const,
-      'Mission time behavior',
-    ),
-    allDay: false,
-    estimatedEffortMinutes: null,
-  };
-  assertMissionScheduleCoherence(schedule);
+  const schedule = parseMissionSchedule(scheduleSource);
 
   return {
     series: {
@@ -349,7 +405,7 @@ function parseMissionCreatePayload(
       evidenceState: requireLiteral(
         occurrenceSource,
         'evidenceState',
-        ['not_submitted'] as const,
+        ['not_submitted', 'not_required'] as const,
         'Mission evidence state',
       ),
       rewardEligibility: requireLiteral(
@@ -390,6 +446,8 @@ function parseMissionCreatePayload(
         'Mission deletion state',
       ),
     },
+    location: optionalString(root, 'location', 'Mission location'),
+    personalNote: optionalString(root, 'personalNote', 'Mission personal note'),
   };
 }
 
@@ -512,13 +570,13 @@ async function applyMissionCreateMutation(
        start_instant, finish_instant, time_zone, time_behavior, all_day,
        estimated_effort_minutes, schedule_state, completion_state, evidence_state,
        reward_eligibility, reward_issuance, calendar_source, field_ownership,
-       synchronization_state, story_state, deletion_state
+       synchronization_state, story_state, deletion_state, location
      ) VALUES (
        $1, $2, $3, $4, $5, $6,
-       $7, $8, $9, $10, FALSE,
-       NULL, $11, $12, $13,
-       $14, $15, $16, $17,
-       'synced', $18, $19
+       $7, $8, $9, $10, $11,
+       $12, $13, $14, $15,
+       $16, $17, $18, $19,
+       'synced', $20, $21, $22
      )`,
     [
       mission.occurrence.id,
@@ -531,6 +589,8 @@ async function applyMissionCreateMutation(
       schedule.finishInstant,
       schedule.timeZone,
       schedule.timeBehavior,
+      schedule.allDay,
+      schedule.estimatedEffortMinutes,
       mission.occurrence.scheduleState,
       mission.occurrence.completionState,
       mission.occurrence.evidenceState,
@@ -540,8 +600,16 @@ async function applyMissionCreateMutation(
       mission.occurrence.fieldOwnership,
       mission.occurrence.storyState,
       mission.occurrence.deletionState,
+      mission.location,
     ],
   );
+  if (mission.personalNote !== null) {
+    await client.query(
+      `INSERT INTO mission_personal_notes (occurrence_id, account_id, note)
+       VALUES ($1, $2, $3)`,
+      [mission.occurrence.id, accountId, mission.personalNote],
+    );
+  }
   return mission;
 }
 
