@@ -26,10 +26,8 @@ import {
   resolveResponsiveCalendarLayout,
   shouldShowTodayButton,
 } from './calendar-day-shell.js';
-import {
-  CalendarInteractiveTimeline,
-  type CalendarMissionCreateInput,
-} from './calendar-interactive-timeline.js';
+import { CalendarInteractiveTimeline } from './calendar-interactive-timeline.js';
+import type { CalendarMissionCreateInput } from './calendar-mission-create.js';
 import { TimedMissionLayer, type TimedMissionSummary } from './calendar-mission-layout.js';
 
 function parseLocalDateParts(value: string): { year: number; month: number; day: number } {
