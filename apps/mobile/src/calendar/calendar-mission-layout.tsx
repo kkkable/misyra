@@ -80,9 +80,7 @@ function compareMissions(left: TimedMissionSummary, right: TimedMissionSummary):
   return order === 0 ? compareStableText(left.id, right.id) : order;
 }
 
-function assignMissionColumns(
-  missions: readonly TimedMissionSummary[],
-): {
+function assignMissionColumns(missions: readonly TimedMissionSummary[]): {
   readonly assignments: readonly MissionColumnAssignment[];
   readonly peakConcurrency: number;
 } {
@@ -201,10 +199,7 @@ function missionHitSlop(mission: TimedMissionSummary): {
   readonly left: number;
   readonly right: number;
 } {
-  const verticalInset = Math.max(
-    0,
-    (layout.minimumTouchTarget - missionFrame(mission).height) / 2,
-  );
+  const verticalInset = Math.max(0, (layout.minimumTouchTarget - missionFrame(mission).height) / 2);
   return {
     top: verticalInset,
     bottom: verticalInset,
