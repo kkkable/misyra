@@ -24,6 +24,7 @@ import {
   resolveResponsiveCalendarLayout,
   shouldShowTodayButton,
 } from './calendar-day-shell.js';
+import { TimedTimeline } from './calendar-timeline.js';
 
 const messages = {
   en: {
@@ -131,17 +132,25 @@ export function CalendarDayScreen({
   const [pickerVisible, setPickerVisible] = useState(false);
   const [pickerMonth, setPickerMonth] = useState(initialDateRef.current);
 
+  const currentMinute = minuteOfDay(now);
   const launch = useMemo(
     () =>
       resolveCalendarLaunch({
         selectedDate,
         today,
-        currentMinute: minuteOfDay(now),
+        currentMinute,
         ...(firstTimedMissionMinute === undefined ? {} : { firstTimedMissionMinute }),
         ...(preservedMinute === undefined ? {} : { preservedMinute }),
         returningFromBackground,
       }),
-    [firstTimedMissionMinute, now, preservedMinute, returningFromBackground, selectedDate, today],
+    [
+      currentMinute,
+      firstTimedMissionMinute,
+      preservedMinute,
+      returningFromBackground,
+      selectedDate,
+      today,
+    ],
   );
   const strip = useMemo(
     () => buildSevenDayStrip(selectedDate, firstWeekday),
@@ -275,7 +284,16 @@ export function CalendarDayScreen({
         accessibilityLabel={`${launch.reason}:${String(launch.minute)}`}
         style={[styles.dayBody, { borderTopColor: colors.divider }]}
         testID="calendar-day-body"
-      />
+      >
+        <TimedTimeline
+          colorScheme={colorScheme}
+          initialCurrentMinute={currentMinute}
+          key={selectedDate}
+          launchMinute={launch.minute}
+          selectedDate={selectedDate}
+          today={today}
+        />
+      </View>
 
       <Modal
         animationType="fade"
