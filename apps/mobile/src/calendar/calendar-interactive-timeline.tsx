@@ -101,6 +101,12 @@ export function CalendarInteractiveTimeline({
 
   const slotLayer = (
     <View pointerEvents="box-none" style={styles.slotLayer} testID="calendar-slot-layer">
+      <Pressable
+        accessible={false}
+        onPress={clearSelection}
+        style={styles.slotClearLayer}
+        testID="calendar-slot-clear-layer"
+      />
       {Array.from(
         { length: MINUTES_PER_DAY / SLOT_MINUTES },
         (_, index) => index * SLOT_MINUTES,
@@ -286,6 +292,13 @@ export function CalendarInteractiveTimeline({
 
 const styles = StyleSheet.create({
   slotLayer: {
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+  },
+  slotClearLayer: {
     bottom: 0,
     left: 0,
     position: 'absolute',
