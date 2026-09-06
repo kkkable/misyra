@@ -229,7 +229,11 @@ function parseMissionCreatePayload(
   const scheduleSource = asRecord(occurrenceSource.schedule, 'Mission schedule');
   const seriesId = requireUuid(seriesSource, 'id', 'Mission series id');
   const occurrenceId = requireUuid(occurrenceSource, 'id', 'Mission occurrence id');
-  const occurrenceSeriesId = requireUuid(occurrenceSource, 'seriesId', 'Mission occurrence series id');
+  const occurrenceSeriesId = requireUuid(
+    occurrenceSource,
+    'seriesId',
+    'Mission occurrence series id',
+  );
   if (occurrenceId !== expectedOccurrenceId) {
     throw new SyncMutationValidationError('Mission mutation entity id must match occurrence id');
   }
@@ -243,7 +247,9 @@ function parseMissionCreatePayload(
   const localStart = requireString(scheduleSource, 'localStart', 'Mission local start');
   const localFinish = requireString(scheduleSource, 'localFinish', 'Mission local finish');
   if (!LOCAL_DATE_TIME_PATTERN.test(localStart) || !LOCAL_DATE_TIME_PATTERN.test(localFinish)) {
-    throw new SyncMutationValidationError('Mission local times must use ISO local date-time format');
+    throw new SyncMutationValidationError(
+      'Mission local times must use ISO local date-time format',
+    );
   }
   const startInstant = requireString(scheduleSource, 'startInstant', 'Mission start instant');
   const finishInstant = requireString(scheduleSource, 'finishInstant', 'Mission finish instant');
@@ -471,12 +477,7 @@ async function applyExecutableMutation(
   mutation: StoredSyncMutation,
 ): Promise<unknown> {
   if (mutation.entityType === 'settings') {
-    return applySettingsMutation(
-      client,
-      mutation.accountId,
-      mutation.operation,
-      mutation.payload,
-    );
+    return applySettingsMutation(client, mutation.accountId, mutation.operation, mutation.payload);
   }
   if (mutation.entityType === 'mission') {
     return applyMissionCreateMutation(

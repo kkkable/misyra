@@ -5,10 +5,7 @@ import type { LocalizationLocale } from '@misyra/localization';
 
 import { rootAuthController, rootAuthStorage } from '../auth/auth-runtime.js';
 import { openMobileDatabase } from '../storage/database.js';
-import {
-  createLocalRepositories,
-  type LocalRepositories,
-} from '../storage/local-repositories.js';
+import { createLocalRepositories, type LocalRepositories } from '../storage/local-repositories.js';
 import { requireRegisteredDeviceId } from '../sync/root-sync-runtime.js';
 import { CalendarDayScreen } from './calendar-day-screen.js';
 import {
@@ -26,10 +23,9 @@ const UUID_HEX = '0123456789abcdef';
 const UUID_VARIANTS = '89ab';
 
 function randomHex(length: number): string {
-  return Array.from(
-    { length },
-    () => UUID_HEX[Math.floor(Math.random() * UUID_HEX.length)],
-  ).join('');
+  return Array.from({ length }, () => UUID_HEX[Math.floor(Math.random() * UUID_HEX.length)]).join(
+    '',
+  );
 }
 
 function generateUuid(): string {
