@@ -7,7 +7,7 @@ import { localizationCatalogs, type LocalizationLocale } from '@misyra/localizat
 
 import { themeColors, type ColorScheme } from '../design-system/index.js';
 import { haptics } from '../experience/native-haptics.js';
-import { TimedTimeline } from './calendar-timeline.js';
+import { formatTimelineTime, TimedTimeline } from './calendar-timeline.js';
 
 const SLOT_MINUTES = 30;
 const MINUTES_PER_DAY = 24 * 60;
@@ -57,11 +57,12 @@ function placementForSlot(selectedDate: string, minute: number, now: Date) {
   });
 }
 
-function formatMinute(minute: number): string {
-  const normalized = minute % MINUTES_PER_DAY;
-  const hour = Math.floor(normalized / 60);
-  const minuteWithinHour = normalized % 60;
-  return `${String(hour).padStart(2, '0')}:${String(minuteWithinHour).padStart(2, '0')}`;
+function formatSlotTime(
+  minute: number,
+  language: LocalizationLocale,
+  uses24HourClock: boolean,
+): string {
+  return formatTimelineTime(minute % MINUTES_PER_DAY, language, uses24HourClock);
 }
 
 export function CalendarInteractiveTimeline({
@@ -106,7 +107,7 @@ export function CalendarInteractiveTimeline({
           <Pressable
             accessibilityLabel={catalog['calendar.create.selectSlot'].replace(
               '{time}',
-              formatMinute(minute),
+              formatSlotTime(minute, language, uses24HourClock),
             )}
             accessibilityRole="button"
             key={minute}
@@ -203,14 +204,18 @@ export function CalendarInteractiveTimeline({
                   editable={false}
                   style={[styles.timeValue, { color: colors.textSecondary }]}
                   testID="calendar-create-start"
-                  value={formatMinute(creationSlotMinute)}
+                  value={formatSlotTime(creationSlotMinute, language, uses24HourClock)}
                 />
                 <TextInput
                   accessibilityLabel={catalog['calendar.create.end']}
                   editable={false}
                   style={[styles.timeValue, { color: colors.textSecondary }]}
                   testID="calendar-create-end"
-                  value={formatMinute(creationSlotMinute + SLOT_MINUTES)}
+                  value={formatSlotTime(
+                    creationSlotMinute + SLOT_MINUTES,
+                    language,
+                    uses24HourClock,
+                  )}
                 />
               </View>
               <View style={styles.actions}>
