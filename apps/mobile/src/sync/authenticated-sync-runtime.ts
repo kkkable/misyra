@@ -114,11 +114,19 @@ function settingsFromChange(change: ServerAccountChange): AccountSettings | null
 function missionFromChange(change: ServerAccountChange): OneTimeMission | null {
   if (change.entityType !== 'mission') return null;
   if (change.operation !== 'upsert') throw new Error('Unsupported mission change operation.');
-  if (typeof change.payload !== 'object' || change.payload === null || Array.isArray(change.payload)) {
+  if (
+    typeof change.payload !== 'object' ||
+    change.payload === null ||
+    Array.isArray(change.payload)
+  ) {
     throw new Error('Mission change payload must be an object.');
   }
   const payload = change.payload as Record<string, unknown>;
-  if (typeof payload.series !== 'object' || payload.series === null || Array.isArray(payload.series)) {
+  if (
+    typeof payload.series !== 'object' ||
+    payload.series === null ||
+    Array.isArray(payload.series)
+  ) {
     throw new Error('Mission change series must be an object.');
   }
   if (
