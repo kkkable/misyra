@@ -159,5 +159,17 @@ describe('MTS-042 all-day expansion and accessibility', () => {
 
     expect(renderedMissionCards(renderer)).toHaveLength(3);
     expect(renderer.root.findAllByProps({ testID: 'calendar-all-day-heading' })).toHaveLength(0);
+
+    act(() => {
+      renderer.update(
+        createElement(AllDayMissionList, {
+          colorScheme: 'light',
+          missions,
+          onMissionPress: vi.fn(),
+          selectedDate: '2026-09-06',
+        }),
+      );
+    });
+    expect(renderedMissionCards(renderer)).toHaveLength(3);
   });
 });
