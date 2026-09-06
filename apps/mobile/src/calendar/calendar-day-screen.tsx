@@ -26,8 +26,11 @@ import {
   resolveResponsiveCalendarLayout,
   shouldShowTodayButton,
 } from './calendar-day-shell.js';
+import {
+  CalendarInteractiveTimeline,
+  type CalendarMissionCreateInput,
+} from './calendar-interactive-timeline.js';
 import { TimedMissionLayer, type TimedMissionSummary } from './calendar-mission-layout.js';
-import { TimedTimeline } from './calendar-timeline.js';
 
 function parseLocalDateParts(value: string): { year: number; month: number; day: number } {
   const [yearText = '0', monthText = '0', dayText = '0'] = value.split('-');
@@ -81,6 +84,9 @@ export interface CalendarDayScreenProps {
   readonly timedMissionsByDate?: Readonly<Record<string, readonly TimedMissionSummary[]>>;
   readonly selectedMissionId?: string;
   readonly onTimedMissionPress?: (mission: TimedMissionSummary) => void;
+  readonly onCreateMission?:
+    | ((input: CalendarMissionCreateInput) => void | Promise<void>)
+    | undefined;
 }
 
 export function CalendarDayScreen({
@@ -94,6 +100,7 @@ export function CalendarDayScreen({
   timedMissionsByDate = {},
   selectedMissionId,
   onTimedMissionPress,
+  onCreateMission,
 }: CalendarDayScreenProps) {
   const params = useLocalSearchParams<{ date?: string | string[] }>();
   const catalog = localizationCatalogs[language];
@@ -279,10 +286,10 @@ export function CalendarDayScreen({
       </View>
 
       <View style={[styles.dayBody, { borderTopColor: colors.divider }]} testID="calendar-day-body">
-        <TimedTimeline
+        <CalendarInteractiveTimeline
           colorScheme={colorScheme}
           initialCurrentMinute={currentMinute}
-          key={selectedDate}
+          key={`${selectedDate}-${pickerVisible ? 'picker' : 'calendar'}`}
           language={language}
           launchMinute={launch.minute}
           missionLayer={
@@ -296,6 +303,8 @@ export function CalendarDayScreen({
               />
             ) : undefined
           }
+          now={now}
+          onCreateMission={onCreateMission}
           scrollHeader={
             allDayMissions.length > 0 ? (
               <AllDayMissionList
