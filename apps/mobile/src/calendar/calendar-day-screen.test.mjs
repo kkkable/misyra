@@ -2,22 +2,39 @@ import { createElement } from 'react';
 import { act, create } from 'react-test-renderer';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-let deepLinkDate;
-let firstWeekday = 2;
+const mockState = vi.hoisted(() => ({
+  deepLinkDate: undefined,
+  firstWeekday: 2,
+}));
 
 vi.mock('expo-router', () => ({
-  useLocalSearchParams: () => (deepLinkDate === undefined ? {} : { date: deepLinkDate }),
+  useLocalSearchParams: () =>
+    mockState.deepLinkDate === undefined ? {} : { date: mockState.deepLinkDate },
 }));
 
 vi.mock('expo-localization', () => ({
-  getCalendars: () => [{ firstWeekday }],
+  getCalendars: () => [{ firstWeekday: mockState.firstWeekday }],
   getLocales: () => [{ languageTag: 'en-HK' }],
 }));
 
 vi.mock('react-native', async () => {
-  const actual = await vi.importActual('react-native');
+  const { createElement: createReactElement } = await import('react');
+
+  const Pressable = ({ children, ...props }) =>
+    createReactElement(
+      'Pressable',
+      props,
+      typeof children === 'function' ? children({ pressed: false }) : children,
+    );
+
   return {
-    ...actual,
+    Modal: 'Modal',
+    Pressable,
+    StyleSheet: {
+      create: (styles) => styles,
+    },
+    Text: 'Text',
+    View: 'View',
     useColorScheme: () => 'light',
     useWindowDimensions: () => ({ width: 393, height: 852, scale: 3, fontScale: 1 }),
   };
@@ -49,8 +66,8 @@ function renderedDayButtons(renderer) {
 }
 
 beforeEach(() => {
-  deepLinkDate = undefined;
-  firstWeekday = 2;
+  mockState.deepLinkDate = undefined;
+  mockState.firstWeekday = 2;
 });
 
 describe('MTS-040 rendered Calendar shell', () => {
@@ -74,7 +91,7 @@ describe('MTS-040 rendered Calendar shell', () => {
   });
 
   it('honors a deep-link date, exposes Today off today, and positions an empty day at 08:00', () => {
-    deepLinkDate = '2026-09-09';
+    mockState.deepLinkDate = '2026-09-09';
     const renderer = renderScreen();
 
     expect(renderer.root.findByProps({ testID: 'calendar-today-button' })).toBeDefined();
@@ -84,8 +101,8 @@ describe('MTS-040 rendered Calendar shell', () => {
   });
 
   it('uses the system regional week start instead of an app-specific preference', () => {
-    firstWeekday = 1;
-    deepLinkDate = '2026-09-09';
+    mockState.firstWeekday = 1;
+    mockState.deepLinkDate = '2026-09-09';
     const renderer = renderScreen();
     const days = renderedDayButtons(renderer);
 
