@@ -6,6 +6,17 @@ vi.mock('expo-localization', () => ({
   getLocales: () => [{ languageTag: 'en-HK' }],
 }));
 
+vi.mock('@misyra/localization', () => ({
+  localizationCatalogs: {
+    en: {
+      'calendar.allDay.more': 'Remaining {count}',
+    },
+    'zh-HK': {
+      'calendar.allDay.more': '其餘 {count} 項',
+    },
+  },
+}));
+
 vi.mock('react-native', async () => {
   const { createElement: createReactElement } = await import('react');
 
@@ -107,13 +118,13 @@ describe('MTS-042 stable all-day ordering', () => {
 });
 
 describe('MTS-042 all-day expansion and accessibility', () => {
-  it('renders three tappable scalable cards plus +N more, then expands within the same surface', () => {
+  it('renders three tappable scalable cards plus catalog-backed +N more, then expands within the same surface', () => {
     const onMissionPress = vi.fn();
     const renderer = renderList({ onMissionPress });
 
     expect(renderedMissionCards(renderer)).toHaveLength(3);
     const more = renderer.root.findByProps({ testID: 'calendar-all-day-more' });
-    expect(more.props.accessibilityLabel).toBe('+2 more');
+    expect(more.props.accessibilityLabel).toBe('Remaining 2');
 
     act(() => more.props.onPress());
     expect(renderedMissionCards(renderer)).toHaveLength(5);
