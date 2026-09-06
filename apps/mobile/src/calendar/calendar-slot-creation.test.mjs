@@ -202,4 +202,14 @@ describe('MTS-044 past-create eligibility', () => {
     const tooOld = renderScreen({ now: new Date('2026-09-06T10:00:00.000Z') });
     expect(tooOld.root.findAllByProps({ testID: 'calendar-slot-600' })).toHaveLength(0);
   });
+
+  it('evaluates the historical window in the same saved IANA time zone used by save', () => {
+    mockState.deepLinkDate = '2026-08-07';
+    const renderer = renderScreen({
+      now: new Date('2026-09-06T10:00:00.000Z'),
+      timeZone: 'Asia/Hong_Kong',
+    });
+
+    expect(renderer.root.findAllByProps({ testID: 'calendar-slot-600' })).toHaveLength(0);
+  });
 });
