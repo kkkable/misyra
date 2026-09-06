@@ -178,26 +178,18 @@ describe('MTS-042 Calendar all-day composition', () => {
     });
 
     expect(renderer.root.findByProps({ testID: 'calendar-scroll-header' })).toBeDefined();
-    expect(
-      renderer.root.findByProps({ testID: 'calendar-all-day-mission-today-1' }),
-    ).toBeDefined();
+    expect(renderer.root.findByProps({ testID: 'calendar-all-day-mission-today-1' })).toBeDefined();
     expect(
       renderer.root.findByProps({ testID: 'calendar-all-day-more' }).props.accessibilityLabel,
     ).toBe('+1 more');
 
-    act(() =>
-      renderer.root.findByProps({ testID: 'calendar-all-day-mission-today-1' }).props.onPress(),
-    );
+    act(() => renderer.root.findByProps({ testID: 'calendar-all-day-mission-today-1' }).props.onPress());
     expect(onAllDayMissionPress).toHaveBeenCalledWith(expect.objectContaining({ id: 'today-1' }));
 
-    act(() =>
-      renderer.root.findByProps({ testID: 'calendar-day-2026-09-01' }).props.onPress(),
-    );
+    act(() => renderer.root.findByProps({ testID: 'calendar-day-2026-09-01' }).props.onPress());
     expect(
       renderer.root.findAllByProps({ testID: 'calendar-all-day-mission-today-1' }),
     ).toHaveLength(0);
-    expect(
-      renderer.root.findByProps({ testID: 'calendar-all-day-mission-other-1' }),
-    ).toBeDefined();
+    expect(renderer.root.findByProps({ testID: 'calendar-all-day-mission-other-1' })).toBeDefined();
   });
 });
