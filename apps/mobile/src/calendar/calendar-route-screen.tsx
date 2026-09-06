@@ -92,15 +92,11 @@ export function CalendarRouteScreen() {
 
     const deviceId = await requireRegisteredDeviceId(authState.session.accountId);
     const database = await openMobileDatabase();
-    const repositories = createLocalRepositories(database, authState.session.accountId);
-    const settings = await repositories.settings.get();
-    if (settings === null) throw new Error('calendar_create_settings_unavailable');
 
     await createCalendarMission({
       database,
       accountId: authState.session.accountId,
       deviceId,
-      timeZone: settings.appTimeZone,
       input,
       now: new Date(),
       generateId: generateUuid,
