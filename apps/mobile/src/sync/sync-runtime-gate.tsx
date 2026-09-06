@@ -1,9 +1,4 @@
-import {
-  focusManager,
-  QueryClient,
-  QueryClientProvider,
-  useQuery,
-} from '@tanstack/react-query';
+import { focusManager, QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { useEffect, type PropsWithChildren } from 'react';
 import { AppState } from 'react-native';
 
