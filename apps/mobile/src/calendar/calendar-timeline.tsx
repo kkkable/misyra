@@ -72,7 +72,10 @@ function minuteOfDate(date: Date): number {
 
 function timelineLaunchOffset(launchMinute: number): number {
   assertMinuteInRenderedDay(launchMinute);
-  return Math.max(0, Math.min(TIMELINE_HEIGHT, timelineYForMinute(launchMinute) - EARLIER_CONTEXT_MINUTES));
+  return Math.max(
+    0,
+    Math.min(TIMELINE_HEIGHT, timelineYForMinute(launchMinute) - EARLIER_CONTEXT_MINUTES),
+  );
 }
 
 const systemNowProvider = (): Date => new Date();
@@ -99,7 +102,7 @@ export function CurrentTimeRuler({
       setMinute(minuteOfDate(nowProvider()));
     }, updateIntervalMs);
 
-    return () => clearInterval(interval);
+    return () => { clearInterval(interval); };
   }, [nowProvider, updateIntervalMs]);
 
   return (
@@ -142,7 +145,10 @@ export function TimedTimeline({
       style={styles.scroll}
       testID="calendar-timeline-scroll"
     >
-      <View style={[styles.timelineContent, { height: TIMELINE_HEIGHT }]} testID="calendar-timeline-content">
+      <View
+        style={[styles.timelineContent, { height: TIMELINE_HEIGHT }]}
+        testID="calendar-timeline-content"
+      >
         {timelineGuides.map((guide) => (
           <View
             key={`guide-${String(guide.minute)}`}
