@@ -32,7 +32,7 @@ afterAll(async () => {
 });
 
 describe('MTS-044 mission create sync projector', () => {
-  it('persists an accepted mission create and publishes a synced authoritative payload', async () => {
+  it('enforces historical eligibility and the 30-day create window authoritatively', async () => {
     const auth = createPostgresAuthStore(pool);
     const devices = createPostgresDeviceSettingsStore(pool);
     const account = await auth.findOrCreateAccount('google', `mission-sync-${randomUUID()}`);
@@ -49,17 +49,17 @@ describe('MTS-044 mission create sync projector', () => {
     const payload = {
       series: {
         id: seriesId,
-        title: 'Morning mission',
+        title: 'Historical mission',
         recurrence: null,
       },
       occurrence: {
         id: occurrenceId,
         seriesId,
         schedule: {
-          localStart: '2026-09-07T09:00:00',
-          localFinish: '2026-09-07T09:30:00',
-          startInstant: '2026-09-07T01:00:00.000Z',
-          finishInstant: '2026-09-07T01:30:00.000Z',
+          localStart: '2026-09-05T09:00:00',
+          localFinish: '2026-09-05T09:30:00',
+          startInstant: '2026-09-05T01:00:00.000Z',
+          finishInstant: '2026-09-05T01:30:00.000Z',
           timeZone: 'Asia/Hong_Kong',
           timeBehavior: 'local_time',
           allDay: false,
@@ -100,16 +100,18 @@ describe('MTS-044 mission create sync projector', () => {
       [seriesId, account.id],
     );
     const occurrence = await pool.query(
-      `SELECT local_date::text AS local_date, local_start, local_finish, synchronization_state
+      `SELECT local_date::text AS local_date, local_start, local_finish,
+              reward_eligibility, synchronization_state
          FROM mission_occurrences
         WHERE id = $1 AND account_id = $2`,
       [occurrenceId, account.id],
     );
-    expect(series.rows[0]).toMatchObject({ title: 'Morning mission', recurrence_rule: null });
+    expect(series.rows[0]).toMatchObject({ title: 'Historical mission', recurrence_rule: null });
     expect(occurrence.rows[0]).toMatchObject({
-      local_date: '2026-09-07',
-      local_start: '2026-09-07T09:00:00',
-      local_finish: '2026-09-07T09:30:00',
+      local_date: '2026-09-05',
+      local_start: '2026-09-05T09:00:00',
+      local_finish: '2026-09-05T09:30:00',
+      reward_eligibility: 'ineligible',
       synchronization_state: 'synced',
     });
 
@@ -125,9 +127,49 @@ describe('MTS-044 mission create sync projector', () => {
         series: payload.series,
         occurrence: {
           ...payload.occurrence,
+          rewardEligibility: 'ineligible',
           synchronizationState: 'synced',
         },
       },
     });
+
+    const tooOldSeriesId = randomUUID();
+    const tooOldOccurrenceId = randomUUID();
+    const tooOldMutationId = randomUUID();
+    const tooOldPayload = {
+      ...payload,
+      series: {
+        ...payload.series,
+        id: tooOldSeriesId,
+      },
+      occurrence: {
+        ...payload.occurrence,
+        id: tooOldOccurrenceId,
+        seriesId: tooOldSeriesId,
+        schedule: {
+          ...payload.occurrence.schedule,
+          localStart: '2026-08-01T09:00:00',
+          localFinish: '2026-08-01T09:30:00',
+          startInstant: '2026-08-01T01:00:00.000Z',
+          finishInstant: '2026-08-01T01:30:00.000Z',
+        },
+      },
+    } as const;
+
+    await expect(
+      store.push(account.id, [
+        {
+          mutationId: tooOldMutationId,
+          accountId: account.id,
+          deviceId,
+          entityType: 'mission',
+          entityId: tooOldOccurrenceId,
+          operation: 'create',
+          baseVersion: null,
+          clientOccurredAt: '2026-09-06T17:00:00.000Z',
+          payload: tooOldPayload,
+        },
+      ]),
+    ).rejects.toThrow('historical window');
   });
 });
