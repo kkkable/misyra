@@ -1,25 +1,18 @@
 import { type ReactNode, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { evaluateSchedulePlacement, type RewardEligibility } from '@misyra/domain';
+import { evaluateSchedulePlacement } from '@misyra/domain';
 import { layout, radius, space, typography } from '@misyra/design-tokens';
 import { localizationCatalogs, type LocalizationLocale } from '@misyra/localization';
 
 import { themeColors, type ColorScheme } from '../design-system/index.js';
 import { haptics } from '../experience/native-haptics.js';
+import type { CalendarMissionCreateInput } from './calendar-mission-create.js';
 import { formatTimelineTime, TimedTimeline } from './calendar-timeline.js';
 
 const SLOT_MINUTES = 30;
 const MINUTES_PER_DAY = 24 * 60;
 const TIMELINE_GUTTER = space[10] + space[3];
-
-export type CalendarMissionCreateInput = Readonly<{
-  selectedDate: string;
-  title: string;
-  startMinute: number;
-  endMinute: number;
-  rewardEligibility: RewardEligibility;
-}>;
 
 type CalendarInteractiveTimelineProps = Readonly<{
   colorScheme: ColorScheme;
@@ -240,19 +233,25 @@ export function CalendarInteractiveTimeline({
                     if (
                       creationPlacement === null ||
                       !creationPlacement.allowed ||
-                      title.trim().length === 0
+                      title.trim().length === 0 ||
+                      onCreateMission === undefined
                     ) {
                       return;
                     }
-                    void onCreateMission?.({
-                      selectedDate,
-                      title: title.trim(),
-                      startMinute: creationSlotMinute,
-                      endMinute: creationSlotMinute + SLOT_MINUTES,
-                      rewardEligibility: creationPlacement.rewardEligibility,
-                    });
-                    haptics.triggerNonBlocking('save');
-                    closeCreation();
+                    void Promise.resolve(
+                      onCreateMission({
+                        selectedDate,
+                        title: title.trim(),
+                        startMinute: creationSlotMinute,
+                        endMinute: creationSlotMinute + SLOT_MINUTES,
+                        rewardEligibility: creationPlacement.rewardEligibility,
+                      }),
+                    )
+                      .then(() => {
+                        haptics.triggerNonBlocking('save');
+                        closeCreation();
+                      })
+                      .catch(() => undefined);
                   }}
                   style={styles.action}
                   testID="calendar-create-save"
