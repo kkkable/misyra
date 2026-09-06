@@ -235,14 +235,24 @@ function groupList(
           key={mission.id}
           language={language}
           mission={mission}
-          onPress={onMissionPress}
           selected={selectedMissionId === mission.id}
           style={styles.overflowListCard}
           testID={`calendar-overlap-list-mission-${mission.id}`}
+          {...(onMissionPress === undefined ? {} : { onPress: onMissionPress })}
         />
       ))}
     </View>
   );
+}
+
+function missionPositionStyle(card: MissionCardLayout): ViewStyle {
+  return {
+    height: card.height,
+    left: `${card.leftPercent}%` as `${number}%`,
+    position: 'absolute',
+    top: card.top,
+    width: `${card.widthPercent}%` as `${number}%`,
+  };
 }
 
 export function TimedMissionLayer({
@@ -266,15 +276,9 @@ export function TimedMissionLayer({
               key={card.mission.id}
               language={language}
               mission={card.mission}
-              onPress={onMissionPress}
               selected={selectedMissionId === card.mission.id}
-              style={{
-                height: card.height,
-                left: `${String(card.leftPercent)}%`,
-                position: 'absolute',
-                top: card.top,
-                width: `${String(card.widthPercent)}%`,
-              }}
+              style={missionPositionStyle(card)}
+              {...(onMissionPress === undefined ? {} : { onPress: onMissionPress })}
             />
           ))}
           {group.hiddenMissions.length > 0 ? (
