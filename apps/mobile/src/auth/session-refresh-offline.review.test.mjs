@@ -42,7 +42,7 @@ function controllerFor(storage, refresh) {
 }
 
 describe('MTS-036/MTS-031 offline refresh preservation', () => {
-  it('preserves the rotating refresh credential across a transient refresh failure and retries it later', async () => {
+  it('preserves the rotating refresh credential and local signed-in state across a transient refresh failure', async () => {
     const storage = createStorage();
     const refresh = vi
       .fn()
@@ -50,7 +50,10 @@ describe('MTS-036/MTS-031 offline refresh preservation', () => {
       .mockResolvedValueOnce(rotatedSession);
     const controller = controllerFor(storage, refresh);
 
-    await expect(controller.restore()).resolves.toEqual({ status: 'signed_out' });
+    await expect(controller.restore()).resolves.toEqual({
+      status: 'signed_in',
+      session: expiredSession,
+    });
     expect(storage.clear).not.toHaveBeenCalled();
 
     await expect(controller.restore()).resolves.toEqual({
