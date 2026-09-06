@@ -38,12 +38,7 @@ function isUnauthorizedResponse(value: unknown): boolean {
   );
 }
 
-async function post(
-  fetcher: Fetcher,
-  url: string,
-  body: unknown,
-  classifyUnauthorized = false,
-) {
+async function post(fetcher: Fetcher, url: string, body: unknown, classifyUnauthorized = false) {
   const response = await fetcher(url, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
