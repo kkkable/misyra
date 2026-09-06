@@ -100,7 +100,7 @@ describe('MTS-044 mission create sync projector', () => {
       [seriesId, account.id],
     );
     const occurrence = await pool.query(
-      `SELECT local_date, local_start, local_finish, synchronization_state
+      `SELECT local_date::text AS local_date, local_start, local_finish, synchronization_state
          FROM mission_occurrences
         WHERE id = $1 AND account_id = $2`,
       [occurrenceId, account.id],
