@@ -6,7 +6,7 @@ import {
   type ServerAccountChange,
   type ServerSyncDatabase,
 } from './server-sync.js';
-import type { AuthSession } from '../auth/auth-session.js';
+import type { AuthSession, AuthSessionController } from '../auth/auth-session.js';
 import { createMutationQueue, type MutationQueueDatabase } from '../storage/mutation-queue.js';
 
 type InstallationStore = Readonly<{
@@ -44,6 +44,15 @@ export type AuthenticatedSyncRuntimeOptions = Readonly<{
 }>;
 
 const INSTALLATION_ID_KEY = 'misyra.installation-id.v1';
+
+export function createSyncSessionProvider(
+  controller: Pick<AuthSessionController, 'restore'>,
+): () => Promise<AuthSession | null> {
+  return async () => {
+    const state = await controller.restore();
+    return state.status === 'signed_in' ? state.session : null;
+  };
+}
 
 function deviceIdKey(accountId: string) {
   return `misyra.device-id.v1:${accountId}`;
