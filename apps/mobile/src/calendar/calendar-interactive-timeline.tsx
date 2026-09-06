@@ -1,4 +1,5 @@
 import { type ReactNode, useState } from 'react';
+import { getCalendars } from 'expo-localization';
 import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { createZonedTimedSchedule, evaluateSchedulePlacement } from '@misyra/domain';
@@ -25,7 +26,6 @@ type CalendarInteractiveTimelineProps = Readonly<{
   onCreateMission?: ((input: CalendarMissionCreateInput) => void | Promise<void>) | undefined;
   scrollHeader?: ReactNode;
   selectedDate: string;
-  timeZone: string;
   today: string;
   uses24HourClock?: boolean;
 }>;
@@ -79,12 +79,12 @@ export function CalendarInteractiveTimeline({
   onCreateMission,
   scrollHeader,
   selectedDate,
-  timeZone,
   today,
   uses24HourClock = true,
 }: CalendarInteractiveTimelineProps) {
   const colors = themeColors(colorScheme);
   const catalog = localizationCatalogs[language];
+  const missionTimeZone = getCalendars()[0]?.timeZone ?? 'UTC';
   const [selectedSlotMinute, setSelectedSlotMinute] = useState<number | null>(null);
   const [creationSlotMinute, setCreationSlotMinute] = useState<number | null>(null);
   const [title, setTitle] = useState('');
@@ -105,7 +105,7 @@ export function CalendarInteractiveTimeline({
         { length: MINUTES_PER_DAY / SLOT_MINUTES },
         (_, index) => index * SLOT_MINUTES,
       ).map((minute) => {
-        const placement = placementForSlot(selectedDate, minute, now, timeZone);
+        const placement = placementForSlot(selectedDate, minute, now, missionTimeZone);
         if (!placement.allowed) return null;
 
         return (
@@ -152,7 +152,7 @@ export function CalendarInteractiveTimeline({
   const creationPlacement =
     creationSlotMinute === null
       ? null
-      : placementForSlot(selectedDate, creationSlotMinute, now, timeZone);
+      : placementForSlot(selectedDate, creationSlotMinute, now, missionTimeZone);
 
   return (
     <>
