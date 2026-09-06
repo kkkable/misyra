@@ -21,6 +21,10 @@ vi.mock('expo-localization', () => ({
   ],
 }));
 
+vi.mock('../experience/native-haptics.js', () => ({
+  haptics: { triggerNonBlocking: vi.fn() },
+}));
+
 vi.mock('react-native', async () => {
   const { createElement: createReactElement } = await import('react');
   const Pressable = ({ children, ...props }) =>
@@ -103,9 +107,9 @@ describe('MTS-044 two-tap slot selection', () => {
     act(() => first.props.onPress());
     act(() => second.props.onPress());
 
-    expect(renderer.root.findByProps({ testID: 'calendar-selected-slot-frame' }).props.minute).toBe(
-      570,
-    );
+    expect(
+      renderer.root.findByProps({ testID: 'calendar-selected-slot-frame' }).props.accessibilityValue,
+    ).toEqual({ now: 570, min: 0, max: 1440 });
     expect(renderer.root.findAllByProps({ testID: 'calendar-create-sheet' })).toHaveLength(0);
   });
 
