@@ -84,7 +84,7 @@ export function CalendarInteractiveTimeline({
 }: CalendarInteractiveTimelineProps) {
   const colors = themeColors(colorScheme);
   const catalog = localizationCatalogs[language];
-  const missionTimeZone = getCalendars()[0]?.timeZone ?? 'UTC';
+  const missionTimeZone = getCalendars()[0].timeZone ?? 'UTC';
   const [selectedSlotMinute, setSelectedSlotMinute] = useState<number | null>(null);
   const [creationSlotMinute, setCreationSlotMinute] = useState<number | null>(null);
   const [title, setTitle] = useState('');
