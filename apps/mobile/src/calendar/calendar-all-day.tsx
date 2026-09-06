@@ -52,7 +52,7 @@ export function visibleAllDayMissions(
 }
 
 function hiddenCountLabel(hiddenCount: number): string {
-  const languageTag = getLocales()[0]?.languageTag.toLowerCase() ?? 'en';
+  const languageTag = getLocales()[0].languageTag.toLowerCase();
   return languageTag.startsWith('zh')
     ? `另外 ${String(hiddenCount)} 項`
     : `+${String(hiddenCount)} more`;
