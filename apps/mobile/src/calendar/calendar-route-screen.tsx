@@ -5,10 +5,7 @@ import type { LocalizationLocale } from '@misyra/localization';
 
 import { rootAuthStorage } from '../auth/auth-runtime.js';
 import { openMobileDatabase } from '../storage/database.js';
-import {
-  createLocalRepositories,
-  type LocalRepositories,
-} from '../storage/local-repositories.js';
+import { createLocalRepositories, type LocalRepositories } from '../storage/local-repositories.js';
 import { CalendarDayScreen } from './calendar-day-screen.js';
 import {
   resolveCalendarLanguage,
