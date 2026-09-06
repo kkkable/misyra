@@ -43,7 +43,8 @@ function renderScreen(props = {}) {
 function renderedDayButtons(renderer) {
   return renderer.root.findAll(
     (node) =>
-      typeof node.props.testID === 'string' && /^calendar-day-\d{4}-\d{2}-\d{2}$/.test(node.props.testID),
+      typeof node.props.testID === 'string' &&
+      /^calendar-day-\d{4}-\d{2}-\d{2}$/.test(node.props.testID),
   );
 }
 
@@ -67,9 +68,9 @@ describe('MTS-040 rendered Calendar shell', () => {
       'calendar-day-2026-09-06',
     ]);
     expect(renderer.root.findAllByProps({ testID: 'calendar-today-button' })).toHaveLength(0);
-    expect(renderer.root.findByProps({ testID: 'calendar-day-body' }).props.accessibilityLabel).toBe(
-      'current-time:517',
-    );
+    expect(
+      renderer.root.findByProps({ testID: 'calendar-day-body' }).props.accessibilityLabel,
+    ).toBe('current-time:517');
   });
 
   it('honors a deep-link date, exposes Today off today, and positions an empty day at 08:00', () => {
@@ -77,9 +78,9 @@ describe('MTS-040 rendered Calendar shell', () => {
     const renderer = renderScreen();
 
     expect(renderer.root.findByProps({ testID: 'calendar-today-button' })).toBeDefined();
-    expect(renderer.root.findByProps({ testID: 'calendar-day-body' }).props.accessibilityLabel).toBe(
-      'default-0800:480',
-    );
+    expect(
+      renderer.root.findByProps({ testID: 'calendar-day-body' }).props.accessibilityLabel,
+    ).toBe('default-0800:480');
   });
 
   it('uses the system regional week start instead of an app-specific preference', () => {
@@ -103,7 +104,9 @@ describe('MTS-040 rendered Calendar shell', () => {
     act(() => target.props.onPress());
 
     expect(renderer.root.findByProps({ testID: 'calendar-today-button' })).toBeDefined();
-    expect(renderer.root.findByProps({ testID: 'calendar-day-2026-09-10' }).props.accessibilityState).toEqual({
+    expect(
+      renderer.root.findByProps({ testID: 'calendar-day-2026-09-10' }).props.accessibilityState,
+    ).toEqual({
       selected: true,
     });
   });

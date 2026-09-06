@@ -102,7 +102,8 @@ export function shouldShowTodayButton(selectedDate: string, today: string): bool
 
 export function buildSevenDayStrip(selectedDate: string, firstWeekday: number): CalendarStripDay[] {
   const selected = parseLocalDate(selectedDate);
-  if (selected === null) throw new TypeError('Selected Calendar date must use a valid YYYY-MM-DD value.');
+  if (selected === null)
+    throw new TypeError('Selected Calendar date must use a valid YYYY-MM-DD value.');
   if (!Number.isInteger(firstWeekday) || firstWeekday < 1 || firstWeekday > 7) {
     throw new RangeError('Regional first weekday must be an integer from 1 through 7.');
   }
@@ -125,7 +126,8 @@ export function buildSevenDayStrip(selectedDate: string, firstWeekday: number): 
 
 export function buildMonthGrid(selectedDate: string, firstWeekday: number): CalendarStripDay[] {
   const selected = parseLocalDate(selectedDate);
-  if (selected === null) throw new TypeError('Selected Calendar date must use a valid YYYY-MM-DD value.');
+  if (selected === null)
+    throw new TypeError('Selected Calendar date must use a valid YYYY-MM-DD value.');
   const monthStart = new Date(Date.UTC(selected.getUTCFullYear(), selected.getUTCMonth(), 1));
   const monthStartValue = formatLocalDate(monthStart);
   const firstVisible = buildSevenDayStrip(monthStartValue, firstWeekday)[0];
@@ -145,7 +147,8 @@ export function buildMonthGrid(selectedDate: string, firstWeekday: number): Cale
 }
 
 export function resolveResponsiveCalendarLayout(width: number): ResponsiveCalendarLayout {
-  if (!Number.isFinite(width) || width <= 0) throw new RangeError('Calendar width must be positive.');
+  if (!Number.isFinite(width) || width <= 0)
+    throw new RangeError('Calendar width must be positive.');
   if (width < 375) {
     return { compactHeader: true, dayCellWidth: 40, horizontalPadding: 12 };
   }
