@@ -1,5 +1,13 @@
 import { useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 
 import {
   createZonedAllDaySchedule,
@@ -66,7 +74,10 @@ function resolvePlacement({
   startMinute: number;
   timeBehavior: TimeBehavior;
   timeZone: string;
-}>): Readonly<{ allowed: boolean; rewardEligibility: RewardEligibility }> | null {
+}>): Readonly<{
+  allowed: boolean;
+  rewardEligibility: RewardEligibility;
+}> | null {
   try {
     const schedule = allDay
       ? createZonedAllDaySchedule({
@@ -191,7 +202,10 @@ export function CalendarMissionFormSheet({
           style={[styles.sheet, { backgroundColor: colors.surfaceRaised }]}
           testID="calendar-create-sheet"
         >
-          <ScrollView contentContainerStyle={styles.formContent} keyboardShouldPersistTaps="handled">
+          <ScrollView
+            contentContainerStyle={styles.formContent}
+            keyboardShouldPersistTaps="handled"
+          >
             <Text
               accessibilityRole="header"
               allowFontScaling
@@ -230,14 +244,22 @@ export function CalendarMissionFormSheet({
                 <TextInput
                   accessibilityLabel={catalog['calendar.create.start']}
                   editable={false}
-                  style={[styles.input, styles.flexInput, { borderColor: colors.border, color: colors.textSecondary }]}
+                  style={[
+                    styles.input,
+                    styles.flexInput,
+                    { borderColor: colors.border, color: colors.textSecondary },
+                  ]}
                   testID="calendar-create-start"
                   value={formatTime(creationSlotMinute)}
                 />
                 <TextInput
                   accessibilityLabel={catalog['calendar.create.end']}
                   editable={false}
-                  style={[styles.input, styles.flexInput, { borderColor: colors.border, color: colors.textSecondary }]}
+                  style={[
+                    styles.input,
+                    styles.flexInput,
+                    { borderColor: colors.border, color: colors.textSecondary },
+                  ]}
                   testID="calendar-create-end"
                   value={formatTime(endMinute)}
                 />
@@ -324,7 +346,11 @@ export function CalendarMissionFormSheet({
               multiline
               onChangeText={setNotes}
               placeholder={catalog['calendar.create.notes']}
-              style={[styles.input, styles.notesInput, { borderColor: colors.border, color: colors.textPrimary }]}
+              style={[
+                styles.input,
+                styles.notesInput,
+                { borderColor: colors.border, color: colors.textPrimary },
+              ]}
               testID="calendar-create-notes"
               value={notes}
             />
