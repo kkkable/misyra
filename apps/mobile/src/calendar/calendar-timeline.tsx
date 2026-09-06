@@ -102,7 +102,9 @@ export function CurrentTimeRuler({
       setMinute(minuteOfDate(nowProvider()));
     }, updateIntervalMs);
 
-    return () => { clearInterval(interval); };
+    return () => {
+      clearInterval(interval);
+    };
   }, [nowProvider, updateIntervalMs]);
 
   return (
