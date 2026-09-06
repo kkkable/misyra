@@ -53,6 +53,11 @@ jobs:
       - name: Prove failing-fixture gates reject bad inputs
         run: pnpm ci:fixtures
 
+      - name: Diagnose MTS-043 composition formatting (temporary)
+        run: |
+          pnpm exec prettier apps/mobile/src/calendar/calendar-day-screen.test.mjs --config packages/config/prettier.config.mjs > /tmp/calendar-day-screen.test.mjs
+          diff -u apps/mobile/src/calendar/calendar-day-screen.test.mjs /tmp/calendar-day-screen.test.mjs || true
+
       - name: Check workspace formatting
         run: pnpm format
 
