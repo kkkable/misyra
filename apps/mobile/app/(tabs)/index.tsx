@@ -1,9 +1,5 @@
-import { Text, View } from 'react-native';
+import { CalendarDayScreen } from '../../src/calendar/calendar-day-screen.js';
 
-export default function CalendarPlaceholder() {
-  return (
-    <View>
-      <Text>Calendar</Text>
-    </View>
-  );
+export default function CalendarRoute() {
+  return <CalendarDayScreen />;
 }
