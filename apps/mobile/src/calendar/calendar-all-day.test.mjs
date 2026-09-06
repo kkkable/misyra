@@ -2,6 +2,10 @@ import { createElement } from 'react';
 import { act, create } from 'react-test-renderer';
 import { describe, expect, it, vi } from 'vitest';
 
+vi.mock('expo-localization', () => ({
+  getLocales: () => [{ languageTag: 'en-HK' }],
+}));
+
 vi.mock('react-native', async () => {
   const { createElement: createReactElement } = await import('react');
 
