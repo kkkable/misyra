@@ -1,7 +1,7 @@
 import { type ReactNode, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { evaluateSchedulePlacement } from '@misyra/domain';
+import { createZonedTimedSchedule, evaluateSchedulePlacement } from '@misyra/domain';
 import { layout, radius, space, typography } from '@misyra/design-tokens';
 import { localizationCatalogs, type LocalizationLocale } from '@misyra/localization';
 
@@ -13,6 +13,7 @@ import { formatTimelineTime, TimedTimeline } from './calendar-timeline.js';
 const SLOT_MINUTES = 30;
 const MINUTES_PER_DAY = 24 * 60;
 const TIMELINE_GUTTER = space[10] + space[3];
+const LOCAL_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 type CalendarInteractiveTimelineProps = Readonly<{
   colorScheme: ColorScheme;
@@ -24,27 +25,37 @@ type CalendarInteractiveTimelineProps = Readonly<{
   onCreateMission?: ((input: CalendarMissionCreateInput) => void | Promise<void>) | undefined;
   scrollHeader?: ReactNode;
   selectedDate: string;
+  timeZone: string;
   today: string;
   uses24HourClock?: boolean;
 }>;
 
-function localDateMinuteInstant(localDate: string, minute: number): string {
-  const [yearText, monthText, dayText] = localDate.split('-');
-  const year = Number(yearText);
-  const month = Number(monthText);
-  const day = Number(dayText);
+function localDateTime(localDate: string, minute: number): string {
+  if (!LOCAL_DATE_PATTERN.test(localDate)) {
+    throw new TypeError('Calendar slot date must use YYYY-MM-DD format.');
+  }
+  if (!Number.isInteger(minute) || minute < 0 || minute > MINUTES_PER_DAY) {
+    throw new RangeError('Calendar slot minute must be within the rendered day.');
+  }
+  if (minute === MINUTES_PER_DAY) {
+    const date = new Date(`${localDate}T12:00:00Z`);
+    date.setUTCDate(date.getUTCDate() + 1);
+    return `${date.toISOString().slice(0, 10)}T00:00:00`;
+  }
   const hour = Math.floor(minute / 60);
   const minuteWithinHour = minute % 60;
-  const local = new Date(year, month - 1, day, hour, minuteWithinHour, 0, 0);
-  if (!Number.isFinite(local.getTime())) {
-    throw new TypeError('Calendar slot must resolve to a valid local date and time.');
-  }
-  return local.toISOString();
+  return `${localDate}T${String(hour).padStart(2, '0')}:${String(minuteWithinHour).padStart(2, '0')}:00`;
 }
 
-function placementForSlot(selectedDate: string, minute: number, now: Date) {
+function placementForSlot(selectedDate: string, minute: number, now: Date, timeZone: string) {
+  const schedule = createZonedTimedSchedule({
+    localStart: localDateTime(selectedDate, minute),
+    localFinish: localDateTime(selectedDate, minute + SLOT_MINUTES),
+    timeZone,
+    timeBehavior: 'local_time',
+  });
   return evaluateSchedulePlacement({
-    targetStartInstant: localDateMinuteInstant(selectedDate, minute),
+    targetStartInstant: schedule.startInstant,
     actionInstant: now.toISOString(),
     currentRewardEligibility: 'eligible',
   });
@@ -68,6 +79,7 @@ export function CalendarInteractiveTimeline({
   onCreateMission,
   scrollHeader,
   selectedDate,
+  timeZone,
   today,
   uses24HourClock = true,
 }: CalendarInteractiveTimelineProps) {
@@ -93,7 +105,7 @@ export function CalendarInteractiveTimeline({
         { length: MINUTES_PER_DAY / SLOT_MINUTES },
         (_, index) => index * SLOT_MINUTES,
       ).map((minute) => {
-        const placement = placementForSlot(selectedDate, minute, now);
+        const placement = placementForSlot(selectedDate, minute, now, timeZone);
         if (!placement.allowed) return null;
 
         return (
@@ -138,7 +150,9 @@ export function CalendarInteractiveTimeline({
   );
 
   const creationPlacement =
-    creationSlotMinute === null ? null : placementForSlot(selectedDate, creationSlotMinute, now);
+    creationSlotMinute === null
+      ? null
+      : placementForSlot(selectedDate, creationSlotMinute, now, timeZone);
 
   return (
     <>
