@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { getLocales } from 'expo-localization';
 
 import { layout, radius, space, typography } from '@misyra/design-tokens';
 
@@ -43,10 +44,16 @@ export function visibleAllDayMissions(
   };
 }
 
+function hiddenCountLabel(hiddenCount: number): string {
+  const languageTag = getLocales()[0]?.languageTag.toLowerCase() ?? 'en';
+  return languageTag.startsWith('zh')
+    ? `另外 ${String(hiddenCount)} 項`
+    : `+${String(hiddenCount)} more`;
+}
+
 interface AllDayMissionListProps {
   readonly colorScheme: ColorScheme;
   readonly missions: readonly AllDayMissionSummary[];
-  readonly moreLabel: (hiddenCount: number) => string;
   readonly onMissionPress?: (mission: AllDayMissionSummary) => void;
   readonly selectedDate: string;
 }
@@ -54,7 +61,6 @@ interface AllDayMissionListProps {
 export function AllDayMissionList({
   colorScheme,
   missions,
-  moreLabel,
   onMissionPress,
   selectedDate,
 }: AllDayMissionListProps) {
@@ -66,7 +72,7 @@ export function AllDayMissionList({
     return null;
   }
 
-  const hiddenLabel = moreLabel(projection.hiddenCount);
+  const moreLabel = hiddenCountLabel(projection.hiddenCount);
 
   return (
     <View style={styles.container} testID="calendar-all-day-list">
@@ -96,7 +102,7 @@ export function AllDayMissionList({
 
       {projection.hiddenCount > 0 ? (
         <Pressable
-          accessibilityLabel={hiddenLabel}
+          accessibilityLabel={moreLabel}
           accessibilityRole="button"
           onPress={() => {
             setExpandedDate(selectedDate);
@@ -111,7 +117,7 @@ export function AllDayMissionList({
           testID="calendar-all-day-more"
         >
           <Text allowFontScaling style={[styles.moreLabel, { color: colors.primary }]}>
-            {hiddenLabel}
+            {moreLabel}
           </Text>
         </Pressable>
       ) : null}
