@@ -157,6 +157,16 @@ export async function createCalendarMission({
         JSON.stringify(mission.occurrence),
         occurredAt,
       );
+      await transaction.runAsync(
+        `INSERT INTO search_documents
+          (account_id, document_id, occurrence_id, title, location, provider_text, personal_note, updated_at)
+         VALUES (?, ?, ?, ?, NULL, NULL, NULL, ?)`,
+        accountId,
+        mission.occurrence.id,
+        mission.occurrence.id,
+        mission.series.title,
+        occurredAt,
+      );
     },
   });
 
