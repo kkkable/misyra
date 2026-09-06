@@ -7,6 +7,13 @@ import {
 export type AuthProvider = SharedAuthProvider;
 export type AuthSession = AuthTokenPair;
 
+export class AuthSessionUnauthorizedError extends Error {
+  constructor() {
+    super('auth_session_unauthorized');
+    this.name = 'AuthSessionUnauthorizedError';
+  }
+}
+
 export type ProviderProof = {
   readonly provider: AuthProvider;
   readonly proof: string;
@@ -92,10 +99,14 @@ export function createAuthSessionController({
         await storage.write(refreshed);
         activeSession = refreshed;
         return { status: 'signed_in', session: refreshed } as const;
-      } catch {
-        await storage.clear();
-        activeSession = null;
-        return { status: 'signed_out' } as const;
+      } catch (error) {
+        if (error instanceof AuthSessionUnauthorizedError) {
+          await storage.clear();
+          activeSession = null;
+          return { status: 'signed_out' } as const;
+        }
+        activeSession = stored;
+        return { status: 'signed_in', session: stored } as const;
       } finally {
         refreshInFlight = null;
       }

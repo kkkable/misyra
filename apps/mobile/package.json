@@ -17,6 +17,7 @@
     "@misyra/design-tokens": "workspace:*",
     "@misyra/domain": "workspace:*",
     "@misyra/localization": "workspace:*",
+    "@tanstack/react-query": "^5.102.8",
     "expo": "57.0.17",
     "expo-haptics": "~57.0.2",
     "expo-localization": "~57.0.1",

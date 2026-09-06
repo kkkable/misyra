@@ -1,4 +1,8 @@
-import { isAuthSession, type AuthExchangeApi } from './auth-session.js';
+import {
+  AuthSessionUnauthorizedError,
+  isAuthSession,
+  type AuthExchangeApi,
+} from './auth-session.js';
 
 type FetchResponse = {
   readonly ok: boolean;
@@ -23,13 +27,27 @@ function normalizeBaseUrl(baseUrl: string) {
   return baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
 }
 
-async function post(fetcher: Fetcher, url: string, body: unknown) {
+function isUnauthorizedResponse(value: unknown): boolean {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+  const error = (value as Record<string, unknown>).error;
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    !Array.isArray(error) &&
+    (error as Record<string, unknown>).code === 'unauthorized'
+  );
+}
+
+async function post(fetcher: Fetcher, url: string, body: unknown, classifyUnauthorized = false) {
   const response = await fetcher(url, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(body),
   });
   const responseBody = await response.json();
+  if (classifyUnauthorized && isUnauthorizedResponse(responseBody)) {
+    throw new AuthSessionUnauthorizedError();
+  }
   if (
     !response.ok ||
     typeof responseBody !== 'object' ||
@@ -59,9 +77,12 @@ export function createAuthExchangeApi({
     },
 
     async refresh(refreshToken) {
-      const payload = await post(fetcher, `${normalizedBaseUrl}/v1/auth/refresh`, {
-        refreshToken,
-      });
+      const payload = await post(
+        fetcher,
+        `${normalizedBaseUrl}/v1/auth/refresh`,
+        { refreshToken },
+        true,
+      );
       if (!isAuthSession(payload)) throw new Error('auth_refresh_failed');
       return payload;
     },

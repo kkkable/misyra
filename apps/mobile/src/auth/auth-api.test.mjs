@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { createAuthExchangeApi } from './auth-api.js';
+import { AuthSessionUnauthorizedError } from './auth-session.js';
 
 const session = {
   accountId: '123e4567-e89b-42d3-a456-426614174000',
@@ -46,6 +47,18 @@ describe('MTS-035/036 auth client', () => {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ refreshToken: 'refresh-current' }),
     });
+  });
+
+  it('classifies an explicit refresh credential rejection separately from transient failures', async () => {
+    const fetcher = vi.fn(async () => ({
+      ok: false,
+      json: async () => ({ ok: false, error: { code: 'unauthorized' } }),
+    }));
+    const api = createAuthExchangeApi({ baseUrl: 'https://api.example.test', fetcher });
+
+    await expect(api.refresh('refresh-rejected')).rejects.toBeInstanceOf(
+      AuthSessionUnauthorizedError,
+    );
   });
 
   it('posts the current refresh credential to sign out exactly this device session', async () => {
