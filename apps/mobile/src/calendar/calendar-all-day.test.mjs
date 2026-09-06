@@ -5,10 +5,13 @@ import { describe, expect, it, vi } from 'vitest';
 vi.mock('react-native', async () => {
   const { createElement: createReactElement } = await import('react');
 
-  const Pressable = ({ children, ...props }) =>
+  const Pressable = ({ children, style, ...props }) =>
     createReactElement(
       'Pressable',
-      props,
+      {
+        ...props,
+        style: typeof style === 'function' ? style({ pressed: false }) : style,
+      },
       typeof children === 'function' ? children({ pressed: false }) : children,
     );
 
@@ -54,6 +57,15 @@ function renderList(props = {}) {
   return renderer;
 }
 
+function renderedMissionCards(renderer) {
+  return renderer.root.findAll(
+    (node) =>
+      node.type === 'Pressable' &&
+      typeof node.props.testID === 'string' &&
+      node.props.testID.startsWith('calendar-all-day-mission-'),
+  );
+}
+
 describe('MTS-042 stable all-day ordering', () => {
   it('uses the stable creation/import ordering key and ignores completion state', () => {
     expect(orderAllDayMissions(missions).map((mission) => mission.id)).toEqual([
@@ -78,14 +90,13 @@ describe('MTS-042 stable all-day ordering', () => {
   });
 
   it('caps the collapsed projection at three missions and reports the remainder', () => {
-    expect(visibleAllDayMissions(missions, false)).toEqual({
-      missions: expect.arrayContaining([
-        expect.objectContaining({ id: 'first-imported' }),
-        expect.objectContaining({ id: 'second-created' }),
-        expect.objectContaining({ id: 'late-created' }),
-      ]),
-      hiddenCount: 2,
-    });
+    const collapsed = visibleAllDayMissions(missions, false);
+    expect(collapsed.missions.map((mission) => mission.id)).toEqual([
+      'first-imported',
+      'second-created',
+      'late-created',
+    ]);
+    expect(collapsed.hiddenCount).toBe(2);
     expect(visibleAllDayMissions(missions, true).hiddenCount).toBe(0);
     expect(visibleAllDayMissions(missions, true).missions).toHaveLength(5);
   });
@@ -96,12 +107,12 @@ describe('MTS-042 all-day expansion and accessibility', () => {
     const onMissionPress = vi.fn();
     const renderer = renderList({ onMissionPress });
 
-    expect(renderer.root.findAllByProps({ testID: /calendar-all-day-mission-/ })).toHaveLength(3);
+    expect(renderedMissionCards(renderer)).toHaveLength(3);
     const more = renderer.root.findByProps({ testID: 'calendar-all-day-more' });
     expect(more.props.accessibilityLabel).toBe('+2 more');
 
     act(() => more.props.onPress());
-    expect(renderer.root.findAllByProps({ testID: /calendar-all-day-mission-/ })).toHaveLength(5);
+    expect(renderedMissionCards(renderer)).toHaveLength(5);
     expect(renderer.root.findAllByProps({ testID: 'calendar-all-day-more' })).toHaveLength(0);
 
     const first = renderer.root.findByProps({ testID: 'calendar-all-day-mission-first-imported' });
@@ -118,7 +129,7 @@ describe('MTS-042 all-day expansion and accessibility', () => {
   it('resets expansion when the selected date changes and never renders a permanent heading', () => {
     const renderer = renderList();
     act(() => renderer.root.findByProps({ testID: 'calendar-all-day-more' }).props.onPress());
-    expect(renderer.root.findAllByProps({ testID: /calendar-all-day-mission-/ })).toHaveLength(5);
+    expect(renderedMissionCards(renderer)).toHaveLength(5);
 
     act(() => {
       renderer.update(
@@ -131,7 +142,7 @@ describe('MTS-042 all-day expansion and accessibility', () => {
       );
     });
 
-    expect(renderer.root.findAllByProps({ testID: /calendar-all-day-mission-/ })).toHaveLength(3);
+    expect(renderedMissionCards(renderer)).toHaveLength(3);
     expect(renderer.root.findAllByProps({ testID: 'calendar-all-day-heading' })).toHaveLength(0);
   });
 });
