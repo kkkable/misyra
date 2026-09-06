@@ -126,7 +126,7 @@ export function CalendarInteractiveTimeline({
       )}
       {selectedSlotMinute === null ? null : (
         <View
-          minute={selectedSlotMinute}
+          accessibilityValue={{ now: selectedSlotMinute, min: 0, max: MINUTES_PER_DAY }}
           pointerEvents="none"
           style={[
             styles.selectedSlot,
@@ -159,110 +159,101 @@ export function CalendarInteractiveTimeline({
         today={today}
         uses24HourClock={uses24HourClock}
       />
-      <Modal
-        animationType="fade"
-        onRequestClose={closeCreation}
-        transparent
-        visible={creationSlotMinute !== null}
-      >
-        <Pressable
-          accessibilityLabel={catalog['calendar.create.cancel']}
-          accessibilityRole="button"
-          onPress={closeCreation}
-          style={[styles.backdrop, { backgroundColor: colors.overlay }]}
-          testID="calendar-create-backdrop"
-        >
-          <View
-            accessibilityViewIsModal
-            onStartShouldSetResponder={() => true}
-            style={[styles.sheet, { backgroundColor: colors.surfaceRaised }]}
-            testID="calendar-create-sheet"
+      {creationSlotMinute === null ? null : (
+        <Modal animationType="fade" onRequestClose={closeCreation} transparent visible>
+          <Pressable
+            accessibilityLabel={catalog['calendar.create.cancel']}
+            accessibilityRole="button"
+            onPress={closeCreation}
+            style={[styles.backdrop, { backgroundColor: colors.overlay }]}
+            testID="calendar-create-backdrop"
           >
-            <Text
-              accessibilityRole="header"
-              allowFontScaling
-              style={[styles.heading, { color: colors.textPrimary }]}
+            <View
+              accessibilityViewIsModal
+              onStartShouldSetResponder={() => true}
+              style={[styles.sheet, { backgroundColor: colors.surfaceRaised }]}
+              testID="calendar-create-sheet"
             >
-              {catalog['calendar.create.title']}
-            </Text>
-            <TextInput
-              accessibilityLabel={catalog['calendar.create.missionTitle']}
-              autoFocus
-              onChangeText={setTitle}
-              placeholder={catalog['calendar.create.missionTitle']}
-              style={[
-                styles.titleInput,
-                {
-                  borderColor: colors.border,
-                  color: colors.textPrimary,
-                },
-              ]}
-              testID="calendar-create-title"
-              value={title}
-            />
-            <View style={styles.timeRow}>
-              <TextInput
-                accessibilityLabel={catalog['calendar.create.start']}
-                editable={false}
-                style={[styles.timeValue, { color: colors.textSecondary }]}
-                testID="calendar-create-start"
-                value={creationSlotMinute === null ? '' : formatMinute(creationSlotMinute)}
-              />
-              <TextInput
-                accessibilityLabel={catalog['calendar.create.end']}
-                editable={false}
-                style={[styles.timeValue, { color: colors.textSecondary }]}
-                testID="calendar-create-end"
-                value={
-                  creationSlotMinute === null ? '' : formatMinute(creationSlotMinute + SLOT_MINUTES)
-                }
-              />
-            </View>
-            <View style={styles.actions}>
-              <Pressable
-                accessibilityLabel={catalog['calendar.create.cancel']}
-                accessibilityRole="button"
-                onPress={closeCreation}
-                style={styles.action}
-                testID="calendar-create-cancel"
+              <Text
+                accessibilityRole="header"
+                allowFontScaling
+                style={[styles.heading, { color: colors.textPrimary }]}
               >
-                <Text allowFontScaling style={[styles.actionText, { color: colors.textSecondary }]}>
-                  {catalog['calendar.create.cancel']}
-                </Text>
-              </Pressable>
-              <Pressable
-                accessibilityLabel={catalog['calendar.create.save']}
-                accessibilityRole="button"
-                onPress={() => {
-                  if (
-                    creationSlotMinute === null ||
-                    creationPlacement === null ||
-                    !creationPlacement.allowed ||
-                    title.trim().length === 0
-                  ) {
-                    return;
-                  }
-                  void onCreateMission?.({
-                    selectedDate,
-                    title: title.trim(),
-                    startMinute: creationSlotMinute,
-                    endMinute: creationSlotMinute + SLOT_MINUTES,
-                    rewardEligibility: creationPlacement.rewardEligibility,
-                  });
-                  haptics.triggerNonBlocking('save');
-                  closeCreation();
-                }}
-                style={styles.action}
-                testID="calendar-create-save"
-              >
-                <Text allowFontScaling style={[styles.actionText, { color: colors.primary }]}>
-                  {catalog['calendar.create.save']}
-                </Text>
-              </Pressable>
+                {catalog['calendar.create.title']}
+              </Text>
+              <TextInput
+                accessibilityLabel={catalog['calendar.create.missionTitle']}
+                autoFocus
+                onChangeText={setTitle}
+                placeholder={catalog['calendar.create.missionTitle']}
+                style={[
+                  styles.titleInput,
+                  {
+                    borderColor: colors.border,
+                    color: colors.textPrimary,
+                  },
+                ]}
+                testID="calendar-create-title"
+                value={title}
+              />
+              <View style={styles.timeRow}>
+                <TextInput
+                  accessibilityLabel={catalog['calendar.create.start']}
+                  editable={false}
+                  style={[styles.timeValue, { color: colors.textSecondary }]}
+                  testID="calendar-create-start"
+                  value={formatMinute(creationSlotMinute)}
+                />
+                <TextInput
+                  accessibilityLabel={catalog['calendar.create.end']}
+                  editable={false}
+                  style={[styles.timeValue, { color: colors.textSecondary }]}
+                  testID="calendar-create-end"
+                  value={formatMinute(creationSlotMinute + SLOT_MINUTES)}
+                />
+              </View>
+              <View style={styles.actions}>
+                <Pressable
+                  accessibilityLabel={catalog['calendar.create.cancel']}
+                  accessibilityRole="button"
+                  onPress={closeCreation}
+                  style={styles.action}
+                  testID="calendar-create-cancel"
+                >
+                  <Text
+                    allowFontScaling
+                    style={[styles.actionText, { color: colors.textSecondary }]}
+                  >
+                    {catalog['calendar.create.cancel']}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  accessibilityLabel={catalog['calendar.create.save']}
+                  accessibilityRole="button"
+                  onPress={() => {
+                    if (!creationPlacement.allowed || title.trim().length === 0) return;
+                    void onCreateMission?.({
+                      selectedDate,
+                      title: title.trim(),
+                      startMinute: creationSlotMinute,
+                      endMinute: creationSlotMinute + SLOT_MINUTES,
+                      rewardEligibility: creationPlacement.rewardEligibility,
+                    });
+                    haptics.triggerNonBlocking('save');
+                    closeCreation();
+                  }}
+                  style={styles.action}
+                  testID="calendar-create-save"
+                >
+                  <Text allowFontScaling style={[styles.actionText, { color: colors.primary }]}>
+                    {catalog['calendar.create.save']}
+                  </Text>
+                </Pressable>
+              </View>
             </View>
-          </View>
-        </Pressable>
-      </Modal>
+          </Pressable>
+        </Modal>
+      )}
     </>
   );
 }
