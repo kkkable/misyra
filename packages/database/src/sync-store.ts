@@ -220,6 +220,14 @@ function parseSettingsPatch(payload: unknown): SettingsPatch {
   return patch;
 }
 
+function requiredDateTimePart(parts: readonly Intl.DateTimeFormatPart[], type: string): string {
+  const value = parts.find((part) => part.type === type)?.value;
+  if (value === undefined) {
+    throw new SyncMutationValidationError(`Mission time zone formatting omitted ${type}`);
+  }
+  return value;
+}
+
 function instantAsLocalDateTime(instant: string, timeZone: string): string {
   try {
     const parts = new Intl.DateTimeFormat('en-US', {
@@ -232,9 +240,15 @@ function instantAsLocalDateTime(instant: string, timeZone: string): string {
       second: '2-digit',
       hourCycle: 'h23',
     }).formatToParts(new Date(instant));
-    const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-    return `${values.year}-${values.month}-${values.day}T${values.hour}:${values.minute}:${values.second}`;
-  } catch {
+    const year = requiredDateTimePart(parts, 'year');
+    const month = requiredDateTimePart(parts, 'month');
+    const day = requiredDateTimePart(parts, 'day');
+    const hour = requiredDateTimePart(parts, 'hour');
+    const minute = requiredDateTimePart(parts, 'minute');
+    const second = requiredDateTimePart(parts, 'second');
+    return `${year}-${month}-${day}T${hour}:${minute}:${second}`;
+  } catch (error) {
+    if (error instanceof SyncMutationValidationError) throw error;
     throw new SyncMutationValidationError('Mission time zone is invalid');
   }
 }
@@ -591,6 +605,7 @@ async function acceptMutation(
       mutation.entityId,
       mutation.operation,
       mutation.baseVersion,
+      timing.validationResult,
       timing.clientOccurredAt,
       serverReceiptTime,
       timing.effectiveTime,
