@@ -29,7 +29,7 @@ function randomHex(length: number): string {
 }
 
 function generateUuid(): string {
-  const variant = UUID_VARIANTS[Math.floor(Math.random() * UUID_VARIANTS.length)];
+  const variant = UUID_VARIANTS.charAt(Math.floor(Math.random() * UUID_VARIANTS.length));
   return `${randomHex(8)}-${randomHex(4)}-4${randomHex(3)}-${variant}${randomHex(3)}-${randomHex(12)}`;
 }
 
