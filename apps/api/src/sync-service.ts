@@ -1,6 +1,7 @@
 import {
   SyncDeviceOwnershipError,
   SyncMutationConflictError,
+  SyncMutationValidationError,
   createPostgresSyncStore,
   type PostgresSyncStore,
 } from '@misyra/database';
@@ -31,6 +32,7 @@ async function mapStoreErrors<T>(work: () => Promise<T>): Promise<T> {
   } catch (error) {
     if (error instanceof SyncDeviceOwnershipError) throw new ApiError('forbidden');
     if (error instanceof SyncMutationConflictError) throw new ApiError('conflict');
+    if (error instanceof SyncMutationValidationError) throw new ApiError('validation_failed');
     throw error;
   }
 }
