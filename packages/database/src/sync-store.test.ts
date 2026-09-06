@@ -130,10 +130,11 @@ describe('MTS-031/MTS-039 PostgreSQL executable sync store', () => {
       new Date('2026-09-06T09:31:00.000Z'),
     ];
     let receiptIndex = 0;
-    const store = createPostgresSyncStore(
-      pool,
-      () => receiptTimes[Math.min(receiptIndex++, receiptTimes.length - 1)]!,
-    );
+    const store = createPostgresSyncStore(pool, () => {
+      const receiptTime = receiptTimes[Math.min(receiptIndex++, receiptTimes.length - 1)];
+      if (receiptTime === undefined) throw new Error('missing fixture server receipt time');
+      return receiptTime;
+    });
 
     await expect(store.push(account.id, [mutation])).resolves.toEqual({
       acceptedMutationIds: [mutationId],
