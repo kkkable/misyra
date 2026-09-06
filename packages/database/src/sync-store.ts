@@ -50,28 +50,62 @@ export class SyncMutationConflictError extends Error {
   }
 }
 
+export class SyncMutationValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'SyncMutationValidationError';
+  }
+}
+
 interface MutationMatchRow extends QueryResultRow {
   exactMatch: boolean;
 }
 
-function effectiveClientTime(source: string, serverReceiptTime: Date) {
+interface SettingsRow extends QueryResultRow {
+  language: 'en' | 'zh-HK';
+  trustMode: boolean;
+}
+
+type SettingsPatch = Readonly<{
+  language?: 'en' | 'zh-HK';
+  trustMode?: boolean;
+}>;
+
+function parseClientTime(source: string): Date {
   const parsed = new Date(source);
   if (!Number.isFinite(parsed.getTime())) {
-    return {
-      clientOccurredAt: serverReceiptTime,
-      effectiveTime: serverReceiptTime,
-      validationResult: 'invalid_replaced',
-    } as const;
+    throw new SyncMutationValidationError('Sync clientOccurredAt must be a valid timestamp');
   }
-  return {
-    clientOccurredAt: parsed,
-    effectiveTime: parsed,
-    validationResult: 'valid',
-  } as const;
+  return parsed;
 }
 
 function changeOperation(operation: string): 'upsert' | 'delete' {
   return operation === 'delete' ? 'delete' : 'upsert';
+}
+
+function parseSettingsPatch(payload: unknown): SettingsPatch {
+  if (typeof payload !== 'object' || payload === null || Array.isArray(payload)) {
+    throw new SyncMutationValidationError('Settings mutation payload must be an object');
+  }
+  const source = payload as Record<string, unknown>;
+  const keys = Object.keys(source);
+  if (keys.length === 0 || keys.some((key) => key !== 'language' && key !== 'trustMode')) {
+    throw new SyncMutationValidationError('Settings mutation contains unsupported fields');
+  }
+  const patch: { language?: 'en' | 'zh-HK'; trustMode?: boolean } = {};
+  if (Object.hasOwn(source, 'language')) {
+    if (source.language !== 'en' && source.language !== 'zh-HK') {
+      throw new SyncMutationValidationError('Settings language must be en or zh-HK');
+    }
+    patch.language = source.language;
+  }
+  if (Object.hasOwn(source, 'trustMode')) {
+    if (typeof source.trustMode !== 'boolean') {
+      throw new SyncMutationValidationError('Trust Mode must be boolean');
+    }
+    patch.trustMode = source.trustMode;
+  }
+  return patch;
 }
 
 async function requireDeviceOwnership(
@@ -91,6 +125,7 @@ async function requireDeviceOwnership(
 async function existingMutationMatches(
   client: PoolClient,
   mutation: StoredSyncMutation,
+  clientOccurredAt: Date,
 ): Promise<boolean | null> {
   const result = await client.query<MutationMatchRow>(
     `SELECT
@@ -100,7 +135,7 @@ async function existingMutationMatches(
        AND entity_id = $5
        AND operation = $6
        AND base_version IS NOT DISTINCT FROM $7
-       AND client_occurred_at = $8::timestamptz
+       AND client_occurred_at = $8
        AND payload = $9::jsonb AS "exactMatch"
      FROM device_sync_mutations
      WHERE id = $1
@@ -113,11 +148,37 @@ async function existingMutationMatches(
       mutation.entityId,
       mutation.operation,
       mutation.baseVersion,
-      mutation.clientOccurredAt,
+      clientOccurredAt,
       JSON.stringify(mutation.payload),
     ],
   );
   return result.rows[0]?.exactMatch ?? null;
+}
+
+async function applySettingsMutation(
+  client: PoolClient,
+  accountId: string,
+  operation: string,
+  payload: unknown,
+): Promise<SettingsRow> {
+  if (operation === 'delete') {
+    throw new SyncMutationValidationError('Account settings cannot be deleted');
+  }
+  const patch = parseSettingsPatch(payload);
+  const result = await client.query<SettingsRow>(
+    `INSERT INTO user_settings (account_id, language, trust_mode)
+     VALUES ($1, COALESCE($2::text, 'en'), COALESCE($3::boolean, false))
+     ON CONFLICT (account_id)
+     DO UPDATE SET
+       language = COALESCE($2::text, user_settings.language),
+       trust_mode = COALESCE($3::boolean, user_settings.trust_mode),
+       updated_at = now()
+     RETURNING language, trust_mode AS "trustMode"`,
+    [accountId, patch.language ?? null, patch.trustMode ?? null],
+  );
+  const row = result.rows[0];
+  if (row === undefined) throw new Error('Settings sync update returned no row');
+  return row;
 }
 
 async function acceptMutation(
@@ -126,12 +187,24 @@ async function acceptMutation(
   serverReceiptTime: Date,
 ): Promise<void> {
   await requireDeviceOwnership(client, mutation.accountId, mutation.deviceId);
+  const clientOccurredAt = parseClientTime(mutation.clientOccurredAt);
 
-  const existingMatch = await existingMutationMatches(client, mutation);
+  const existingMatch = await existingMutationMatches(client, mutation, clientOccurredAt);
   if (existingMatch === true) return;
   if (existingMatch === false) throw new SyncMutationConflictError();
 
-  const timing = effectiveClientTime(mutation.clientOccurredAt, serverReceiptTime);
+  const authoritativePayload =
+    mutation.entityType === 'settings'
+      ? await applySettingsMutation(
+          client,
+          mutation.accountId,
+          mutation.operation,
+          mutation.payload,
+        )
+      : mutation.operation === 'delete'
+        ? null
+        : mutation.payload;
+
   await client.query(
     `INSERT INTO device_sync_mutations (
        id,
@@ -155,10 +228,10 @@ async function acceptMutation(
       mutation.entityId,
       mutation.operation,
       mutation.baseVersion,
-      timing.clientOccurredAt,
+      clientOccurredAt,
       serverReceiptTime,
-      timing.effectiveTime,
-      timing.validationResult,
+      clientOccurredAt,
+      'valid',
       JSON.stringify(mutation.payload),
     ],
   );
@@ -168,7 +241,7 @@ async function acceptMutation(
     entityType: mutation.entityType,
     entityId: mutation.entityId,
     operation: changeOperation(mutation.operation),
-    payload: mutation.operation === 'delete' ? null : mutation.payload,
+    payload: authoritativePayload,
   });
 }
 
