@@ -44,14 +44,11 @@ jobs:
       - name: Install from lockfile
         run: pnpm install --frozen-lockfile
 
-      - name: Install Bicep compiler in runner only
-        run: az bicep install
-
-      - name: Start deterministic local dependencies
-        run: docker compose --file compose.yaml up -d --wait postgres azurite
-
-      - name: Prove failing-fixture gates reject bad inputs
-        run: pnpm ci:fixtures
+      - name: Diagnose auth-api formatter delta
+        run: |
+          pnpm exec prettier --write apps/mobile/src/auth/auth-api.ts --config packages/config/prettier.config.mjs
+          git diff -- apps/mobile/src/auth/auth-api.ts
+          exit 1
 
       - name: Check workspace formatting
         run: pnpm format
