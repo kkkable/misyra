@@ -38,6 +38,12 @@ type ServerSyncRunner = (
   }>,
 ) => Promise<Readonly<{ settledMutations: number; cursor: number }>>;
 
+type MissionProjection = Readonly<{
+  mission: OneTimeMission;
+  location: string | null;
+  personalNote: string | null;
+}>;
+
 export type AuthenticatedSyncRuntimeOptions = Readonly<{
   sessionProvider: () => Promise<AuthSession | null>;
   installationStore: InstallationStore;
@@ -111,7 +117,15 @@ function settingsFromChange(change: ServerAccountChange): AccountSettings | null
   return accountSettingsSchema.parse(change.payload);
 }
 
-function missionFromChange(change: ServerAccountChange): OneTimeMission | null {
+function optionalPayloadString(payload: Record<string, unknown>, key: string): string | null {
+  const value = payload[key];
+  if (value === undefined || value === null) return null;
+  if (typeof value !== 'string') throw new Error(`Mission change ${key} must be a string or null.`);
+  const trimmed = value.trim();
+  return trimmed.length === 0 ? null : trimmed;
+}
+
+function missionFromChange(change: ServerAccountChange): MissionProjection | null {
   if (change.entityType !== 'mission') return null;
   if (change.operation !== 'upsert') throw new Error('Unsupported mission change operation.');
   if (
@@ -138,7 +152,7 @@ function missionFromChange(change: ServerAccountChange): OneTimeMission | null {
   }
   const series = payload.series as MissionSeriesInput;
   const occurrence = payload.occurrence as MissionOccurrenceInput;
-  return createOneTimeMission({
+  const mission = createOneTimeMission({
     series: { id: series.id, title: series.title },
     occurrence: {
       id: occurrence.id,
@@ -155,14 +169,20 @@ function missionFromChange(change: ServerAccountChange): OneTimeMission | null {
       deletionState: occurrence.deletionState,
     },
   });
+  return {
+    mission,
+    location: optionalPayloadString(payload, 'location'),
+    personalNote: optionalPayloadString(payload, 'personalNote'),
+  };
 }
 
 async function applyMissionProjection(
   transaction: ServerSyncDatabase,
   accountId: string,
-  mission: OneTimeMission,
+  projection: MissionProjection,
   updatedAt: string,
 ) {
+  const { mission, location, personalNote } = projection;
   const schedule = mission.occurrence.schedule;
   await transaction.runAsync(
     `INSERT INTO cached_mission_series
@@ -205,15 +225,19 @@ async function applyMissionProjection(
   await transaction.runAsync(
     `INSERT INTO search_documents
        (account_id, document_id, occurrence_id, title, location, provider_text, personal_note, updated_at)
-     VALUES (?, ?, ?, ?, NULL, NULL, NULL, ?)
+     VALUES (?, ?, ?, ?, ?, NULL, ?, ?)
      ON CONFLICT(account_id, document_id) DO UPDATE SET
        occurrence_id = excluded.occurrence_id,
        title = excluded.title,
+       location = excluded.location,
+       personal_note = excluded.personal_note,
        updated_at = excluded.updated_at`,
     accountId,
     mission.occurrence.id,
     mission.occurrence.id,
     mission.series.title,
+    location,
+    personalNote,
     updatedAt,
   );
 }
