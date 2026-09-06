@@ -45,6 +45,13 @@ vi.mock('../onboarding/onboarding-runtime.js', () => ({
   rootOnboardingMessages: {},
 }));
 
+vi.mock('../sync/sync-runtime-gate.js', async () => {
+  const { createElement: createReactElement } = await import('react');
+  return {
+    SyncRuntimeGate: ({ children }) => createReactElement('SyncRuntimeGate', null, children),
+  };
+});
+
 import TabLayout from '../../app/(tabs)/_layout.tsx';
 import * as RootLayoutModule from '../../app/_layout.tsx';
 
