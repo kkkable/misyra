@@ -23,6 +23,10 @@ export function configureAuthApiBaseUrl(baseUrl: string) {
   apiBaseUrl = baseUrl;
 }
 
+export function getAuthApiBaseUrl() {
+  return apiBaseUrl;
+}
+
 const configuredProviderGateway: ProviderSignInGateway = {
   async signIn(provider) {
     if (providerGateway === null) throw new Error('provider_sign_in_not_configured');
@@ -47,9 +51,10 @@ const configuredAuthApi: AuthExchangeApi = {
 };
 
 export const rootAuthMessages = authMessagesForLocale(resolveAuthLocale(getLocales()[0]));
+export const rootAuthStorage = createSecureSessionStorage(SecureStore);
 
 export const rootAuthController = createAuthSessionController({
-  storage: createSecureSessionStorage(SecureStore),
+  storage: rootAuthStorage,
   provider: configuredProviderGateway,
   api: configuredAuthApi,
   cleanup: createSignOutCleanup({ openDatabase: openMobileDatabase }),
