@@ -46,6 +46,7 @@ export function visibleAllDayMissions(
 interface AllDayMissionListProps {
   readonly colorScheme: ColorScheme;
   readonly missions: readonly AllDayMissionSummary[];
+  readonly moreLabel: (hiddenCount: number) => string;
   readonly onMissionPress?: (mission: AllDayMissionSummary) => void;
   readonly selectedDate: string;
 }
@@ -53,6 +54,7 @@ interface AllDayMissionListProps {
 export function AllDayMissionList({
   colorScheme,
   missions,
+  moreLabel,
   onMissionPress,
   selectedDate,
 }: AllDayMissionListProps) {
@@ -63,6 +65,8 @@ export function AllDayMissionList({
   if (missions.length === 0) {
     return null;
   }
+
+  const hiddenLabel = moreLabel(projection.hiddenCount);
 
   return (
     <View style={styles.container} testID="calendar-all-day-list">
@@ -84,10 +88,7 @@ export function AllDayMissionList({
           ]}
           testID={`calendar-all-day-mission-${mission.id}`}
         >
-          <Text
-            allowFontScaling
-            style={[styles.title, { color: colors.textPrimary }]}
-          >
+          <Text allowFontScaling style={[styles.title, { color: colors.textPrimary }]}>
             {mission.title}
           </Text>
         </Pressable>
@@ -95,7 +96,7 @@ export function AllDayMissionList({
 
       {projection.hiddenCount > 0 ? (
         <Pressable
-          accessibilityLabel={`+${String(projection.hiddenCount)} more`}
+          accessibilityLabel={hiddenLabel}
           accessibilityRole="button"
           onPress={() => {
             setExpandedDate(selectedDate);
@@ -109,8 +110,8 @@ export function AllDayMissionList({
           ]}
           testID="calendar-all-day-more"
         >
-          <Text allowFontScaling style={[styles.moreLabel, { color: colors.primary }]}> 
-            {`+${String(projection.hiddenCount)} more`}
+          <Text allowFontScaling style={[styles.moreLabel, { color: colors.primary }]}>
+            {hiddenLabel}
           </Text>
         </Pressable>
       ) : null}
