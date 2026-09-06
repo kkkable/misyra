@@ -1,11 +1,22 @@
 import { createElement } from 'react';
 import { act, create } from 'react-test-renderer';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+const mockState = vi.hoisted(() => ({
+  scrollTo: vi.fn(),
+}));
 
 vi.mock('react-native', async () => {
-  const { createElement: createReactElement } = await import('react');
+  const {
+    createElement: createReactElement,
+    forwardRef,
+    useImperativeHandle,
+  } = await import('react');
 
-  const ScrollView = ({ children, ...props }) => createReactElement('ScrollView', props, children);
+  const ScrollView = forwardRef(function MockScrollView({ children, ...props }, ref) {
+    useImperativeHandle(ref, () => ({ scrollTo: mockState.scrollTo }), []);
+    return createReactElement('ScrollView', props, children);
+  });
 
   return {
     ScrollView,
@@ -27,6 +38,10 @@ import {
 } from './calendar-timeline.js';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+
+beforeEach(() => {
+  mockState.scrollTo.mockClear();
+});
 
 afterEach(() => {
   vi.useRealTimers();
@@ -112,6 +127,38 @@ describe('MTS-041 bounded rendered timeline', () => {
     expect(nine.props.style).toEqual(
       expect.arrayContaining([expect.objectContaining({ top: 540 })]),
     );
+  });
+});
+
+describe('MTS-042 all-day scroll composition', () => {
+  it('keeps the all-day area in the same scroll surface while preserving the timed launch anchor', () => {
+    let renderer;
+    act(() => {
+      renderer = create(
+        createElement(TimedTimeline, {
+          colorScheme: 'light',
+          initialCurrentMinute: 517,
+          launchMinute: 600,
+          scrollHeader: createElement('AllDayHeader'),
+          selectedDate: '2026-09-07',
+          today: '2026-09-06',
+        }),
+      );
+    });
+
+    const scroll = renderer.root.findByProps({ testID: 'calendar-timeline-scroll' });
+    expect(scroll.props.contentOffset).toEqual({ x: 0, y: 0 });
+    const header = renderer.root.findByProps({ testID: 'calendar-scroll-header' });
+
+    act(() => {
+      header.props.onLayout({ nativeEvent: { layout: { height: 132 } } });
+    });
+    expect(mockState.scrollTo).toHaveBeenCalledWith({ animated: false, x: 0, y: 702 });
+
+    act(() => {
+      header.props.onLayout({ nativeEvent: { layout: { height: 220 } } });
+    });
+    expect(mockState.scrollTo).toHaveBeenCalledTimes(1);
   });
 });
 

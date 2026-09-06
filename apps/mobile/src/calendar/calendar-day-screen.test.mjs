@@ -74,6 +74,10 @@ function renderedDayButtons(renderer) {
   );
 }
 
+function allDayMission(id, orderKey) {
+  return { id, title: id, orderKey, completed: false };
+}
+
 beforeEach(() => {
   mockState.deepLinkDate = undefined;
   mockState.firstWeekday = 2;
@@ -148,5 +152,46 @@ describe('MTS-041 Calendar timeline composition', () => {
     act(() => nextDay.props.onPress());
 
     expect(mockState.timelineMounts).toBe(2);
+  });
+});
+
+describe('MTS-042 Calendar all-day composition', () => {
+  it('swaps the selected date all-day cards inside the Calendar scroll surface', () => {
+    const onAllDayMissionPress = vi.fn();
+    const renderer = renderScreen({
+      allDayMissionsByDate: {
+        '2026-09-06': [
+          allDayMission('today-4', '004'),
+          allDayMission('today-1', '001'),
+          allDayMission('today-2', '002'),
+          allDayMission('today-3', '003'),
+        ],
+        '2026-09-01': [allDayMission('other-1', '001')],
+      },
+      onAllDayMissionPress,
+    });
+
+    const header = renderer.root.findByProps({ testID: 'calendar-scroll-header' });
+    const todayMission = renderer.root.findByProps({
+      testID: 'calendar-all-day-mission-today-1',
+    });
+    const more = renderer.root.findByProps({ testID: 'calendar-all-day-more' });
+    expect(header).toBeDefined();
+    expect(todayMission).toBeDefined();
+    expect(more.props.accessibilityLabel).toBe('+1 more');
+
+    act(() => todayMission.props.onPress());
+    expect(onAllDayMissionPress).toHaveBeenCalledWith(expect.objectContaining({ id: 'today-1' }));
+
+    const otherDay = renderer.root.findByProps({ testID: 'calendar-day-2026-09-01' });
+    act(() => otherDay.props.onPress());
+    const oldMission = renderer.root.findAllByProps({
+      testID: 'calendar-all-day-mission-today-1',
+    });
+    const otherMission = renderer.root.findByProps({
+      testID: 'calendar-all-day-mission-other-1',
+    });
+    expect(oldMission).toHaveLength(0);
+    expect(otherMission).toBeDefined();
   });
 });
