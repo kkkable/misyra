@@ -100,10 +100,14 @@ function assertExecutableMutationShape(mutation: StoredSyncMutation): void {
     );
   }
   if (mutation.entityId !== mutation.accountId) {
-    throw new SyncMutationValidationError('Settings mutations must target the authenticated account');
+    throw new SyncMutationValidationError(
+      'Settings mutations must target the authenticated account',
+    );
   }
   if (mutation.operation !== 'update') {
-    throw new SyncMutationValidationError('Settings synchronization only supports update operations');
+    throw new SyncMutationValidationError(
+      'Settings synchronization only supports update operations',
+    );
   }
 }
 
