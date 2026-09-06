@@ -1,5 +1,5 @@
-import { CalendarDayScreen } from '../../src/calendar/calendar-day-screen.js';
+import { CalendarRouteScreen } from '../../src/calendar/calendar-route-screen.js';
 
 export default function CalendarRoute() {
-  return <CalendarDayScreen />;
+  return <CalendarRouteScreen />;
 }

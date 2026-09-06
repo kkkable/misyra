@@ -185,7 +185,7 @@ describe('MTS-041 current-time ruler isolation', () => {
 
     expect(
       renderer.root.findByProps({ testID: 'calendar-current-time-ruler' }).props.accessibilityLabel,
-    ).toBe('current-time:517');
+    ).toBe('Current time, 08:37');
 
     now = new Date(2026, 8, 6, 8, 38);
     act(() => {
@@ -194,7 +194,7 @@ describe('MTS-041 current-time ruler isolation', () => {
 
     expect(
       renderer.root.findByProps({ testID: 'calendar-current-time-ruler' }).props.accessibilityLabel,
-    ).toBe('current-time:518');
+    ).toBe('Current time, 08:38');
     expect(parentRender).toHaveBeenCalledTimes(1);
   });
 });

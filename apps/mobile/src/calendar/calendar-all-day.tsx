@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { getLocales } from 'expo-localization';
 
 import { layout, radius, space, typography } from '@misyra/design-tokens';
-import { localizationCatalogs } from '@misyra/localization';
+import { localizationCatalogs, type LocalizationLocale } from '@misyra/localization';
 
 import { themeColors, type ColorScheme } from '../design-system/index.js';
 
@@ -52,10 +51,8 @@ export function visibleAllDayMissions(
   };
 }
 
-function hiddenCountLabel(hiddenCount: number): string {
-  const languageTag = getLocales()[0].languageTag.toLowerCase();
-  const locale = languageTag.startsWith('zh') ? 'zh-HK' : 'en';
-  return localizationCatalogs[locale]['calendar.allDay.more'].replace(
+function hiddenCountLabel(hiddenCount: number, language: LocalizationLocale): string {
+  return localizationCatalogs[language]['calendar.allDay.more'].replace(
     '{count}',
     String(hiddenCount),
   );
@@ -63,6 +60,7 @@ function hiddenCountLabel(hiddenCount: number): string {
 
 interface AllDayMissionListProps {
   readonly colorScheme: ColorScheme;
+  readonly language?: LocalizationLocale;
   readonly missions: readonly AllDayMissionSummary[];
   readonly onMissionPress?: ((mission: AllDayMissionSummary) => void) | undefined;
   readonly selectedDate: string;
@@ -70,6 +68,7 @@ interface AllDayMissionListProps {
 
 export function AllDayMissionList({
   colorScheme,
+  language = 'en',
   missions,
   onMissionPress,
   selectedDate,
@@ -87,7 +86,7 @@ export function AllDayMissionList({
     return null;
   }
 
-  const moreLabel = hiddenCountLabel(projection.hiddenCount);
+  const moreLabel = hiddenCountLabel(projection.hiddenCount, language);
 
   return (
     <View style={styles.container} testID="calendar-all-day-list">
