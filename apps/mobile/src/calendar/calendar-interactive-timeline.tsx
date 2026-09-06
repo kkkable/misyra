@@ -167,7 +167,7 @@ export function CalendarInteractiveTimeline({
         today={today}
         uses24HourClock={uses24HourClock}
       />
-      {creationSlotMinute === null || onCreateMission === undefined ? null : (
+      {creationSlotMinute === null ? null : (
         <CalendarMissionFormSheet
           colorScheme={colorScheme}
           creationSlotMinute={creationSlotMinute}
@@ -175,6 +175,7 @@ export function CalendarInteractiveTimeline({
           now={now}
           onCancel={closeCreation}
           onSubmit={(input) => {
+            if (onCreateMission === undefined) return;
             void Promise.resolve(onCreateMission(input))
               .then(() => {
                 haptics.triggerNonBlocking('save');
