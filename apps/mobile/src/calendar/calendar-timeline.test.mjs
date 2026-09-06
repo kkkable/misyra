@@ -7,8 +7,11 @@ const mockState = vi.hoisted(() => ({
 }));
 
 vi.mock('react-native', async () => {
-  const { createElement: createReactElement, forwardRef, useImperativeHandle } =
-    await import('react');
+  const {
+    createElement: createReactElement,
+    forwardRef,
+    useImperativeHandle,
+  } = await import('react');
 
   const ScrollView = forwardRef(function MockScrollView({ children, ...props }, ref) {
     useImperativeHandle(ref, () => ({ scrollTo: mockState.scrollTo }), []);
