@@ -160,6 +160,7 @@ interface TimedTimelineProps {
   readonly language?: LocalizationLocale;
   readonly launchMinute: number;
   readonly missionLayer?: ReactNode;
+  readonly onScrollBeginDrag?: (() => void) | undefined;
   readonly scrollHeader?: ReactNode;
   readonly selectedDate: string;
   readonly today: string;
@@ -172,6 +173,7 @@ export function TimedTimeline({
   language = 'en',
   launchMinute,
   missionLayer,
+  onScrollBeginDrag,
   scrollHeader,
   selectedDate,
   today,
@@ -190,6 +192,7 @@ export function TimedTimeline({
   return (
     <ScrollView
       contentOffset={{ x: 0, y: hasScrollHeader ? 0 : launchOffset }}
+      onScrollBeginDrag={onScrollBeginDrag}
       ref={scrollRef}
       showsVerticalScrollIndicator={false}
       style={styles.scroll}
