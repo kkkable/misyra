@@ -25,6 +25,7 @@ import {
   resolveResponsiveCalendarLayout,
   shouldShowTodayButton,
 } from './calendar-day-shell.js';
+import { TimedMissionLayer, type TimedMissionSummary } from './calendar-mission-layout.js';
 import { TimedTimeline } from './calendar-timeline.js';
 
 const messages = {
@@ -104,6 +105,9 @@ export interface CalendarDayScreenProps {
   readonly returningFromBackground?: boolean;
   readonly allDayMissionsByDate?: Readonly<Record<string, readonly AllDayMissionSummary[]>>;
   readonly onAllDayMissionPress?: (mission: AllDayMissionSummary) => void;
+  readonly timedMissionsByDate?: Readonly<Record<string, readonly TimedMissionSummary[]>>;
+  readonly selectedMissionId?: string;
+  readonly onTimedMissionPress?: (mission: TimedMissionSummary) => void;
 }
 
 export function CalendarDayScreen({
@@ -113,6 +117,9 @@ export function CalendarDayScreen({
   returningFromBackground = false,
   allDayMissionsByDate = {},
   onAllDayMissionPress,
+  timedMissionsByDate = {},
+  selectedMissionId,
+  onTimedMissionPress,
 }: CalendarDayScreenProps) {
   const params = useLocalSearchParams<{ date?: string | string[] }>();
   const locale = getLocales()[0].languageTag;
@@ -167,6 +174,7 @@ export function CalendarDayScreen({
   );
   const pickerMonthNumber = parseLocalDateParts(pickerMonth).month;
   const allDayMissions = allDayMissionsByDate[selectedDate] ?? [];
+  const timedMissions = timedMissionsByDate[selectedDate] ?? [];
 
   const selectDate = (date: string) => {
     setSelectedDate(date);
@@ -296,6 +304,17 @@ export function CalendarDayScreen({
           initialCurrentMinute={currentMinute}
           key={selectedDate}
           launchMinute={launch.minute}
+          missionLayer={
+            timedMissions.length > 0 ? (
+              <TimedMissionLayer
+                colorScheme={colorScheme}
+                language={language}
+                missions={timedMissions}
+                onMissionPress={onTimedMissionPress}
+                {...(selectedMissionId === undefined ? {} : { selectedMissionId })}
+              />
+            ) : undefined
+          }
           scrollHeader={
             allDayMissions.length > 0 ? (
               <AllDayMissionList

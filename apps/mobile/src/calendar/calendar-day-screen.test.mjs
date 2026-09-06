@@ -78,6 +78,10 @@ function allDayMission(id, orderKey) {
   return { id, title: id, orderKey, completed: false };
 }
 
+function timedMission(id, orderKey, startMinute = 540, endMinute = 600, status = 'unfinished') {
+  return { id, title: id, orderKey, startMinute, endMinute, status };
+}
+
 beforeEach(() => {
   mockState.deepLinkDate = undefined;
   mockState.firstWeekday = 2;
@@ -193,5 +197,59 @@ describe('MTS-042 Calendar all-day composition', () => {
     });
     expect(oldMission).toHaveLength(0);
     expect(otherMission).toBeDefined();
+  });
+});
+
+describe('MTS-043 Calendar timed-mission composition', () => {
+  it('renders and swaps the selected date overlap group inside the existing timeline', () => {
+    const onTimedMissionPress = vi.fn();
+    const renderer = renderScreen({
+      timedMissionsByDate: {
+        '2026-09-06': [
+          timedMission('today-a', '001'),
+          timedMission('today-b', '002'),
+          timedMission('today-c', '003'),
+          timedMission('today-d', '004'),
+        ],
+        '2026-09-01': [timedMission('other-a', '001', 600, 660, 'verified')],
+      },
+      onTimedMissionPress,
+    });
+
+    expect(renderer.root.findByProps({ testID: 'calendar-timed-mission-layer' })).toBeDefined();
+    const todayMission = renderer.root.find(
+      (node) => node.type === 'Pressable' && node.props.testID === 'calendar-mission-card-today-a',
+    );
+    expect(
+      renderer.root.findAll(
+        (node) =>
+          node.type === 'Pressable' && node.props.testID === 'calendar-mission-card-today-c',
+      ),
+    ).toHaveLength(0);
+    expect(
+      renderer.root.find(
+        (node) =>
+          node.type === 'Pressable' && node.props.testID === 'calendar-overlap-more-overlap-0',
+      ),
+    ).toBeDefined();
+
+    act(() => todayMission.props.onPress());
+    expect(onTimedMissionPress).toHaveBeenCalledWith(expect.objectContaining({ id: 'today-a' }));
+
+    const otherDay = renderer.root.findByProps({ testID: 'calendar-day-2026-09-01' });
+    act(() => otherDay.props.onPress());
+
+    expect(
+      renderer.root.findAll(
+        (node) =>
+          node.type === 'Pressable' && node.props.testID === 'calendar-mission-card-today-a',
+      ),
+    ).toHaveLength(0);
+    expect(
+      renderer.root.find(
+        (node) =>
+          node.type === 'Pressable' && node.props.testID === 'calendar-mission-card-other-a',
+      ),
+    ).toBeDefined();
   });
 });

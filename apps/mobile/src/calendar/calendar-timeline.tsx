@@ -127,6 +127,7 @@ interface TimedTimelineProps {
   readonly colorScheme: ColorScheme;
   readonly initialCurrentMinute: number;
   readonly launchMinute: number;
+  readonly missionLayer?: ReactNode;
   readonly scrollHeader?: ReactNode;
   readonly selectedDate: string;
   readonly today: string;
@@ -136,6 +137,7 @@ export function TimedTimeline({
   colorScheme,
   initialCurrentMinute,
   launchMinute,
+  missionLayer,
   scrollHeader,
   selectedDate,
   today,
@@ -209,6 +211,7 @@ export function TimedTimeline({
             </Text>
           ),
         )}
+        {missionLayer}
         {selectedDate === today ? (
           <CurrentTimeRuler colorScheme={colorScheme} initialMinute={initialCurrentMinute} />
         ) : null}
