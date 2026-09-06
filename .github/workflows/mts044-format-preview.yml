@@ -36,16 +36,17 @@ jobs:
           packages/database/src/sync-store.ts
           apps/mobile/src/calendar/calendar-mission-create.test.mjs
           apps/mobile/src/calendar/calendar-route-screen.tsx
+          apps/mobile/src/sync/authenticated-sync-runtime.ts
           --config packages/config/prettier.config.mjs
       - name: Commit exact formatting correction to active branch
         run: |
           git diff --check
           git config user.name "Misyra Auto Development"
           git config user.email "130823389+kkkable@users.noreply.github.com"
-          git add packages/database/src/sync-store.ts apps/mobile/src/calendar/calendar-mission-create.test.mjs apps/mobile/src/calendar/calendar-route-screen.tsx
+          git add packages/database/src/sync-store.ts apps/mobile/src/calendar/calendar-mission-create.test.mjs apps/mobile/src/calendar/calendar-route-screen.tsx apps/mobile/src/sync/authenticated-sync-runtime.ts
           if git diff --cached --quiet; then
             echo "No formatting changes needed"
             exit 0
           fi
-          git commit -m "style: format MTS-044 persistence corrections"
+          git commit -m "style: format MTS-044 sync projection correction"
           git push origin HEAD:feat/mts-044-two-tap-creation
