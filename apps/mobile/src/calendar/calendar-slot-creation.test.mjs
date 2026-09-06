@@ -150,9 +150,10 @@ describe('MTS-044 two-tap slot selection', () => {
     );
   });
 
-  it('starts a newly created future mission as reward eligible', () => {
+  it('starts a newly created future mission as reward eligible in the selected slot time zone', () => {
     const onCreateMission = vi.fn();
     mockState.deepLinkDate = '2026-09-07';
+    mockState.timeZone = 'Asia/Hong_Kong';
     const renderer = renderScreen({
       now: new Date('2026-09-06T10:00:00.000Z'),
       onCreateMission,
@@ -170,6 +171,7 @@ describe('MTS-044 two-tap slot selection', () => {
       expect.objectContaining({
         title: 'Future mission',
         rewardEligibility: 'eligible',
+        timeZone: 'Asia/Hong_Kong',
       }),
     );
   });
