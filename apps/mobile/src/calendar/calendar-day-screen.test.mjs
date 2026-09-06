@@ -18,6 +18,10 @@ vi.mock('expo-localization', () => ({
   getLocales: () => [{ languageTag: 'en-HK' }],
 }));
 
+vi.mock('../experience/native-haptics.js', () => ({
+  haptics: { triggerNonBlocking: vi.fn() },
+}));
+
 vi.mock('react-native', async () => {
   const { createElement: createReactElement, useEffect } = await import('react');
 

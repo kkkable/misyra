@@ -1,4 +1,10 @@
 import { accountSettingsSchema, type AccountSettings } from '@misyra/contracts';
+import {
+  createOneTimeMission,
+  type MissionOccurrenceInput,
+  type MissionSeriesInput,
+  type OneTimeMission,
+} from '@misyra/domain';
 
 import { createAuthenticatedSyncApi, type AuthenticatedSyncApi } from './authenticated-sync-api.js';
 import {
@@ -105,6 +111,113 @@ function settingsFromChange(change: ServerAccountChange): AccountSettings | null
   return accountSettingsSchema.parse(change.payload);
 }
 
+function missionFromChange(change: ServerAccountChange): OneTimeMission | null {
+  if (change.entityType !== 'mission') return null;
+  if (change.operation !== 'upsert') throw new Error('Unsupported mission change operation.');
+  if (
+    typeof change.payload !== 'object' ||
+    change.payload === null ||
+    Array.isArray(change.payload)
+  ) {
+    throw new Error('Mission change payload must be an object.');
+  }
+  const payload = change.payload as Record<string, unknown>;
+  if (
+    typeof payload.series !== 'object' ||
+    payload.series === null ||
+    Array.isArray(payload.series)
+  ) {
+    throw new Error('Mission change series must be an object.');
+  }
+  if (
+    typeof payload.occurrence !== 'object' ||
+    payload.occurrence === null ||
+    Array.isArray(payload.occurrence)
+  ) {
+    throw new Error('Mission change occurrence must be an object.');
+  }
+  const series = payload.series as MissionSeriesInput;
+  const occurrence = payload.occurrence as MissionOccurrenceInput;
+  return createOneTimeMission({
+    series: { id: series.id, title: series.title },
+    occurrence: {
+      id: occurrence.id,
+      schedule: occurrence.schedule,
+      scheduleState: occurrence.scheduleState,
+      completionState: occurrence.completionState,
+      evidenceState: occurrence.evidenceState,
+      rewardEligibility: occurrence.rewardEligibility,
+      rewardIssuance: occurrence.rewardIssuance,
+      calendarSource: occurrence.calendarSource,
+      fieldOwnership: occurrence.fieldOwnership,
+      synchronizationState: occurrence.synchronizationState,
+      storyState: occurrence.storyState,
+      deletionState: occurrence.deletionState,
+    },
+  });
+}
+
+async function applyMissionProjection(
+  transaction: ServerSyncDatabase,
+  accountId: string,
+  mission: OneTimeMission,
+  updatedAt: string,
+) {
+  const schedule = mission.occurrence.schedule;
+  await transaction.runAsync(
+    `INSERT INTO cached_mission_series
+       (account_id, series_id, title, timezone, payload_json, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?)
+     ON CONFLICT(account_id, series_id) DO UPDATE SET
+       title = excluded.title,
+       timezone = excluded.timezone,
+       payload_json = excluded.payload_json,
+       updated_at = excluded.updated_at`,
+    accountId,
+    mission.series.id,
+    mission.series.title,
+    schedule.timeZone,
+    JSON.stringify(mission.series),
+    updatedAt,
+  );
+  await transaction.runAsync(
+    `INSERT INTO cached_mission_occurrences
+       (account_id, occurrence_id, series_id, local_date, scheduled_start, scheduled_end, all_day, payload_json, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(account_id, occurrence_id) DO UPDATE SET
+       series_id = excluded.series_id,
+       local_date = excluded.local_date,
+       scheduled_start = excluded.scheduled_start,
+       scheduled_end = excluded.scheduled_end,
+       all_day = excluded.all_day,
+       payload_json = excluded.payload_json,
+       updated_at = excluded.updated_at`,
+    accountId,
+    mission.occurrence.id,
+    mission.series.id,
+    schedule.localStart.slice(0, 10),
+    schedule.allDay ? null : schedule.localStart.slice(11, 16),
+    schedule.allDay ? null : schedule.localFinish.slice(11, 16),
+    schedule.allDay ? 1 : 0,
+    JSON.stringify(mission.occurrence),
+    updatedAt,
+  );
+  await transaction.runAsync(
+    `INSERT INTO search_documents
+       (account_id, document_id, occurrence_id, title, location, provider_text, personal_note, updated_at)
+     VALUES (?, ?, ?, ?, NULL, NULL, NULL, ?)
+     ON CONFLICT(account_id, document_id) DO UPDATE SET
+       occurrence_id = excluded.occurrence_id,
+       title = excluded.title,
+       updated_at = excluded.updated_at`,
+    accountId,
+    mission.occurrence.id,
+    mission.occurrence.id,
+    mission.series.title,
+    updatedAt,
+  );
+}
+
 async function applyAuthoritativeChanges(
   transaction: ServerSyncDatabase,
   accountId: string,
@@ -112,20 +225,26 @@ async function applyAuthoritativeChanges(
 ) {
   for (const change of changes) {
     const settings = settingsFromChange(change);
-    if (settings === null) {
-      throw new Error(`No local sync projector is registered for ${change.entityType}.`);
+    if (settings !== null) {
+      await transaction.runAsync(
+        `UPDATE local_accounts
+            SET language = ?,
+                trust_mode = ?,
+                settings_updated_at = ?
+          WHERE account_id = ?`,
+        settings.language,
+        settings.trustMode ? 1 : 0,
+        new Date().toISOString(),
+        accountId,
+      );
+      continue;
     }
-    await transaction.runAsync(
-      `UPDATE local_accounts
-          SET language = ?,
-              trust_mode = ?,
-              settings_updated_at = ?
-        WHERE account_id = ?`,
-      settings.language,
-      settings.trustMode ? 1 : 0,
-      new Date().toISOString(),
-      accountId,
-    );
+    const mission = missionFromChange(change);
+    if (mission !== null) {
+      await applyMissionProjection(transaction, accountId, mission, new Date().toISOString());
+      continue;
+    }
+    throw new Error(`No local sync projector is registered for ${change.entityType}.`);
   }
 }
 
@@ -134,12 +253,7 @@ async function applyAuthoritativeSnapshot(
   accountId: string,
   entries: readonly ServerAccountChange[],
 ) {
-  const supported = entries.filter((entry) => entry.entityType === 'settings');
-  const unsupported = entries.find((entry) => entry.entityType !== 'settings');
-  if (unsupported !== undefined) {
-    throw new Error(`No local snapshot projector is registered for ${unsupported.entityType}.`);
-  }
-  await applyAuthoritativeChanges(transaction, accountId, supported);
+  await applyAuthoritativeChanges(transaction, accountId, entries);
 }
 
 async function pullWithRequiredPayload(
