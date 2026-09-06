@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mockState = vi.hoisted(() => ({
   deepLinkDate: undefined,
   firstWeekday: 2,
+  timelineMounts: 0,
 }));
 
 vi.mock('expo-router', () => ({
@@ -18,7 +19,7 @@ vi.mock('expo-localization', () => ({
 }));
 
 vi.mock('react-native', async () => {
-  const { createElement: createReactElement } = await import('react');
+  const { createElement: createReactElement, useEffect } = await import('react');
 
   const Pressable = ({ children, ...props }) =>
     createReactElement(
@@ -26,7 +27,12 @@ vi.mock('react-native', async () => {
       props,
       typeof children === 'function' ? children({ pressed: false }) : children,
     );
-  const ScrollView = ({ children, ...props }) => createReactElement('ScrollView', props, children);
+  const ScrollView = ({ children, ...props }) => {
+    useEffect(() => {
+      mockState.timelineMounts += 1;
+    }, []);
+    return createReactElement('ScrollView', props, children);
+  };
 
   return {
     Modal: 'Modal',
@@ -71,6 +77,7 @@ function renderedDayButtons(renderer) {
 beforeEach(() => {
   mockState.deepLinkDate = undefined;
   mockState.firstWeekday = 2;
+  mockState.timelineMounts = 0;
 });
 
 describe('MTS-040 rendered Calendar shell', () => {
@@ -129,5 +136,17 @@ describe('MTS-040 rendered Calendar shell', () => {
     ).toEqual({
       selected: true,
     });
+  });
+});
+
+describe('MTS-041 Calendar timeline composition', () => {
+  it('remounts the timeline when the selected date changes so its starting scroll offset reapplies', () => {
+    const renderer = renderScreen();
+    expect(mockState.timelineMounts).toBe(1);
+
+    const nextDay = renderer.root.findByProps({ testID: 'calendar-day-2026-09-01' });
+    act(() => nextDay.props.onPress());
+
+    expect(mockState.timelineMounts).toBe(2);
   });
 });
