@@ -33,8 +33,7 @@ vi.mock('react-native', async () => {
       props,
       typeof children === 'function' ? children({ pressed: false }) : children,
     );
-  const ScrollView = ({ children, ...props }) =>
-    createReactElement('ScrollView', props, children);
+  const ScrollView = ({ children, ...props }) => createReactElement('ScrollView', props, children);
   const TextInput = (props) => createReactElement('TextInput', props);
 
   return {
@@ -85,9 +84,7 @@ describe('MTS-044 two-tap slot selection', () => {
     const slot = renderer.root.findByProps({ testID: 'calendar-slot-540' });
 
     act(() => slot.props.onPress());
-    expect(
-      renderer.root.findByProps({ testID: 'calendar-selected-slot-frame' }),
-    ).toBeDefined();
+    expect(renderer.root.findByProps({ testID: 'calendar-selected-slot-frame' })).toBeDefined();
     expect(renderer.root.findAllByProps({ testID: 'calendar-create-sheet' })).toHaveLength(0);
 
     act(() => slot.props.onPress());
@@ -108,7 +105,8 @@ describe('MTS-044 two-tap slot selection', () => {
     act(() => second.props.onPress());
 
     expect(
-      renderer.root.findByProps({ testID: 'calendar-selected-slot-frame' }).props.accessibilityValue,
+      renderer.root.findByProps({ testID: 'calendar-selected-slot-frame' }).props
+        .accessibilityValue,
     ).toEqual({ now: 570, min: 0, max: 1440 });
     expect(renderer.root.findAllByProps({ testID: 'calendar-create-sheet' })).toHaveLength(0);
   });
@@ -120,12 +118,16 @@ describe('MTS-044 two-tap slot selection', () => {
     act(() => slot.props.onPress());
     const scroll = renderer.root.findByProps({ testID: 'calendar-timeline-scroll' });
     act(() => scroll.props.onScrollBeginDrag());
-    expect(renderer.root.findAllByProps({ testID: 'calendar-selected-slot-frame' })).toHaveLength(0);
+    expect(renderer.root.findAllByProps({ testID: 'calendar-selected-slot-frame' })).toHaveLength(
+      0,
+    );
 
     act(() => slot.props.onPress());
     const otherDate = renderer.root.findByProps({ testID: 'calendar-day-2026-09-01' });
     act(() => otherDate.props.onPress());
-    expect(renderer.root.findAllByProps({ testID: 'calendar-selected-slot-frame' })).toHaveLength(0);
+    expect(renderer.root.findAllByProps({ testID: 'calendar-selected-slot-frame' })).toHaveLength(
+      0,
+    );
   });
 });
 
