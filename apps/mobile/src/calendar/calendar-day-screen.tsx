@@ -8,10 +8,11 @@ import {
   useColorScheme,
   useWindowDimensions,
 } from 'react-native';
-import { getCalendars, getLocales } from 'expo-localization';
+import { getCalendars } from 'expo-localization';
 import { useLocalSearchParams } from 'expo-router';
 
 import { layout, radius, space, typography } from '@misyra/design-tokens';
+import { localizationCatalogs, type LocalizationLocale } from '@misyra/localization';
 
 import { Screen, themeColors, type ColorScheme } from '../design-system/index.js';
 import { AllDayMissionList, type AllDayMissionSummary } from './calendar-all-day.js';
@@ -27,35 +28,6 @@ import {
 } from './calendar-day-shell.js';
 import { TimedMissionLayer, type TimedMissionSummary } from './calendar-mission-layout.js';
 import { TimedTimeline } from './calendar-timeline.js';
-
-const messages = {
-  en: {
-    calendar: 'Calendar',
-    today: 'Today',
-    level: 'Level —',
-    streak: 'Streak —',
-    chooseDate: 'Choose date',
-    close: 'Close',
-    previousMonth: 'Previous month',
-    nextMonth: 'Next month',
-  },
-  'zh-HK': {
-    calendar: '日曆',
-    today: '今天',
-    level: '等級 —',
-    streak: '連續 —',
-    chooseDate: '選擇日期',
-    close: '關閉',
-    previousMonth: '上個月',
-    nextMonth: '下個月',
-  },
-} as const;
-
-type SupportedLanguage = keyof typeof messages;
-
-function supportedLanguage(languageTag: string | undefined): SupportedLanguage {
-  return languageTag?.toLowerCase().startsWith('zh') === true ? 'zh-HK' : 'en';
-}
 
 function parseLocalDateParts(value: string): { year: number; month: number; day: number } {
   const [yearText = '0', monthText = '0', dayText = '0'] = value.split('-');
@@ -75,13 +47,13 @@ function dateForFormatting(value: string): Date {
   return new Date(Date.UTC(year, month - 1, day, 12));
 }
 
-function weekdayLabel(value: string, locale: string): string {
+function weekdayLabel(value: string, locale: LocalizationLocale): string {
   return new Intl.DateTimeFormat(locale, { weekday: 'narrow', timeZone: 'UTC' }).format(
     dateForFormatting(value),
   );
 }
 
-function fullDateLabel(value: string, locale: string): string {
+function fullDateLabel(value: string, locale: LocalizationLocale): string {
   return new Intl.DateTimeFormat(locale, {
     day: 'numeric',
     month: 'long',
@@ -90,7 +62,7 @@ function fullDateLabel(value: string, locale: string): string {
   }).format(dateForFormatting(value));
 }
 
-function monthLabel(value: string, locale: string): string {
+function monthLabel(value: string, locale: LocalizationLocale): string {
   return new Intl.DateTimeFormat(locale, {
     month: 'long',
     year: 'numeric',
@@ -100,6 +72,7 @@ function monthLabel(value: string, locale: string): string {
 
 export interface CalendarDayScreenProps {
   readonly now?: Date;
+  readonly language?: LocalizationLocale;
   readonly firstTimedMissionMinute?: number;
   readonly preservedMinute?: number;
   readonly returningFromBackground?: boolean;
@@ -112,6 +85,7 @@ export interface CalendarDayScreenProps {
 
 export function CalendarDayScreen({
   now = new Date(),
+  language = 'en',
   firstTimedMissionMinute,
   preservedMinute,
   returningFromBackground = false,
@@ -122,22 +96,32 @@ export function CalendarDayScreen({
   onTimedMissionPress,
 }: CalendarDayScreenProps) {
   const params = useLocalSearchParams<{ date?: string | string[] }>();
-  const locale = getLocales()[0].languageTag;
-  const language = supportedLanguage(locale);
-  const copy = messages[language];
+  const catalog = localizationCatalogs[language];
+  const copy = {
+    calendar: catalog['calendar.shell.title'],
+    today: catalog['calendar.shell.today'],
+    level: catalog['calendar.shell.levelPlaceholder'],
+    streak: catalog['calendar.shell.streakPlaceholder'],
+    chooseDate: catalog['calendar.shell.chooseDate'],
+    close: catalog['calendar.shell.close'],
+    previousMonth: catalog['calendar.shell.previousMonth'],
+    nextMonth: catalog['calendar.shell.nextMonth'],
+  } as const;
   const nativeColorScheme = useColorScheme();
   const colorScheme: ColorScheme = nativeColorScheme === 'dark' ? 'dark' : 'light';
   const colors = themeColors(colorScheme);
   const width = useWindowDimensions().width;
   const responsive = resolveResponsiveCalendarLayout(width);
   const today = localDateFromNow(now);
-  const regionalFirstWeekday = Number(getCalendars()[0].firstWeekday);
+  const systemCalendar = getCalendars()[0];
+  const regionalFirstWeekday = Number(systemCalendar?.firstWeekday);
   const firstWeekday =
     typeof regionalFirstWeekday === 'number' &&
     regionalFirstWeekday >= 1 &&
     regionalFirstWeekday <= 7
       ? regionalFirstWeekday
       : 2;
+  const uses24HourClock = systemCalendar?.uses24hourClock !== false;
 
   const initialDateRef = useRef(resolveInitialCalendarDate(params.date, today));
   const [selectedDate, setSelectedDate] = useState(initialDateRef.current);
@@ -209,7 +193,7 @@ export function CalendarDayScreen({
                 },
               ]}
             >
-              {fullDateLabel(selectedDate, locale)}
+              {fullDateLabel(selectedDate, language)}
             </Text>
           </Pressable>
           {shouldShowTodayButton(selectedDate, today) ? (
@@ -242,7 +226,7 @@ export function CalendarDayScreen({
         >
           {strip.map((day) => (
             <Pressable
-              accessibilityLabel={fullDateLabel(day.date, locale)}
+              accessibilityLabel={fullDateLabel(day.date, language)}
               accessibilityRole="button"
               accessibilityState={{ selected: day.selected }}
               key={day.date}
@@ -269,7 +253,7 @@ export function CalendarDayScreen({
                   { color: day.selected ? colors.primaryText : colors.textSecondary },
                 ]}
               >
-                {weekdayLabel(day.date, locale)}
+                {weekdayLabel(day.date, language)}
               </Text>
               <Text
                 allowFontScaling
@@ -294,15 +278,12 @@ export function CalendarDayScreen({
         </View>
       </View>
 
-      <View
-        accessibilityLabel={`${launch.reason}:${String(launch.minute)}`}
-        style={[styles.dayBody, { borderTopColor: colors.divider }]}
-        testID="calendar-day-body"
-      >
+      <View style={[styles.dayBody, { borderTopColor: colors.divider }]} testID="calendar-day-body">
         <TimedTimeline
           colorScheme={colorScheme}
           initialCurrentMinute={currentMinute}
           key={selectedDate}
+          language={language}
           launchMinute={launch.minute}
           missionLayer={
             timedMissions.length > 0 ? (
@@ -319,6 +300,7 @@ export function CalendarDayScreen({
             allDayMissions.length > 0 ? (
               <AllDayMissionList
                 colorScheme={colorScheme}
+                language={language}
                 missions={allDayMissions}
                 onMissionPress={onAllDayMissionPress}
                 selectedDate={selectedDate}
@@ -327,6 +309,7 @@ export function CalendarDayScreen({
           }
           selectedDate={selectedDate}
           today={today}
+          uses24HourClock={uses24HourClock}
         />
       </View>
 
@@ -361,7 +344,7 @@ export function CalendarDayScreen({
                 allowFontScaling
                 style={[styles.monthTitle, { color: colors.textPrimary }]}
               >
-                {monthLabel(pickerMonth, locale)}
+                {monthLabel(pickerMonth, language)}
               </Text>
               <Pressable
                 accessibilityLabel={copy.nextMonth}
@@ -381,7 +364,7 @@ export function CalendarDayScreen({
                 const inDisplayedMonth = parseLocalDateParts(day.date).month === pickerMonthNumber;
                 return (
                   <Pressable
-                    accessibilityLabel={fullDateLabel(day.date, locale)}
+                    accessibilityLabel={fullDateLabel(day.date, language)}
                     accessibilityRole="button"
                     accessibilityState={{ selected: day.date === selectedDate }}
                     key={day.date}
