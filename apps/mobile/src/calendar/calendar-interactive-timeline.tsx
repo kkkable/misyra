@@ -259,6 +259,7 @@ export function CalendarInteractiveTimeline({
                         startMinute: creationSlotMinute,
                         endMinute: creationSlotMinute + SLOT_MINUTES,
                         rewardEligibility: creationPlacement.rewardEligibility,
+                        timeZone: missionTimeZone,
                       }),
                     )
                       .then(() => {
