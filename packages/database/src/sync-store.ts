@@ -93,6 +93,20 @@ function resolveClientTiming(source: string, serverReceiptTime: Date): ClientTim
   };
 }
 
+function assertExecutableMutationShape(mutation: StoredSyncMutation): void {
+  if (mutation.entityType !== 'settings') {
+    throw new SyncMutationValidationError(
+      `No executable server projector is registered for ${mutation.entityType}`,
+    );
+  }
+  if (mutation.entityId !== mutation.accountId) {
+    throw new SyncMutationValidationError('Settings mutations must target the authenticated account');
+  }
+  if (mutation.operation !== 'update') {
+    throw new SyncMutationValidationError('Settings synchronization only supports update operations');
+  }
+}
+
 function changeOperation(operation: string): 'upsert' | 'delete' {
   return operation === 'delete' ? 'delete' : 'upsert';
 }
@@ -202,6 +216,7 @@ async function acceptMutation(
   mutation: StoredSyncMutation,
   serverReceiptTime: Date,
 ): Promise<void> {
+  assertExecutableMutationShape(mutation);
   await requireDeviceOwnership(client, mutation.accountId, mutation.deviceId);
   const timing = resolveClientTiming(mutation.clientOccurredAt, serverReceiptTime);
 
@@ -209,17 +224,12 @@ async function acceptMutation(
   if (existingMatch === true) return;
   if (existingMatch === false) throw new SyncMutationConflictError();
 
-  const authoritativePayload =
-    mutation.entityType === 'settings'
-      ? await applySettingsMutation(
-          client,
-          mutation.accountId,
-          mutation.operation,
-          mutation.payload,
-        )
-      : mutation.operation === 'delete'
-        ? null
-        : mutation.payload;
+  const authoritativePayload = await applySettingsMutation(
+    client,
+    mutation.accountId,
+    mutation.operation,
+    mutation.payload,
+  );
 
   await client.query(
     `INSERT INTO device_sync_mutations (
