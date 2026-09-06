@@ -46,7 +46,7 @@ function placementForSlot(selectedDate: string, minute: number, now: Date) {
   return evaluateSchedulePlacement({
     targetStartInstant: localDateMinuteInstant(selectedDate, minute),
     actionInstant: now.toISOString(),
-    currentRewardEligibility: 'undetermined',
+    currentRewardEligibility: 'eligible',
   });
 }
 
