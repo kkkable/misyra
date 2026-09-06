@@ -131,9 +131,16 @@ describe('MTS-044 two-tap slot selection', () => {
     expect(renderer.root.findAllByProps({ testID: 'calendar-create-sheet' })).toHaveLength(0);
   });
 
-  it('clears slot selection on scroll and date change', () => {
+  it('clears slot selection on outside tap, scroll, and date change', () => {
     const renderer = renderScreen();
     const slot = renderer.root.findByProps({ testID: 'calendar-slot-540' });
+
+    act(() => slot.props.onPress());
+    const outside = renderer.root.findByProps({ testID: 'calendar-slot-clear-layer' });
+    act(() => outside.props.onPress());
+    expect(renderer.root.findAllByProps({ testID: 'calendar-selected-slot-frame' })).toHaveLength(
+      0,
+    );
 
     act(() => slot.props.onPress());
     const scroll = renderer.root.findByProps({ testID: 'calendar-timeline-scroll' });
