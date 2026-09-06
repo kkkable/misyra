@@ -19,12 +19,7 @@ vi.mock('expo-localization', () => ({
 }));
 
 vi.mock('react-native', async () => {
-  const {
-    createElement: createReactElement,
-    forwardRef,
-    useEffect,
-    useImperativeHandle,
-  } = await import('react');
+  const { createElement: createReactElement, useEffect } = await import('react');
 
   const Pressable = ({ children, ...props }) =>
     createReactElement(
@@ -32,13 +27,12 @@ vi.mock('react-native', async () => {
       props,
       typeof children === 'function' ? children({ pressed: false }) : children,
     );
-  const ScrollView = forwardRef(function MockScrollView({ children, ...props }, ref) {
+  const ScrollView = ({ children, ...props }) => {
     useEffect(() => {
       mockState.timelineMounts += 1;
     }, []);
-    useImperativeHandle(ref, () => ({ scrollTo: vi.fn() }), []);
     return createReactElement('ScrollView', props, children);
-  });
+  };
 
   return {
     Modal: 'Modal',
@@ -162,7 +156,7 @@ describe('MTS-041 Calendar timeline composition', () => {
 });
 
 describe('MTS-042 Calendar all-day composition', () => {
-  it('renders the selected date all-day cards inside the same scroll surface and swaps them on date change', () => {
+  it('swaps the selected date all-day cards inside the Calendar scroll surface', () => {
     const onAllDayMissionPress = vi.fn();
     const renderer = renderScreen({
       allDayMissionsByDate: {
@@ -177,19 +171,27 @@ describe('MTS-042 Calendar all-day composition', () => {
       onAllDayMissionPress,
     });
 
-    expect(renderer.root.findByProps({ testID: 'calendar-scroll-header' })).toBeDefined();
-    expect(renderer.root.findByProps({ testID: 'calendar-all-day-mission-today-1' })).toBeDefined();
-    expect(
-      renderer.root.findByProps({ testID: 'calendar-all-day-more' }).props.accessibilityLabel,
-    ).toBe('+1 more');
+    const header = renderer.root.findByProps({ testID: 'calendar-scroll-header' });
+    const todayMission = renderer.root.findByProps({
+      testID: 'calendar-all-day-mission-today-1',
+    });
+    const more = renderer.root.findByProps({ testID: 'calendar-all-day-more' });
+    expect(header).toBeDefined();
+    expect(todayMission).toBeDefined();
+    expect(more.props.accessibilityLabel).toBe('+1 more');
 
-    act(() => renderer.root.findByProps({ testID: 'calendar-all-day-mission-today-1' }).props.onPress());
+    act(() => todayMission.props.onPress());
     expect(onAllDayMissionPress).toHaveBeenCalledWith(expect.objectContaining({ id: 'today-1' }));
 
-    act(() => renderer.root.findByProps({ testID: 'calendar-day-2026-09-01' }).props.onPress());
-    expect(
-      renderer.root.findAllByProps({ testID: 'calendar-all-day-mission-today-1' }),
-    ).toHaveLength(0);
-    expect(renderer.root.findByProps({ testID: 'calendar-all-day-mission-other-1' })).toBeDefined();
+    const otherDay = renderer.root.findByProps({ testID: 'calendar-day-2026-09-01' });
+    act(() => otherDay.props.onPress());
+    const oldMission = renderer.root.findAllByProps({
+      testID: 'calendar-all-day-mission-today-1',
+    });
+    const otherMission = renderer.root.findByProps({
+      testID: 'calendar-all-day-mission-other-1',
+    });
+    expect(oldMission).toHaveLength(0);
+    expect(otherMission).toBeDefined();
   });
 });
