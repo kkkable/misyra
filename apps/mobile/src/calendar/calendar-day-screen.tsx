@@ -85,8 +85,7 @@ export interface CalendarDayScreenProps {
   readonly selectedMissionId?: string;
   readonly onTimedMissionPress?: (mission: TimedMissionSummary) => void;
   readonly onCreateMission?:
-    | ((input: CalendarMissionCreateInput) => void | Promise<void>)
-    | undefined;
+    ((input: CalendarMissionCreateInput) => void | Promise<void>) | undefined;
 }
 
 export function CalendarDayScreen({
