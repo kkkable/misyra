@@ -53,8 +53,8 @@ export function visibleAllDayMissions(
 }
 
 function hiddenCountLabel(hiddenCount: number): string {
-  const languageTag = getLocales()[0]?.languageTag;
-  const locale = languageTag?.toLowerCase().startsWith('zh') === true ? 'zh-HK' : 'en';
+  const languageTag = getLocales()[0].languageTag.toLowerCase();
+  const locale = languageTag.startsWith('zh') ? 'zh-HK' : 'en';
   return localizationCatalogs[locale]['calendar.allDay.more'].replace(
     '{count}',
     String(hiddenCount),
