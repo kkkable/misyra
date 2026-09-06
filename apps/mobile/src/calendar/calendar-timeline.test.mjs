@@ -5,8 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 vi.mock('react-native', async () => {
   const { createElement: createReactElement } = await import('react');
 
-  const ScrollView = ({ children, ...props }) =>
-    createReactElement('ScrollView', props, children);
+  const ScrollView = ({ children, ...props }) => createReactElement('ScrollView', props, children);
 
   return {
     ScrollView,
@@ -75,11 +74,13 @@ describe('MTS-041 bounded rendered timeline', () => {
 
     const guides = renderer.root.findAll(
       (node) =>
-        typeof node.props.testID === 'string' && node.props.testID.startsWith('calendar-time-guide-'),
+        typeof node.props.testID === 'string' &&
+        node.props.testID.startsWith('calendar-time-guide-'),
     );
     const labels = renderer.root.findAll(
       (node) =>
-        typeof node.props.testID === 'string' && node.props.testID.startsWith('calendar-hour-label-'),
+        typeof node.props.testID === 'string' &&
+        node.props.testID.startsWith('calendar-hour-label-'),
     );
     const scroll = renderer.root.findByProps({ testID: 'calendar-timeline-scroll' });
 
@@ -108,7 +109,9 @@ describe('MTS-041 bounded rendered timeline', () => {
 
     const nine = renderer.root.findByProps({ testID: 'calendar-hour-label-540' });
     expect(nine.props.allowFontScaling).toBe(true);
-    expect(nine.props.style).toEqual(expect.arrayContaining([expect.objectContaining({ top: 540 })]));
+    expect(nine.props.style).toEqual(
+      expect.arrayContaining([expect.objectContaining({ top: 540 })]),
+    );
   });
 });
 
@@ -133,18 +136,18 @@ describe('MTS-041 current-time ruler isolation', () => {
       renderer = create(createElement(Harness));
     });
 
-    expect(renderer.root.findByProps({ testID: 'calendar-current-time-ruler' }).props.accessibilityLabel).toBe(
-      'current-time:517',
-    );
+    expect(
+      renderer.root.findByProps({ testID: 'calendar-current-time-ruler' }).props.accessibilityLabel,
+    ).toBe('current-time:517');
 
     now = new Date(2026, 8, 6, 8, 38);
     act(() => {
       vi.advanceTimersByTime(1_000);
     });
 
-    expect(renderer.root.findByProps({ testID: 'calendar-current-time-ruler' }).props.accessibilityLabel).toBe(
-      'current-time:518',
-    );
+    expect(
+      renderer.root.findByProps({ testID: 'calendar-current-time-ruler' }).props.accessibilityLabel,
+    ).toBe('current-time:518');
     expect(parentRender).toHaveBeenCalledTimes(1);
   });
 });
