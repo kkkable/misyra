@@ -44,6 +44,23 @@ jobs:
       - name: Install from lockfile
         run: pnpm install --frozen-lockfile
 
+      - name: Format MTS-040 files for disposable verification
+        run: >-
+          pnpm exec prettier --write
+          apps/mobile/src/calendar/calendar-day-screen.test.mjs
+          apps/mobile/src/calendar/calendar-day-screen.tsx
+          apps/mobile/src/calendar/calendar-day-shell.ts
+          --config packages/config/prettier.config.mjs
+
+      - name: Upload formatted MTS-040 files
+        uses: actions/upload-artifact@v4
+        with:
+          name: mts-040-prettier-output
+          path: |
+            apps/mobile/src/calendar/calendar-day-screen.test.mjs
+            apps/mobile/src/calendar/calendar-day-screen.tsx
+            apps/mobile/src/calendar/calendar-day-shell.ts
+
       - name: Install Bicep compiler in runner only
         run: az bicep install
 
