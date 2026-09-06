@@ -108,12 +108,8 @@ describe('MTS-043 overlap matrix', () => {
     ]);
 
     expect(groups).toHaveLength(2);
-    expect(groups[0].cards[0]).toEqual(
-      expect.objectContaining({ height: 45, top: 547 }),
-    );
-    expect(groups[1].cards[0]).toEqual(
-      expect.objectContaining({ height: 30, top: 660 }),
-    );
+    expect(groups[0].cards[0]).toEqual(expect.objectContaining({ height: 45, top: 547 }));
+    expect(groups[1].cards[0]).toEqual(expect.objectContaining({ height: 30, top: 660 }));
   });
 });
 
