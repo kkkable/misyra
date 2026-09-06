@@ -111,6 +111,7 @@ type ClientTiming = Readonly<{
   validationResult: 'valid' | 'invalid_replaced';
 }>;
 
+const HISTORICAL_WINDOW_MILLISECONDS = 30 * 24 * 60 * 60 * 1000;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const LOCAL_DATE_TIME_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/;
 
@@ -345,6 +346,27 @@ function parseMissionCreatePayload(
   };
 }
 
+function enforceMissionCreatePlacement(
+  mission: MissionCreatePayload,
+  effectiveTime: Date,
+): MissionCreatePayload {
+  const start = Date.parse(mission.occurrence.schedule.startInstant);
+  const ageMilliseconds = effectiveTime.getTime() - start;
+  if (ageMilliseconds > HISTORICAL_WINDOW_MILLISECONDS) {
+    throw new SyncMutationValidationError('Mission start exceeds the historical window');
+  }
+  if (ageMilliseconds <= 0 || mission.occurrence.rewardEligibility === 'ineligible') {
+    return mission;
+  }
+  return {
+    ...mission,
+    occurrence: {
+      ...mission.occurrence,
+      rewardEligibility: 'ineligible',
+    },
+  };
+}
+
 async function requireDeviceOwnership(
   client: PoolClient,
   accountId: string,
@@ -425,8 +447,12 @@ async function applyMissionCreateMutation(
   accountId: string,
   entityId: string,
   payload: unknown,
+  effectiveTime: Date,
 ): Promise<MissionCreatePayload> {
-  const mission = parseMissionCreatePayload(payload, entityId);
+  const mission = enforceMissionCreatePlacement(
+    parseMissionCreatePayload(payload, entityId),
+    effectiveTime,
+  );
   await client.query(
     `INSERT INTO mission_series (id, account_id, title, recurrence_rule)
      VALUES ($1, $2, $3, NULL)`,
@@ -475,6 +501,7 @@ async function applyMissionCreateMutation(
 async function applyExecutableMutation(
   client: PoolClient,
   mutation: StoredSyncMutation,
+  timing: ClientTiming,
 ): Promise<unknown> {
   if (mutation.entityType === 'settings') {
     return applySettingsMutation(client, mutation.accountId, mutation.operation, mutation.payload);
@@ -485,6 +512,7 @@ async function applyExecutableMutation(
       mutation.accountId,
       mutation.entityId,
       mutation.payload,
+      timing.effectiveTime,
     );
   }
   throw new SyncMutationValidationError(
@@ -505,7 +533,7 @@ async function acceptMutation(
   if (existingMatch === true) return;
   if (existingMatch === false) throw new SyncMutationConflictError();
 
-  const authoritativePayload = await applyExecutableMutation(client, mutation);
+  const authoritativePayload = await applyExecutableMutation(client, mutation, timing);
 
   await client.query(
     `INSERT INTO device_sync_mutations (
