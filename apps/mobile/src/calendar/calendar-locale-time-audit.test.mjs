@@ -103,6 +103,7 @@ describe('MTS-041 Calendar phone-time and accessibility audit correction', () =>
   });
 
   it('exposes localized human-readable current-time semantics and no diagnostic day-body label', () => {
+    mockState.deepLinkDate = '2026-09-06';
     const renderer = renderScreen({ language: 'en' });
     const ruler = renderer.root.findByProps({ testID: 'calendar-current-time-ruler' });
     const dayBody = renderer.root.findByProps({ testID: 'calendar-day-body' });
