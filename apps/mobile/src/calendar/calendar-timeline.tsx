@@ -140,6 +140,7 @@ export function CurrentTimeRuler({
   return (
     <View
       accessibilityLabel={currentTimeLabel}
+      accessible
       pointerEvents="none"
       style={[
         styles.currentTimeRuler,
