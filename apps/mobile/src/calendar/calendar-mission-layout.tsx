@@ -37,6 +37,11 @@ export interface MissionOverlapGroup {
   readonly height: number;
 }
 
+interface MissionColumnAssignment {
+  readonly mission: TimedMissionSummary;
+  readonly column: number;
+}
+
 function missionFrame(mission: TimedMissionSummary): {
   readonly top: number;
   readonly height: number;
@@ -75,6 +80,31 @@ function compareMissions(left: TimedMissionSummary, right: TimedMissionSummary):
   return order === 0 ? compareStableText(left.id, right.id) : order;
 }
 
+function assignMissionColumns(
+  missions: readonly TimedMissionSummary[],
+): {
+  readonly assignments: readonly MissionColumnAssignment[];
+  readonly peakConcurrency: number;
+} {
+  const columnEnds: number[] = [];
+  const assignments = missions.map((mission) => {
+    let column = columnEnds.findIndex((endMinute) => endMinute <= mission.startMinute);
+    if (column === -1) {
+      column = columnEnds.length;
+      columnEnds.push(mission.endMinute);
+    } else {
+      columnEnds[column] = mission.endMinute;
+    }
+
+    return { mission, column };
+  });
+
+  return {
+    assignments,
+    peakConcurrency: columnEnds.length,
+  };
+}
+
 export function buildMissionOverlapGroups(
   missions: readonly TimedMissionSummary[],
 ): readonly MissionOverlapGroup[] {
@@ -100,21 +130,32 @@ export function buildMissionOverlapGroups(
   }
 
   return clusters.map((groupMissions, groupIndex) => {
-    const visibleCount = groupMissions.length >= 4 ? 2 : groupMissions.length;
-    const widthPercent = 100 / visibleCount;
-    const cards = groupMissions.slice(0, visibleCount).map((mission, index) => ({
+    const { assignments, peakConcurrency } = assignMissionColumns(groupMissions);
+    const visibleColumnCount = peakConcurrency >= 4 ? 2 : peakConcurrency;
+    const widthPercent = 100 / visibleColumnCount;
+    const visibleAssignments =
+      peakConcurrency >= 4
+        ? assignments.filter((assignment) => assignment.column < visibleColumnCount)
+        : assignments;
+    const cards = visibleAssignments.map(({ mission, column }) => ({
       ...missionFrame(mission),
-      leftPercent: index * widthPercent,
+      leftPercent: column * widthPercent,
       mission,
       widthPercent,
     }));
+    const hiddenMissions =
+      peakConcurrency >= 4
+        ? assignments
+            .filter((assignment) => assignment.column >= visibleColumnCount)
+            .map((assignment) => assignment.mission)
+        : [];
     const top = Math.min(...groupMissions.map((mission) => mission.startMinute));
     const bottom = Math.max(...groupMissions.map((mission) => mission.endMinute));
 
     return {
       id: `overlap-${String(groupIndex)}`,
       cards,
-      hiddenMissions: groupMissions.length >= 4 ? groupMissions.slice(2) : [],
+      hiddenMissions,
       missions: groupMissions,
       top,
       height: bottom - top,
@@ -154,6 +195,24 @@ function accessibilityLabel(mission: TimedMissionSummary, language: Localization
   return `${mission.title}, ${statusLabel(mission.status, language)}`;
 }
 
+function missionHitSlop(mission: TimedMissionSummary): {
+  readonly top: number;
+  readonly bottom: number;
+  readonly left: number;
+  readonly right: number;
+} {
+  const verticalInset = Math.max(
+    0,
+    (layout.minimumTouchTarget - missionFrame(mission).height) / 2,
+  );
+  return {
+    top: verticalInset,
+    bottom: verticalInset,
+    left: 0,
+    right: 0,
+  };
+}
+
 interface MissionCardProps {
   readonly colorScheme: ColorScheme;
   readonly language: LocalizationLocale;
@@ -180,7 +239,7 @@ export function MissionCard({
     <Pressable
       accessibilityLabel={accessibilityLabel(mission, language)}
       accessibilityRole="button"
-      hitSlop={space[2]}
+      hitSlop={missionHitSlop(mission)}
       onPress={() => {
         onPress?.(mission);
       }}
@@ -344,8 +403,12 @@ const styles = StyleSheet.create({
     top: 0,
   },
   moreButton: {
+    alignItems: 'center',
     borderRadius: radius.pill,
     borderWidth: 1,
+    justifyContent: 'center',
+    minHeight: layout.minimumTouchTarget,
+    minWidth: layout.minimumTouchTarget,
     paddingHorizontal: space[2],
     paddingVertical: space[1],
     position: 'absolute',
