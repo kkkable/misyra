@@ -159,10 +159,15 @@ export async function createCalendarMission({
     },
   });
   const occurredAt = now.toISOString();
-  const payload = { series: mission.series, occurrence: mission.occurrence };
-  const queue = createMutationQueue(database, accountId);
   const location = optionalText(input.location);
   const notes = optionalText(input.notes);
+  const payload = {
+    series: mission.series,
+    occurrence: mission.occurrence,
+    location,
+    personalNote: notes,
+  };
+  const queue = createMutationQueue(database, accountId);
 
   await queue.enqueue({
     mutation: {
