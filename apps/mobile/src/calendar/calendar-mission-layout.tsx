@@ -254,13 +254,17 @@ function groupList(
   );
 }
 
+function percentageDimension(value: number): `${number}%` {
+  return `${String(value)}%` as `${number}%`;
+}
+
 function missionPositionStyle(card: MissionCardLayout): ViewStyle {
   return {
     height: card.height,
-    left: `${String(card.leftPercent)}%`,
+    left: percentageDimension(card.leftPercent),
     position: 'absolute',
     top: card.top,
-    width: `${String(card.widthPercent)}%`,
+    width: percentageDimension(card.widthPercent),
   };
 }
 
