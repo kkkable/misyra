@@ -114,7 +114,9 @@ describe('MTS-044 local-first mission save', () => {
     );
 
     expect(series.title).toBe('Morning mission');
-    expect(JSON.parse(series.payload_json).id).toBe('33333333-3333-4333-8333-333333333333');
+    expect(JSON.parse(series.payload_json).id).toBe(
+      '33333333-3333-4333-8333-333333333333',
+    );
     expect(occurrence.local_date).toBe('2026-09-07');
     expect(occurrence.scheduled_start).toBe('09:00');
     expect(occurrence.scheduled_end).toBe('09:30');
