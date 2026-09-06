@@ -32,7 +32,7 @@ afterAll(async () => {
 });
 
 describe('MTS-044 mission create sync projector', () => {
-  it('enforces historical eligibility and the 30-day create window authoritatively', async () => {
+  it('enforces historical eligibility and validates the schedule authoritatively', async () => {
     const auth = createPostgresAuthStore(pool);
     const devices = createPostgresDeviceSettingsStore(pool);
     const account = await auth.findOrCreateAccount('google', `mission-sync-${randomUUID()}`);
@@ -171,5 +171,43 @@ describe('MTS-044 mission create sync projector', () => {
         },
       ]),
     ).rejects.toThrow('historical window');
+
+    const incoherentSeriesId = randomUUID();
+    const incoherentOccurrenceId = randomUUID();
+    const incoherentPayload = {
+      ...payload,
+      series: {
+        ...payload.series,
+        id: incoherentSeriesId,
+      },
+      occurrence: {
+        ...payload.occurrence,
+        id: incoherentOccurrenceId,
+        seriesId: incoherentSeriesId,
+        schedule: {
+          ...payload.occurrence.schedule,
+          localStart: '2026-09-07T09:00:00',
+          localFinish: '2026-09-07T09:30:00',
+          startInstant: '2026-09-07T09:00:00.000Z',
+          finishInstant: '2026-09-07T09:30:00.000Z',
+        },
+      },
+    } as const;
+
+    await expect(
+      store.push(account.id, [
+        {
+          mutationId: randomUUID(),
+          accountId: account.id,
+          deviceId,
+          entityType: 'mission',
+          entityId: incoherentOccurrenceId,
+          operation: 'create',
+          baseVersion: null,
+          clientOccurredAt: '2026-09-06T17:00:00.000Z',
+          payload: incoherentPayload,
+        },
+      ]),
+    ).rejects.toThrow('time zone');
   });
 });
