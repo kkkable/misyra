@@ -15,6 +15,10 @@ import { layout, radius, space, typography } from '@misyra/design-tokens';
 
 import { Screen, themeColors, type ColorScheme } from '../design-system/index.js';
 import {
+  AllDayMissionList,
+  type AllDayMissionSummary,
+} from './calendar-all-day.js';
+import {
   buildMonthGrid,
   buildSevenDayStrip,
   localDateFromNow,
@@ -101,6 +105,10 @@ export interface CalendarDayScreenProps {
   readonly firstTimedMissionMinute?: number;
   readonly preservedMinute?: number;
   readonly returningFromBackground?: boolean;
+  readonly allDayMissionsByDate?: Readonly<
+    Record<string, readonly AllDayMissionSummary[]>
+  >;
+  readonly onAllDayMissionPress?: (mission: AllDayMissionSummary) => void;
 }
 
 export function CalendarDayScreen({
@@ -108,6 +116,8 @@ export function CalendarDayScreen({
   firstTimedMissionMinute,
   preservedMinute,
   returningFromBackground = false,
+  allDayMissionsByDate = {},
+  onAllDayMissionPress,
 }: CalendarDayScreenProps) {
   const params = useLocalSearchParams<{ date?: string | string[] }>();
   const locale = getLocales()[0].languageTag;
@@ -161,6 +171,7 @@ export function CalendarDayScreen({
     [firstWeekday, pickerMonth],
   );
   const pickerMonthNumber = parseLocalDateParts(pickerMonth).month;
+  const allDayMissions = allDayMissionsByDate[selectedDate] ?? [];
 
   const selectDate = (date: string) => {
     setSelectedDate(date);
@@ -290,6 +301,16 @@ export function CalendarDayScreen({
           initialCurrentMinute={currentMinute}
           key={selectedDate}
           launchMinute={launch.minute}
+          scrollHeader={
+            allDayMissions.length > 0 ? (
+              <AllDayMissionList
+                colorScheme={colorScheme}
+                missions={allDayMissions}
+                onMissionPress={onAllDayMissionPress}
+                selectedDate={selectedDate}
+              />
+            ) : undefined
+          }
           selectedDate={selectedDate}
           today={today}
         />
