@@ -223,7 +223,7 @@ describe('MTS-043 grouped overflow', () => {
     expect(renderer.root.findAllByProps({ testID: 'calendar-mission-card-b' })).toHaveLength(1);
     expect(renderer.root.findAllByProps({ testID: 'calendar-mission-card-c' })).toHaveLength(0);
     const more = renderer.root.findByProps({ testID: 'calendar-overlap-more-overlap-0' });
-    expect(more.children.join('')).toContain('+2 more');
+    expect(more.findByType('Text').children.join('')).toContain('+2 more');
 
     act(() => more.props.onPress());
 
