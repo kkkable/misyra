@@ -22,9 +22,15 @@ function deviceMetadata() {
   else if (Platform.OS === 'android') platform = 'android';
   else throw new Error('unsupported_mobile_platform');
 
+  const configuredAppVersion: unknown = process.env.EXPO_PUBLIC_APP_VERSION;
+  const appVersion =
+    typeof configuredAppVersion === 'string' && configuredAppVersion.length > 0
+      ? configuredAppVersion
+      : '0.0.0';
+
   return Promise.resolve({
     platform,
-    appVersion: process.env.EXPO_PUBLIC_APP_VERSION ?? '0.0.0',
+    appVersion,
     notificationCapability: 'not_determined' as const,
   });
 }
