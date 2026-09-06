@@ -185,7 +185,7 @@ describe('MTS-044 two-tap slot selection', () => {
 });
 
 describe('MTS-044 past-create eligibility', () => {
-  it('allows a mission exactly 30 days in the past, locks it to 0 XP, and rejects anything older', () => {
+  it('allows a mission exactly 30 days in the past, locks it to 0 XP after confirmation, and rejects anything older', () => {
     const onCreateMission = vi.fn();
     mockState.deepLinkDate = '2026-08-07';
     const renderer = renderScreen({
@@ -200,6 +200,10 @@ describe('MTS-044 past-create eligibility', () => {
     act(() => title.props.onChangeText('Historical mission'));
     const save = renderer.root.findByProps({ testID: 'calendar-create-save' });
     act(() => save.props.onPress());
+
+    expect(onCreateMission).not.toHaveBeenCalled();
+    expect(renderer.root.findByProps({ testID: 'calendar-create-zero-xp-warning' })).toBeDefined();
+    act(() => renderer.root.findByProps({ testID: 'calendar-create-confirm-zero-xp' }).props.onPress());
 
     expect(onCreateMission).toHaveBeenCalledWith(
       expect.objectContaining({
