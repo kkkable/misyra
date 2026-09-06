@@ -64,6 +64,21 @@ function hostPressable(renderer, testID) {
   return renderer.root.find((node) => node.type === 'Pressable' && node.props.testID === testID);
 }
 
+function renderMissionCard(startMinute, endMinute) {
+  let renderer;
+  act(() => {
+    renderer = create(
+      createElement(MissionCard, {
+        colorScheme: 'light',
+        language: 'en',
+        mission: mission('target', startMinute, endMinute),
+        selected: false,
+      }),
+    );
+  });
+  return hostPressable(renderer, 'calendar-mission-card-target');
+}
+
 describe('MTS-043 overlap matrix', () => {
   it('uses full width for one, side-by-side columns for two/three, and two cards plus overflow for four+', () => {
     const one = buildMissionOverlapGroups([mission('a')]);
@@ -93,6 +108,69 @@ describe('MTS-043 overlap matrix', () => {
     expect(four[0].cards.map((card) => card.mission.id)).toEqual(['a', 'b']);
     expect(four[0].cards.map((card) => card.widthPercent)).toEqual([50, 50]);
     expect(four[0].hiddenMissions.map((item) => item.id)).toEqual(['c', 'd']);
+  });
+
+  it('uses simultaneous concurrency instead of connected-component size for a bridge chain', () => {
+    const groups = buildMissionOverlapGroups([
+      mission('a', 540, 600),
+      mission('b', 570, 630),
+      mission('c', 600, 660),
+      mission('d', 630, 690),
+    ]);
+
+    expect(groups).toHaveLength(1);
+    expect(groups[0].hiddenMissions).toHaveLength(0);
+    expect(groups[0].cards.map((card) => card.mission.id)).toEqual(['a', 'b', 'c', 'd']);
+    expect(groups[0].cards.map((card) => card.leftPercent)).toEqual([0, 50, 0, 50]);
+    expect(groups[0].cards.map((card) => card.widthPercent)).toEqual([50, 50, 50, 50]);
+  });
+
+  it('reuses released columns for staggered overlaps and treats equal boundaries as non-overlap', () => {
+    const staggered = buildMissionOverlapGroups([
+      mission('a', 540, 660),
+      mission('b', 570, 600),
+      mission('c', 600, 630),
+    ]);
+    expect(staggered).toHaveLength(1);
+    expect(staggered[0].cards.map((card) => card.leftPercent)).toEqual([0, 50, 50]);
+
+    const touching = buildMissionOverlapGroups([mission('a', 540, 600), mission('b', 600, 660)]);
+    expect(touching).toHaveLength(2);
+    expect(touching.map((group) => group.cards[0].widthPercent)).toEqual([100, 100]);
+  });
+
+  it('uses three deterministic columns for nested events', () => {
+    const groups = buildMissionOverlapGroups([
+      mission('a', 540, 660),
+      mission('b', 550, 650),
+      mission('c', 560, 640),
+    ]);
+
+    expect(groups[0].cards.map((card) => card.leftPercent)).toEqual([
+      0,
+      100 / 3,
+      (100 / 3) * 2,
+    ]);
+    expect(groups[0].cards.map((card) => card.widthPercent)).toEqual([
+      100 / 3,
+      100 / 3,
+      100 / 3,
+    ]);
+  });
+
+  it('limits a true four-way concurrency group to two visible columns and deterministic overflow', () => {
+    const groups = buildMissionOverlapGroups([
+      mission('a', 540, 660),
+      mission('b', 550, 650),
+      mission('c', 560, 620),
+      mission('d', 570, 610),
+      mission('e', 620, 680),
+    ]);
+
+    expect(groups).toHaveLength(1);
+    expect(groups[0].cards.map((card) => card.mission.id)).toEqual(['a', 'b']);
+    expect(groups[0].cards.map((card) => card.widthPercent)).toEqual([50, 50]);
+    expect(groups[0].hiddenMissions.map((item) => item.id)).toEqual(['c', 'd', 'e']);
   });
 
   it('keeps completed missions in the same overlap slots because status never participates in ordering', () => {
@@ -211,6 +289,16 @@ describe('MTS-043 status and accessibility', () => {
       ]),
     );
   });
+
+  it.each([
+    [5, 19.5],
+    [15, 14.5],
+    [30, 7],
+  ])('keeps a %i-minute card at an effective 44-point vertical target', (duration, inset) => {
+    const card = renderMissionCard(540, 540 + duration);
+    expect(card.props.hitSlop).toEqual({ bottom: inset, left: 0, right: 0, top: inset });
+    expect(duration + card.props.hitSlop.top + card.props.hitSlop.bottom).toBeGreaterThanOrEqual(44);
+  });
 });
 
 describe('MTS-043 grouped overflow', () => {
@@ -232,6 +320,9 @@ describe('MTS-043 grouped overflow', () => {
     expect(hostPressables(renderer, 'calendar-mission-card-c')).toHaveLength(0);
     const more = hostPressable(renderer, 'calendar-overlap-more-overlap-0');
     expect(more.findByType('Text').children.join('')).toContain('+2 more');
+    expect(more.props.style).toEqual(
+      expect.arrayContaining([expect.objectContaining({ minHeight: 44, minWidth: 44 })]),
+    );
 
     act(() => more.props.onPress());
 
