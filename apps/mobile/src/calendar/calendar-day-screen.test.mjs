@@ -19,7 +19,12 @@ vi.mock('expo-localization', () => ({
 }));
 
 vi.mock('react-native', async () => {
-  const { createElement: createReactElement, useEffect } = await import('react');
+  const {
+    createElement: createReactElement,
+    forwardRef,
+    useEffect,
+    useImperativeHandle,
+  } = await import('react');
 
   const Pressable = ({ children, ...props }) =>
     createReactElement(
@@ -27,12 +32,13 @@ vi.mock('react-native', async () => {
       props,
       typeof children === 'function' ? children({ pressed: false }) : children,
     );
-  const ScrollView = ({ children, ...props }) => {
+  const ScrollView = forwardRef(function MockScrollView({ children, ...props }, ref) {
     useEffect(() => {
       mockState.timelineMounts += 1;
     }, []);
+    useImperativeHandle(ref, () => ({ scrollTo: vi.fn() }), []);
     return createReactElement('ScrollView', props, children);
-  };
+  });
 
   return {
     Modal: 'Modal',
@@ -72,6 +78,10 @@ function renderedDayButtons(renderer) {
       typeof node.props.testID === 'string' &&
       /^calendar-day-\d{4}-\d{2}-\d{2}$/.test(node.props.testID),
   );
+}
+
+function allDayMission(id, orderKey) {
+  return { id, title: id, orderKey, completed: false };
 }
 
 beforeEach(() => {
@@ -148,5 +158,40 @@ describe('MTS-041 Calendar timeline composition', () => {
     act(() => nextDay.props.onPress());
 
     expect(mockState.timelineMounts).toBe(2);
+  });
+});
+
+describe('MTS-042 Calendar all-day composition', () => {
+  it('renders the selected date all-day cards inside the same scroll surface and swaps them on date change', () => {
+    const onAllDayMissionPress = vi.fn();
+    const renderer = renderScreen({
+      allDayMissionsByDate: {
+        '2026-09-06': [
+          allDayMission('today-4', '004'),
+          allDayMission('today-1', '001'),
+          allDayMission('today-2', '002'),
+          allDayMission('today-3', '003'),
+        ],
+        '2026-09-01': [allDayMission('other-1', '001')],
+      },
+      onAllDayMissionPress,
+    });
+
+    expect(renderer.root.findByProps({ testID: 'calendar-scroll-header' })).toBeDefined();
+    expect(renderer.root.findByProps({ testID: 'calendar-all-day-mission-today-1' })).toBeDefined();
+    expect(renderer.root.findByProps({ testID: 'calendar-all-day-more' }).props.accessibilityLabel).toBe(
+      '+1 more',
+    );
+
+    act(() =>
+      renderer.root.findByProps({ testID: 'calendar-all-day-mission-today-1' }).props.onPress(),
+    );
+    expect(onAllDayMissionPress).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'today-1' }),
+    );
+
+    act(() => renderer.root.findByProps({ testID: 'calendar-day-2026-09-01' }).props.onPress());
+    expect(renderer.root.findAllByProps({ testID: 'calendar-all-day-mission-today-1' })).toHaveLength(0);
+    expect(renderer.root.findByProps({ testID: 'calendar-all-day-mission-other-1' })).toBeDefined();
   });
 });
