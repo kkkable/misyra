@@ -114,14 +114,14 @@ export function CalendarDayScreen({
   const responsive = resolveResponsiveCalendarLayout(width);
   const today = localDateFromNow(now);
   const systemCalendar = getCalendars()[0];
-  const regionalFirstWeekday = Number(systemCalendar?.firstWeekday);
+  const regionalFirstWeekday = Number(systemCalendar.firstWeekday);
   const firstWeekday =
     typeof regionalFirstWeekday === 'number' &&
     regionalFirstWeekday >= 1 &&
     regionalFirstWeekday <= 7
       ? regionalFirstWeekday
       : 2;
-  const uses24HourClock = systemCalendar?.uses24hourClock !== false;
+  const uses24HourClock = systemCalendar.uses24hourClock !== false;
 
   const initialDateRef = useRef(resolveInitialCalendarDate(params.date, today));
   const [selectedDate, setSelectedDate] = useState(initialDateRef.current);
