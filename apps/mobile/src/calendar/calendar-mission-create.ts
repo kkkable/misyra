@@ -1,6 +1,7 @@
 import {
   createOneTimeMission,
   createZonedTimedSchedule,
+  evaluateSchedulePlacement,
   type OneTimeMission,
   type RewardEligibility,
 } from '@misyra/domain';
@@ -77,15 +78,22 @@ export async function createCalendarMission({
     throw new RangeError('Mission end must be after its start.');
   }
 
-  const seriesId = generateId();
-  const occurrenceId = generateId();
-  const mutationId = generateId();
   const schedule = createZonedTimedSchedule({
     localStart: localDateTime(input.selectedDate, input.startMinute),
     localFinish: localDateTime(input.selectedDate, input.endMinute),
     timeZone,
     timeBehavior: 'local_time',
   });
+  const placement = evaluateSchedulePlacement({
+    targetStartInstant: schedule.startInstant,
+    actionInstant: now.toISOString(),
+    currentRewardEligibility: 'undetermined',
+  });
+  if (!placement.allowed) throw new RangeError('Mission start is outside the historical window.');
+
+  const seriesId = generateId();
+  const occurrenceId = generateId();
+  const mutationId = generateId();
   const mission = createOneTimeMission({
     series: {
       id: seriesId,
@@ -97,7 +105,7 @@ export async function createCalendarMission({
       scheduleState: 'scheduled',
       completionState: 'incomplete',
       evidenceState: 'not_submitted',
-      rewardEligibility: input.rewardEligibility,
+      rewardEligibility: placement.rewardEligibility,
       rewardIssuance: 'not_issued',
       calendarSource: 'internal',
       fieldOwnership: 'app_owned',
