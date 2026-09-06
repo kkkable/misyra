@@ -14,6 +14,7 @@ export const localizationCatalogs = {
     'onboarding.calendar.apple': 'Apple Calendar',
     'onboarding.calendar.google': 'Google Calendar',
     'onboarding.calendar.skip': 'Skip for now',
+    'calendar.allDay.more': '+{count} more',
     'sync.conflict.missionUpdated': 'This mission was updated on another device.',
     'sync.conflict.missionDeleted': 'This mission was deleted on another device.',
     'sync.conflict.missionCompletedElsewhere':
@@ -34,6 +35,7 @@ export const localizationCatalogs = {
     'onboarding.calendar.apple': 'Apple 日曆',
     'onboarding.calendar.google': 'Google 日曆',
     'onboarding.calendar.skip': '暫時略過',
+    'calendar.allDay.more': '另外 {count} 項',
     'sync.conflict.missionUpdated': '此任務已在另一部裝置上更新。',
     'sync.conflict.missionDeleted': '此任務已在另一部裝置上刪除。',
     'sync.conflict.missionCompletedElsewhere': '此任務已在另一部裝置上完成。',
