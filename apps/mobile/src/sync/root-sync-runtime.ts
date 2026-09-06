@@ -1,10 +1,13 @@
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
-import { getAuthApiBaseUrl, rootAuthStorage } from '../auth/auth-runtime.js';
+import { getAuthApiBaseUrl, rootAuthController } from '../auth/auth-runtime.js';
 import { openMobileDatabase } from '../storage/database.js';
 import { createAuthenticatedSyncApi } from './authenticated-sync-api.js';
-import { createAuthenticatedSyncRuntime } from './authenticated-sync-runtime.js';
+import {
+  createAuthenticatedSyncRuntime,
+  createSyncSessionProvider,
+} from './authenticated-sync-runtime.js';
 
 const installationStore = {
   getItem: (key: string) => SecureStore.getItemAsync(key),
@@ -36,7 +39,7 @@ function deviceMetadata() {
 }
 
 export const rootSyncRuntime = createAuthenticatedSyncRuntime({
-  sessionProvider: () => rootAuthStorage.read(),
+  sessionProvider: createSyncSessionProvider(rootAuthController),
   installationStore,
   openDatabase: openMobileDatabase,
   apiFactory: (session) =>
