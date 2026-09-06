@@ -24,6 +24,8 @@ import {
   type ReadinessCheck,
 } from './index.js';
 import { createProviderProofVerifier } from './provider-proof-verifier.js';
+import { createSyncRoutes } from './sync-routes.js';
+import { createPostgresSyncService } from './sync-service.js';
 
 type AuthApplicationOptions = {
   pool: Pool;
@@ -74,12 +76,14 @@ export function createApiApplication(options: AuthApplicationOptions) {
     ...(options.now === undefined ? {} : { now: options.now }),
   });
   const deviceSettingsService = createDeviceSettingsService(deviceSettingsStore);
+  const syncService = createPostgresSyncService(options.pool);
 
   return createApiServer({
     routes: [
       ...createAuthRoutes(authService),
       ...createAccountLifecycleRoutes(accountLifecycleService),
       ...createDeviceSettingsRoutes(deviceSettingsService),
+      ...createSyncRoutes(syncService),
     ],
     ...(options.readiness === undefined ? {} : { readiness: options.readiness }),
     ...(options.authenticate === undefined ? {} : { authenticate: options.authenticate }),
