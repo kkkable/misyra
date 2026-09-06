@@ -1,14 +1,15 @@
 import { type ReactNode, useState } from 'react';
 import { getCalendars } from 'expo-localization';
-import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { createZonedTimedSchedule, evaluateSchedulePlacement } from '@misyra/domain';
-import { layout, radius, space, typography } from '@misyra/design-tokens';
+import { radius, space } from '@misyra/design-tokens';
 import { localizationCatalogs, type LocalizationLocale } from '@misyra/localization';
 
 import { themeColors, type ColorScheme } from '../design-system/index.js';
 import { haptics } from '../experience/native-haptics.js';
 import type { CalendarMissionCreateInput } from './calendar-mission-create.js';
+import { CalendarMissionFormSheet } from './calendar-mission-form-sheet.js';
 import { formatTimelineTime, TimedTimeline } from './calendar-timeline.js';
 
 const SLOT_MINUTES = 30;
@@ -87,7 +88,6 @@ export function CalendarInteractiveTimeline({
   const missionTimeZone = getCalendars()[0].timeZone ?? 'UTC';
   const [selectedSlotMinute, setSelectedSlotMinute] = useState<number | null>(null);
   const [creationSlotMinute, setCreationSlotMinute] = useState<number | null>(null);
-  const [title, setTitle] = useState('');
 
   const clearSelection = () => {
     setSelectedSlotMinute(null);
@@ -96,7 +96,6 @@ export function CalendarInteractiveTimeline({
   const closeCreation = () => {
     setCreationSlotMinute(null);
     setSelectedSlotMinute(null);
-    setTitle('');
   };
 
   const slotLayer = (
@@ -125,7 +124,6 @@ export function CalendarInteractiveTimeline({
             onPress={() => {
               if (selectedSlotMinute === minute) {
                 setCreationSlotMinute(minute);
-                setTitle('');
                 return;
               }
               setCreationSlotMinute(null);
@@ -155,11 +153,6 @@ export function CalendarInteractiveTimeline({
     </View>
   );
 
-  const creationPlacement =
-    creationSlotMinute === null
-      ? null
-      : placementForSlot(selectedDate, creationSlotMinute, now, missionTimeZone);
-
   return (
     <>
       <TimedTimeline
@@ -174,117 +167,25 @@ export function CalendarInteractiveTimeline({
         today={today}
         uses24HourClock={uses24HourClock}
       />
-      {creationSlotMinute === null ? null : (
-        <Modal animationType="fade" onRequestClose={closeCreation} transparent visible>
-          <Pressable
-            accessibilityLabel={catalog['calendar.create.cancel']}
-            accessibilityRole="button"
-            onPress={closeCreation}
-            style={[styles.backdrop, { backgroundColor: colors.overlay }]}
-            testID="calendar-create-backdrop"
-          >
-            <View
-              accessibilityViewIsModal
-              onStartShouldSetResponder={() => true}
-              style={[styles.sheet, { backgroundColor: colors.surfaceRaised }]}
-              testID="calendar-create-sheet"
-            >
-              <Text
-                accessibilityRole="header"
-                allowFontScaling
-                style={[styles.heading, { color: colors.textPrimary }]}
-              >
-                {catalog['calendar.create.title']}
-              </Text>
-              <TextInput
-                accessibilityLabel={catalog['calendar.create.missionTitle']}
-                autoFocus
-                onChangeText={setTitle}
-                placeholder={catalog['calendar.create.missionTitle']}
-                style={[
-                  styles.titleInput,
-                  {
-                    borderColor: colors.border,
-                    color: colors.textPrimary,
-                  },
-                ]}
-                testID="calendar-create-title"
-                value={title}
-              />
-              <View style={styles.timeRow}>
-                <TextInput
-                  accessibilityLabel={catalog['calendar.create.start']}
-                  editable={false}
-                  style={[styles.timeValue, { color: colors.textSecondary }]}
-                  testID="calendar-create-start"
-                  value={formatSlotTime(creationSlotMinute, language, uses24HourClock)}
-                />
-                <TextInput
-                  accessibilityLabel={catalog['calendar.create.end']}
-                  editable={false}
-                  style={[styles.timeValue, { color: colors.textSecondary }]}
-                  testID="calendar-create-end"
-                  value={formatSlotTime(
-                    creationSlotMinute + SLOT_MINUTES,
-                    language,
-                    uses24HourClock,
-                  )}
-                />
-              </View>
-              <View style={styles.actions}>
-                <Pressable
-                  accessibilityLabel={catalog['calendar.create.cancel']}
-                  accessibilityRole="button"
-                  onPress={closeCreation}
-                  style={styles.action}
-                  testID="calendar-create-cancel"
-                >
-                  <Text
-                    allowFontScaling
-                    style={[styles.actionText, { color: colors.textSecondary }]}
-                  >
-                    {catalog['calendar.create.cancel']}
-                  </Text>
-                </Pressable>
-                <Pressable
-                  accessibilityLabel={catalog['calendar.create.save']}
-                  accessibilityRole="button"
-                  onPress={() => {
-                    if (
-                      creationPlacement === null ||
-                      !creationPlacement.allowed ||
-                      title.trim().length === 0 ||
-                      onCreateMission === undefined
-                    ) {
-                      return;
-                    }
-                    void Promise.resolve(
-                      onCreateMission({
-                        selectedDate,
-                        title: title.trim(),
-                        startMinute: creationSlotMinute,
-                        endMinute: creationSlotMinute + SLOT_MINUTES,
-                        rewardEligibility: creationPlacement.rewardEligibility,
-                        timeZone: missionTimeZone,
-                      }),
-                    )
-                      .then(() => {
-                        haptics.triggerNonBlocking('save');
-                        closeCreation();
-                      })
-                      .catch(() => undefined);
-                  }}
-                  style={styles.action}
-                  testID="calendar-create-save"
-                >
-                  <Text allowFontScaling style={[styles.actionText, { color: colors.primary }]}>
-                    {catalog['calendar.create.save']}
-                  </Text>
-                </Pressable>
-              </View>
-            </View>
-          </Pressable>
-        </Modal>
+      {creationSlotMinute === null || onCreateMission === undefined ? null : (
+        <CalendarMissionFormSheet
+          colorScheme={colorScheme}
+          creationSlotMinute={creationSlotMinute}
+          language={language}
+          now={now}
+          onCancel={closeCreation}
+          onSubmit={(input) => {
+            void Promise.resolve(onCreateMission(input))
+              .then(() => {
+                haptics.triggerNonBlocking('save');
+                closeCreation();
+              })
+              .catch(() => undefined);
+          }}
+          selectedDate={selectedDate}
+          timeZone={missionTimeZone}
+          uses24HourClock={uses24HourClock}
+        />
       )}
     </>
   );
@@ -318,53 +219,5 @@ const styles = StyleSheet.create({
     left: TIMELINE_GUTTER,
     position: 'absolute',
     right: 0,
-  },
-  backdrop: {
-    alignItems: 'center',
-    flex: 1,
-    justifyContent: 'flex-end',
-    padding: space[4],
-  },
-  sheet: {
-    borderRadius: radius.lg,
-    gap: space[3],
-    maxWidth: layout.maximumPhoneWidth,
-    padding: space[4],
-    width: '100%',
-  },
-  heading: {
-    fontSize: typography.headline.fontSize,
-    fontWeight: typography.headline.fontWeight,
-  },
-  titleInput: {
-    borderRadius: radius.md,
-    borderWidth: 1,
-    fontSize: typography.body.fontSize,
-    minHeight: layout.minimumTouchTarget,
-    paddingHorizontal: space[3],
-  },
-  timeRow: {
-    flexDirection: 'row',
-    gap: space[2],
-  },
-  timeValue: {
-    flex: 1,
-    fontSize: typography.bodySmall.fontSize,
-    minHeight: layout.minimumTouchTarget,
-  },
-  actions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-  },
-  action: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: layout.minimumTouchTarget,
-    minWidth: layout.minimumTouchTarget * 2,
-    paddingHorizontal: space[3],
-  },
-  actionText: {
-    fontSize: typography.body.fontSize,
-    fontWeight: typography.body.mediumFontWeight,
   },
 });
