@@ -19,8 +19,12 @@ vi.mock('expo-localization', () => ({
 }));
 
 vi.mock('react-native', async () => {
-  const { createElement: createReactElement, forwardRef, useEffect, useImperativeHandle } =
-    await import('react');
+  const {
+    createElement: createReactElement,
+    forwardRef,
+    useEffect,
+    useImperativeHandle,
+  } = await import('react');
 
   const Pressable = ({ children, ...props }) =>
     createReactElement(
