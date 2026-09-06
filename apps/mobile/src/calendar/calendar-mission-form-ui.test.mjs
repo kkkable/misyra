@@ -113,17 +113,25 @@ describe('MTS-045 mission form UI', () => {
     const renderer = renderScreen({ onCreateMission });
     openSlot(renderer);
 
-    act(() => renderer.root.findByProps({ testID: 'calendar-create-all-day' }).props.onPress());
+    act(() =>
+      renderer.root.findByProps({ testID: 'calendar-create-all-day' }).props.onPress(),
+    );
     expect(renderer.root.findAllByProps({ testID: 'calendar-create-start' })).toHaveLength(0);
     expect(renderer.root.findAllByProps({ testID: 'calendar-create-end' })).toHaveLength(0);
     const effort = renderer.root.findByProps({ testID: 'calendar-create-effort' });
     expect(effort).toBeDefined();
 
-    act(() => renderer.root.findByProps({ testID: 'calendar-create-title' }).props.onChangeText('All day'));
+    act(() =>
+      renderer.root
+        .findByProps({ testID: 'calendar-create-title' })
+        .props.onChangeText('All day'),
+    );
     act(() => effort.props.onChangeText(''));
     act(() => renderer.root.findByProps({ testID: 'calendar-create-save' }).props.onPress());
     expect(onCreateMission).not.toHaveBeenCalled();
-    expect(renderer.root.findByProps({ testID: 'calendar-create-validation-error' })).toBeDefined();
+    expect(
+      renderer.root.findByProps({ testID: 'calendar-create-validation-error' }),
+    ).toBeDefined();
 
     act(() => effort.props.onChangeText('45'));
     act(() => renderer.root.findByProps({ testID: 'calendar-create-save' }).props.onPress());
@@ -144,14 +152,20 @@ describe('MTS-045 mission form UI', () => {
     openSlot(renderer, 600);
 
     act(() =>
-      renderer.root.findByProps({ testID: 'calendar-create-title' }).props.onChangeText('Past mission'),
+      renderer.root
+        .findByProps({ testID: 'calendar-create-title' })
+        .props.onChangeText('Past mission'),
     );
     act(() => renderer.root.findByProps({ testID: 'calendar-create-save' }).props.onPress());
 
     expect(onCreateMission).not.toHaveBeenCalled();
-    expect(renderer.root.findByProps({ testID: 'calendar-create-zero-xp-warning' })).toBeDefined();
+    expect(
+      renderer.root.findByProps({ testID: 'calendar-create-zero-xp-warning' }),
+    ).toBeDefined();
 
-    act(() => renderer.root.findByProps({ testID: 'calendar-create-confirm-zero-xp' }).props.onPress());
+    act(() =>
+      renderer.root.findByProps({ testID: 'calendar-create-confirm-zero-xp' }).props.onPress(),
+    );
     expect(onCreateMission).toHaveBeenCalledWith(
       expect.objectContaining({ rewardEligibility: 'ineligible' }),
     );
