@@ -1,9 +1,11 @@
 import {
   createOneTimeMission,
+  createZonedAllDaySchedule,
   createZonedTimedSchedule,
   evaluateSchedulePlacement,
   type OneTimeMission,
   type RewardEligibility,
+  type TimeBehavior,
 } from '@misyra/domain';
 
 import { createMutationQueue, type MutationQueueDatabase } from '../storage/mutation-queue.js';
@@ -11,10 +13,16 @@ import { createMutationQueue, type MutationQueueDatabase } from '../storage/muta
 export type CalendarMissionCreateInput = Readonly<{
   selectedDate: string;
   title: string;
-  startMinute: number;
-  endMinute: number;
+  allDay?: boolean;
+  startMinute: number | null;
+  endMinute: number | null;
+  estimatedEffortMinutes?: number | null;
   rewardEligibility: RewardEligibility;
   timeZone: string;
+  timeBehavior?: TimeBehavior;
+  private?: boolean;
+  location?: string | null;
+  notes?: string | null;
 }>;
 
 type CalendarMissionCreateOptions = Readonly<{
@@ -39,6 +47,12 @@ function assertMinute(value: number, label: string): void {
   }
 }
 
+function assertPositiveInteger(value: number, label: string): void {
+  if (!Number.isInteger(value) || value <= 0) {
+    throw new RangeError(`${label} must be a positive integer.`);
+  }
+}
+
 function localDateTime(localDate: string, minute: number): string {
   if (!LOCAL_DATE_PATTERN.test(localDate)) {
     throw new TypeError('Mission date must use YYYY-MM-DD format.');
@@ -60,6 +74,11 @@ function localClock(minute: number): string {
   return `${String(Math.floor(normalized / 60)).padStart(2, '0')}:${String(normalized % 60).padStart(2, '0')}`;
 }
 
+function optionalText(value: string | null | undefined): string | null {
+  const trimmed = value?.trim() ?? '';
+  return trimmed.length === 0 ? null : trimmed;
+}
+
 export async function createCalendarMission({
   database,
   accountId,
@@ -70,19 +89,45 @@ export async function createCalendarMission({
 }: CalendarMissionCreateOptions): Promise<OneTimeMission> {
   assertNonEmpty(accountId, 'Account ID');
   assertNonEmpty(deviceId, 'Device ID');
+  assertNonEmpty(input.title, 'Mission title');
   assertNonEmpty(input.timeZone, 'Time zone');
-  assertMinute(input.startMinute, 'Mission start minute');
-  assertMinute(input.endMinute, 'Mission end minute');
-  if (input.endMinute <= input.startMinute) {
-    throw new RangeError('Mission end must be after its start.');
+
+  const allDay = input.allDay ?? false;
+  let schedule;
+  let scheduledStart: string;
+  let scheduledEnd: string;
+
+  if (allDay) {
+    const estimatedEffortMinutes = input.estimatedEffortMinutes;
+    if (estimatedEffortMinutes === null || estimatedEffortMinutes === undefined) {
+      throw new RangeError('Estimated effort minutes are required for an all-day mission.');
+    }
+    assertPositiveInteger(estimatedEffortMinutes, 'Estimated effort minutes');
+    schedule = createZonedAllDaySchedule({
+      localDate: input.selectedDate,
+      timeZone: input.timeZone,
+      estimatedEffortMinutes,
+    });
+    scheduledStart = '00:00';
+    scheduledEnd = '00:00';
+  } else {
+    if (input.startMinute === null) throw new RangeError('Mission start minute is required.');
+    if (input.endMinute === null) throw new RangeError('Mission end minute is required.');
+    assertMinute(input.startMinute, 'Mission start minute');
+    assertMinute(input.endMinute, 'Mission end minute');
+    if (input.endMinute <= input.startMinute) {
+      throw new RangeError('Mission end must be after its start.');
+    }
+    schedule = createZonedTimedSchedule({
+      localStart: localDateTime(input.selectedDate, input.startMinute),
+      localFinish: localDateTime(input.selectedDate, input.endMinute),
+      timeZone: input.timeZone,
+      timeBehavior: input.timeBehavior ?? 'local_time',
+    });
+    scheduledStart = localClock(input.startMinute);
+    scheduledEnd = localClock(input.endMinute);
   }
 
-  const schedule = createZonedTimedSchedule({
-    localStart: localDateTime(input.selectedDate, input.startMinute),
-    localFinish: localDateTime(input.selectedDate, input.endMinute),
-    timeZone: input.timeZone,
-    timeBehavior: 'local_time',
-  });
   const placement = evaluateSchedulePlacement({
     targetStartInstant: schedule.startInstant,
     actionInstant: now.toISOString(),
@@ -103,7 +148,7 @@ export async function createCalendarMission({
       schedule,
       scheduleState: 'scheduled',
       completionState: 'incomplete',
-      evidenceState: 'not_submitted',
+      evidenceState: input.private === true ? 'not_required' : 'not_submitted',
       rewardEligibility: placement.rewardEligibility,
       rewardIssuance: 'not_issued',
       calendarSource: 'internal',
@@ -116,6 +161,8 @@ export async function createCalendarMission({
   const occurredAt = now.toISOString();
   const payload = { series: mission.series, occurrence: mission.occurrence };
   const queue = createMutationQueue(database, accountId);
+  const location = optionalText(input.location);
+  const notes = optionalText(input.notes);
 
   await queue.enqueue({
     mutation: {
@@ -150,20 +197,22 @@ export async function createCalendarMission({
         mission.occurrence.id,
         mission.series.id,
         input.selectedDate,
-        localClock(input.startMinute),
-        localClock(input.endMinute),
-        0,
+        scheduledStart,
+        scheduledEnd,
+        allDay ? 1 : 0,
         JSON.stringify(mission.occurrence),
         occurredAt,
       );
       await transaction.runAsync(
         `INSERT INTO search_documents
           (account_id, document_id, occurrence_id, title, location, provider_text, personal_note, updated_at)
-         VALUES (?, ?, ?, ?, NULL, NULL, NULL, ?)`,
+         VALUES (?, ?, ?, ?, ?, NULL, ?, ?)`,
         accountId,
         mission.occurrence.id,
         mission.occurrence.id,
         mission.series.title,
+        location,
+        notes,
         occurredAt,
       );
     },
