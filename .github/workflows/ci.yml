@@ -19,7 +19,7 @@ jobs:
     timeout-minutes: 30
     env:
       MTS004_INTEGRATION: '1'
-      TURBO_TELEMETRY_DISABLED: '1'
+      TURBO_TELEMETRY_DISABLED: 1
       CI_CONTRACT_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
     steps:
       - name: Checkout clean repository
@@ -52,11 +52,6 @@ jobs:
 
       - name: Prove failing-fixture gates reject bad inputs
         run: pnpm ci:fixtures
-
-      - name: Diagnose MTS-043 composition formatting (temporary)
-        run: |
-          pnpm exec prettier apps/mobile/src/calendar/calendar-day-screen.test.mjs --config packages/config/prettier.config.mjs > /tmp/calendar-day-screen.test.mjs
-          diff -u apps/mobile/src/calendar/calendar-day-screen.test.mjs /tmp/calendar-day-screen.test.mjs || true
 
       - name: Check workspace formatting
         run: pnpm format
