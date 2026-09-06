@@ -61,7 +61,7 @@ function hiddenCountLabel(hiddenCount: number): string {
 interface AllDayMissionListProps {
   readonly colorScheme: ColorScheme;
   readonly missions: readonly AllDayMissionSummary[];
-  readonly onMissionPress?: (mission: AllDayMissionSummary) => void;
+  readonly onMissionPress?: ((mission: AllDayMissionSummary) => void) | undefined;
   readonly selectedDate: string;
 }
 
