@@ -232,7 +232,13 @@ export function CalendarInteractiveTimeline({
                   accessibilityLabel={catalog['calendar.create.save']}
                   accessibilityRole="button"
                   onPress={() => {
-                    if (!creationPlacement.allowed || title.trim().length === 0) return;
+                    if (
+                      creationPlacement === null ||
+                      !creationPlacement.allowed ||
+                      title.trim().length === 0
+                    ) {
+                      return;
+                    }
                     void onCreateMission?.({
                       selectedDate,
                       title: title.trim(),
