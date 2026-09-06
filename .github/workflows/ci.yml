@@ -53,12 +53,6 @@ jobs:
       - name: Prove failing-fixture gates reject bad inputs
         run: pnpm ci:fixtures
 
-      - name: Diagnose formatter delta
-        run: |
-          pnpm exec prettier --write apps/mobile/src/auth/session-refresh-offline.review.test.mjs apps/mobile/src/sync/sync-runtime-gate.tsx --config packages/config/prettier.config.mjs
-          git diff -- apps/mobile/src/auth/session-refresh-offline.review.test.mjs apps/mobile/src/sync/sync-runtime-gate.tsx
-          exit 1
-
       - name: Check workspace formatting
         run: pnpm format
 
