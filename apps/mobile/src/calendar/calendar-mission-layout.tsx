@@ -304,7 +304,10 @@ export function TimedMissionLayer({
               ]}
               testID={`calendar-overlap-more-${group.id}`}
             >
-              <Text allowFontScaling style={[styles.moreText, { color: colors.textPrimary }]}> 
+              <Text
+                allowFontScaling
+                style={[styles.moreText, { color: colors.textPrimary }]}
+              >
                 {formatMore(language, group.hiddenMissions.length)}
               </Text>
             </Pressable>
