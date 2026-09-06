@@ -87,7 +87,7 @@ export async function createCalendarMission({
   const placement = evaluateSchedulePlacement({
     targetStartInstant: schedule.startInstant,
     actionInstant: now.toISOString(),
-    currentRewardEligibility: 'undetermined',
+    currentRewardEligibility: input.rewardEligibility,
   });
   if (!placement.allowed) throw new RangeError('Mission start is outside the historical window.');
 
