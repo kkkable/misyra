@@ -11,17 +11,22 @@ import {
   type AccountSettingsUpdate,
   type DeviceRegistrationRequest,
   type DeviceRegistrationResponse,
+  type SyncConflictOutcomeContract,
   type SyncMutationContract,
   type SyncPullResponseContract,
-  type SyncPushResponseContract,
   type SyncSnapshotResponseContract,
 } from '@misyra/contracts';
+
+type SyncPushResponse = Readonly<{
+  acceptedMutationIds: string[];
+  conflicts: SyncConflictOutcomeContract[];
+}>;
 
 export type AuthenticatedSyncApi = Readonly<{
   registerDevice(input: DeviceRegistrationRequest): Promise<DeviceRegistrationResponse>;
   getAccountSettings(): Promise<AccountSettings>;
   updateAccountSettings(input: AccountSettingsUpdate): Promise<AccountSettings>;
-  push(mutations: readonly SyncMutationContract[]): Promise<SyncPushResponseContract>;
+  push(mutations: readonly SyncMutationContract[]): Promise<SyncPushResponse>;
   pull(input: Readonly<{ cursor: number; limit: number }>): Promise<SyncPullResponseContract>;
   snapshot(): Promise<SyncSnapshotResponseContract>;
 }>;
