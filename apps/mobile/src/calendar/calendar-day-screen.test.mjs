@@ -40,6 +40,13 @@ function renderScreen(props = {}) {
   return renderer;
 }
 
+function renderedDayButtons(renderer) {
+  return renderer.root.findAll(
+    (node) =>
+      typeof node.props.testID === 'string' && /^calendar-day-\d{4}-\d{2}-\d{2}$/.test(node.props.testID),
+  );
+}
+
 beforeEach(() => {
   deepLinkDate = undefined;
   firstWeekday = 2;
@@ -48,9 +55,7 @@ beforeEach(() => {
 describe('MTS-040 rendered Calendar shell', () => {
   it('renders exactly seven regional days, level/streak placeholders, and no Today button on today', () => {
     const renderer = renderScreen();
-    const days = renderer.root.findAll(
-      (node) => typeof node.props.testID === 'string' && node.props.testID.startsWith('calendar-day-'),
-    );
+    const days = renderedDayButtons(renderer);
 
     expect(days.map((day) => day.props.testID)).toEqual([
       'calendar-day-2026-08-31',
@@ -81,9 +86,7 @@ describe('MTS-040 rendered Calendar shell', () => {
     firstWeekday = 1;
     deepLinkDate = '2026-09-09';
     const renderer = renderScreen();
-    const days = renderer.root.findAll(
-      (node) => typeof node.props.testID === 'string' && node.props.testID.startsWith('calendar-day-'),
-    );
+    const days = renderedDayButtons(renderer);
 
     expect(days[0].props.testID).toBe('calendar-day-2026-09-06');
     expect(days[6].props.testID).toBe('calendar-day-2026-09-12');
