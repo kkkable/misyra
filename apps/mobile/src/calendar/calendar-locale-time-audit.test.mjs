@@ -30,6 +30,10 @@ vi.mock('expo-localization', () => ({
   ],
 }));
 
+vi.mock('../experience/native-haptics.js', () => ({
+  haptics: { triggerNonBlocking: vi.fn() },
+}));
+
 vi.mock('react-native', async () => {
   const { createElement: createReactElement } = await import('react');
   const Pressable = ({ children, ...props }) =>
