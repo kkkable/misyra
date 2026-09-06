@@ -288,6 +288,7 @@ export function CalendarDayScreen({
         <TimedTimeline
           colorScheme={colorScheme}
           initialCurrentMinute={currentMinute}
+          key={selectedDate}
           launchMinute={launch.minute}
           selectedDate={selectedDate}
           today={today}
