@@ -14,10 +14,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { layout, radius, space, typography } from '@misyra/design-tokens';
 
 import { Screen, themeColors, type ColorScheme } from '../design-system/index.js';
-import {
-  AllDayMissionList,
-  type AllDayMissionSummary,
-} from './calendar-all-day.js';
+import { AllDayMissionList, type AllDayMissionSummary } from './calendar-all-day.js';
 import {
   buildMonthGrid,
   buildSevenDayStrip,
@@ -105,9 +102,7 @@ export interface CalendarDayScreenProps {
   readonly firstTimedMissionMinute?: number;
   readonly preservedMinute?: number;
   readonly returningFromBackground?: boolean;
-  readonly allDayMissionsByDate?: Readonly<
-    Record<string, readonly AllDayMissionSummary[]>
-  >;
+  readonly allDayMissionsByDate?: Readonly<Record<string, readonly AllDayMissionSummary[]>>;
   readonly onAllDayMissionPress?: (mission: AllDayMissionSummary) => void;
 }
 
