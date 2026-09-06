@@ -218,8 +218,7 @@ describe('MTS-043 Calendar timed-mission composition', () => {
 
     expect(renderer.root.findByProps({ testID: 'calendar-timed-mission-layer' })).toBeDefined();
     const todayMission = renderer.root.find(
-      (node) =>
-        node.type === 'Pressable' && node.props.testID === 'calendar-mission-card-today-a',
+      (node) => node.type === 'Pressable' && node.props.testID === 'calendar-mission-card-today-a',
     );
     expect(
       renderer.root.findAll(
