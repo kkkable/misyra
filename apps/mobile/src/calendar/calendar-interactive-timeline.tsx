@@ -261,7 +261,11 @@ export function CalendarInteractiveTimeline({
 
 const styles = StyleSheet.create({
   slotLayer: {
-    ...StyleSheet.absoluteFillObject,
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
   },
   slot: {
     height: SLOT_MINUTES,
