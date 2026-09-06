@@ -55,8 +55,11 @@ export function formatLocalDate(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-export function resolveInitialCalendarDate(deepLinkDate: unknown, today: string): string {
-  const candidate = Array.isArray(deepLinkDate) ? deepLinkDate[0] : deepLinkDate;
+export function resolveInitialCalendarDate(
+  deepLinkDate: string | readonly string[] | undefined,
+  today: string,
+): string {
+  const candidate = typeof deepLinkDate === 'string' ? deepLinkDate : deepLinkDate?.[0];
   return typeof candidate === 'string' && parseLocalDate(candidate) !== null ? candidate : today;
 }
 

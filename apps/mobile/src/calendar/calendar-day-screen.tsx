@@ -109,7 +109,7 @@ export function CalendarDayScreen({
   returningFromBackground = false,
 }: CalendarDayScreenProps) {
   const params = useLocalSearchParams<{ date?: string | string[] }>();
-  const locale = getLocales()[0]?.languageTag ?? 'en';
+  const locale = getLocales()[0].languageTag;
   const language = supportedLanguage(locale);
   const copy = messages[language];
   const nativeColorScheme = useColorScheme();
@@ -118,7 +118,7 @@ export function CalendarDayScreen({
   const width = useWindowDimensions().width;
   const responsive = resolveResponsiveCalendarLayout(width);
   const today = localDateFromNow(now);
-  const regionalFirstWeekday = getCalendars()[0]?.firstWeekday;
+  const regionalFirstWeekday = Number(getCalendars()[0].firstWeekday);
   const firstWeekday =
     typeof regionalFirstWeekday === 'number' &&
     regionalFirstWeekday >= 1 &&
@@ -193,7 +193,9 @@ export function CalendarDayScreen({
             <Pressable
               accessibilityLabel={copy.today}
               accessibilityRole="button"
-              onPress={() => selectDate(today)}
+              onPress={() => {
+                selectDate(today);
+              }}
               style={({ pressed }) => [
                 styles.todayButton,
                 {
@@ -221,7 +223,9 @@ export function CalendarDayScreen({
               accessibilityRole="button"
               accessibilityState={{ selected: day.selected }}
               key={day.date}
-              onPress={() => selectDate(day.date)}
+              onPress={() => {
+                selectDate(day.date);
+              }}
               style={({ pressed }) => [
                 styles.dayCell,
                 {
@@ -275,7 +279,9 @@ export function CalendarDayScreen({
 
       <Modal
         animationType="fade"
-        onRequestClose={() => setPickerVisible(false)}
+        onRequestClose={() => {
+          setPickerVisible(false);
+        }}
         transparent
         visible={pickerVisible}
       >
@@ -289,7 +295,9 @@ export function CalendarDayScreen({
               <Pressable
                 accessibilityLabel={copy.previousMonth}
                 accessibilityRole="button"
-                onPress={() => setPickerMonth((value) => localDateAtMonthOffset(value, -1))}
+                onPress={() => {
+                  setPickerMonth((value) => localDateAtMonthOffset(value, -1));
+                }}
                 style={styles.monthNavButton}
                 testID="calendar-previous-month"
               >
@@ -305,7 +313,9 @@ export function CalendarDayScreen({
               <Pressable
                 accessibilityLabel={copy.nextMonth}
                 accessibilityRole="button"
-                onPress={() => setPickerMonth((value) => localDateAtMonthOffset(value, 1))}
+                onPress={() => {
+                  setPickerMonth((value) => localDateAtMonthOffset(value, 1));
+                }}
                 style={styles.monthNavButton}
                 testID="calendar-next-month"
               >
@@ -353,7 +363,9 @@ export function CalendarDayScreen({
             <Pressable
               accessibilityLabel={copy.close}
               accessibilityRole="button"
-              onPress={() => setPickerVisible(false)}
+              onPress={() => {
+                setPickerVisible(false);
+              }}
               style={styles.closeButton}
               testID="calendar-date-picker-close"
             >

@@ -8,12 +8,6 @@ import {
   shouldShowTodayButton,
 } from './calendar-day-shell.js';
 
-const DAY = 24 * 60 * 60 * 1000;
-
-function iso(day) {
-  return new Date(Date.UTC(2026, 8, day, 12)).toISOString();
-}
-
 describe('MTS-040 Calendar day shell positioning', () => {
   it('opens a fresh launch on today at the current minute', () => {
     expect(
