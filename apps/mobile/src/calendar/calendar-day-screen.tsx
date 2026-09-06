@@ -26,10 +26,8 @@ import {
   resolveResponsiveCalendarLayout,
   shouldShowTodayButton,
 } from './calendar-day-shell.js';
-import {
-  CalendarInteractiveTimeline,
-  type CalendarMissionCreateInput,
-} from './calendar-interactive-timeline.js';
+import { CalendarInteractiveTimeline } from './calendar-interactive-timeline.js';
+import type { CalendarMissionCreateInput } from './calendar-mission-create.js';
 import { TimedMissionLayer, type TimedMissionSummary } from './calendar-mission-layout.js';
 
 function parseLocalDateParts(value: string): { year: number; month: number; day: number } {
@@ -60,7 +58,7 @@ function fullDateLabel(value: string, locale: LocalizationLocale): string {
   return new Intl.DateTimeFormat(locale, {
     day: 'numeric',
     month: 'long',
-    weekday: 'long',
+    year: 'numeric',
     timeZone: 'UTC',
   }).format(dateForFormatting(value));
 }
@@ -79,13 +77,11 @@ export interface CalendarDayScreenProps {
   readonly firstTimedMissionMinute?: number;
   readonly preservedMinute?: number;
   readonly returningFromBackground?: boolean;
-  readonly allDayMissionsByDate?: Readonly<Record<string, readonly AllDayMissionSummary[]>>;
-  readonly onAllDayMissionPress?: (mission: AllDayMissionSummary) => void;
   readonly timedMissionsByDate?: Readonly<Record<string, readonly TimedMissionSummary[]>>;
-  readonly selectedMissionId?: string;
-  readonly onTimedMissionPress?: (mission: TimedMissionSummary) => void;
-  readonly onCreateMission?:
-    ((input: CalendarMissionCreateInput) => void | Promise<void>) | undefined;
+  readonly allDayMissionsByDate?: Readonly<Record<string, readonly AllDayMissionSummary[]>>;
+  readonly onTimedMissionPress?: ((mission: TimedMissionSummary) => void) | undefined;
+  readonly onAllDayMissionPress?: ((mission: AllDayMissionSummary) => void) | undefined;
+  readonly onCreateMission?: ((input: CalendarMissionCreateInput) => Promise<void>) | undefined;
 }
 
 export function CalendarDayScreen({
@@ -94,11 +90,10 @@ export function CalendarDayScreen({
   firstTimedMissionMinute,
   preservedMinute,
   returningFromBackground = false,
-  allDayMissionsByDate = {},
-  onAllDayMissionPress,
   timedMissionsByDate = {},
-  selectedMissionId,
+  allDayMissionsByDate = {},
   onTimedMissionPress,
+  onAllDayMissionPress,
   onCreateMission,
 }: CalendarDayScreenProps) {
   const params = useLocalSearchParams<{ date?: string | string[] }>();
@@ -132,102 +127,99 @@ export function CalendarDayScreen({
   const initialDateRef = useRef(resolveInitialCalendarDate(params.date, today));
   const [selectedDate, setSelectedDate] = useState(initialDateRef.current);
   const [pickerVisible, setPickerVisible] = useState(false);
-  const [pickerMonth, setPickerMonth] = useState(initialDateRef.current);
+  const [pickerMonth, setPickerMonth] = useState(() => initialDateRef.current.slice(0, 7) + '-01');
+  const timelineSelectionClearRef = useRef<(() => void) | null>(null);
 
-  const currentMinute = minuteOfDay(now);
-  const launch = useMemo(
-    () =>
-      resolveCalendarLaunch({
-        selectedDate,
-        today,
-        currentMinute,
-        ...(firstTimedMissionMinute === undefined ? {} : { firstTimedMissionMinute }),
-        ...(preservedMinute === undefined ? {} : { preservedMinute }),
-        returningFromBackground,
-      }),
-    [
-      currentMinute,
-      firstTimedMissionMinute,
-      preservedMinute,
-      returningFromBackground,
-      selectedDate,
-      today,
-    ],
-  );
   const strip = useMemo(
     () => buildSevenDayStrip(selectedDate, firstWeekday),
     [firstWeekday, selectedDate],
   );
-  const monthDays = useMemo(
+  const monthGrid = useMemo(
     () => buildMonthGrid(pickerMonth, firstWeekday),
     [firstWeekday, pickerMonth],
   );
-  const pickerMonthNumber = parseLocalDateParts(pickerMonth).month;
-  const allDayMissions = allDayMissionsByDate[selectedDate] ?? [];
-  const timedMissions = timedMissionsByDate[selectedDate] ?? [];
+  const selectedTimedMissions = timedMissionsByDate[selectedDate] ?? [];
+  const selectedAllDayMissions = allDayMissionsByDate[selectedDate] ?? [];
+  const currentMinute = minuteOfDay(now);
+  const launch = resolveCalendarLaunch({
+    nowMinute: currentMinute,
+    firstMissionMinute: firstTimedMissionMinute,
+    preservedMinute,
+    returningFromBackground,
+  });
 
-  const selectDate = (date: string) => {
-    setSelectedDate(date);
-    setPickerMonth(date);
+  const clearTimelineSelection = () => {
+    timelineSelectionClearRef.current?.();
   };
 
-  const openPicker = () => {
-    setPickerMonth(selectedDate);
-    setPickerVisible(true);
+  const selectDate = (date: string) => {
+    clearTimelineSelection();
+    setSelectedDate(date);
+    setPickerVisible(false);
   };
 
   return (
-    <Screen colorScheme={colorScheme} testID="calendar-day-screen">
-      <View style={[styles.header, { paddingTop: responsive.compactHeader ? space[2] : space[4] }]}>
-        <View style={styles.headerRow}>
-          <Pressable
-            accessibilityLabel={copy.chooseDate}
-            accessibilityRole="button"
-            onPress={openPicker}
-            style={styles.dateHeaderButton}
-            testID="calendar-date-picker-trigger"
-          >
-            <Text
-              allowFontScaling
-              style={[
-                styles.dateHeader,
-                {
-                  color: colors.textPrimary,
-                  fontSize: responsive.compactHeader
-                    ? typography.title3.fontSize
-                    : typography.title2.fontSize,
-                },
-              ]}
-            >
-              {fullDateLabel(selectedDate, language)}
+    <Screen scroll={false} testID="calendar-day-screen">
+      <View style={styles.shell}>
+        <View style={styles.topBar}>
+          <View style={styles.summaryRow}>
+            <Text allowFontScaling style={[styles.summaryText, { color: colors.textSecondary }]}> 
+              {copy.level}
             </Text>
-          </Pressable>
-          {shouldShowTodayButton(selectedDate, today) ? (
+            <Text allowFontScaling style={[styles.summaryText, { color: colors.textSecondary }]}> 
+              {copy.streak}
+            </Text>
+          </View>
+          <View style={styles.titleRow}>
             <Pressable
-              accessibilityLabel={copy.today}
+              accessibilityLabel={copy.chooseDate}
               accessibilityRole="button"
+              hitSlop={8}
               onPress={() => {
-                selectDate(today);
+                clearTimelineSelection();
+                setPickerMonth(selectedDate.slice(0, 7) + '-01');
+                setPickerVisible(true);
               }}
               style={({ pressed }) => [
-                styles.todayButton,
-                {
-                  backgroundColor: pressed ? colors.primarySoft : colors.surface,
-                  borderColor: colors.border,
-                },
+                styles.dateButton,
+                { backgroundColor: pressed ? colors.surfaceMuted : colors.surface },
               ]}
-              testID="calendar-today-button"
+              testID="calendar-date-picker-trigger"
             >
-              <Text allowFontScaling style={[styles.todayLabel, { color: colors.primary }]}>
-                {copy.today}
+              <Text
+                allowFontScaling
+                numberOfLines={1}
+                style={[
+                  styles.dateButtonText,
+                  { color: colors.textPrimary, fontSize: responsive.titleSize },
+                ]}
+              >
+                {fullDateLabel(selectedDate, language)}
               </Text>
             </Pressable>
-          ) : null}
+            {shouldShowTodayButton(selectedDate, today) ? (
+              <Pressable
+                accessibilityLabel={copy.today}
+                accessibilityRole="button"
+                hitSlop={8}
+                onPress={() => selectDate(today)}
+                style={({ pressed }) => [
+                  styles.todayButton,
+                  { backgroundColor: pressed ? colors.surfaceMuted : colors.surface },
+                ]}
+                testID="calendar-today-button"
+              >
+                <Text allowFontScaling style={[styles.todayText, { color: colors.accent }]}> 
+                  {copy.today}
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
         </View>
 
         <View
           accessibilityLabel={copy.calendar}
-          style={styles.weekStrip}
+          style={[styles.weekStrip, { columnGap: responsive.columnGap }]}
           testID="calendar-week-strip"
         >
           {strip.map((day) => (
@@ -236,26 +228,22 @@ export function CalendarDayScreen({
               accessibilityRole="button"
               accessibilityState={{ selected: day.selected }}
               key={day.date}
-              onPress={() => {
-                selectDate(day.date);
-              }}
+              onPress={() => selectDate(day.date)}
               style={({ pressed }) => [
-                styles.dayCell,
+                styles.dayChip,
                 {
                   backgroundColor: day.selected
-                    ? colors.primary
+                    ? colors.accentSoft
                     : pressed
-                      ? colors.primarySoft
-                      : colors.canvas,
-                  minWidth: layout.minimumTouchTarget,
+                      ? colors.surfaceMuted
+                      : 'transparent',
                 },
               ]}
-              testID={`calendar-day-${day.date}`}
             >
               <Text
                 allowFontScaling
                 style={[
-                  styles.weekday,
+                  styles.weekdayText,
                   { color: day.selected ? colors.primaryText : colors.textSecondary },
                 ]}
               >
@@ -264,58 +252,33 @@ export function CalendarDayScreen({
               <Text
                 allowFontScaling
                 style={[
-                  styles.dayNumber,
+                  styles.dayNumberText,
                   { color: day.selected ? colors.primaryText : colors.textPrimary },
                 ]}
               >
-                {day.dayOfMonth}
+                {String(parseLocalDateParts(day.date).day)}
               </Text>
             </Pressable>
           ))}
-        </View>
-
-        <View style={styles.progressRow}>
-          <Text allowFontScaling style={[styles.placeholder, { color: colors.textSecondary }]}>
-            {copy.level}
-          </Text>
-          <Text allowFontScaling style={[styles.placeholder, { color: colors.textSecondary }]}>
-            {copy.streak}
-          </Text>
         </View>
       </View>
 
       <View style={[styles.dayBody, { borderTopColor: colors.divider }]} testID="calendar-day-body">
         <CalendarInteractiveTimeline
+          allDayMissions={selectedAllDayMissions}
           colorScheme={colorScheme}
           initialCurrentMinute={currentMinute}
-          key={`${selectedDate}-${pickerVisible ? 'picker' : 'calendar'}`}
           language={language}
           launchMinute={launch.minute}
-          missionLayer={
-            timedMissions.length > 0 ? (
-              <TimedMissionLayer
-                colorScheme={colorScheme}
-                language={language}
-                missions={timedMissions}
-                onMissionPress={onTimedMissionPress}
-                {...(selectedMissionId === undefined ? {} : { selectedMissionId })}
-              />
-            ) : undefined
-          }
           now={now}
+          onAllDayMissionPress={onAllDayMissionPress}
           onCreateMission={onCreateMission}
-          scrollHeader={
-            allDayMissions.length > 0 ? (
-              <AllDayMissionList
-                colorScheme={colorScheme}
-                language={language}
-                missions={allDayMissions}
-                onMissionPress={onAllDayMissionPress}
-                selectedDate={selectedDate}
-              />
-            ) : undefined
-          }
+          onRegisterClearSelection={(clear) => {
+            timelineSelectionClearRef.current = clear;
+          }}
+          onTimedMissionPress={onTimedMissionPress}
           selectedDate={selectedDate}
+          timedMissions={selectedTimedMissions}
           today={today}
           uses24HourClock={uses24HourClock}
         />
@@ -323,32 +286,33 @@ export function CalendarDayScreen({
 
       <Modal
         animationType="fade"
-        onRequestClose={() => {
-          setPickerVisible(false);
-        }}
+        onRequestClose={() => setPickerVisible(false)}
         transparent
         visible={pickerVisible}
       >
-        <View style={[styles.modalBackdrop, { backgroundColor: colors.overlay }]}>
-          <View
-            accessibilityViewIsModal
-            style={[styles.picker, { backgroundColor: colors.surfaceRaised }]}
-            testID="calendar-date-picker"
+        <Pressable
+          accessibilityLabel={copy.close}
+          accessibilityRole="button"
+          onPress={() => setPickerVisible(false)}
+          style={styles.modalBackdrop}
+          testID="calendar-date-picker-backdrop"
+        >
+          <Pressable
+            accessibilityRole="none"
+            onPress={(event) => event.stopPropagation()}
+            style={[styles.pickerCard, { backgroundColor: colors.surface }]}
           >
             <View style={styles.pickerHeader}>
               <Pressable
                 accessibilityLabel={copy.previousMonth}
                 accessibilityRole="button"
-                onPress={() => {
-                  setPickerMonth((value) => localDateAtMonthOffset(value, -1));
-                }}
-                style={styles.monthNavButton}
-                testID="calendar-previous-month"
+                hitSlop={8}
+                onPress={() => setPickerMonth((current) => localDateAtMonthOffset(current, -1))}
+                style={styles.pickerNavButton}
               >
-                <Text style={[styles.monthNavLabel, { color: colors.primary }]}>‹</Text>
+                <Text style={[styles.pickerNavText, { color: colors.accent }]}>‹</Text>
               </Pressable>
               <Text
-                accessibilityRole="header"
                 allowFontScaling
                 style={[styles.monthTitle, { color: colors.textPrimary }]}
               >
@@ -357,18 +321,16 @@ export function CalendarDayScreen({
               <Pressable
                 accessibilityLabel={copy.nextMonth}
                 accessibilityRole="button"
-                onPress={() => {
-                  setPickerMonth((value) => localDateAtMonthOffset(value, 1));
-                }}
-                style={styles.monthNavButton}
-                testID="calendar-next-month"
+                hitSlop={8}
+                onPress={() => setPickerMonth((current) => localDateAtMonthOffset(current, 1))}
+                style={styles.pickerNavButton}
               >
-                <Text style={[styles.monthNavLabel, { color: colors.primary }]}>›</Text>
+                <Text style={[styles.pickerNavText, { color: colors.accent }]}>›</Text>
               </Pressable>
             </View>
-
-            <View style={styles.monthGrid}>
-              {monthDays.map((day) => {
+            <View style={styles.monthGrid} testID="calendar-month-grid">
+              {monthGrid.map((day) => {
+                const pickerMonthNumber = parseLocalDateParts(pickerMonth).month;
                 const inDisplayedMonth = parseLocalDateParts(day.date).month === pickerMonthNumber;
                 return (
                   <Pressable
@@ -376,128 +338,119 @@ export function CalendarDayScreen({
                     accessibilityRole="button"
                     accessibilityState={{ selected: day.date === selectedDate }}
                     key={day.date}
-                    onPress={() => {
-                      selectDate(day.date);
-                      setPickerVisible(false);
-                    }}
-                    style={styles.monthDay}
-                    testID={`calendar-picker-day-${day.date}`}
+                    onPress={() => selectDate(day.date)}
+                    style={({ pressed }) => [
+                      styles.monthDay,
+                      {
+                        backgroundColor:
+                          day.date === selectedDate
+                            ? colors.accentSoft
+                            : pressed
+                              ? colors.surfaceMuted
+                              : 'transparent',
+                      },
+                    ]}
                   >
                     <Text
                       allowFontScaling
                       style={[
-                        styles.monthDayLabel,
+                        styles.monthDayText,
                         {
-                          color:
-                            day.date === selectedDate
-                              ? colors.primary
-                              : inDisplayedMonth
-                                ? colors.textPrimary
-                                : colors.textTertiary,
+                          color: inDisplayedMonth ? colors.textPrimary : colors.textSecondary,
                         },
                       ]}
                     >
-                      {day.dayOfMonth}
+                      {String(parseLocalDateParts(day.date).day)}
                     </Text>
                   </Pressable>
                 );
               })}
             </View>
-
-            <Pressable
-              accessibilityLabel={copy.close}
-              accessibilityRole="button"
-              onPress={() => {
-                setPickerVisible(false);
-              }}
-              style={styles.closeButton}
-              testID="calendar-date-picker-close"
-            >
-              <Text allowFontScaling style={[styles.closeLabel, { color: colors.primary }]}>
-                {copy.close}
-              </Text>
-            </Pressable>
-          </View>
-        </View>
+          </Pressable>
+        </Pressable>
       </Modal>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  header: {
-    gap: space[3],
+  shell: {
+    paddingHorizontal: space.md,
+    paddingTop: space.xs,
   },
-  headerRow: {
-    alignItems: 'center',
+  topBar: {
+    gap: space.xs,
+  },
+  summaryRow: {
     flexDirection: 'row',
-    gap: space[2],
     justifyContent: 'space-between',
   },
-  dateHeaderButton: {
-    flex: 1,
-    justifyContent: 'center',
-    minHeight: layout.minimumTouchTarget,
+  summaryText: {
+    ...typography.caption,
   },
-  dateHeader: {
-    fontWeight: typography.title2.fontWeight,
+  titleRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    minHeight: layout.minTapTarget,
+  },
+  dateButton: {
+    borderRadius: radius.md,
+    justifyContent: 'center',
+    minHeight: layout.minTapTarget,
+    paddingHorizontal: space.sm,
+  },
+  dateButtonText: {
+    ...typography.title,
+    flexShrink: 1,
   },
   todayButton: {
     alignItems: 'center',
-    borderRadius: radius.pill,
-    borderWidth: 1,
+    borderRadius: radius.full,
     justifyContent: 'center',
-    minHeight: layout.minimumTouchTarget,
-    paddingHorizontal: space[3],
+    minHeight: layout.minTapTarget,
+    minWidth: layout.minTapTarget,
+    paddingHorizontal: space.sm,
   },
-  todayLabel: {
-    fontSize: typography.bodySmall.fontSize,
-    fontWeight: typography.bodySmall.mediumFontWeight,
+  todayText: {
+    ...typography.body,
   },
   weekStrip: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    paddingVertical: space.sm,
   },
-  dayCell: {
+  dayChip: {
     alignItems: 'center',
-    borderRadius: radius.md,
-    gap: space[1],
+    borderRadius: radius.full,
+    flex: 1,
     justifyContent: 'center',
-    minHeight: layout.minimumTouchTarget,
-    paddingVertical: space[1],
+    minHeight: layout.minTapTarget,
+    minWidth: layout.minTapTarget,
+    paddingVertical: space.xs,
   },
-  weekday: {
-    fontSize: typography.caption2.fontSize,
-    fontWeight: typography.caption2.fontWeight,
+  weekdayText: {
+    ...typography.caption,
   },
-  dayNumber: {
-    fontSize: typography.bodySmall.fontSize,
-    fontWeight: typography.bodySmall.mediumFontWeight,
-  },
-  progressRow: {
-    flexDirection: 'row',
-    gap: space[4],
-  },
-  placeholder: {
-    fontSize: typography.caption1.fontSize,
-    fontWeight: typography.caption1.fontWeight,
+  dayNumberText: {
+    ...typography.body,
+    fontWeight: '600',
   },
   dayBody: {
-    borderTopWidth: 1,
+    borderTopWidth: StyleSheet.hairlineWidth,
     flex: 1,
-    marginTop: space[3],
   },
   modalBackdrop: {
     alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.24)',
     flex: 1,
     justifyContent: 'center',
-    padding: space[4],
+    padding: space.lg,
   },
-  picker: {
+  pickerCard: {
     borderRadius: radius.lg,
-    gap: space[3],
-    maxWidth: layout.maximumPhoneWidth,
-    padding: space[4],
+    maxWidth: 420,
+    padding: space.md,
     width: '100%',
   },
   pickerHeader: {
@@ -505,19 +458,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
-  monthNavButton: {
+  pickerNavButton: {
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: layout.minimumTouchTarget,
-    minWidth: layout.minimumTouchTarget,
+    minHeight: layout.minTapTarget,
+    minWidth: layout.minTapTarget,
   },
-  monthNavLabel: {
-    fontSize: typography.title2.fontSize,
-    fontWeight: typography.title2.fontWeight,
+  pickerNavText: {
+    fontSize: 28,
   },
   monthTitle: {
-    fontSize: typography.headline.fontSize,
-    fontWeight: typography.headline.fontWeight,
+    ...typography.body,
+    fontWeight: '600',
   },
   monthGrid: {
     flexDirection: 'row',
@@ -526,20 +478,10 @@ const styles = StyleSheet.create({
   monthDay: {
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: layout.minimumTouchTarget,
+    minHeight: layout.minTapTarget,
     width: '14.285714%',
   },
-  monthDayLabel: {
-    fontSize: typography.bodySmall.fontSize,
-    fontWeight: typography.bodySmall.mediumFontWeight,
-  },
-  closeButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: layout.minimumTouchTarget,
-  },
-  closeLabel: {
-    fontSize: typography.body.fontSize,
-    fontWeight: typography.body.mediumFontWeight,
+  monthDayText: {
+    ...typography.body,
   },
 });
