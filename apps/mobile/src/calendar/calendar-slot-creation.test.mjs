@@ -81,7 +81,9 @@ describe('MTS-044 two-tap slot selection', () => {
     act(() => slot.props.onPress());
     const sheet = renderer.root.findByProps({ testID: 'calendar-create-sheet' });
     expect(sheet).toBeDefined();
-    expect(renderer.root.findByProps({ testID: 'calendar-create-start' }).props.value).toBe('09:00');
+    expect(renderer.root.findByProps({ testID: 'calendar-create-start' }).props.value).toBe(
+      '09:00',
+    );
     expect(renderer.root.findByProps({ testID: 'calendar-create-end' }).props.value).toBe('09:30');
   });
 
@@ -93,7 +95,9 @@ describe('MTS-044 two-tap slot selection', () => {
     act(() => first.props.onPress());
     act(() => second.props.onPress());
 
-    expect(renderer.root.findByProps({ testID: 'calendar-selected-slot-frame' }).props.minute).toBe(570);
+    expect(renderer.root.findByProps({ testID: 'calendar-selected-slot-frame' }).props.minute).toBe(
+      570,
+    );
     expect(renderer.root.findAllByProps({ testID: 'calendar-create-sheet' })).toHaveLength(0);
   });
 
@@ -116,9 +120,9 @@ describe('MTS-044 two-tap slot selection', () => {
 describe('MTS-044 past-create eligibility', () => {
   it('allows a mission exactly 30 days in the past, locks it to 0 XP, and rejects anything older', () => {
     const onCreateMission = vi.fn();
+    mockState.deepLinkDate = '2026-08-07';
     const renderer = renderScreen({
       now: new Date('2026-09-06T10:00:00.000Z'),
-      selectedDateOverride: '2026-08-07',
       onCreateMission,
     });
     const slot = renderer.root.findByProps({ testID: 'calendar-slot-600' });
@@ -139,10 +143,8 @@ describe('MTS-044 past-create eligibility', () => {
       }),
     );
 
-    const tooOld = renderScreen({
-      now: new Date('2026-09-06T10:00:00.000Z'),
-      selectedDateOverride: '2026-08-06',
-    });
+    mockState.deepLinkDate = '2026-08-06';
+    const tooOld = renderScreen({ now: new Date('2026-09-06T10:00:00.000Z') });
     expect(tooOld.root.findAllByProps({ testID: 'calendar-slot-600' })).toHaveLength(0);
   });
 });
