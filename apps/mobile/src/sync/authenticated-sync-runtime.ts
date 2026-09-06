@@ -133,6 +133,26 @@ async function applyAuthoritativeSnapshot(
   await applyAuthoritativeChanges(transaction, accountId, supported);
 }
 
+async function pullWithRequiredPayload(
+  api: AuthenticatedSyncApi,
+  input: Readonly<{ cursor: number; limit: number }>,
+) {
+  const response = await api.pull(input);
+  if (response.kind === 'snapshot_required') return response;
+  return {
+    ...response,
+    changes: response.changes.map((change) => ({ ...change, payload: change.payload })),
+  };
+}
+
+async function snapshotWithRequiredPayload(api: AuthenticatedSyncApi) {
+  const response = await api.snapshot();
+  return {
+    ...response,
+    entries: response.entries.map((entry) => ({ ...entry, payload: entry.payload })),
+  };
+}
+
 export async function runAuthenticatedServerSync({
   database,
   accountId,
@@ -149,8 +169,8 @@ export async function runAuthenticatedServerSync({
     mutationQueue,
     transport: {
       push: (mutations) => api.push(mutations),
-      pull: (input) => api.pull(input),
-      snapshot: () => api.snapshot(),
+      pull: (input) => pullWithRequiredPayload(api, input),
+      snapshot: () => snapshotWithRequiredPayload(api),
     },
     applyChanges: (transaction, changes) =>
       applyAuthoritativeChanges(transaction, accountId, changes),
