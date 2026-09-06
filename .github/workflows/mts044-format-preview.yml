@@ -17,25 +17,25 @@ jobs:
         with:
           ref: feat/mts-044-two-tap-creation
           fetch-depth: 0
-      - name: Replace only the invalid type import
+      - name: Preserve validated reward eligibility during placement validation
         run: |
           python - <<'PY'
           from pathlib import Path
-          path = Path('apps/mobile/src/calendar/calendar-day-screen.tsx')
+          path = Path('apps/mobile/src/calendar/calendar-mission-create.ts')
           text = path.read_text()
-          old = """import {\n  CalendarInteractiveTimeline,\n  type CalendarMissionCreateInput,\n} from './calendar-interactive-timeline.js';\n"""
-          new = """import { CalendarInteractiveTimeline } from './calendar-interactive-timeline.js';\nimport type { CalendarMissionCreateInput } from './calendar-mission-create.js';\n"""
+          old = "    currentRewardEligibility: 'undetermined',\n"
+          new = "    currentRewardEligibility: input.rewardEligibility,\n"
           if text.count(old) != 1:
-              raise SystemExit(f'Expected exactly one import block, found {text.count(old)}')
+              raise SystemExit(f'Expected exactly one reward input, found {text.count(old)}')
           path.write_text(text.replace(old, new, 1))
           PY
       - name: Verify diff is confined and commit to active branch
         run: |
           git diff --check
-          test "$(git diff --name-only | tr '\n' ' ')" = "apps/mobile/src/calendar/calendar-day-screen.tsx "
-          git diff -- apps/mobile/src/calendar/calendar-day-screen.tsx
+          test "$(git diff --name-only | tr '\n' ' ')" = "apps/mobile/src/calendar/calendar-mission-create.ts "
+          git diff -- apps/mobile/src/calendar/calendar-mission-create.ts
           git config user.name "Misyra Auto Development"
           git config user.email "130823389+kkkable@users.noreply.github.com"
-          git add apps/mobile/src/calendar/calendar-day-screen.tsx
-          git commit -m "fix: import Calendar create input from defining module"
+          git add apps/mobile/src/calendar/calendar-mission-create.ts
+          git commit -m "fix: preserve Calendar create reward eligibility"
           git push origin HEAD:feat/mts-044-two-tap-creation
