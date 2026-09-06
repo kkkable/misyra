@@ -22,11 +22,19 @@ export default function RootLayout() {
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen
               name="evidence"
-              options={{ gestureEnabled: true, headerShown: false, presentation: 'fullScreenModal' }}
+              options={{
+                gestureEnabled: true,
+                headerShown: false,
+                presentation: 'fullScreenModal',
+              }}
             />
             <Stack.Screen
               name="story"
-              options={{ gestureEnabled: true, headerShown: false, presentation: 'fullScreenModal' }}
+              options={{
+                gestureEnabled: true,
+                headerShown: false,
+                presentation: 'fullScreenModal',
+              }}
             />
           </Stack>
         </OnboardingGate>

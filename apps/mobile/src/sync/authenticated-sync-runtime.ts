@@ -1,19 +1,13 @@
 import { accountSettingsSchema, type AccountSettings } from '@misyra/contracts';
 
-import {
-  createAuthenticatedSyncApi,
-  type AuthenticatedSyncApi,
-} from './authenticated-sync-api.js';
+import { createAuthenticatedSyncApi, type AuthenticatedSyncApi } from './authenticated-sync-api.js';
 import {
   createServerSync,
   type ServerAccountChange,
   type ServerSyncDatabase,
 } from './server-sync.js';
 import type { AuthSession } from '../auth/auth-session.js';
-import {
-  createMutationQueue,
-  type MutationQueueDatabase,
-} from '../storage/mutation-queue.js';
+import { createMutationQueue, type MutationQueueDatabase } from '../storage/mutation-queue.js';
 
 type InstallationStore = Readonly<{
   getItem(key: string): Promise<string | null>;
@@ -30,11 +24,13 @@ type SyncDatabase = MutationQueueDatabase;
 
 type ApiFactory = (session: AuthSession) => AuthenticatedSyncApi;
 
-type ServerSyncRunner = (input: Readonly<{
-  database: SyncDatabase;
-  accountId: string;
-  api: AuthenticatedSyncApi;
-}>) => Promise<Readonly<{ settledMutations: number; cursor: number }>>;
+type ServerSyncRunner = (
+  input: Readonly<{
+    database: SyncDatabase;
+    accountId: string;
+    api: AuthenticatedSyncApi;
+  }>,
+) => Promise<Readonly<{ settledMutations: number; cursor: number }>>;
 
 export type AuthenticatedSyncRuntimeOptions = Readonly<{
   sessionProvider: () => Promise<AuthSession | null>;

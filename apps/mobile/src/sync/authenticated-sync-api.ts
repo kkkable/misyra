@@ -111,9 +111,7 @@ export function createAuthenticatedSyncApi({
 
     async updateAccountSettings(input) {
       const settings = accountSettingsUpdateSchema.parse(input);
-      return accountSettingsSchema.parse(
-        await request('/v1/account/settings', 'PATCH', settings),
-      );
+      return accountSettingsSchema.parse(await request('/v1/account/settings', 'PATCH', settings));
     },
 
     async push(mutations) {
