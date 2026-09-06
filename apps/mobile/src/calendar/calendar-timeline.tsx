@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { space, typography } from '@misyra/design-tokens';
@@ -127,6 +127,7 @@ interface TimedTimelineProps {
   readonly colorScheme: ColorScheme;
   readonly initialCurrentMinute: number;
   readonly launchMinute: number;
+  readonly scrollHeader?: ReactNode;
   readonly selectedDate: string;
   readonly today: string;
 }
@@ -135,18 +136,42 @@ export function TimedTimeline({
   colorScheme,
   initialCurrentMinute,
   launchMinute,
+  scrollHeader,
   selectedDate,
   today,
 }: TimedTimelineProps) {
   const colors = themeColors(colorScheme);
+  const scrollRef = useRef<ScrollView>(null);
+  const initialHeaderPositionApplied = useRef(false);
+  const launchOffset = timelineLaunchOffset(launchMinute);
+  const hasScrollHeader = scrollHeader !== undefined && scrollHeader !== null;
 
   return (
     <ScrollView
-      contentOffset={{ x: 0, y: timelineLaunchOffset(launchMinute) }}
+      contentOffset={{ x: 0, y: hasScrollHeader ? 0 : launchOffset }}
+      ref={scrollRef}
       showsVerticalScrollIndicator={false}
       style={styles.scroll}
       testID="calendar-timeline-scroll"
     >
+      {hasScrollHeader ? (
+        <View
+          onLayout={(event) => {
+            if (initialHeaderPositionApplied.current) {
+              return;
+            }
+            initialHeaderPositionApplied.current = true;
+            scrollRef.current?.scrollTo({
+              animated: false,
+              x: 0,
+              y: event.nativeEvent.layout.height + launchOffset,
+            });
+          }}
+          testID="calendar-scroll-header"
+        >
+          {scrollHeader}
+        </View>
+      ) : null}
       <View
         style={[styles.timelineContent, { height: TIMELINE_HEIGHT }]}
         testID="calendar-timeline-content"
