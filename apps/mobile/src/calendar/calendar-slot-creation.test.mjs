@@ -29,7 +29,8 @@ vi.mock('react-native', async () => {
       props,
       typeof children === 'function' ? children({ pressed: false }) : children,
     );
-  const ScrollView = ({ children, ...props }) => createReactElement('ScrollView', props, children);
+  const ScrollView = ({ children, ...props }) =>
+    createReactElement('ScrollView', props, children);
   const TextInput = (props) => createReactElement('TextInput', props);
 
   return {
@@ -41,7 +42,12 @@ vi.mock('react-native', async () => {
     TextInput,
     View: 'View',
     useColorScheme: () => 'light',
-    useWindowDimensions: () => ({ width: 393, height: 852, scale: 3, fontScale: 1 }),
+    useWindowDimensions: () => ({
+      width: 393,
+      height: 852,
+      scale: 3,
+      fontScale: 1,
+    }),
   };
 });
 
@@ -75,7 +81,9 @@ describe('MTS-044 two-tap slot selection', () => {
     const slot = renderer.root.findByProps({ testID: 'calendar-slot-540' });
 
     act(() => slot.props.onPress());
-    expect(renderer.root.findByProps({ testID: 'calendar-selected-slot-frame' })).toBeDefined();
+    expect(
+      renderer.root.findByProps({ testID: 'calendar-selected-slot-frame' }),
+    ).toBeDefined();
     expect(renderer.root.findAllByProps({ testID: 'calendar-create-sheet' })).toHaveLength(0);
 
     act(() => slot.props.onPress());
