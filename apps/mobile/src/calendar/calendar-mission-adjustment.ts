@@ -206,7 +206,7 @@ export function commitMissionAdjustment(
       endMinute,
       rewardEligibility: placement.rewardEligibility,
       warning: null,
-      reason: placement.reason,
+      reason: 'historical_window_exceeded',
     });
   }
 
