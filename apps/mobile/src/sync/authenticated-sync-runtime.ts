@@ -41,7 +41,7 @@ type ServerSyncRunner = (
 type MissionProjection = Readonly<{
   mission: OneTimeMission;
   location: string | null;
-  personalNote: string | null;
+  notes: string | null;
 }>;
 
 export type AuthenticatedSyncRuntimeOptions = Readonly<{
@@ -172,7 +172,7 @@ function missionFromChange(change: ServerAccountChange): MissionProjection | nul
   return {
     mission,
     location: optionalPayloadString(payload, 'location'),
-    personalNote: optionalPayloadString(payload, 'personalNote'),
+    notes: optionalPayloadString(payload, 'notes'),
   };
 }
 
@@ -182,7 +182,7 @@ async function applyMissionProjection(
   projection: MissionProjection,
   updatedAt: string,
 ) {
-  const { mission, location, personalNote } = projection;
+  const { mission, location, notes } = projection;
   const schedule = mission.occurrence.schedule;
   await transaction.runAsync(
     `INSERT INTO cached_mission_series
@@ -237,7 +237,7 @@ async function applyMissionProjection(
     mission.occurrence.id,
     mission.series.title,
     location,
-    personalNote,
+    notes,
     updatedAt,
   );
 }
