@@ -39,7 +39,7 @@ function adjustableMission(id, status = 'unfinished') {
   };
 }
 
-function renderLayer({ missions, selectedMissionId }) {
+function renderLayer({ missions, onMissionPress = vi.fn(), selectedMissionId }) {
   let renderer;
   act(() => {
     renderer = create(
@@ -49,6 +49,7 @@ function renderLayer({ missions, selectedMissionId }) {
         missions,
         now: new Date('2026-09-07T08:00:00.000Z'),
         onMissionAdjustment: vi.fn(),
+        onMissionPress,
         selectedDate: '2026-09-07',
         selectedMissionId,
       }),
@@ -59,14 +60,18 @@ function renderLayer({ missions, selectedMissionId }) {
 
 describe('MTS-047 rendered gesture arbitration', () => {
   it('keeps the mission card pressable while exposing a long-press move surface for an unfinished timed mission', () => {
+    const onMissionPress = vi.fn();
+    const mission = adjustableMission('move');
     const renderer = renderLayer({
-      missions: [adjustableMission('move')],
+      missions: [mission],
+      onMissionPress,
       selectedMissionId: undefined,
     });
 
-    expect(renderer.root.findByProps({ testID: 'calendar-mission-card-move' }).type).toBe(
-      'Pressable',
-    );
+    act(() => {
+      renderer.root.findByProps({ testID: 'calendar-mission-card-move' }).props.onPress();
+    });
+    expect(onMissionPress).toHaveBeenCalledWith(mission);
     expect(
       renderer.root.findByProps({ testID: 'calendar-mission-move-gesture-move' }),
     ).toBeDefined();
