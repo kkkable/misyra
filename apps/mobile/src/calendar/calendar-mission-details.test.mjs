@@ -111,6 +111,20 @@ describe('MTS-046 Mission Details state matrix', () => {
     expect(textContent(renderer.toJSON())).toContain('Active');
   });
 
+  it('freezes completed missions even when lifecycle projection is stale', () => {
+    const renderer = renderDetails({ completionState: 'completed', lifecycle: 'future' });
+
+    for (const testID of [
+      'mission-details-title',
+      'mission-details-schedule',
+      'mission-details-location',
+      'mission-details-notes',
+    ]) {
+      expect(find(renderer, testID).props.editable).toBe(false);
+    }
+    expect(textContent(renderer.toJSON())).toContain('Completed');
+  });
+
   it('protects organizer fields while allowing the private personal note', () => {
     const renderer = renderDetails({
       calendarSource: 'external',
