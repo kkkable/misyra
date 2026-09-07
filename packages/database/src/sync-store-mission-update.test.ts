@@ -204,4 +204,94 @@ describe('MTS-047 mission schedule update synchronization', () => {
       },
     });
   });
+
+  it('removes XP when an already-started mission is edited into a future slot', async () => {
+    const auth = createPostgresAuthStore(pool);
+    const devices = createPostgresDeviceSettingsStore(pool);
+    const account = await auth.findOrCreateAccount('google', `after-start-${randomUUID()}`);
+    const deviceId = await devices.registerDevice({
+      accountId: account.id,
+      installationId: `installation-${randomUUID()}`,
+      platform: 'android',
+      appVersion: '1.0.0',
+      notificationCapability: 'denied',
+    });
+    const seriesId = randomUUID();
+    const occurrenceId = randomUUID();
+    let now = new Date('2026-09-07T08:00:00.000Z');
+    const store = createPostgresSyncStore(pool, () => now);
+    const initialSchedule = schedule(
+      '2026-09-07T09:00:00',
+      '2026-09-07T09:30:00',
+      '2026-09-07T09:00:00.000Z',
+      '2026-09-07T09:30:00.000Z',
+    );
+
+    await store.push(account.id, [
+      {
+        mutationId: randomUUID(),
+        accountId: account.id,
+        deviceId,
+        entityType: 'mission',
+        entityId: occurrenceId,
+        operation: 'create',
+        baseVersion: null,
+        clientOccurredAt: '2026-09-07T08:00:00.000Z',
+        payload: {
+          series: { id: seriesId, title: 'Late adjustment', recurrence: null },
+          occurrence: {
+            id: occurrenceId,
+            seriesId,
+            schedule: initialSchedule,
+            scheduleState: 'scheduled',
+            completionState: 'incomplete',
+            evidenceState: 'not_submitted',
+            rewardEligibility: 'eligible',
+            rewardIssuance: 'not_issued',
+            calendarSource: 'internal',
+            fieldOwnership: 'app_owned',
+            synchronizationState: 'pending',
+            storyState: 'none',
+            deletionState: 'active',
+          },
+          location: null,
+          notes: null,
+        },
+      },
+    ]);
+
+    now = new Date('2026-09-07T10:00:00.000Z');
+    const futureSchedule = schedule(
+      '2026-09-07T11:00:00',
+      '2026-09-07T11:30:00',
+      '2026-09-07T11:00:00.000Z',
+      '2026-09-07T11:30:00.000Z',
+    );
+    await store.push(account.id, [
+      {
+        mutationId: randomUUID(),
+        accountId: account.id,
+        deviceId,
+        entityType: 'mission',
+        entityId: occurrenceId,
+        operation: 'update',
+        baseVersion: 1,
+        clientOccurredAt: '2026-09-07T10:00:00.000Z',
+        payload: { schedule: futureSchedule, rewardEligibility: 'eligible' },
+      },
+    ]);
+
+    const moved = await pool.query(
+      `SELECT local_start, local_finish, reward_eligibility, version
+         FROM mission_occurrences
+        WHERE id = $1 AND account_id = $2`,
+      [occurrenceId, account.id],
+    );
+    expect(moved.rows[0]).toMatchObject({
+      local_start: '2026-09-07T11:00:00',
+      local_finish: '2026-09-07T11:30:00',
+      reward_eligibility: 'ineligible',
+      version: 2,
+    });
+  });
 });
