@@ -127,106 +127,109 @@ async function setupCachedMission(database) {
 }
 
 describe('MTS-047 local-first mission adjustment save', () => {
-  it('uses exact server versions for immediate save and synchronized Undo without restoring XP', async () => {
-    const database = createDatabase();
-    await setupCachedMission(database);
-    const ids = [
-      '55555555-5555-4555-8555-555555555555',
-      '66666666-6666-4666-8666-666666666666',
-    ];
-    const generateId = () => ids.shift();
+  it(
+    'uses exact server versions for immediate save and synchronized Undo without restoring XP',
+    async () => {
+      const database = createDatabase();
+      await setupCachedMission(database);
+      const ids = [
+        '55555555-5555-4555-8555-555555555555',
+        '66666666-6666-4666-8666-666666666666',
+      ];
+      const generateId = () => ids.shift();
 
-    await saveCalendarMissionAdjustment({
-      database,
-      accountId,
-      deviceId,
-      adjustment: {
-        missionId: occurrenceId,
-        startMinute: 9 * 60 + 15,
-        endMinute: 10 * 60 + 15,
-        rewardEligibility: 'ineligible',
-        source: 'move',
-      },
-      now: new Date('2026-09-07T12:01:00.000Z'),
-      generateId,
-    });
+      await saveCalendarMissionAdjustment({
+        database,
+        accountId,
+        deviceId,
+        adjustment: {
+          missionId: occurrenceId,
+          startMinute: 9 * 60 + 15,
+          endMinute: 10 * 60 + 15,
+          rewardEligibility: 'ineligible',
+          source: 'move',
+        },
+        now: new Date('2026-09-07T12:01:00.000Z'),
+        generateId,
+      });
 
-    let cached = await database.getFirstAsync(
-      `SELECT scheduled_start, scheduled_end, server_version, payload_json
+      let cached = await database.getFirstAsync(
+        `SELECT scheduled_start, scheduled_end, server_version, payload_json
          FROM cached_mission_occurrences
         WHERE account_id = ? AND occurrence_id = ?`,
-      accountId,
-      occurrenceId,
-    );
-    expect(cached).toMatchObject({
-      scheduled_start: '09:15',
-      scheduled_end: '10:15',
-      server_version: 4,
-    });
-    expect(JSON.parse(cached.payload_json)).toMatchObject({
-      rewardEligibility: 'ineligible',
-      synchronizationState: 'pending',
-      schedule: {
-        localStart: '2026-09-08T09:15:00',
-        localFinish: '2026-09-08T10:15:00',
-        timeZone: 'Asia/Tokyo',
-      },
-    });
-
-    await saveCalendarMissionAdjustment({
-      database,
-      accountId,
-      deviceId,
-      adjustment: {
-        missionId: occurrenceId,
-        startMinute: 9 * 60,
-        endMinute: 10 * 60,
+        accountId,
+        occurrenceId,
+      );
+      expect(cached).toMatchObject({
+        scheduled_start: '09:15',
+        scheduled_end: '10:15',
+        server_version: 4,
+      });
+      expect(JSON.parse(cached.payload_json)).toMatchObject({
         rewardEligibility: 'ineligible',
-        source: 'undo',
-      },
-      now: new Date('2026-09-07T12:02:00.000Z'),
-      generateId,
-    });
+        synchronizationState: 'pending',
+        schedule: {
+          localStart: '2026-09-08T09:15:00',
+          localFinish: '2026-09-08T10:15:00',
+          timeZone: 'Asia/Tokyo',
+        },
+      });
 
-    cached = await database.getFirstAsync(
-      `SELECT scheduled_start, scheduled_end, server_version, payload_json
+      await saveCalendarMissionAdjustment({
+        database,
+        accountId,
+        deviceId,
+        adjustment: {
+          missionId: occurrenceId,
+          startMinute: 9 * 60,
+          endMinute: 10 * 60,
+          rewardEligibility: 'ineligible',
+          source: 'undo',
+        },
+        now: new Date('2026-09-07T12:02:00.000Z'),
+        generateId,
+      });
+
+      cached = await database.getFirstAsync(
+        `SELECT scheduled_start, scheduled_end, server_version, payload_json
          FROM cached_mission_occurrences
         WHERE account_id = ? AND occurrence_id = ?`,
-      accountId,
-      occurrenceId,
-    );
-    expect(cached).toMatchObject({
-      scheduled_start: '09:00',
-      scheduled_end: '10:00',
-      server_version: 5,
-    });
-    expect(JSON.parse(cached.payload_json).rewardEligibility).toBe('ineligible');
+        accountId,
+        occurrenceId,
+      );
+      expect(cached).toMatchObject({
+        scheduled_start: '09:00',
+        scheduled_end: '10:00',
+        server_version: 5,
+      });
+      expect(JSON.parse(cached.payload_json).rewardEligibility).toBe('ineligible');
 
-    const queued = await database.getAllAsync(
-      `SELECT command_json
+      const queued = await database.getAllAsync(
+        `SELECT command_json
          FROM mutation_queue
         WHERE account_id = ?
         ORDER BY sequence`,
-      accountId,
-    );
-    expect(queued).toHaveLength(2);
-    const first = JSON.parse(queued[0].command_json).mutation;
-    const second = JSON.parse(queued[1].command_json).mutation;
-    expect(first).toMatchObject({
-      mutationId: '55555555-5555-4555-8555-555555555555',
-      entityId: occurrenceId,
-      operation: 'update',
-      baseVersion: 3,
-      payload: { rewardEligibility: 'ineligible' },
-    });
-    expect(first.payload.schedule.localStart).toBe('2026-09-08T09:15:00');
-    expect(second).toMatchObject({
-      mutationId: '66666666-6666-4666-8666-666666666666',
-      entityId: occurrenceId,
-      operation: 'update',
-      baseVersion: 4,
-      payload: { rewardEligibility: 'ineligible' },
-    });
-    expect(second.payload.schedule.localStart).toBe('2026-09-08T09:00:00');
-  });
+        accountId,
+      );
+      expect(queued).toHaveLength(2);
+      const first = JSON.parse(queued[0].command_json).mutation;
+      const second = JSON.parse(queued[1].command_json).mutation;
+      expect(first).toMatchObject({
+        mutationId: '55555555-5555-4555-8555-555555555555',
+        entityId: occurrenceId,
+        operation: 'update',
+        baseVersion: 3,
+        payload: { rewardEligibility: 'ineligible' },
+      });
+      expect(first.payload.schedule.localStart).toBe('2026-09-08T09:15:00');
+      expect(second).toMatchObject({
+        mutationId: '66666666-6666-4666-8666-666666666666',
+        entityId: occurrenceId,
+        operation: 'update',
+        baseVersion: 4,
+        payload: { rewardEligibility: 'ineligible' },
+      });
+      expect(second.payload.schedule.localStart).toBe('2026-09-08T09:00:00');
+    },
+  );
 });
