@@ -1,0 +1,48 @@
+name: MTS-046 format helper
+
+on:
+  push:
+    branches:
+      - verify/mts-046-format-20260907t0625z
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout active implementation branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/mts-046-mission-details-state-matrix-recovery
+          fetch-depth: 0
+      - name: Install pinned pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.5
+          run_install: false
+      - name: Set up pinned Node with pnpm cache
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - name: Install from lockfile
+        run: pnpm install --frozen-lockfile
+      - name: Apply repository Prettier to Mission Details only
+        run: pnpm exec prettier --write apps/mobile/src/calendar/calendar-mission-details.tsx --config packages/config/prettier.config.mjs
+      - name: Verify confined diff and push formatter result
+        run: |
+          git diff --check
+          if git diff --quiet; then
+            echo "Mission Details already matches repository Prettier."
+            exit 0
+          fi
+          test "$(git diff --name-only | tr '\n' ' ')" = "apps/mobile/src/calendar/calendar-mission-details.tsx "
+          git diff -- apps/mobile/src/calendar/calendar-mission-details.tsx
+          git config user.name "Misyra Auto Development"
+          git config user.email "130823389+kkkable@users.noreply.github.com"
+          git add apps/mobile/src/calendar/calendar-mission-details.tsx
+          git commit -m "style: apply repository formatter to MTS-046"
+          git push origin HEAD:feat/mts-046-mission-details-state-matrix-recovery
