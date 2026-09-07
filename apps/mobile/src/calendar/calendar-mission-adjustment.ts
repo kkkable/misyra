@@ -104,12 +104,7 @@ function localDateTime(date: string, minute: number): string {
   return `${localDate}T${String(hour).padStart(2, '0')}:${String(minuteOfHour).padStart(2, '0')}:00`;
 }
 
-function scheduleFor(
-  date: string,
-  startMinute: number,
-  endMinute: number,
-  timeZone: string,
-) {
+function scheduleFor(date: string, startMinute: number, endMinute: number, timeZone: string) {
   return createZonedTimedSchedule({
     localStart: localDateTime(date, startMinute),
     localFinish: localDateTime(date, endMinute),
@@ -137,11 +132,7 @@ export function previewMissionAdjustment(
 
   if (kind === 'move') {
     const duration = mission.endMinute - mission.startMinute;
-    const startMinute = clamp(
-      mission.startMinute + translationY,
-      0,
-      MINUTES_PER_DAY - duration,
-    );
+    const startMinute = clamp(mission.startMinute + translationY, 0, MINUTES_PER_DAY - duration);
     return Object.freeze({ startMinute, endMinute: startMinute + duration });
   }
 
