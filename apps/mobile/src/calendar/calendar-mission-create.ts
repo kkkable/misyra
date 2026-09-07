@@ -164,8 +164,8 @@ export async function createCalendarMission({
   const payload = {
     series: mission.series,
     occurrence: mission.occurrence,
-    location,
-    notes,
+    ...(location === null ? {} : { location }),
+    ...(notes === null ? {} : { notes }),
   };
   const queue = createMutationQueue(database, accountId);
 
