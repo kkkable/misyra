@@ -64,8 +64,12 @@ describe('MTS-047 rendered gesture arbitration', () => {
       selectedMissionId: undefined,
     });
 
-    expect(renderer.root.findByProps({ testID: 'calendar-mission-card-move' }).type).toBe('Pressable');
-    expect(renderer.root.findByProps({ testID: 'calendar-mission-move-gesture-move' })).toBeDefined();
+    expect(renderer.root.findByProps({ testID: 'calendar-mission-card-move' }).type).toBe(
+      'Pressable',
+    );
+    expect(
+      renderer.root.findByProps({ testID: 'calendar-mission-move-gesture-move' }),
+    ).toBeDefined();
   });
 
   it('shows the bottom resize handle only for the selected unfinished timed mission', () => {
