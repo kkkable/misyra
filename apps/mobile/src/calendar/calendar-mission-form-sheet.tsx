@@ -293,11 +293,11 @@ export function CalendarMissionFormSheet({
             <Pressable
               accessibilityLabel={catalog['calendar.create.travelBehavior']}
               accessibilityRole="button"
-              onPress={() =>
+              onPress={() => {
                 setTimeBehavior((value) =>
                   value === 'local_time' ? 'fixed_instant' : 'local_time',
-                )
-              }
+                );
+              }}
               style={[styles.toggleRow, { borderColor: colors.border }]}
               testID="calendar-create-travel-behavior"
             >
@@ -314,7 +314,9 @@ export function CalendarMissionFormSheet({
               accessibilityLabel={catalog['calendar.create.private']}
               accessibilityRole="checkbox"
               accessibilityState={{ checked: isPrivate }}
-              onPress={() => setIsPrivate((value) => !value)}
+              onPress={() => {
+                setIsPrivate((value) => !value);
+              }}
               style={[styles.toggleRow, { borderColor: colors.border }]}
               testID="calendar-create-private"
             >
@@ -368,7 +370,9 @@ export function CalendarMissionFormSheet({
                 <Pressable
                   accessibilityLabel={catalog['calendar.create.confirmZeroXp']}
                   accessibilityRole="button"
-                  onPress={() => submit(true)}
+                  onPress={() => {
+                    submit(true);
+                  }}
                   style={styles.action}
                   testID="calendar-create-confirm-zero-xp"
                 >
@@ -393,7 +397,9 @@ export function CalendarMissionFormSheet({
               <Pressable
                 accessibilityLabel={catalog['calendar.create.save']}
                 accessibilityRole="button"
-                onPress={() => submit(false)}
+                onPress={() => {
+                  submit(false);
+                }}
                 style={styles.action}
                 testID="calendar-create-save"
               >
