@@ -7,7 +7,7 @@ on:
       - main
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -25,9 +25,8 @@ jobs:
       - name: Checkout clean repository
         uses: actions/checkout@v4
         with:
-          persist-credentials: true
+          persist-credentials: false
           fetch-depth: 0
-          ref: ${{ github.head_ref || github.ref_name }}
 
       - name: Install pinned pnpm
         uses: pnpm/action-setup@v4
@@ -44,19 +43,6 @@ jobs:
 
       - name: Install from lockfile
         run: pnpm install --frozen-lockfile
-
-      - name: Normalize MTS-047 RED fixtures
-        if: github.event_name == 'pull_request' && github.head_ref == 'feat/mts-047-drag-resize-snap-undo'
-        run: |
-          pnpm exec prettier --write apps/mobile/src/calendar/calendar-mission-adjustment-save.test.mjs apps/mobile/src/calendar/calendar-mission-gesture.test.mjs --config packages/config/prettier.config.mjs
-          git show "${{ github.event.pull_request.base.sha }}:.github/workflows/ci.yml" > .github/workflows/ci.yml
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add apps/mobile/src/calendar/calendar-mission-adjustment-save.test.mjs apps/mobile/src/calendar/calendar-mission-gesture.test.mjs .github/workflows/ci.yml
-          if ! git diff --cached --quiet; then
-            git commit -m "test: format MTS-047 RED fixtures"
-            git push origin "HEAD:${GITHUB_HEAD_REF}"
-          fi
 
       - name: Install Bicep compiler in runner only
         run: az bicep install
