@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import { localizationCatalogs } from '@misyra/localization';
+
 import {
   MISSION_FORM_FIELDS,
   missionFormWarning,
@@ -77,6 +79,13 @@ describe('MTS-045 mission form validation', () => {
         editingAfterStart: true,
       }),
     ).toBe('after_start_zero_xp');
+  });
+
+  it('keeps the approved explicit after-start warning copy in the localization catalog', () => {
+    expect(localizationCatalogs.en['calendar.edit.afterStartZeroXpWarning']).toBe(
+      'Editing after the start time will remove XP for this mission.',
+    );
+    expect(localizationCatalogs['zh-HK']['calendar.edit.afterStartZeroXpWarning']).toBeTruthy();
   });
 
   it('exposes approved form fields without category, attachment, or direct difficulty controls', () => {
