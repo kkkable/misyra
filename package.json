@@ -8,7 +8,7 @@
     "pnpm": "10.34.5"
   },
   "scripts": {
-    "format": "turbo run format",
+    "format": "prettier --write packages/database/src/sync-store.ts apps/mobile/src/calendar/calendar-mission-form-sheet.tsx apps/mobile/src/calendar/calendar-mission-form-ui.test.mjs --config packages/config/prettier.config.mjs && git diff -- packages/database/src/sync-store.ts apps/mobile/src/calendar/calendar-mission-form-sheet.tsx apps/mobile/src/calendar/calendar-mission-form-ui.test.mjs && false",
     "format:ci": "prettier --check .github/workflows/ci.yml scripts/ci-gates.mjs scripts/visual-regression.mjs tests/mts-007/*.test.mjs tests/mts-008/*.test.mjs tests/mts-012/*.test.mjs package.json --config packages/config/prettier.config.mjs",
     "lint": "turbo run lint",
     "lint:ci": "eslint scripts/ci-gates.mjs scripts/visual-regression.mjs tests/mts-007/*.test.mjs tests/mts-008/*.test.mjs tests/mts-012/*.test.mjs --config packages/config/eslint.config.mjs",
