@@ -1,6 +1,8 @@
 import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { GestureDetector, usePanGesture } from 'react-native-gesture-handler';
+import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 
 import { layout, radius, space, typography } from '@misyra/design-tokens';
 import { localizationCatalogs, type LocalizationLocale } from '@misyra/localization';
@@ -8,7 +10,6 @@ import { localizationCatalogs, type LocalizationLocale } from '@misyra/localizat
 import { themeColors, type ColorScheme } from '../design-system/index.js';
 import {
   commitMissionAdjustment,
-  previewMissionAdjustment,
   type AdjustableTimedMission,
   type MissionAdjustmentKind,
   type MissionAdjustmentResult,
@@ -347,11 +348,6 @@ function adjustableMission(mission: TimedMissionSummary): AdjustableTimedMission
   };
 }
 
-type ActivePreview = Readonly<{
-  kind: MissionAdjustmentKind;
-  translationY: number;
-}>;
-
 interface AdjustableMissionCardProps {
   readonly card: MissionCardLayout;
   readonly colorScheme: ColorScheme;
@@ -376,27 +372,31 @@ function AdjustableMissionCard({
 }: AdjustableMissionCardProps) {
   const mission = card.mission;
   const missionForAdjustment = adjustableMission(mission);
-  const [activePreview, setActivePreview] = useState<ActivePreview | null>(null);
-  const preview =
-    activePreview === null
-      ? null
-      : previewMissionAdjustment(
-          missionForAdjustment,
-          activePreview.kind,
-          activePreview.translationY,
-        );
-  const positionedStyle: ViewStyle = {
-    ...missionPositionStyle(card),
-    ...(preview === null
-      ? {}
-      : {
-          height: preview.endMinute - preview.startMinute,
-          top: preview.startMinute,
-        }),
-  };
+  const moveActive = useSharedValue(false);
+  const moveTranslationY = useSharedValue(0);
+  const resizeActive = useSharedValue(false);
+  const resizeTranslationY = useSharedValue(0);
+  const duration = mission.endMinute - mission.startMinute;
+  const positionedStyle = missionPositionStyle(card);
+  const animatedAdjustmentStyle = useAnimatedStyle(() => {
+    if (moveActive.value) {
+      const nextStart = Math.min(
+        Math.max(mission.startMinute + moveTranslationY.value, 0),
+        MINUTES_PER_DAY - duration,
+      );
+      return { height: duration, top: nextStart };
+    }
+    if (resizeActive.value) {
+      const nextEnd = Math.min(
+        Math.max(mission.endMinute + resizeTranslationY.value, mission.startMinute + 15),
+        MINUTES_PER_DAY,
+      );
+      return { height: nextEnd - mission.startMinute, top: mission.startMinute };
+    }
+    return { height: card.height, top: card.top };
+  });
 
   const finishAdjustment = (kind: MissionAdjustmentKind, translationY: number) => {
-    setActivePreview(null);
     const result = commitMissionAdjustment({
       mission: missionForAdjustment,
       kind,
@@ -407,37 +407,54 @@ function AdjustableMissionCard({
     void onMissionAdjustment?.(result);
   };
 
-  const moveGesture = Gesture.Pan()
-    .activateAfterLongPress(DIRECT_MANIPULATION_LONG_PRESS_MS)
-    .runOnJS(true)
-    .onUpdate((event) => {
-      setActivePreview({ kind: 'move', translationY: event.translationY });
-    })
-    .onEnd((event) => {
-      finishAdjustment('move', event.translationY);
-    })
-    .onFinalize(() => {
-      setActivePreview(null);
-    });
+  const resizeGesture = usePanGesture({
+    activateAfterLongPress: DIRECT_MANIPULATION_LONG_PRESS_MS,
+    onActivate: () => {
+      resizeActive.value = true;
+    },
+    onUpdate: (event) => {
+      resizeTranslationY.value = event.translationY;
+    },
+    onDeactivate: (event) => {
+      if (!event.canceled) {
+        scheduleOnRN(finishAdjustment, 'resize', event.translationY);
+      }
+      resizeActive.value = false;
+      resizeTranslationY.value = 0;
+    },
+    onFinalize: () => {
+      resizeActive.value = false;
+      resizeTranslationY.value = 0;
+    },
+  });
 
-  const resizeGesture = Gesture.Pan()
-    .activateAfterLongPress(DIRECT_MANIPULATION_LONG_PRESS_MS)
-    .runOnJS(true)
-    .onUpdate((event) => {
-      setActivePreview({ kind: 'resize', translationY: event.translationY });
-    })
-    .onEnd((event) => {
-      finishAdjustment('resize', event.translationY);
-    })
-    .onFinalize(() => {
-      setActivePreview(null);
-    });
+  const moveGesture = usePanGesture({
+    activateAfterLongPress: DIRECT_MANIPULATION_LONG_PRESS_MS,
+    requireToFail: resizeGesture,
+    onActivate: () => {
+      moveActive.value = true;
+    },
+    onUpdate: (event) => {
+      moveTranslationY.value = event.translationY;
+    },
+    onDeactivate: (event) => {
+      if (!event.canceled) {
+        scheduleOnRN(finishAdjustment, 'move', event.translationY);
+      }
+      moveActive.value = false;
+      moveTranslationY.value = 0;
+    },
+    onFinalize: () => {
+      moveActive.value = false;
+      moveTranslationY.value = 0;
+    },
+  });
 
   return (
     <GestureDetector gesture={moveGesture}>
-      <View
+      <Animated.View
         pointerEvents="box-none"
-        style={positionedStyle}
+        style={[positionedStyle, animatedAdjustmentStyle]}
         testID={`calendar-mission-move-gesture-${mission.id}`}
       >
         <MissionCard
@@ -460,7 +477,7 @@ function AdjustableMissionCard({
             </View>
           </GestureDetector>
         ) : null}
-      </View>
+      </Animated.View>
     </GestureDetector>
   );
 }
