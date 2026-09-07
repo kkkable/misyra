@@ -32,7 +32,7 @@ afterAll(async () => {
 });
 
 describe('MTS-045 mission create sync projector', () => {
-  it('accepts all-day private missions and persists location plus personal notes', async () => {
+  it('accepts all-day private missions and preserves app-owned location plus notes', async () => {
     const auth = createPostgresAuthStore(pool);
     const devices = createPostgresDeviceSettingsStore(pool);
     const account = await auth.findOrCreateAccount('google', `mts045-sync-${randomUUID()}`);
@@ -77,7 +77,7 @@ describe('MTS-045 mission create sync projector', () => {
         deletionState: 'active',
       },
       location: 'Central',
-      personalNote: 'Bring documents',
+      notes: 'Bring documents',
     } as const;
     const store = createPostgresSyncStore(pool, () => new Date('2026-09-06T17:00:00.000Z'));
 
@@ -98,7 +98,7 @@ describe('MTS-045 mission create sync projector', () => {
     ).resolves.toEqual({ acceptedMutationIds: [mutationId] });
 
     const occurrence = await pool.query(
-      `SELECT all_day, estimated_effort_minutes, evidence_state, location
+      `SELECT all_day, estimated_effort_minutes, evidence_state, location, notes
          FROM mission_occurrences
         WHERE id = $1 AND account_id = $2`,
       [occurrenceId, account.id],
@@ -108,13 +108,14 @@ describe('MTS-045 mission create sync projector', () => {
       estimated_effort_minutes: 45,
       evidence_state: 'not_required',
       location: 'Central',
+      notes: 'Bring documents',
     });
 
-    const note = await pool.query(
+    const personalNote = await pool.query(
       `SELECT note FROM mission_personal_notes WHERE occurrence_id = $1 AND account_id = $2`,
       [occurrenceId, account.id],
     );
-    expect(note.rows[0]).toEqual({ note: 'Bring documents' });
+    expect(personalNote.rowCount).toBe(0);
 
     const pulled = await store.pull(account.id, { cursor: 0, limit: 25 });
     expect(pulled.kind).toBe('incremental');
@@ -132,7 +133,7 @@ describe('MTS-045 mission create sync projector', () => {
           synchronizationState: 'synced',
         },
         location: 'Central',
-        personalNote: 'Bring documents',
+        notes: 'Bring documents',
       },
     });
   });
