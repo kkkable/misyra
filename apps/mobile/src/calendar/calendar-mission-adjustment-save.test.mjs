@@ -2,6 +2,7 @@ import { DatabaseSync } from 'node:sqlite';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
+// RED contract: direct manipulation must persist with exact server versions before this ticket closes.
 import { saveCalendarMissionAdjustment } from './calendar-mission-adjustment-save.js';
 import { applyMobileMigrations } from '../storage/schema.js';
 
@@ -130,7 +131,10 @@ describe('MTS-047 local-first mission adjustment save', () => {
   it('uses exact server versions for immediate save and synchronized Undo without restoring XP', async () => {
     const database = createDatabase();
     await setupCachedMission(database);
-    const ids = ['55555555-5555-4555-8555-555555555555', '66666666-6666-4666-8666-666666666666'];
+    const ids = [
+      '55555555-5555-4555-8555-555555555555',
+      '66666666-6666-4666-8666-666666666666',
+    ];
     const generateId = () => ids.shift();
 
     await saveCalendarMissionAdjustment({
