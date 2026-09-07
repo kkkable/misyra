@@ -127,7 +127,7 @@ async function setupCachedMission(database) {
 }
 
 describe('MTS-047 local-first mission adjustment save', () => {
-  it('uses exact server versions for immediate save and synchronized Undo without restoring XP', async () => {
+  it('uses exact authoritative server versions for immediate save and synchronized Undo without restoring XP', async () => {
     const database = createDatabase();
     await setupCachedMission(database);
     const ids = ['55555555-5555-4555-8555-555555555555', '66666666-6666-4666-8666-666666666666'];
