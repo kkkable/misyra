@@ -22,6 +22,26 @@ vi.mock('react-native', async () => {
   };
 });
 
+vi.mock('react-native-gesture-handler', async () => {
+  const { createElement: createReactElement } = await import('react');
+
+  const pan = () => {
+    const gesture = {
+      activateAfterLongPress: () => gesture,
+      onEnd: () => gesture,
+      onFinalize: () => gesture,
+      onUpdate: () => gesture,
+      runOnJS: () => gesture,
+    };
+    return gesture;
+  };
+
+  return {
+    Gesture: { Pan: pan },
+    GestureDetector: ({ children }) => createReactElement('GestureDetector', null, children),
+  };
+});
+
 import { TimedMissionLayer } from './calendar-mission-layout.js';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
