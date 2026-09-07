@@ -279,8 +279,7 @@ interface TimedMissionLayerProps {
   readonly selectedDate: string;
   readonly selectedMissionId?: string;
   readonly onMissionAdjustment?:
-    | ((adjustment: MissionAdjustmentResult) => void | Promise<void>)
-    | undefined;
+    ((adjustment: MissionAdjustmentResult) => void | Promise<void>) | undefined;
   readonly onMissionPress?: ((mission: TimedMissionSummary) => void) | undefined;
 }
 
@@ -361,8 +360,7 @@ interface AdjustableMissionCardProps {
   readonly selected: boolean;
   readonly selectedDate: string;
   readonly onMissionAdjustment?:
-    | ((adjustment: MissionAdjustmentResult) => void | Promise<void>)
-    | undefined;
+    ((adjustment: MissionAdjustmentResult) => void | Promise<void>) | undefined;
   readonly onMissionPress?: ((mission: TimedMissionSummary) => void) | undefined;
 }
 
