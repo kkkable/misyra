@@ -1,28 +1,31 @@
-import { vi } from 'vitest';
+import { createElement } from 'react';
 
-vi.mock('react-native-gesture-handler', async () => {
-  const { createElement } = await import('react');
+export function GestureDetector({ children }) {
+  return createElement('GestureDetector', null, children);
+}
 
-  return {
-    GestureDetector: ({ children }) => createElement('GestureDetector', null, children),
-    GestureHandlerRootView: ({ children, ...props }) =>
-      createElement('GestureHandlerRootView', props, children),
-    usePanGesture: (config) => ({ config }),
-  };
-});
+export function GestureHandlerRootView({ children, ...props }) {
+  return createElement('GestureHandlerRootView', props, children);
+}
 
-vi.mock('react-native-reanimated', async () => {
-  const { createElement } = await import('react');
+export function usePanGesture(config) {
+  return { config };
+}
 
-  return {
-    default: {
-      View: ({ children, ...props }) => createElement('AnimatedView', props, children),
-    },
-    useAnimatedStyle: (factory) => factory(),
-    useSharedValue: (value) => ({ value }),
-  };
-});
+const Animated = {
+  View: ({ children, ...props }) => createElement('AnimatedView', props, children),
+};
 
-vi.mock('react-native-worklets', () => ({
-  scheduleOnRN: (callback, ...args) => callback(...args),
-}));
+export default Animated;
+
+export function useAnimatedStyle(factory) {
+  return factory();
+}
+
+export function useSharedValue(value) {
+  return { value };
+}
+
+export function scheduleOnRN(callback, ...args) {
+  return callback(...args);
+}
