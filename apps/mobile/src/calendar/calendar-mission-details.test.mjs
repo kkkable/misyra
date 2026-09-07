@@ -61,6 +61,14 @@ function renderDetails(overrides = {}, language = 'en') {
   return renderer;
 }
 
+function find(renderer, testID) {
+  return renderer.root.findByProps({ testID });
+}
+
+function findAll(renderer, testID) {
+  return renderer.root.findAllByProps({ testID });
+}
+
 function textContent(node) {
   if (typeof node === 'string') return node;
   if (node === null || node === undefined) return '';
@@ -79,7 +87,7 @@ function accessibilitySnapshot(renderer) {
 }
 
 describe('MTS-046 Mission Details state matrix', () => {
-  it('keeps future app-owned mission fields editable without exposing category or AI metadata', () => {
+  it('keeps future app-owned fields editable and hides internal metadata', () => {
     const renderer = renderDetails();
 
     for (const testID of [
@@ -87,16 +95,23 @@ describe('MTS-046 Mission Details state matrix', () => {
       'mission-details-location',
       'mission-details-notes',
     ]) {
-      expect(renderer.root.findByProps({ testID }).props.editable).toBe(true);
+      expect(find(renderer, testID).props.editable).toBe(true);
     }
 
-    expect(renderer.root.findAllByProps({ testID: 'mission-details-personal-note' })).toHaveLength(0);
-    expect(renderer.root.findAllByProps({ testID: 'mission-details-category' })).toHaveLength(0);
-    expect(renderer.root.findAllByProps({ testID: 'mission-details-difficulty' })).toHaveLength(0);
-    expect(renderer.root.findAllByProps({ testID: 'mission-details-ai-metadata' })).toHaveLength(0);
+    expect(findAll(renderer, 'mission-details-personal-note')).toHaveLength(0);
+    expect(findAll(renderer, 'mission-details-category')).toHaveLength(0);
+    expect(findAll(renderer, 'mission-details-difficulty')).toHaveLength(0);
+    expect(findAll(renderer, 'mission-details-ai-metadata')).toHaveLength(0);
   });
 
-  it('keeps organizer-controlled provider fields read-only while the private personal note stays editable before completion', () => {
+  it('keeps active app-owned fields editable while showing active status', () => {
+    const renderer = renderDetails({ lifecycle: 'active' });
+
+    expect(find(renderer, 'mission-details-title').props.editable).toBe(true);
+    expect(textContent(renderer.toJSON())).toContain('Active');
+  });
+
+  it('protects organizer fields while allowing the private personal note', () => {
     const renderer = renderDetails({
       calendarSource: 'external',
       fieldOwnership: 'organizer_controlled',
@@ -105,14 +120,10 @@ describe('MTS-046 Mission Details state matrix', () => {
       personalNote: 'Ask about access',
     });
 
-    expect(renderer.root.findByProps({ testID: 'mission-details-title' }).props.editable).toBe(false);
-    expect(renderer.root.findByProps({ testID: 'mission-details-location' }).props.editable).toBe(false);
-    expect(renderer.root.findByProps({ testID: 'mission-details-provider-description' }).props.editable).toBe(
-      false,
-    );
-    expect(renderer.root.findByProps({ testID: 'mission-details-personal-note' }).props.editable).toBe(
-      true,
-    );
+    expect(find(renderer, 'mission-details-title').props.editable).toBe(false);
+    expect(find(renderer, 'mission-details-location').props.editable).toBe(false);
+    expect(find(renderer, 'mission-details-provider-description').props.editable).toBe(false);
+    expect(find(renderer, 'mission-details-personal-note').props.editable).toBe(true);
     expect(textContent(renderer.toJSON())).toContain('Organizer-controlled');
   });
 
@@ -133,27 +144,28 @@ describe('MTS-046 Mission Details state matrix', () => {
       personalNote: 'Historical private note',
       ...overrides,
     });
+    const fields = renderer.root.findAll((node) => {
+      const { testID } = node.props;
+      return typeof testID === 'string' && testID.startsWith('mission-details-');
+    });
+    const editableFields = fields.filter((node) => {
+      return node.type === 'TextInput' && node.props.editable !== false;
+    });
 
-    const fields = renderer.root.findAll(
-      (node) => typeof node.props.testID === 'string' && node.props.testID.startsWith('mission-details-'),
-    );
-    const editableFields = fields.filter(
-      (node) => node.type === 'TextInput' && node.props.editable !== false,
-    );
     expect(editableFields).toHaveLength(0);
   });
 
-  it('shows only the approved expiry message for the completion window and no countdown/deadline', () => {
+  it('shows the approved expiry message without a countdown or deadline', () => {
     const renderer = renderDetails({ lifecycle: 'expired' });
     const rendered = textContent(renderer.toJSON());
 
     expect(rendered).toContain('Completion window expired');
     expect(rendered).not.toContain('days left');
     expect(rendered).not.toContain('deadline');
-    expect(renderer.root.findAllByProps({ testID: 'mission-details-complete-action' })).toHaveLength(0);
+    expect(findAll(renderer, 'mission-details-complete-action')).toHaveLength(0);
   });
 
-  it('shows organizer cancellation only in Mission Details and keeps Calendar cards free of cancellation text', () => {
+  it('keeps organizer cancellation detail off Calendar cards', () => {
     const details = renderDetails({
       lifecycle: 'cancelled',
       calendarSource: 'external',
@@ -194,7 +206,7 @@ describe('MTS-046 Mission Details state matrix', () => {
     expect(textContent(renderer.toJSON())).toContain(expectedCopy);
   });
 
-  it('shows the permanent 0-XP reason in details without turning it into a confirmation action', () => {
+  it('shows the permanent 0-XP reason without a confirmation action', () => {
     const renderer = renderDetails({
       rewardEligibility: 'ineligible',
       xpSummary: '0 XP',
@@ -204,10 +216,10 @@ describe('MTS-046 Mission Details state matrix', () => {
 
     expect(rendered).toContain('0 XP');
     expect(rendered).toContain('Created or moved into the past');
-    expect(renderer.root.findAllByProps({ testID: 'mission-details-confirm-zero-xp' })).toHaveLength(0);
+    expect(findAll(renderer, 'mission-details-confirm-zero-xp')).toHaveLength(0);
   });
 
-  it('exposes a stable accessibility snapshot for heading, written status, notes, and XP summary', () => {
+  it('exposes a stable accessibility snapshot for status and XP', () => {
     const renderer = renderDetails({
       completionState: 'completed',
       lifecycle: 'completed',
