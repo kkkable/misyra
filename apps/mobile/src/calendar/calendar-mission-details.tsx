@@ -75,7 +75,10 @@ function DetailsField({
 
   return (
     <View style={styles.fieldGroup}>
-      <Text allowFontScaling style={[styles.fieldLabel, { color: themeColors(colorScheme).textSecondary }]}>
+      <Text
+        allowFontScaling
+        style={[styles.fieldLabel, { color: themeColors(colorScheme).textSecondary }]}
+      >
         {label}
       </Text>
       <TextInput
