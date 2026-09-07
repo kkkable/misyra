@@ -55,10 +55,16 @@ vi.mock('./calendar-mission-adjustment-save.js', () => ({
 }));
 
 vi.mock('./calendar-mission-adjustment-feedback.js', async () => {
-  const { createElement: createReactElement } = await import('react');
+  const { createElement: createReactElement, useEffect } = await import('react');
   return {
     MissionAdjustmentFeedback: (props) => {
       state.feedbackProps = props;
+      useEffect(
+        () => () => {
+          state.feedbackProps = null;
+        },
+        [],
+      );
       return createReactElement('MissionAdjustmentFeedback', props);
     },
   };
