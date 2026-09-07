@@ -28,6 +28,7 @@ import {
 } from './calendar-day-shell.js';
 import { CalendarInteractiveTimeline } from './calendar-interactive-timeline.js';
 import type { CalendarMissionCreateInput } from './calendar-mission-create.js';
+import type { MissionAdjustmentResult } from './calendar-mission-adjustment.js';
 import { TimedMissionLayer, type TimedMissionSummary } from './calendar-mission-layout.js';
 
 function parseLocalDateParts(value: string): { year: number; month: number; day: number } {
@@ -82,6 +83,9 @@ export interface CalendarDayScreenProps {
   readonly timedMissionsByDate?: Readonly<Record<string, readonly TimedMissionSummary[]>>;
   readonly selectedMissionId?: string;
   readonly onTimedMissionPress?: (mission: TimedMissionSummary) => void;
+  readonly onMissionAdjustment?:
+    | ((adjustment: MissionAdjustmentResult) => void | Promise<void>)
+    | undefined;
   readonly onCreateMission?:
     ((input: CalendarMissionCreateInput) => void | Promise<void>) | undefined;
 }
@@ -97,6 +101,7 @@ export function CalendarDayScreen({
   timedMissionsByDate = {},
   selectedMissionId,
   onTimedMissionPress,
+  onMissionAdjustment,
   onCreateMission,
 }: CalendarDayScreenProps) {
   const params = useLocalSearchParams<{ date?: string | string[] }>();
@@ -216,7 +221,7 @@ export function CalendarDayScreen({
               ]}
               testID="calendar-today-button"
             >
-              <Text allowFontScaling style={[styles.todayLabel, { color: colors.primary }]}>
+              <Text allowFontScaling style={[styles.todayLabel, { color: colors.primary }]}> 
                 {copy.today}
               </Text>
             </Pressable>
@@ -273,10 +278,10 @@ export function CalendarDayScreen({
         </View>
 
         <View style={styles.progressRow}>
-          <Text allowFontScaling style={[styles.placeholder, { color: colors.textSecondary }]}>
+          <Text allowFontScaling style={[styles.placeholder, { color: colors.textSecondary }]}> 
             {copy.level}
           </Text>
-          <Text allowFontScaling style={[styles.placeholder, { color: colors.textSecondary }]}>
+          <Text allowFontScaling style={[styles.placeholder, { color: colors.textSecondary }]}> 
             {copy.streak}
           </Text>
         </View>
@@ -295,7 +300,10 @@ export function CalendarDayScreen({
                 colorScheme={colorScheme}
                 language={language}
                 missions={timedMissions}
+                now={now}
+                onMissionAdjustment={onMissionAdjustment}
                 onMissionPress={onTimedMissionPress}
+                selectedDate={selectedDate}
                 {...(selectedMissionId === undefined ? {} : { selectedMissionId })}
               />
             ) : undefined
@@ -327,7 +335,7 @@ export function CalendarDayScreen({
         transparent
         visible={pickerVisible}
       >
-        <View style={[styles.modalBackdrop, { backgroundColor: colors.overlay }]}>
+        <View style={[styles.modalBackdrop, { backgroundColor: colors.overlay }]}> 
           <View
             accessibilityViewIsModal
             style={[styles.picker, { backgroundColor: colors.surfaceRaised }]}
@@ -411,7 +419,7 @@ export function CalendarDayScreen({
               style={styles.closeButton}
               testID="calendar-date-picker-close"
             >
-              <Text allowFontScaling style={[styles.closeLabel, { color: colors.primary }]}>
+              <Text allowFontScaling style={[styles.closeLabel, { color: colors.primary }]}> 
                 {copy.close}
               </Text>
             </Pressable>
