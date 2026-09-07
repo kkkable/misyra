@@ -200,6 +200,14 @@ export const mobileMigrations: readonly MobileMigration[] = [
         ADD COLUMN settings_updated_at TEXT`,
     ],
   },
+  {
+    version: 4,
+    name: 'mission-server-version',
+    statements: [
+      `ALTER TABLE cached_mission_occurrences
+        ADD COLUMN server_version INTEGER CHECK (server_version IS NULL OR server_version > 0)`,
+    ],
+  },
 ];
 
 export const MOBILE_SCHEMA_VERSION = mobileMigrations.length;
