@@ -497,15 +497,14 @@ function parseMissionCreatePayload(
 function parseMissionUpdatePayload(payload: unknown): MissionUpdatePayload {
   const root = asRecord(payload, 'Mission update payload');
   const keys = Object.keys(root);
-  if (
-    keys.length !== 2 ||
-    keys.some((key) => key !== 'schedule' && key !== 'rewardEligibility')
-  ) {
+  if (keys.length !== 2 || keys.some((key) => key !== 'schedule' && key !== 'rewardEligibility')) {
     throw new SyncMutationValidationError('Mission update contains unsupported fields');
   }
   const schedule = parseMissionSchedule(asRecord(root.schedule, 'Mission update schedule'));
   if (schedule.allDay) {
-    throw new SyncMutationValidationError('MTS-047 direct manipulation supports timed missions only');
+    throw new SyncMutationValidationError(
+      'MTS-047 direct manipulation supports timed missions only',
+    );
   }
   return {
     schedule,
