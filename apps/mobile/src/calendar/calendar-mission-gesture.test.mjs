@@ -1,0 +1,96 @@
+import { createElement } from 'react';
+import { act, create } from 'react-test-renderer';
+import { describe, expect, it, vi } from 'vitest';
+
+vi.mock('react-native', async () => {
+  const { createElement: createReactElement } = await import('react');
+
+  const Pressable = ({ children, style, ...props }) =>
+    createReactElement(
+      'Pressable',
+      { ...props, style: typeof style === 'function' ? style({ pressed: false }) : style },
+      typeof children === 'function' ? children({ pressed: false }) : children,
+    );
+
+  return {
+    Pressable,
+    StyleSheet: {
+      create: (styles) => styles,
+    },
+    Text: 'Text',
+    View: 'View',
+  };
+});
+
+import { TimedMissionLayer } from './calendar-mission-layout.js';
+
+globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+
+function adjustableMission(id, status = 'unfinished') {
+  return {
+    id,
+    title: `Mission ${id}`,
+    startMinute: 540,
+    endMinute: 600,
+    orderKey: id,
+    status,
+    rewardEligibility: 'eligible',
+    timeZone: 'UTC',
+  };
+}
+
+function renderLayer({ missions, selectedMissionId }) {
+  let renderer;
+  act(() => {
+    renderer = create(
+      createElement(TimedMissionLayer, {
+        colorScheme: 'light',
+        language: 'en',
+        missions,
+        now: new Date('2026-09-07T08:00:00.000Z'),
+        onMissionAdjustment: vi.fn(),
+        selectedDate: '2026-09-07',
+        selectedMissionId,
+      }),
+    );
+  });
+  return renderer;
+}
+
+describe('MTS-047 rendered gesture arbitration', () => {
+  it('keeps the mission card pressable while exposing a long-press move surface for an unfinished timed mission', () => {
+    const renderer = renderLayer({
+      missions: [adjustableMission('move')],
+      selectedMissionId: undefined,
+    });
+
+    expect(renderer.root.findByProps({ testID: 'calendar-mission-card-move' }).type).toBe('Pressable');
+    expect(renderer.root.findByProps({ testID: 'calendar-mission-move-gesture-move' })).toBeDefined();
+  });
+
+  it('shows the bottom resize handle only for the selected unfinished timed mission', () => {
+    const selected = renderLayer({
+      missions: [adjustableMission('selected')],
+      selectedMissionId: 'selected',
+    });
+    expect(
+      selected.root.findByProps({ testID: 'calendar-mission-resize-handle-selected' }),
+    ).toBeDefined();
+
+    const unselected = renderLayer({
+      missions: [adjustableMission('unselected')],
+      selectedMissionId: undefined,
+    });
+    expect(
+      unselected.root.findAllByProps({ testID: 'calendar-mission-resize-handle-unselected' }),
+    ).toHaveLength(0);
+
+    const completed = renderLayer({
+      missions: [adjustableMission('completed', 'verified')],
+      selectedMissionId: 'completed',
+    });
+    expect(
+      completed.root.findAllByProps({ testID: 'calendar-mission-resize-handle-completed' }),
+    ).toHaveLength(0);
+  });
+});
