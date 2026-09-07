@@ -80,6 +80,7 @@ interface MissionUpdateRow extends QueryResultRow {
   storyState: string;
   deletionState: string;
   allDay: boolean;
+  startInstant: string;
   location: string | null;
   notes: string | null;
   version: number;
@@ -696,6 +697,7 @@ async function applyMissionUpdateMutation(
             o.story_state AS "storyState",
             o.deletion_state AS "deletionState",
             o.all_day AS "allDay",
+            o.start_instant AS "startInstant",
             o.location,
             o.notes,
             o.version
@@ -727,9 +729,10 @@ async function applyMissionUpdateMutation(
     );
   }
 
+  const editedAfterStart = Date.parse(current.startInstant) < effectiveTime.getTime();
   const movedIntoPast = Date.parse(update.schedule.startInstant) < effectiveTime.getTime();
   const rewardEligibility =
-    current.rewardEligibility === 'ineligible' || movedIntoPast
+    current.rewardEligibility === 'ineligible' || editedAfterStart || movedIntoPast
       ? 'ineligible'
       : current.rewardEligibility;
   const nextVersion = current.version + 1;
