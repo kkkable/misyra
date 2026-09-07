@@ -115,7 +115,7 @@ type MissionCreatePayload = Readonly<{
     deletionState: 'active';
   }>;
   location: string | null;
-  personalNote: string | null;
+  notes: string | null;
 }>;
 
 type ClientTiming = Readonly<{
@@ -447,7 +447,7 @@ function parseMissionCreatePayload(
       ),
     },
     location: optionalString(root, 'location', 'Mission location'),
-    personalNote: optionalString(root, 'personalNote', 'Mission personal note'),
+    notes: optionalString(root, 'notes', 'Mission notes'),
   };
 }
 
@@ -570,13 +570,13 @@ async function applyMissionCreateMutation(
        start_instant, finish_instant, time_zone, time_behavior, all_day,
        estimated_effort_minutes, schedule_state, completion_state, evidence_state,
        reward_eligibility, reward_issuance, calendar_source, field_ownership,
-       synchronization_state, story_state, deletion_state, location
+       synchronization_state, story_state, deletion_state, location, notes
      ) VALUES (
        $1, $2, $3, $4, $5, $6,
        $7, $8, $9, $10, $11,
        $12, $13, $14, $15,
        $16, $17, $18, $19,
-       'synced', $20, $21, $22
+       'synced', $20, $21, $22, $23
      )`,
     [
       mission.occurrence.id,
@@ -601,15 +601,9 @@ async function applyMissionCreateMutation(
       mission.occurrence.storyState,
       mission.occurrence.deletionState,
       mission.location,
+      mission.notes,
     ],
   );
-  if (mission.personalNote !== null) {
-    await client.query(
-      `INSERT INTO mission_personal_notes (occurrence_id, account_id, note)
-       VALUES ($1, $2, $3)`,
-      [mission.occurrence.id, accountId, mission.personalNote],
-    );
-  }
   return mission;
 }
 
