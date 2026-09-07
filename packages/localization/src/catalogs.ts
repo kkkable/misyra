@@ -45,6 +45,8 @@ export const localizationCatalogs = {
     'calendar.create.validationError': 'Check the required mission fields before saving.',
     'calendar.create.pastZeroXpWarning':
       'Saving this mission in the past will permanently remove XP eligibility.',
+    'calendar.edit.afterStartZeroXpWarning':
+      'Editing after the start time will remove XP for this mission.',
     'calendar.create.confirmZeroXp': 'Save with 0 XP',
     'calendar.create.cancel': 'Cancel',
     'calendar.create.save': 'Save',
@@ -103,6 +105,7 @@ export const localizationCatalogs = {
     'calendar.create.off': '關閉',
     'calendar.create.validationError': '儲存前請檢查所有必填任務欄位。',
     'calendar.create.pastZeroXpWarning': '將任務儲存在過去時間會永久失去 XP 資格。',
+    'calendar.edit.afterStartZeroXpWarning': '在開始時間後編輯會令此任務失去 XP。',
     'calendar.create.confirmZeroXp': '以 0 XP 儲存',
     'calendar.create.cancel': '取消',
     'calendar.create.save': '儲存',
