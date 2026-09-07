@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getLocales } from 'expo-localization';
 
 import type { LocalizationLocale } from '@misyra/localization';
@@ -12,6 +12,12 @@ import {
   resolveCalendarLanguage,
   resolveInitialCalendarLanguage,
 } from './calendar-language-runtime.js';
+import {
+  createMissionAdjustmentUndoController,
+  type MissionAdjustmentResult,
+  type MissionAdjustmentSave,
+} from './calendar-mission-adjustment.js';
+import { saveCalendarMissionAdjustment } from './calendar-mission-adjustment-save.js';
 import {
   createCalendarMission,
   type CalendarMissionCreateInput,
@@ -103,5 +109,43 @@ export function CalendarRouteScreen() {
     });
   }, []);
 
-  return <CalendarDayScreen language={language} onCreateMission={createMission} />;
+  const saveMissionAdjustment = useCallback(async (adjustment: MissionAdjustmentSave) => {
+    const authState = await rootAuthController.restore();
+    if (authState.status !== 'signed_in') {
+      throw new Error('calendar_adjustment_requires_sign_in');
+    }
+
+    const deviceId = await requireRegisteredDeviceId(authState.session.accountId);
+    const database = await openMobileDatabase();
+    await saveCalendarMissionAdjustment({
+      database,
+      accountId: authState.session.accountId,
+      deviceId,
+      adjustment,
+      now: new Date(),
+      generateId: generateUuid,
+    });
+  }, []);
+
+  const adjustmentController = useMemo(
+    () => createMissionAdjustmentUndoController(saveMissionAdjustment),
+    [saveMissionAdjustment],
+  );
+  const adjustMission = useCallback(
+    (adjustment: MissionAdjustmentResult) => adjustmentController.commit(adjustment),
+    [adjustmentController],
+  );
+  const undoMissionAdjustment = useCallback(
+    () => adjustmentController.undo(),
+    [adjustmentController],
+  );
+
+  return (
+    <CalendarDayScreen
+      language={language}
+      onCreateMission={createMission}
+      onMissionAdjustment={adjustMission}
+      onUndoMissionAdjustment={undoMissionAdjustment}
+    />
+  );
 }
