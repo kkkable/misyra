@@ -5,7 +5,7 @@ import { View, useColorScheme } from 'react-native';
 import type { LocalizationLocale } from '@misyra/localization';
 
 import { rootAuthController, rootAuthStorage } from '../auth/auth-runtime.js';
-import { type ColorScheme } from '../design-system/index.js';
+import type { ColorScheme } from '../design-system/contracts.js';
 import { openMobileDatabase } from '../storage/database.js';
 import { createLocalRepositories, type LocalRepositories } from '../storage/local-repositories.js';
 import { requireRegisteredDeviceId } from '../sync/root-sync-runtime.js';
