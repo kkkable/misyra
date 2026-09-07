@@ -246,7 +246,10 @@ export function CalendarMissionFormSheet({
                 <TextInput
                   accessibilityLabel={catalog['calendar.create.recurrence']}
                   editable={false}
-                  style={[styles.input, { borderColor: colors.border, color: colors.textSecondary }]}
+                  style={[
+                    styles.input,
+                    { borderColor: colors.border, color: colors.textSecondary },
+                  ]}
                   testID="calendar-create-recurrence"
                   value={catalog['calendar.create.doesNotRepeat']}
                 />
