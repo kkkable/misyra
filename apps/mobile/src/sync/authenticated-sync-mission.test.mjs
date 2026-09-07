@@ -109,7 +109,7 @@ describe('authenticated mission synchronization', () => {
         deletionState: 'active',
       },
       location: null,
-      personalNote: null,
+      notes: null,
     };
     const api = syncApi({
       sequence: 1,
@@ -147,7 +147,7 @@ describe('authenticated mission synchronization', () => {
     expect(searchDocument).toEqual({ title: 'Morning mission', occurrence_id: occurrenceId });
   });
 
-  it('projects MTS-045 all-day, Private, location, and personal-note data on another device', async () => {
+  it('projects MTS-045 all-day, Private, location, and app-owned notes on another device', async () => {
     const database = createDatabase();
     await applyMobileMigrations(database);
     const accountId = '11111111-1111-4111-8111-111111111111';
@@ -185,7 +185,7 @@ describe('authenticated mission synchronization', () => {
         deletionState: 'active',
       },
       location: 'Central',
-      personalNote: 'Bring documents',
+      notes: 'Bring documents',
     };
     const api = syncApi({
       sequence: 1,
