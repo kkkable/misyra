@@ -192,7 +192,11 @@ function requireString(source: Record<string, unknown>, key: string, label: stri
   return value;
 }
 
-function optionalString(source: Record<string, unknown>, key: string, label: string): string | null {
+function optionalString(
+  source: Record<string, unknown>,
+  key: string,
+  label: string,
+): string | null {
   const value = source[key];
   if (value === undefined || value === null) return null;
   if (typeof value !== 'string') {
