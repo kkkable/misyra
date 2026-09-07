@@ -278,7 +278,10 @@ export function CalendarMissionFormSheet({
                     keyboardType="number-pad"
                     onChangeText={setEffort}
                     placeholder={catalog['calendar.create.estimatedEffort']}
-                    style={[styles.input, { borderColor: colors.border, color: colors.textPrimary }]}
+                    style={[
+                      styles.input,
+                      { borderColor: colors.border, color: colors.textPrimary },
+                    ]}
                     testID="calendar-create-effort"
                     value={effort}
                   />
