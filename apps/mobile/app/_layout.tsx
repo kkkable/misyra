@@ -1,4 +1,5 @@
 import { Stack } from 'expo-router';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { AuthGate } from '../src/auth/auth-gate.js';
 import { rootAuthController, rootAuthMessages } from '../src/auth/auth-runtime.js';
@@ -15,30 +16,32 @@ export const unstable_settings = {
 
 export default function RootLayout() {
   return (
-    <AuthGate controller={rootAuthController} messages={rootAuthMessages}>
-      <SyncRuntimeGate>
-        <OnboardingGate controller={rootOnboardingController} messages={rootOnboardingMessages}>
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen
-              name="evidence"
-              options={{
-                gestureEnabled: true,
-                headerShown: false,
-                presentation: 'fullScreenModal',
-              }}
-            />
-            <Stack.Screen
-              name="story"
-              options={{
-                gestureEnabled: true,
-                headerShown: false,
-                presentation: 'fullScreenModal',
-              }}
-            />
-          </Stack>
-        </OnboardingGate>
-      </SyncRuntimeGate>
-    </AuthGate>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AuthGate controller={rootAuthController} messages={rootAuthMessages}>
+        <SyncRuntimeGate>
+          <OnboardingGate controller={rootOnboardingController} messages={rootOnboardingMessages}>
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen
+                name="evidence"
+                options={{
+                  gestureEnabled: true,
+                  headerShown: false,
+                  presentation: 'fullScreenModal',
+                }}
+              />
+              <Stack.Screen
+                name="story"
+                options={{
+                  gestureEnabled: true,
+                  headerShown: false,
+                  presentation: 'fullScreenModal',
+                }}
+              />
+            </Stack>
+          </OnboardingGate>
+        </SyncRuntimeGate>
+      </AuthGate>
+    </GestureHandlerRootView>
   );
 }
