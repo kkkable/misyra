@@ -84,8 +84,7 @@ export interface CalendarDayScreenProps {
   readonly selectedMissionId?: string;
   readonly onTimedMissionPress?: (mission: TimedMissionSummary) => void;
   readonly onMissionAdjustment?:
-    | ((adjustment: MissionAdjustmentResult) => void | Promise<void>)
-    | undefined;
+    ((adjustment: MissionAdjustmentResult) => void | Promise<void>) | undefined;
   readonly onCreateMission?:
     ((input: CalendarMissionCreateInput) => void | Promise<void>) | undefined;
 }
@@ -221,7 +220,7 @@ export function CalendarDayScreen({
               ]}
               testID="calendar-today-button"
             >
-              <Text allowFontScaling style={[styles.todayLabel, { color: colors.primary }]}> 
+              <Text allowFontScaling style={[styles.todayLabel, { color: colors.primary }]}>
                 {copy.today}
               </Text>
             </Pressable>
@@ -278,10 +277,10 @@ export function CalendarDayScreen({
         </View>
 
         <View style={styles.progressRow}>
-          <Text allowFontScaling style={[styles.placeholder, { color: colors.textSecondary }]}> 
+          <Text allowFontScaling style={[styles.placeholder, { color: colors.textSecondary }]}>
             {copy.level}
           </Text>
-          <Text allowFontScaling style={[styles.placeholder, { color: colors.textSecondary }]}> 
+          <Text allowFontScaling style={[styles.placeholder, { color: colors.textSecondary }]}>
             {copy.streak}
           </Text>
         </View>
@@ -335,7 +334,7 @@ export function CalendarDayScreen({
         transparent
         visible={pickerVisible}
       >
-        <View style={[styles.modalBackdrop, { backgroundColor: colors.overlay }]}> 
+        <View style={[styles.modalBackdrop, { backgroundColor: colors.overlay }]}>
           <View
             accessibilityViewIsModal
             style={[styles.picker, { backgroundColor: colors.surfaceRaised }]}
@@ -419,7 +418,7 @@ export function CalendarDayScreen({
               style={styles.closeButton}
               testID="calendar-date-picker-close"
             >
-              <Text allowFontScaling style={[styles.closeLabel, { color: colors.primary }]}> 
+              <Text allowFontScaling style={[styles.closeLabel, { color: colors.primary }]}>
                 {copy.close}
               </Text>
             </Pressable>
