@@ -608,8 +608,7 @@ async function applyMissionCreateMutation(
       mission.notes,
     ],
   );
-  const authoritativeMission = { ...mission, personalNote: mission.notes };
-  return authoritativeMission;
+  return mission;
 }
 
 async function applyExecutableMutation(
