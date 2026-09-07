@@ -111,6 +111,7 @@ export function CalendarMissionFormSheet({
   const colors = themeColors(colorScheme);
   const catalog = localizationCatalogs[language];
   const [title, setTitle] = useState('');
+  const [moreOptionsVisible, setMoreOptionsVisible] = useState(false);
   const [allDay, setAllDay] = useState(false);
   const [effort, setEffort] = useState('30');
   const [timeZone, setTimeZone] = useState(initialTimeZone);
@@ -214,24 +215,7 @@ export function CalendarMissionFormSheet({
               testID="calendar-create-title"
               value={title}
             />
-            <TextInput
-              accessibilityLabel={catalog['calendar.create.date']}
-              editable={false}
-              style={[styles.input, { borderColor: colors.border, color: colors.textSecondary }]}
-              testID="calendar-create-date"
-              value={selectedDate}
-            />
-            {allDay ? (
-              <TextInput
-                accessibilityLabel={catalog['calendar.create.estimatedEffort']}
-                keyboardType="number-pad"
-                onChangeText={setEffort}
-                placeholder={catalog['calendar.create.estimatedEffort']}
-                style={[styles.input, { borderColor: colors.border, color: colors.textPrimary }]}
-                testID="calendar-create-effort"
-                value={effort}
-              />
-            ) : (
+            {allDay ? null : (
               <View style={styles.row}>
                 <TextInput
                   accessibilityLabel={catalog['calendar.create.start']}
@@ -257,97 +241,126 @@ export function CalendarMissionFormSheet({
                 />
               </View>
             )}
-            <TextInput
-              accessibilityLabel={catalog['calendar.create.recurrence']}
-              editable={false}
-              style={[styles.input, { borderColor: colors.border, color: colors.textSecondary }]}
-              testID="calendar-create-recurrence"
-              value={catalog['calendar.create.doesNotRepeat']}
-            />
-            <Pressable
-              accessibilityLabel={catalog['calendar.create.allDay']}
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: allDay }}
-              onPress={() => {
-                setAllDay((value) => !value);
-                setValidationVisible(false);
-                setZeroXpWarningVisible(false);
-              }}
-              style={[styles.toggleRow, { borderColor: colors.border }]}
-              testID="calendar-create-all-day"
-            >
-              <Text allowFontScaling style={[styles.bodyText, { color: colors.textPrimary }]}>
-                {catalog['calendar.create.allDay']}
-              </Text>
-              <Text allowFontScaling style={[styles.bodyText, { color: colors.textSecondary }]}>
-                {allDay ? catalog['calendar.create.on'] : catalog['calendar.create.off']}
-              </Text>
-            </Pressable>
-            <TextInput
-              accessibilityLabel={catalog['calendar.create.timeZone']}
-              onChangeText={setTimeZone}
-              style={[styles.input, { borderColor: colors.border, color: colors.textPrimary }]}
-              testID="calendar-create-time-zone"
-              value={timeZone}
-            />
-            <Pressable
-              accessibilityLabel={catalog['calendar.create.travelBehavior']}
-              accessibilityRole="button"
-              onPress={() => {
-                setTimeBehavior((value) =>
-                  value === 'local_time' ? 'fixed_instant' : 'local_time',
-                );
-              }}
-              style={[styles.toggleRow, { borderColor: colors.border }]}
-              testID="calendar-create-travel-behavior"
-            >
-              <Text allowFontScaling style={[styles.bodyText, { color: colors.textPrimary }]}>
-                {catalog['calendar.create.travelBehavior']}
-              </Text>
-              <Text allowFontScaling style={[styles.bodyText, { color: colors.textSecondary }]}>
-                {timeBehavior === 'local_time'
-                  ? catalog['calendar.create.keepLocalTime']
-                  : catalog['calendar.create.fixedInstant']}
-              </Text>
-            </Pressable>
-            <Pressable
-              accessibilityLabel={catalog['calendar.create.private']}
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: isPrivate }}
-              onPress={() => {
-                setIsPrivate((value) => !value);
-              }}
-              style={[styles.toggleRow, { borderColor: colors.border }]}
-              testID="calendar-create-private"
-            >
-              <Text allowFontScaling style={[styles.bodyText, { color: colors.textPrimary }]}>
-                {catalog['calendar.create.private']}
-              </Text>
-              <Text allowFontScaling style={[styles.bodyText, { color: colors.textSecondary }]}>
-                {isPrivate ? catalog['calendar.create.on'] : catalog['calendar.create.off']}
-              </Text>
-            </Pressable>
-            <TextInput
-              accessibilityLabel={catalog['calendar.create.location']}
-              onChangeText={setLocation}
-              placeholder={catalog['calendar.create.location']}
-              style={[styles.input, { borderColor: colors.border, color: colors.textPrimary }]}
-              testID="calendar-create-location"
-              value={location}
-            />
-            <TextInput
-              accessibilityLabel={catalog['calendar.create.notes']}
-              multiline
-              onChangeText={setNotes}
-              placeholder={catalog['calendar.create.notes']}
-              style={[
-                styles.input,
-                styles.notesInput,
-                { borderColor: colors.border, color: colors.textPrimary },
-              ]}
-              testID="calendar-create-notes"
-              value={notes}
-            />
+            {moreOptionsVisible ? (
+              <>
+                <TextInput
+                  accessibilityLabel={catalog['calendar.create.recurrence']}
+                  editable={false}
+                  style={[styles.input, { borderColor: colors.border, color: colors.textSecondary }]}
+                  testID="calendar-create-recurrence"
+                  value={catalog['calendar.create.doesNotRepeat']}
+                />
+                <Pressable
+                  accessibilityLabel={catalog['calendar.create.allDay']}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: allDay }}
+                  onPress={() => {
+                    setAllDay((value) => !value);
+                    setValidationVisible(false);
+                    setZeroXpWarningVisible(false);
+                  }}
+                  style={[styles.toggleRow, { borderColor: colors.border }]}
+                  testID="calendar-create-all-day"
+                >
+                  <Text allowFontScaling style={[styles.bodyText, { color: colors.textPrimary }]}>
+                    {catalog['calendar.create.allDay']}
+                  </Text>
+                  <Text allowFontScaling style={[styles.bodyText, { color: colors.textSecondary }]}>
+                    {allDay ? catalog['calendar.create.on'] : catalog['calendar.create.off']}
+                  </Text>
+                </Pressable>
+                {allDay ? (
+                  <TextInput
+                    accessibilityLabel={catalog['calendar.create.estimatedEffort']}
+                    keyboardType="number-pad"
+                    onChangeText={setEffort}
+                    placeholder={catalog['calendar.create.estimatedEffort']}
+                    style={[styles.input, { borderColor: colors.border, color: colors.textPrimary }]}
+                    testID="calendar-create-effort"
+                    value={effort}
+                  />
+                ) : null}
+                <TextInput
+                  accessibilityLabel={catalog['calendar.create.timeZone']}
+                  onChangeText={setTimeZone}
+                  style={[styles.input, { borderColor: colors.border, color: colors.textPrimary }]}
+                  testID="calendar-create-time-zone"
+                  value={timeZone}
+                />
+                <Pressable
+                  accessibilityLabel={catalog['calendar.create.travelBehavior']}
+                  accessibilityRole="button"
+                  onPress={() => {
+                    setTimeBehavior((value) =>
+                      value === 'local_time' ? 'fixed_instant' : 'local_time',
+                    );
+                  }}
+                  style={[styles.toggleRow, { borderColor: colors.border }]}
+                  testID="calendar-create-travel-behavior"
+                >
+                  <Text allowFontScaling style={[styles.bodyText, { color: colors.textPrimary }]}>
+                    {catalog['calendar.create.travelBehavior']}
+                  </Text>
+                  <Text allowFontScaling style={[styles.bodyText, { color: colors.textSecondary }]}>
+                    {timeBehavior === 'local_time'
+                      ? catalog['calendar.create.keepLocalTime']
+                      : catalog['calendar.create.fixedInstant']}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  accessibilityLabel={catalog['calendar.create.private']}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: isPrivate }}
+                  onPress={() => {
+                    setIsPrivate((value) => !value);
+                  }}
+                  style={[styles.toggleRow, { borderColor: colors.border }]}
+                  testID="calendar-create-private"
+                >
+                  <Text allowFontScaling style={[styles.bodyText, { color: colors.textPrimary }]}>
+                    {catalog['calendar.create.private']}
+                  </Text>
+                  <Text allowFontScaling style={[styles.bodyText, { color: colors.textSecondary }]}>
+                    {isPrivate ? catalog['calendar.create.on'] : catalog['calendar.create.off']}
+                  </Text>
+                </Pressable>
+                <TextInput
+                  accessibilityLabel={catalog['calendar.create.location']}
+                  onChangeText={setLocation}
+                  placeholder={catalog['calendar.create.location']}
+                  style={[styles.input, { borderColor: colors.border, color: colors.textPrimary }]}
+                  testID="calendar-create-location"
+                  value={location}
+                />
+                <TextInput
+                  accessibilityLabel={catalog['calendar.create.notes']}
+                  multiline
+                  onChangeText={setNotes}
+                  placeholder={catalog['calendar.create.notes']}
+                  style={[
+                    styles.input,
+                    styles.notesInput,
+                    { borderColor: colors.border, color: colors.textPrimary },
+                  ]}
+                  testID="calendar-create-notes"
+                  value={notes}
+                />
+              </>
+            ) : (
+              <Pressable
+                accessibilityLabel={catalog['calendar.create.moreOptions']}
+                accessibilityRole="button"
+                onPress={() => {
+                  setMoreOptionsVisible(true);
+                }}
+                style={styles.moreOptions}
+                testID="calendar-create-more-options"
+              >
+                <Text allowFontScaling style={[styles.actionText, { color: colors.primary }]}>
+                  {catalog['calendar.create.moreOptions']}
+                </Text>
+              </Pressable>
+            )}
             {validationVisible ? (
               <Text
                 accessibilityRole="alert"
@@ -473,6 +486,12 @@ const styles = StyleSheet.create({
   },
   warningText: {
     fontSize: typography.bodySmall.fontSize,
+  },
+  moreOptions: {
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    minHeight: layout.minimumTouchTarget,
+    paddingHorizontal: space[1],
   },
   actions: {
     flexDirection: 'row',
