@@ -119,7 +119,7 @@ describe('MTS-045 mission form persistence', () => {
         WHERE account_id = ?`,
       '11111111-1111-4111-8111-111111111111',
     );
-    expect(row).toEqual({ scheduled_start: '00:00', scheduled_end: '00:00', all_day: 1 });
+    expect(row).toEqual({ scheduled_start: null, scheduled_end: null, all_day: 1 });
   });
 
   it('persists private evidence state plus optional location and notes in the local search projection', async () => {
