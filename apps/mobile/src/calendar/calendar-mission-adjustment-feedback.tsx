@@ -10,7 +10,7 @@ interface MissionAdjustmentFeedbackProps {
   readonly adjustment: AllowedMissionAdjustment;
   readonly colorScheme: ColorScheme;
   readonly language: LocalizationLocale;
-  readonly onUndo: () => void | Promise<unknown>;
+  readonly onUndo: () => unknown;
 }
 
 function adjustmentMessage(
