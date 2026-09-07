@@ -2,6 +2,10 @@ import { createElement } from 'react';
 import { act, create } from 'react-test-renderer';
 import { describe, expect, it, vi } from 'vitest';
 
+const gestureRuntime = vi.hoisted(() => ({
+  runOnJS: vi.fn(),
+}));
+
 vi.mock('react-native', async () => {
   const { createElement: createReactElement } = await import('react');
 
@@ -31,7 +35,10 @@ vi.mock('react-native-gesture-handler', async () => {
       onEnd: () => gesture,
       onFinalize: () => gesture,
       onUpdate: () => gesture,
-      runOnJS: () => gesture,
+      runOnJS: (value) => {
+        gestureRuntime.runOnJS(value);
+        return gesture;
+      },
     };
     return gesture;
   };
@@ -95,6 +102,15 @@ describe('MTS-047 rendered gesture arbitration', () => {
     expect(
       renderer.root.findByProps({ testID: 'calendar-mission-move-gesture-move' }),
     ).toBeDefined();
+  });
+
+  it('keeps pan callbacks on the UI runtime instead of opting the gesture into JS', () => {
+    gestureRuntime.runOnJS.mockClear();
+    renderLayer({
+      missions: [adjustableMission('ui-thread')],
+      selectedMissionId: 'ui-thread',
+    });
+    expect(gestureRuntime.runOnJS).not.toHaveBeenCalledWith(true);
   });
 
   it('shows the bottom resize handle only for the selected unfinished timed mission', () => {
