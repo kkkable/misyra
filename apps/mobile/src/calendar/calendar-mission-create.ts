@@ -94,8 +94,8 @@ export async function createCalendarMission({
 
   const allDay = input.allDay ?? false;
   let schedule;
-  let scheduledStart: string;
-  let scheduledEnd: string;
+  let scheduledStart: string | null;
+  let scheduledEnd: string | null;
 
   if (allDay) {
     const estimatedEffortMinutes = input.estimatedEffortMinutes;
@@ -108,8 +108,8 @@ export async function createCalendarMission({
       timeZone: input.timeZone,
       estimatedEffortMinutes,
     });
-    scheduledStart = '00:00';
-    scheduledEnd = '00:00';
+    scheduledStart = null;
+    scheduledEnd = null;
   } else {
     if (input.startMinute === null) throw new RangeError('Mission start minute is required.');
     if (input.endMinute === null) throw new RangeError('Mission end minute is required.');
@@ -165,7 +165,7 @@ export async function createCalendarMission({
     series: mission.series,
     occurrence: mission.occurrence,
     location,
-    personalNote: notes,
+    notes,
   };
   const queue = createMutationQueue(database, accountId);
 
