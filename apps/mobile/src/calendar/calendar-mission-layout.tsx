@@ -1,13 +1,22 @@
 import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 
 import { layout, radius, space, typography } from '@misyra/design-tokens';
 import { localizationCatalogs, type LocalizationLocale } from '@misyra/localization';
 
 import { themeColors, type ColorScheme } from '../design-system/index.js';
+import {
+  commitMissionAdjustment,
+  previewMissionAdjustment,
+  type AdjustableTimedMission,
+  type MissionAdjustmentKind,
+  type MissionAdjustmentResult,
+} from './calendar-mission-adjustment.js';
 
 const MINUTES_PER_DAY = 24 * 60;
 const TIMELINE_GUTTER = space[10] + space[3];
+const DIRECT_MANIPULATION_LONG_PRESS_MS = 350;
 
 export type MissionCardStatus = 'unfinished' | 'verified' | 'late' | 'private';
 
@@ -18,6 +27,8 @@ export interface TimedMissionSummary {
   readonly endMinute: number;
   readonly orderKey: string;
   readonly status: MissionCardStatus;
+  readonly rewardEligibility: AdjustableTimedMission['rewardEligibility'];
+  readonly timeZone: string;
 }
 
 export interface MissionCardLayout {
@@ -264,7 +275,12 @@ interface TimedMissionLayerProps {
   readonly colorScheme: ColorScheme;
   readonly language: LocalizationLocale;
   readonly missions: readonly TimedMissionSummary[];
+  readonly now: Date;
+  readonly selectedDate: string;
   readonly selectedMissionId?: string;
+  readonly onMissionAdjustment?:
+    | ((adjustment: MissionAdjustmentResult) => void | Promise<void>)
+    | undefined;
   readonly onMissionPress?: ((mission: TimedMissionSummary) => void) | undefined;
 }
 
@@ -322,11 +338,143 @@ function missionPositionStyle(card: MissionCardLayout): ViewStyle {
   };
 }
 
+function adjustableMission(mission: TimedMissionSummary): AdjustableTimedMission {
+  return {
+    id: mission.id,
+    startMinute: mission.startMinute,
+    endMinute: mission.endMinute,
+    rewardEligibility: mission.rewardEligibility,
+    timeZone: mission.timeZone,
+  };
+}
+
+type ActivePreview = Readonly<{
+  kind: MissionAdjustmentKind;
+  translationY: number;
+}>;
+
+interface AdjustableMissionCardProps {
+  readonly card: MissionCardLayout;
+  readonly colorScheme: ColorScheme;
+  readonly language: LocalizationLocale;
+  readonly now: Date;
+  readonly selected: boolean;
+  readonly selectedDate: string;
+  readonly onMissionAdjustment?:
+    | ((adjustment: MissionAdjustmentResult) => void | Promise<void>)
+    | undefined;
+  readonly onMissionPress?: ((mission: TimedMissionSummary) => void) | undefined;
+}
+
+function AdjustableMissionCard({
+  card,
+  colorScheme,
+  language,
+  now,
+  selected,
+  selectedDate,
+  onMissionAdjustment,
+  onMissionPress,
+}: AdjustableMissionCardProps) {
+  const mission = card.mission;
+  const missionForAdjustment = adjustableMission(mission);
+  const [activePreview, setActivePreview] = useState<ActivePreview | null>(null);
+  const preview =
+    activePreview === null
+      ? null
+      : previewMissionAdjustment(
+          missionForAdjustment,
+          activePreview.kind,
+          activePreview.translationY,
+        );
+  const positionedStyle: ViewStyle = {
+    ...missionPositionStyle(card),
+    ...(preview === null
+      ? {}
+      : {
+          height: preview.endMinute - preview.startMinute,
+          top: preview.startMinute,
+        }),
+  };
+
+  const finishAdjustment = (kind: MissionAdjustmentKind, translationY: number) => {
+    setActivePreview(null);
+    const result = commitMissionAdjustment({
+      mission: missionForAdjustment,
+      kind,
+      translationY,
+      selectedDate,
+      now,
+    });
+    void onMissionAdjustment?.(result);
+  };
+
+  const moveGesture = Gesture.Pan()
+    .activateAfterLongPress(DIRECT_MANIPULATION_LONG_PRESS_MS)
+    .runOnJS(true)
+    .onUpdate((event) => {
+      setActivePreview({ kind: 'move', translationY: event.translationY });
+    })
+    .onEnd((event) => {
+      finishAdjustment('move', event.translationY);
+    })
+    .onFinalize(() => {
+      setActivePreview(null);
+    });
+
+  const resizeGesture = Gesture.Pan()
+    .activateAfterLongPress(DIRECT_MANIPULATION_LONG_PRESS_MS)
+    .runOnJS(true)
+    .onUpdate((event) => {
+      setActivePreview({ kind: 'resize', translationY: event.translationY });
+    })
+    .onEnd((event) => {
+      finishAdjustment('resize', event.translationY);
+    })
+    .onFinalize(() => {
+      setActivePreview(null);
+    });
+
+  return (
+    <GestureDetector gesture={moveGesture}>
+      <View
+        pointerEvents="box-none"
+        style={positionedStyle}
+        testID={`calendar-mission-move-gesture-${mission.id}`}
+      >
+        <MissionCard
+          colorScheme={colorScheme}
+          language={language}
+          mission={mission}
+          onPress={onMissionPress}
+          selected={selected}
+          style={styles.gestureCard}
+        />
+        {selected ? (
+          <GestureDetector gesture={resizeGesture}>
+            <View
+              accessibilityLabel={`${mission.title}, resize`}
+              accessibilityRole="adjustable"
+              style={styles.resizeTouchTarget}
+              testID={`calendar-mission-resize-handle-${mission.id}`}
+            >
+              <View style={styles.resizeIndicator} />
+            </View>
+          </GestureDetector>
+        ) : null}
+      </View>
+    </GestureDetector>
+  );
+}
+
 export function TimedMissionLayer({
   colorScheme,
   language,
   missions,
+  now,
+  selectedDate,
   selectedMissionId,
+  onMissionAdjustment,
   onMissionPress,
 }: TimedMissionLayerProps) {
   const colors = themeColors(colorScheme);
@@ -337,17 +485,31 @@ export function TimedMissionLayer({
     <View pointerEvents="box-none" style={styles.layer} testID="calendar-timed-mission-layer">
       {groups.map((group) => (
         <View key={group.id} pointerEvents="box-none">
-          {group.cards.map((card) => (
-            <MissionCard
-              colorScheme={colorScheme}
-              key={card.mission.id}
-              language={language}
-              mission={card.mission}
-              onPress={onMissionPress}
-              selected={selectedMissionId === card.mission.id}
-              style={missionPositionStyle(card)}
-            />
-          ))}
+          {group.cards.map((card) =>
+            card.mission.status === 'unfinished' ? (
+              <AdjustableMissionCard
+                card={card}
+                colorScheme={colorScheme}
+                key={card.mission.id}
+                language={language}
+                now={now}
+                onMissionAdjustment={onMissionAdjustment}
+                onMissionPress={onMissionPress}
+                selected={selectedMissionId === card.mission.id}
+                selectedDate={selectedDate}
+              />
+            ) : (
+              <MissionCard
+                colorScheme={colorScheme}
+                key={card.mission.id}
+                language={language}
+                mission={card.mission}
+                onPress={onMissionPress}
+                selected={selectedMissionId === card.mission.id}
+                style={missionPositionStyle(card)}
+              />
+            ),
+          )}
           {group.hiddenMissions.length > 0 ? (
             <Pressable
               accessibilityLabel={formatMore(language, group.hiddenMissions.length)}
@@ -390,6 +552,13 @@ const styles = StyleSheet.create({
     fontSize: typography.bodySmall.fontSize,
     fontWeight: typography.bodySmall.fontWeight,
   },
+  gestureCard: {
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+  },
   layer: {
     bottom: 0,
     left: TIMELINE_GUTTER,
@@ -427,5 +596,22 @@ const styles = StyleSheet.create({
   overflowListCard: {
     minHeight: layout.minimumTouchTarget,
     position: 'relative',
+  },
+  resizeIndicator: {
+    alignSelf: 'center',
+    backgroundColor: 'currentColor',
+    borderRadius: radius.pill,
+    height: space[1],
+    width: space[6],
+  },
+  resizeTouchTarget: {
+    alignItems: 'center',
+    bottom: -layout.minimumTouchTarget / 2,
+    height: layout.minimumTouchTarget,
+    justifyContent: 'center',
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    zIndex: 2,
   },
 });
