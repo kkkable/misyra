@@ -9,9 +9,7 @@ const mobileGestureHandlerStub = fileURLToPath(
 const mobileReanimatedStub = fileURLToPath(
   new URL('./vitest.mobile.reanimated.mjs', import.meta.url),
 );
-const mobileWorkletsStub = fileURLToPath(
-  new URL('./vitest.mobile.worklets.mjs', import.meta.url),
-);
+const mobileWorkletsStub = fileURLToPath(new URL('./vitest.mobile.worklets.mjs', import.meta.url));
 const isMobileWorkspace = process.cwd().replaceAll('\\', '/').endsWith('/apps/mobile');
 
 export default defineConfig({
