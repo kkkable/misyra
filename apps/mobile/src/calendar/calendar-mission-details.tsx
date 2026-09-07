@@ -16,11 +16,7 @@ export type MissionDetailsLifecycle = 'future' | 'active' | 'completed' | 'expir
 export type MissionCancellationAttribution = 'organizer' | 'event' | null;
 export type MissionZeroXpReason = 'created_or_moved_into_past' | 'edited_after_start' | null;
 export type MissionDetailsEditableField =
-  | 'title'
-  | 'schedule'
-  | 'location'
-  | 'notes'
-  | 'personalNote';
+  'title' | 'schedule' | 'location' | 'notes' | 'personalNote';
 
 export interface MissionDetailsProjection {
   readonly id: string;
@@ -46,8 +42,7 @@ export interface MissionDetailsScreenProps {
   readonly details: MissionDetailsProjection;
   readonly language: LocalizationLocale;
   readonly onFieldChange?:
-    | ((field: MissionDetailsEditableField, value: string) => void)
-    | undefined;
+    ((field: MissionDetailsEditableField, value: string) => void) | undefined;
 }
 
 type Catalog = (typeof localizationCatalogs)[LocalizationLocale];
