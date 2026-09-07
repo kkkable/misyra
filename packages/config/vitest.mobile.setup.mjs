@@ -11,21 +11,3 @@ export function GestureHandlerRootView({ children, ...props }) {
 export function usePanGesture(config) {
   return { config };
 }
-
-const Animated = {
-  View: ({ children, ...props }) => createElement('AnimatedView', props, children),
-};
-
-export default Animated;
-
-export function useAnimatedStyle(factory) {
-  return factory();
-}
-
-export function useSharedValue(value) {
-  return { value };
-}
-
-export function scheduleOnRN(callback, ...args) {
-  return callback(...args);
-}
