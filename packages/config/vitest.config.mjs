@@ -3,8 +3,14 @@ import { fileURLToPath, URL } from 'node:url';
 
 import { defineConfig } from 'vitest/config';
 
-const mobileNativeRuntimeStub = fileURLToPath(
+const mobileGestureHandlerStub = fileURLToPath(
   new URL('./vitest.mobile.setup.mjs', import.meta.url),
+);
+const mobileReanimatedStub = fileURLToPath(
+  new URL('./vitest.mobile.reanimated.mjs', import.meta.url),
+);
+const mobileWorkletsStub = fileURLToPath(
+  new URL('./vitest.mobile.worklets.mjs', import.meta.url),
 );
 const isMobileWorkspace = process.cwd().replaceAll('\\', '/').endsWith('/apps/mobile');
 
@@ -13,9 +19,9 @@ export default defineConfig({
     ? {
         resolve: {
           alias: {
-            'react-native-gesture-handler': mobileNativeRuntimeStub,
-            'react-native-reanimated': mobileNativeRuntimeStub,
-            'react-native-worklets': mobileNativeRuntimeStub,
+            'react-native-gesture-handler': mobileGestureHandlerStub,
+            'react-native-reanimated': mobileReanimatedStub,
+            'react-native-worklets': mobileWorkletsStub,
           },
         },
       }
