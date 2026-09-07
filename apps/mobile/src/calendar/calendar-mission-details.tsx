@@ -171,7 +171,7 @@ export function MissionDetailsScreen({
 }: MissionDetailsScreenProps) {
   const catalog = localizationCatalogs[language];
   const colors = themeColors(colorScheme);
-  const historical = isHistorical(details.lifecycle);
+  const historical = isHistorical(details.lifecycle) || details.completionState === 'completed';
   const appOwnedEditable = !historical && details.fieldOwnership === 'app_owned';
   const personalNoteEditable = !historical && details.fieldOwnership === 'organizer_controlled';
   const writtenStatus = statusText(details, catalog);
