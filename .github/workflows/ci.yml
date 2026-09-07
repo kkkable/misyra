@@ -2,9 +2,12 @@ name: CI
 
 on:
   pull_request:
+  push:
+    branches:
+      - main
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -13,279 +16,82 @@ concurrency:
 jobs:
   quality:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 30
+    env:
+      MTS004_INTEGRATION: '1'
+      TURBO_TELEMETRY_DISABLED: '1'
+      CI_CONTRACT_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
     steps:
-      - name: Checkout MTS-047 branch
+      - name: Checkout clean repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.head_ref }}
+          persist-credentials: false
           fetch-depth: 0
-          persist-credentials: true
 
-      - name: Apply versioned mobile persistence and restore CI
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
+      - name: Install pinned pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.5
+          run_install: false
 
-          saver = Path('apps/mobile/src/calendar/calendar-mission-adjustment-save.ts')
-          saver.write_text(r'''import {
-            createMissionOccurrence,
-            createZonedTimedSchedule,
-            type MissionOccurrenceInput,
-          } from '@misyra/domain';
+      - name: Set up pinned Node with pnpm cache
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
 
-          import { createMutationQueue, type MutationQueueDatabase } from '../storage/mutation-queue.js';
-          import type { MissionAdjustmentSave } from './calendar-mission-adjustment.js';
+      - name: Install from lockfile
+        run: pnpm install --frozen-lockfile
 
-          type CalendarMissionAdjustmentSaveOptions = Readonly<{
-            database: MutationQueueDatabase;
-            accountId: string;
-            deviceId: string;
-            adjustment: MissionAdjustmentSave;
-            now: Date;
-            generateId: () => string;
-          }>;
+      - name: Install Bicep compiler in runner only
+        run: az bicep install
 
-          type CachedOccurrenceRow = Readonly<{
-            local_date: string;
-            payload_json: string;
-            server_version: number | null;
-          }>;
+      - name: Start deterministic local dependencies
+        run: docker compose --file compose.yaml up -d --wait postgres azurite
 
-          const MINUTES_PER_DAY = 24 * 60;
+      - name: Prove failing-fixture gates reject bad inputs
+        run: pnpm ci:fixtures
 
-          function assertNonEmpty(value: string, label: string): void {
-            if (value.trim().length === 0) throw new TypeError(`${label} must not be empty.`);
-          }
+      - name: Check workspace formatting
+        run: pnpm format
 
-          function assertMinute(value: number, label: string): void {
-            if (!Number.isInteger(value) || value < 0 || value > MINUTES_PER_DAY) {
-              throw new RangeError(`${label} must be an integer from 0 to ${String(MINUTES_PER_DAY)}.`);
-            }
-          }
+      - name: Check CI-owned formatting
+        run: pnpm format:ci
 
-          function dateWithOffset(date: string, offset: number): string {
-            const instant = new Date(`${date}T12:00:00.000Z`);
-            if (Number.isNaN(instant.getTime())) throw new TypeError('Mission date must use YYYY-MM-DD format.');
-            instant.setUTCDate(instant.getUTCDate() + offset);
-            return instant.toISOString().slice(0, 10);
-          }
+      - name: Lint workspaces
+        run: pnpm lint
 
-          function localDateTime(date: string, minute: number): string {
-            assertMinute(minute, 'Mission minute');
-            const dayOffset = minute === MINUTES_PER_DAY ? 1 : 0;
-            const minuteInDay = minute === MINUTES_PER_DAY ? 0 : minute;
-            const hour = Math.floor(minuteInDay / 60);
-            const minuteOfHour = minuteInDay % 60;
-            return `${dateWithOffset(date, dayOffset)}T${String(hour).padStart(2, '0')}:${String(minuteOfHour).padStart(2, '0')}:00`;
-          }
+      - name: Lint CI-owned scripts and tests
+        run: pnpm lint:ci
 
-          function localClock(minute: number): string {
-            assertMinute(minute, 'Mission minute');
-            const normalized = minute === MINUTES_PER_DAY ? 0 : minute;
-            return `${String(Math.floor(normalized / 60)).padStart(2, '0')}:${String(normalized % 60).padStart(2, '0')}`;
-          }
+      - name: Typecheck
+        run: pnpm typecheck
 
-          export async function saveCalendarMissionAdjustment({
-            database,
-            accountId,
-            deviceId,
-            adjustment,
-            now,
-            generateId,
-          }: CalendarMissionAdjustmentSaveOptions): Promise<void> {
-            assertNonEmpty(accountId, 'Account ID');
-            assertNonEmpty(deviceId, 'Device ID');
-            assertNonEmpty(adjustment.missionId, 'Mission ID');
-            assertMinute(adjustment.startMinute, 'Mission start minute');
-            assertMinute(adjustment.endMinute, 'Mission end minute');
-            if (adjustment.endMinute <= adjustment.startMinute) {
-              throw new RangeError('Mission end must be after its start.');
-            }
+      - name: Run unit, integration, and mobile component tests
+        run: pnpm test
 
-            const cached = await database.getFirstAsync<CachedOccurrenceRow>(
-              `SELECT local_date, payload_json, server_version
-                 FROM cached_mission_occurrences
-                WHERE account_id = ? AND occurrence_id = ?`,
-              accountId,
-              adjustment.missionId,
-            );
-            if (cached === null) throw new Error('Mission adjustment target was not found.');
-            if (!Number.isSafeInteger(cached.server_version) || (cached.server_version ?? 0) <= 0) {
-              throw new Error('Mission adjustment requires an authoritative server version.');
-            }
+      - name: Build all workspaces
+        run: pnpm build
 
-            const occurrence = createMissionOccurrence(
-              JSON.parse(cached.payload_json) as MissionOccurrenceInput,
-            );
-            if (
-              occurrence.schedule.allDay ||
-              occurrence.scheduleState !== 'scheduled' ||
-              occurrence.completionState !== 'incomplete' ||
-              occurrence.calendarSource !== 'internal' ||
-              occurrence.fieldOwnership !== 'app_owned' ||
-              occurrence.deletionState !== 'active'
-            ) {
-              throw new Error('Mission direct manipulation requires an active unfinished app-owned timed mission.');
-            }
+      - name: Reject high and critical dependency findings
+        run: pnpm audit --audit-level high
 
-            const schedule = createZonedTimedSchedule({
-              localStart: localDateTime(cached.local_date, adjustment.startMinute),
-              localFinish: localDateTime(cached.local_date, adjustment.endMinute),
-              timeZone: occurrence.schedule.timeZone,
-              timeBehavior: occurrence.schedule.timeBehavior,
-            });
-            const rewardEligibility =
-              occurrence.rewardEligibility === 'ineligible'
-                ? 'ineligible'
-                : adjustment.rewardEligibility;
-            if (rewardEligibility !== 'eligible' && rewardEligibility !== 'ineligible') {
-              throw new Error('Mission adjustment requires resolved XP eligibility.');
-            }
+      - name: Scan tracked implementation and configuration for secrets
+        run: pnpm ci:secrets
 
-            const baseVersion = cached.server_version as number;
-            const nextVersion = baseVersion + 1;
-            const occurredAt = now.toISOString();
-            const mutationId = generateId();
-            assertNonEmpty(mutationId, 'Mutation ID');
-            const nextOccurrence = createMissionOccurrence({
-              ...occurrence,
-              schedule,
-              rewardEligibility,
-              synchronizationState: 'pending',
-            });
-            const queue = createMutationQueue(database, accountId);
+      - name: Verify localization completeness
+        run: pnpm ci:localization
 
-            await queue.enqueue({
-              mutation: {
-                mutationId,
-                accountId,
-                deviceId,
-                entityType: 'mission',
-                entityId: adjustment.missionId,
-                operation: 'update',
-                baseVersion,
-                clientOccurredAt: occurredAt,
-                payload: { schedule, rewardEligibility },
-              },
-              destination: { kind: 'server' },
-              applyLocal: async (transaction) => {
-                const latest = await transaction.getFirstAsync<{ server_version: number | null }>(
-                  `SELECT server_version
-                     FROM cached_mission_occurrences
-                    WHERE account_id = ? AND occurrence_id = ?`,
-                  accountId,
-                  adjustment.missionId,
-                );
-                if (latest?.server_version !== baseVersion) {
-                  throw new Error('Mission adjustment cache version changed before save.');
-                }
-                await transaction.runAsync(
-                  `UPDATE cached_mission_occurrences
-                      SET local_date = ?,
-                          scheduled_start = ?,
-                          scheduled_end = ?,
-                          all_day = 0,
-                          payload_json = ?,
-                          server_version = ?,
-                          updated_at = ?
-                    WHERE account_id = ? AND occurrence_id = ?`,
-                  schedule.localStart.slice(0, 10),
-                  localClock(adjustment.startMinute),
-                  localClock(adjustment.endMinute),
-                  JSON.stringify(nextOccurrence),
-                  nextVersion,
-                  occurredAt,
-                  accountId,
-                  adjustment.missionId,
-                );
-              },
-            });
-          }
-          ''')
+      - name: Verify privacy and logging boundaries
+        run: pnpm ci:privacy
 
-          schema = Path('apps/mobile/src/storage/schema.ts')
-          text = schema.read_text()
-          needle = "  },\n];\n\nexport const MOBILE_SCHEMA_VERSION = mobileMigrations.length;"
-          replacement = "  },\n  {\n    version: 4,\n    name: 'mission-server-version',\n    statements: [\n      `ALTER TABLE cached_mission_occurrences\n        ADD COLUMN server_version INTEGER CHECK (server_version IS NULL OR server_version > 0)`,\n    ],\n  },\n];\n\nexport const MOBILE_SCHEMA_VERSION = mobileMigrations.length;"
-          if needle not in text:
-            raise SystemExit('schema insertion point not found')
-          schema.write_text(text.replace(needle, replacement, 1))
+      - name: Compile Bicep and environment parameter shapes
+        run: pnpm validate:infra
 
-          runtime = Path('apps/mobile/src/sync/authenticated-sync-runtime.ts')
-          text = runtime.read_text()
-          text = text.replace(
-              "type MissionProjection = Readonly<{\n  mission: OneTimeMission;\n  location: string | null;\n  notes: string | null;\n}>;",
-              "type MissionProjection = Readonly<{\n  mission: OneTimeMission;\n  location: string | null;\n  notes: string | null;\n  version: number;\n}>;",
-          )
-          marker = "function missionFromChange(change: ServerAccountChange): MissionProjection | null {"
-          helper = "function missionVersion(payload: Record<string, unknown>): number {\n  const value = payload.version;\n  if (value === undefined) return 1;\n  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value <= 0) {\n    throw new Error('Mission change version must be a positive integer.');\n  }\n  return value;\n}\n\n"
-          if marker not in text:
-            raise SystemExit('missionFromChange marker missing')
-          text = text.replace(marker, helper + marker, 1)
-          text = text.replace(
-              "  return {\n    mission,\n    location: optionalPayloadString(payload, 'location'),\n    notes: optionalPayloadString(payload, 'notes'),\n  };",
-              "  return {\n    mission,\n    location: optionalPayloadString(payload, 'location'),\n    notes: optionalPayloadString(payload, 'notes'),\n    version: missionVersion(payload),\n  };",
-              1,
-          )
-          text = text.replace(
-              "  const { mission, location, notes } = projection;",
-              "  const { mission, location, notes, version } = projection;",
-              1,
-          )
-          old_sql = """    `INSERT INTO cached_mission_occurrences
-       (account_id, occurrence_id, series_id, local_date, scheduled_start, scheduled_end, all_day, payload_json, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-     ON CONFLICT(account_id, occurrence_id) DO UPDATE SET
-       series_id = excluded.series_id,
-       local_date = excluded.local_date,
-       scheduled_start = excluded.scheduled_start,
-       scheduled_end = excluded.scheduled_end,
-       all_day = excluded.all_day,
-       payload_json = excluded.payload_json,
-       updated_at = excluded.updated_at`,
-    accountId,
-    mission.occurrence.id,
-    mission.series.id,
-    schedule.localStart.slice(0, 10),
-    schedule.allDay ? null : schedule.localStart.slice(11, 16),
-    schedule.allDay ? null : schedule.localFinish.slice(11, 16),
-    schedule.allDay ? 1 : 0,
-    JSON.stringify(mission.occurrence),
-    updatedAt,
-"""
-          new_sql = """    `INSERT INTO cached_mission_occurrences
-       (account_id, occurrence_id, series_id, local_date, scheduled_start, scheduled_end, all_day, payload_json, server_version, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-     ON CONFLICT(account_id, occurrence_id) DO UPDATE SET
-       series_id = excluded.series_id,
-       local_date = excluded.local_date,
-       scheduled_start = excluded.scheduled_start,
-       scheduled_end = excluded.scheduled_end,
-       all_day = excluded.all_day,
-       payload_json = excluded.payload_json,
-       server_version = excluded.server_version,
-       updated_at = excluded.updated_at`,
-    accountId,
-    mission.occurrence.id,
-    mission.series.id,
-    schedule.localStart.slice(0, 10),
-    schedule.allDay ? null : schedule.localStart.slice(11, 16),
-    schedule.allDay ? null : schedule.localFinish.slice(11, 16),
-    schedule.allDay ? 1 : 0,
-    JSON.stringify(mission.occurrence),
-    version,
-    updatedAt,
-"""
-          if old_sql not in text:
-            raise SystemExit('mission projection SQL block not found')
-          runtime.write_text(text.replace(old_sql, new_sql, 1))
-          PY
+      - name: Verify contract compatibility boundary
+        run: pnpm ci:contracts
 
-          git checkout origin/main -- .github/workflows/ci.yml
-          git config user.name "Misyra Auto Development"
-          git config user.email "actions@users.noreply.github.com"
-          git add .github/workflows/ci.yml apps/mobile/src/calendar/calendar-mission-adjustment-save.ts apps/mobile/src/storage/schema.ts apps/mobile/src/sync/authenticated-sync-runtime.ts
-          git commit -m "feat: persist MTS-047 adjustments with exact versions"
-          git push origin HEAD:${{ github.head_ref }}
+      - name: Stop local dependencies
+        if: always()
+        run: docker compose --file compose.yaml down --volumes
