@@ -75,6 +75,10 @@ function openSlot(renderer, minute = 540) {
   act(() => slot.props.onPress());
 }
 
+function openMoreOptions(renderer) {
+  act(() => renderer.root.findByProps({ testID: 'calendar-create-more-options' }).props.onPress());
+}
+
 beforeEach(() => {
   mockState.deepLinkDate = '2026-09-07';
   mockState.firstWeekday = 2;
@@ -83,15 +87,37 @@ beforeEach(() => {
 });
 
 describe('MTS-045 mission form UI', () => {
-  it('renders the approved fields and no category, attachment, or difficulty controls', () => {
+  it('keeps the initial sheet compact and reveals approved advanced fields through More options', () => {
     const renderer = renderScreen();
     openSlot(renderer);
 
     for (const testID of [
       'calendar-create-title',
-      'calendar-create-date',
       'calendar-create-start',
       'calendar-create-end',
+      'calendar-create-save',
+      'calendar-create-more-options',
+    ]) {
+      expect(renderer.root.findByProps({ testID })).toBeDefined();
+    }
+
+    for (const testID of [
+      'calendar-create-date',
+      'calendar-create-recurrence',
+      'calendar-create-all-day',
+      'calendar-create-effort',
+      'calendar-create-time-zone',
+      'calendar-create-travel-behavior',
+      'calendar-create-private',
+      'calendar-create-location',
+      'calendar-create-notes',
+    ]) {
+      expect(renderer.root.findAllByProps({ testID })).toHaveLength(0);
+    }
+
+    openMoreOptions(renderer);
+
+    for (const testID of [
       'calendar-create-recurrence',
       'calendar-create-all-day',
       'calendar-create-time-zone',
@@ -102,7 +128,8 @@ describe('MTS-045 mission form UI', () => {
     ]) {
       expect(renderer.root.findByProps({ testID })).toBeDefined();
     }
-
+    expect(renderer.root.findAllByProps({ testID: 'calendar-create-date' })).toHaveLength(0);
+    expect(renderer.root.findAllByProps({ testID: 'calendar-create-effort' })).toHaveLength(0);
     expect(renderer.root.findAllByProps({ testID: 'calendar-create-category' })).toHaveLength(0);
     expect(renderer.root.findAllByProps({ testID: 'calendar-create-attachment' })).toHaveLength(0);
     expect(renderer.root.findAllByProps({ testID: 'calendar-create-difficulty' })).toHaveLength(0);
@@ -112,6 +139,7 @@ describe('MTS-045 mission form UI', () => {
     const onCreateMission = vi.fn();
     const renderer = renderScreen({ onCreateMission });
     openSlot(renderer);
+    openMoreOptions(renderer);
 
     act(() => renderer.root.findByProps({ testID: 'calendar-create-all-day' }).props.onPress());
     expect(renderer.root.findAllByProps({ testID: 'calendar-create-start' })).toHaveLength(0);
