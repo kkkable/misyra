@@ -110,9 +110,7 @@ export async function saveCalendarMissionAdjustment({
     timeBehavior: occurrence.schedule.timeBehavior,
   });
   const rewardEligibility =
-    occurrence.rewardEligibility === 'ineligible'
-      ? 'ineligible'
-      : adjustment.rewardEligibility;
+    occurrence.rewardEligibility === 'ineligible' ? 'ineligible' : adjustment.rewardEligibility;
   if (rewardEligibility !== 'eligible' && rewardEligibility !== 'ineligible') {
     throw new Error('Mission adjustment requires resolved XP eligibility.');
   }
