@@ -5,11 +5,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const state = vi.hoisted(() => ({
   childProps: null,
   database: { name: 'calendar-db' },
+  feedbackProps: null,
   openDatabase: vi.fn(),
   requireDeviceId: vi.fn(),
   restore: vi.fn(),
   saveAdjustment: vi.fn(),
 }));
+
+vi.mock('react-native', async () => {
+  const { createElement: createReactElement } = await import('react');
+  return {
+    View: ({ children, ...props }) => createReactElement('View', props, children),
+    useColorScheme: () => 'light',
+  };
+});
 
 vi.mock('expo-localization', () => ({
   getLocales: () => [{ languageTag: 'en-HK' }],
@@ -45,6 +54,16 @@ vi.mock('./calendar-mission-adjustment-save.js', () => ({
   saveCalendarMissionAdjustment: state.saveAdjustment,
 }));
 
+vi.mock('./calendar-mission-adjustment-feedback.js', async () => {
+  const { createElement: createReactElement } = await import('react');
+  return {
+    MissionAdjustmentFeedback: (props) => {
+      state.feedbackProps = props;
+      return createReactElement('MissionAdjustmentFeedback', props);
+    },
+  };
+});
+
 vi.mock('./calendar-day-screen.js', async () => {
   const { createElement: createReactElement } = await import('react');
   return {
@@ -61,6 +80,7 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 beforeEach(() => {
   state.childProps = null;
+  state.feedbackProps = null;
   state.openDatabase.mockReset().mockResolvedValue(state.database);
   state.requireDeviceId.mockReset().mockResolvedValue('22222222-2222-4222-8222-222222222222');
   state.restore.mockReset().mockResolvedValue({
@@ -92,7 +112,7 @@ function allowedAdjustment() {
 }
 
 describe('MTS-047 Calendar route adjustment persistence', () => {
-  it('saves immediately and makes Undo a second synchronized save without restoring XP', async () => {
+  it('saves immediately and makes visible Undo a second synchronized save without restoring XP', async () => {
     vi.useFakeTimers();
     let renderer;
     await act(async () => {
@@ -118,9 +138,14 @@ describe('MTS-047 Calendar route adjustment persistence', () => {
         source: 'move',
       },
     });
+    expect(state.feedbackProps).toMatchObject({
+      adjustment: allowedAdjustment(),
+      colorScheme: 'light',
+      language: 'en',
+    });
 
     await act(async () => {
-      await state.childProps.onUndoMissionAdjustment();
+      await state.feedbackProps.onUndo();
     });
 
     expect(state.saveAdjustment).toHaveBeenCalledTimes(2);
@@ -133,6 +158,7 @@ describe('MTS-047 Calendar route adjustment persistence', () => {
         source: 'undo',
       },
     });
+    expect(state.feedbackProps).toBeNull();
 
     act(() => renderer.unmount());
   });
