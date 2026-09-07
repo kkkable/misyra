@@ -51,8 +51,9 @@ export function CalendarRouteScreen() {
   const [language, setLanguage] = useState<LocalizationLocale>(() =>
     resolveInitialCalendarLanguage(deviceLocale),
   );
-  const [adjustmentFeedback, setAdjustmentFeedback] =
-    useState<AllowedMissionAdjustment | null>(null);
+  const [adjustmentFeedback, setAdjustmentFeedback] = useState<AllowedMissionAdjustment | null>(
+    null,
+  );
   const adjustmentFeedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
