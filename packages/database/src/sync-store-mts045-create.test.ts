@@ -136,5 +136,6 @@ describe('MTS-045 mission create sync projector', () => {
         notes: 'Bring documents',
       },
     });
+    expect(pulled.changes[0]?.payload).not.toHaveProperty('personalNote');
   });
 });
