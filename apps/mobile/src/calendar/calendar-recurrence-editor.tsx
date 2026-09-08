@@ -71,7 +71,8 @@ const editorCopy: Readonly<Record<LocalizationLocale, EditorCopy>> = {
 
 function parseSelectedDate(selectedDate: string) {
   const value = new Date(`${selectedDate}T12:00:00.000Z`);
-  if (Number.isNaN(value.getTime())) throw new TypeError('Recurrence date must be a valid local date.');
+  if (Number.isNaN(value.getTime()))
+    throw new TypeError('Recurrence date must be a valid local date.');
   return value;
 }
 
@@ -289,13 +290,15 @@ export function CalendarRecurrenceEditor({
 
   const renderOrdinalButtons = () => (
     <View style={styles.compactRow}>
-      {([
-        [1, copy.first, 'first'],
-        [2, copy.second, 'second'],
-        [3, copy.third, 'third'],
-        [4, copy.fourth, 'fourth'],
-        [-1, copy.last, 'last'],
-      ] as const).map(([value, label, id]) => (
+      {(
+        [
+          [1, copy.first, 'first'],
+          [2, copy.second, 'second'],
+          [3, copy.third, 'third'],
+          [4, copy.fourth, 'fourth'],
+          [-1, copy.last, 'last'],
+        ] as const
+      ).map(([value, label, id]) => (
         <Pressable
           accessibilityRole="radio"
           accessibilityState={{ checked: ordinal === value }}
@@ -388,14 +391,16 @@ export function CalendarRecurrenceEditor({
         {catalog['calendar.recurrence.title']}
       </Text>
       <View style={styles.wrapRow}>
-        {([
-          ['none', catalog['calendar.create.doesNotRepeat'], 'recurrence-preset-none'],
-          ['daily', catalog['calendar.recurrence.daily'], 'recurrence-preset-daily'],
-          ['weekly', catalog['calendar.recurrence.weekly'], 'recurrence-preset-weekly'],
-          ['monthly', catalog['calendar.recurrence.monthly'], 'recurrence-preset-monthly'],
-          ['yearly', catalog['calendar.recurrence.yearly'], 'recurrence-preset-yearly'],
-          ['custom', catalog['calendar.recurrence.custom'], 'recurrence-preset-custom'],
-        ] as const).map(([value, label, testID]) => (
+        {(
+          [
+            ['none', catalog['calendar.create.doesNotRepeat'], 'recurrence-preset-none'],
+            ['daily', catalog['calendar.recurrence.daily'], 'recurrence-preset-daily'],
+            ['weekly', catalog['calendar.recurrence.weekly'], 'recurrence-preset-weekly'],
+            ['monthly', catalog['calendar.recurrence.monthly'], 'recurrence-preset-monthly'],
+            ['yearly', catalog['calendar.recurrence.yearly'], 'recurrence-preset-yearly'],
+            ['custom', catalog['calendar.recurrence.custom'], 'recurrence-preset-custom'],
+          ] as const
+        ).map(([value, label, testID]) => (
           <Pressable
             accessibilityRole="radio"
             accessibilityState={{ checked: preset === value }}
@@ -413,12 +418,14 @@ export function CalendarRecurrenceEditor({
 
       {preset === 'custom' ? (
         <View style={styles.wrapRow}>
-          {([
-            ['daily', copy.daily, 'recurrence-custom-daily'],
-            ['weekly', copy.weekly, 'recurrence-custom-weekly'],
-            ['monthly', copy.monthly, 'recurrence-custom-monthly'],
-            ['yearly', copy.yearly, 'recurrence-custom-yearly'],
-          ] as const).map(([value, label, testID]) => (
+          {(
+            [
+              ['daily', copy.daily, 'recurrence-custom-daily'],
+              ['weekly', copy.weekly, 'recurrence-custom-weekly'],
+              ['monthly', copy.monthly, 'recurrence-custom-monthly'],
+              ['yearly', copy.yearly, 'recurrence-custom-yearly'],
+            ] as const
+          ).map(([value, label, testID]) => (
             <Pressable
               accessibilityRole="radio"
               accessibilityState={{ checked: customFrequency === value }}
@@ -557,11 +564,13 @@ export function CalendarRecurrenceEditor({
         {catalog['calendar.recurrence.ends']}
       </Text>
       <View style={styles.wrapRow}>
-        {([
-          ['never', catalog['calendar.recurrence.never'], 'recurrence-end-never'],
-          ['date', catalog['calendar.recurrence.onDate'], 'recurrence-end-date'],
-          ['count', catalog['calendar.recurrence.afterCount'], 'recurrence-end-count'],
-        ] as const).map(([value, label, testID]) => (
+        {(
+          [
+            ['never', catalog['calendar.recurrence.never'], 'recurrence-end-never'],
+            ['date', catalog['calendar.recurrence.onDate'], 'recurrence-end-date'],
+            ['count', catalog['calendar.recurrence.afterCount'], 'recurrence-end-count'],
+          ] as const
+        ).map(([value, label, testID]) => (
           <Pressable
             accessibilityRole="radio"
             accessibilityState={{ checked: endMode === value }}
