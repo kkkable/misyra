@@ -14,6 +14,7 @@ import { localizationCatalogs, type LocalizationLocale } from '@misyra/localizat
 import { themeColors, type ColorScheme } from '../design-system/index.js';
 import type { CalendarMissionCreateInput } from './calendar-mission-create.js';
 import { validateMissionForm } from './calendar-mission-form.js';
+import { CalendarRecurrenceEditor } from './calendar-recurrence-editor.js';
 import { formatTimelineTime } from './calendar-timeline.js';
 
 const MINUTES_PER_DAY = 24 * 60;
@@ -126,6 +127,8 @@ export function CalendarMissionFormSheet({
   const [timeBehavior, setTimeBehavior] = useState<TimeBehavior>(
     initialInput?.timeBehavior ?? 'local_time',
   );
+  const [recurrence, setRecurrence] = useState(initialInput?.recurrence ?? null);
+  const [recurrenceEditorVisible, setRecurrenceEditorVisible] = useState(false);
   const [isPrivate, setIsPrivate] = useState(initialInput?.private ?? false);
   const [location, setLocation] = useState(initialInput?.location ?? '');
   const [notes, setNotes] = useState(initialInput?.notes ?? '');
@@ -168,6 +171,7 @@ export function CalendarMissionFormSheet({
     rewardEligibility,
     timeZone: timeZone.trim(),
     timeBehavior,
+    recurrence,
     private: isPrivate,
     location: location.trim().length === 0 ? null : location.trim(),
     notes: notes.trim().length === 0 ? null : notes.trim(),
@@ -254,16 +258,35 @@ export function CalendarMissionFormSheet({
             )}
             {moreOptionsVisible ? (
               <>
-                <TextInput
+                <Pressable
                   accessibilityLabel={catalog['calendar.create.recurrence']}
-                  editable={false}
-                  style={[
-                    styles.input,
-                    { borderColor: colors.border, color: colors.textSecondary },
-                  ]}
+                  accessibilityRole="button"
+                  onPress={() => setRecurrenceEditorVisible(true)}
+                  style={[styles.toggleRow, { borderColor: colors.border }]}
                   testID="calendar-create-recurrence"
-                  value={catalog['calendar.create.doesNotRepeat']}
-                />
+                >
+                  <Text allowFontScaling style={[styles.bodyText, { color: colors.textPrimary }]}>
+                    {catalog['calendar.create.recurrence']}
+                  </Text>
+                  <Text allowFontScaling style={[styles.bodyText, { color: colors.textSecondary }]}>
+                    {recurrence === null
+                      ? catalog['calendar.create.doesNotRepeat']
+                      : catalog['calendar.recurrence.title']}
+                  </Text>
+                </Pressable>
+                {recurrenceEditorVisible ? (
+                  <CalendarRecurrenceEditor
+                    colorScheme={colorScheme}
+                    initialRecurrence={recurrence}
+                    language={language}
+                    onCancel={() => setRecurrenceEditorVisible(false)}
+                    onDone={(value) => {
+                      setRecurrence(value);
+                      setRecurrenceEditorVisible(false);
+                    }}
+                    selectedDate={effectiveSelectedDate}
+                  />
+                ) : null}
                 <Pressable
                   accessibilityLabel={catalog['calendar.create.allDay']}
                   accessibilityRole="checkbox"
