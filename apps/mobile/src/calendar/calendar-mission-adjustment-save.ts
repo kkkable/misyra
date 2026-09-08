@@ -58,6 +58,20 @@ function localClock(minute: number): string {
   return `${String(Math.floor(normalized / 60)).padStart(2, '0')}:${String(normalized % 60).padStart(2, '0')}`;
 }
 
+function resolveMissionAdjustmentBaseVersion(
+  serverVersion: number | null,
+  pendingCreate: boolean,
+): number {
+  if (serverVersion === null) {
+    if (pendingCreate) return 1;
+    throw new Error('Mission adjustment requires an authoritative or pending-create version.');
+  }
+  if (!Number.isSafeInteger(serverVersion) || serverVersion <= 0) {
+    throw new Error('Mission adjustment requires an authoritative or pending-create version.');
+  }
+  return serverVersion;
+}
+
 export async function saveCalendarMissionAdjustment({
   database,
   accountId,
@@ -100,14 +114,10 @@ export async function saveCalendarMissionAdjustment({
     );
   }
 
-  const baseVersion =
-    cached.server_version === null && occurrence.synchronizationState === 'pending'
-      ? 1
-      : cached.server_version;
-  if (!Number.isSafeInteger(baseVersion) || (baseVersion ?? 0) <= 0) {
-    throw new Error('Mission adjustment requires an authoritative or pending-create version.');
-  }
-
+  const baseVersion = resolveMissionAdjustmentBaseVersion(
+    cached.server_version,
+    occurrence.synchronizationState === 'pending',
+  );
   const schedule = createZonedTimedSchedule({
     localStart: localDateTime(cached.local_date, adjustment.startMinute),
     localFinish: localDateTime(cached.local_date, adjustment.endMinute),
