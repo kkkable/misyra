@@ -147,12 +147,18 @@ function mergeMissionMaps<T extends { readonly id: string }>(
   current: Readonly<Record<string, readonly T[]>>,
   additional: Readonly<Record<string, readonly T[]>>,
 ): Readonly<Record<string, readonly T[]>> {
-  const merged: Record<string, readonly T[]> = { ...current };
+  const replacementIds = new Set<string>();
+  for (const additions of Object.values(additional)) {
+    for (const mission of additions) replacementIds.add(mission.id);
+  }
+
+  const merged: Record<string, readonly T[]> = {};
+  for (const [date, missions] of Object.entries(current)) {
+    const retained = missions.filter((mission) => !replacementIds.has(mission.id));
+    if (retained.length > 0) merged[date] = retained;
+  }
   for (const [date, additions] of Object.entries(additional)) {
-    const existing = merged[date] ?? [];
-    const existingIds = new Set(existing.map((mission) => mission.id));
-    const uniqueAdditions = additions.filter((mission) => !existingIds.has(mission.id));
-    merged[date] = uniqueAdditions.length === 0 ? existing : [...existing, ...uniqueAdditions];
+    merged[date] = [...(merged[date] ?? []), ...additions];
   }
   return merged;
 }
