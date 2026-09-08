@@ -82,7 +82,8 @@ function lifecycleForMission(mission: MissionDetails, now: Date): MissionDetails
 
 function providerDescription(mission: MissionDetails, fallback: string | null): string | null {
   for (const link of mission.externalLinks) {
-    if (typeof link.payload !== 'object' || link.payload === null || Array.isArray(link.payload)) continue;
+    if (typeof link.payload !== 'object' || link.payload === null || Array.isArray(link.payload))
+      continue;
     const payload = link.payload as Record<string, unknown>;
     for (const key of ['description', 'organizerDescription', 'notes']) {
       const value = payload[key];
@@ -126,7 +127,11 @@ function projectDetails(
     xpSummary: `${String(completion?.awarded_xp ?? 0)} XP`,
     zeroXpReason: null,
     cancellationAttribution:
-      lifecycle === 'cancelled' && organizerControlled ? 'organizer' : lifecycle === 'cancelled' ? 'event' : null,
+      lifecycle === 'cancelled' && organizerControlled
+        ? 'organizer'
+        : lifecycle === 'cancelled'
+          ? 'event'
+          : null,
   };
 }
 
