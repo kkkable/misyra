@@ -19,10 +19,27 @@ export interface CalendarSearchScreenProps {
   readonly onOpenResult: (result: CalendarSearchResult) => Promise<boolean>;
 }
 
+const ENGLISH_SHORT_MONTHS = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+] as const;
+
 function dateForFormatting(value: string): Date | null {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
   if (match === null) return null;
-  const date = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 12));
+  const date = new Date(
+    Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 12),
+  );
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
@@ -30,7 +47,11 @@ function resultDateLabel(value: string | null, language: LocalizationLocale): st
   if (value === null) return null;
   const date = dateForFormatting(value);
   if (date === null) return value;
-  return new Intl.DateTimeFormat(language === 'zh-HK' ? 'zh-HK' : 'en-GB', {
+  if (language === 'en') {
+    const month = ENGLISH_SHORT_MONTHS[date.getUTCMonth()];
+    return `${String(date.getUTCDate())} ${month} ${String(date.getUTCFullYear())}`;
+  }
+  return new Intl.DateTimeFormat('zh-HK', {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
@@ -98,9 +119,16 @@ export function CalendarSearchScreen({
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.canvas }]} testID="calendar-search-screen">
+    <View
+      style={[styles.container, { backgroundColor: colors.canvas }]}
+      testID="calendar-search-screen"
+    >
       <View style={styles.header}>
-        <Text accessibilityRole="header" allowFontScaling style={[styles.title, { color: colors.textPrimary }]}>
+        <Text
+          accessibilityRole="header"
+          allowFontScaling
+          style={[styles.title, { color: colors.textPrimary }]}
+        >
           {catalog['calendar.search.title']}
         </Text>
         <Pressable
@@ -182,7 +210,11 @@ export function CalendarSearchScreen({
                 </Text>
               )}
               {result.providerText === null ? null : (
-                <Text allowFontScaling numberOfLines={2} style={[styles.meta, { color: colors.textSecondary }]}>
+                <Text
+                  allowFontScaling
+                  numberOfLines={2}
+                  style={[styles.meta, { color: colors.textSecondary }]}
+                >
                   {result.providerText}
                 </Text>
               )}
