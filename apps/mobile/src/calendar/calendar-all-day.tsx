@@ -64,6 +64,7 @@ interface AllDayMissionListProps {
   readonly missions: readonly AllDayMissionSummary[];
   readonly onMissionPress?: ((mission: AllDayMissionSummary) => void) | undefined;
   readonly selectedDate: string;
+  readonly selectedMissionId?: string;
 }
 
 export function AllDayMissionList({
@@ -72,6 +73,7 @@ export function AllDayMissionList({
   missions,
   onMissionPress,
   selectedDate,
+  selectedMissionId,
 }: AllDayMissionListProps) {
   const colors = themeColors(colorScheme);
   const [expanded, setExpanded] = useState(false);
@@ -79,6 +81,13 @@ export function AllDayMissionList({
   useEffect(() => {
     setExpanded(false);
   }, [selectedDate]);
+
+  useEffect(() => {
+    if (selectedMissionId === undefined) return;
+    const ordered = orderAllDayMissions(missions);
+    const index = ordered.findIndex((mission) => mission.id === selectedMissionId);
+    if (index >= COLLAPSED_CARD_LIMIT) setExpanded(true);
+  }, [missions, selectedMissionId]);
 
   const projection = visibleAllDayMissions(missions, expanded);
 
@@ -90,29 +99,34 @@ export function AllDayMissionList({
 
   return (
     <View style={styles.container} testID="calendar-all-day-list">
-      {projection.missions.map((mission) => (
-        <Pressable
-          accessibilityLabel={mission.title}
-          accessibilityRole="button"
-          key={mission.id}
-          onPress={() => {
-            onMissionPress?.(mission);
-          }}
-          style={({ pressed }) => [
-            styles.card,
-            {
-              backgroundColor: pressed ? colors.primarySoft : colors.surface,
-              borderColor: colors.border,
-              minHeight: layout.minimumTouchTarget,
-            },
-          ]}
-          testID={`calendar-all-day-mission-${mission.id}`}
-        >
-          <Text allowFontScaling style={[styles.title, { color: colors.textPrimary }]}>
-            {mission.title}
-          </Text>
-        </Pressable>
-      ))}
+      {projection.missions.map((mission) => {
+        const selected = selectedMissionId === mission.id;
+        return (
+          <Pressable
+            accessibilityLabel={mission.title}
+            accessibilityRole="button"
+            accessibilityState={{ selected }}
+            key={mission.id}
+            onPress={() => {
+              onMissionPress?.(mission);
+            }}
+            style={({ pressed }) => [
+              styles.card,
+              {
+                backgroundColor: pressed ? colors.primarySoft : colors.surface,
+                borderColor: selected ? colors.focusRing : colors.border,
+                borderWidth: selected ? 2 : 1,
+                minHeight: layout.minimumTouchTarget,
+              },
+            ]}
+            testID={`calendar-all-day-mission-${mission.id}`}
+          >
+            <Text allowFontScaling style={[styles.title, { color: colors.textPrimary }]}>
+              {mission.title}
+            </Text>
+          </Pressable>
+        );
+      })}
 
       {projection.hiddenCount > 0 ? (
         <Pressable

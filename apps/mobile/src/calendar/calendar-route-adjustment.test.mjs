@@ -17,6 +17,7 @@ const state = vi.hoisted(() => ({
 vi.mock('react-native', async () => {
   const { createElement: createReactElement } = await import('react');
   return {
+    StyleSheet: { create: (styles) => styles },
     View: ({ children, ...props }) => createReactElement('View', props, children),
     useColorScheme: () => 'light',
   };
