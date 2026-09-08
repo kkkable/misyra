@@ -153,4 +153,51 @@ describe('MTS-032 server conflict settlement', () => {
       database.close();
     }
   });
+
+  it('clears the in-flight marker from an unsent suffix after a prefix conflict', async () => {
+    const { database, queue } = await setupConflictQueue();
+    try {
+      await queue.enqueue({
+        mutation: {
+          mutationId: 'mutation-b',
+          accountId: 'account-a',
+          deviceId: 'device-a',
+          entityType: 'mission',
+          entityId: 'mission-b',
+          operation: 'delete',
+          baseVersion: 1,
+          clientOccurredAt: '2026-09-04T23:01:00.000Z',
+          payload: null,
+        },
+        destination: { kind: 'server' },
+        applyLocal: async () => {},
+      });
+
+      const sync = createServerSync({
+        database,
+        accountId: 'account-a',
+        mutationQueue: queue,
+        transport: conflictTransport(),
+        applyChanges: async () => {},
+        applySnapshot: async () => {},
+        applyConflicts: async () => {},
+      });
+
+      await sync.run();
+
+      expect((await queue.listPending()).map((item) => item.mutation.mutationId)).toEqual([
+        'mutation-b',
+      ]);
+      const stored = await database.getFirstAsync(
+        `SELECT command_json
+           FROM mutation_queue
+          WHERE account_id = ? AND mutation_id = ?`,
+        'account-a',
+        'mutation-b',
+      );
+      expect(JSON.parse(stored.command_json).inFlight).toBeUndefined();
+    } finally {
+      database.close();
+    }
+  });
 });
