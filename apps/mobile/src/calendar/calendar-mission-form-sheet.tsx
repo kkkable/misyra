@@ -17,10 +17,12 @@ import { validateMissionForm } from './calendar-mission-form.js';
 import { formatTimelineTime } from './calendar-timeline.js';
 
 const MINUTES_PER_DAY = 24 * 60;
+const MAX_TIMED_END_MINUTE = MINUTES_PER_DAY * 2;
 
 interface CalendarMissionFormSheetProps {
   readonly colorScheme: ColorScheme;
   readonly creationSlotMinute: number;
+  readonly initialInput?: CalendarMissionCreateInput | undefined;
   readonly language: LocalizationLocale;
   readonly now: Date;
   readonly onCancel: () => void;
@@ -31,14 +33,16 @@ interface CalendarMissionFormSheetProps {
 }
 
 function localDateTime(localDate: string, minute: number): string {
-  if (minute === MINUTES_PER_DAY) {
-    const date = new Date(`${localDate}T12:00:00Z`);
-    date.setUTCDate(date.getUTCDate() + 1);
-    return `${date.toISOString().slice(0, 10)}T00:00:00`;
+  if (!Number.isInteger(minute) || minute < 0 || minute > MAX_TIMED_END_MINUTE) {
+    throw new RangeError('Mission minute is outside the supported range.');
   }
-  const hour = Math.floor(minute / 60);
-  const minuteWithinHour = minute % 60;
-  return `${localDate}T${String(hour).padStart(2, '0')}:${String(minuteWithinHour).padStart(2, '0')}:00`;
+  const dayOffset = Math.floor(minute / MINUTES_PER_DAY);
+  const minuteWithinDay = minute % MINUTES_PER_DAY;
+  const date = new Date(`${localDate}T12:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + dayOffset);
+  const hour = Math.floor(minuteWithinDay / 60);
+  const minuteWithinHour = minuteWithinDay % 60;
+  return `${date.toISOString().slice(0, 10)}T${String(hour).padStart(2, '0')}:${String(minuteWithinHour).padStart(2, '0')}:00`;
 }
 
 function parseEffort(value: string): number | null {
@@ -100,6 +104,7 @@ function resolvePlacement({
 export function CalendarMissionFormSheet({
   colorScheme,
   creationSlotMinute,
+  initialInput,
   language,
   now,
   onCancel,
@@ -110,25 +115,33 @@ export function CalendarMissionFormSheet({
 }: CalendarMissionFormSheetProps) {
   const colors = themeColors(colorScheme);
   const catalog = localizationCatalogs[language];
-  const [title, setTitle] = useState('');
-  const [moreOptionsVisible, setMoreOptionsVisible] = useState(false);
-  const [allDay, setAllDay] = useState(false);
-  const [effort, setEffort] = useState('30');
-  const [timeZone, setTimeZone] = useState(initialTimeZone);
-  const [timeBehavior, setTimeBehavior] = useState<TimeBehavior>('local_time');
-  const [isPrivate, setIsPrivate] = useState(false);
-  const [location, setLocation] = useState('');
-  const [notes, setNotes] = useState('');
+  const effectiveSelectedDate = initialInput?.selectedDate ?? selectedDate;
+  const initialStartMinute = initialInput?.startMinute ?? creationSlotMinute;
+  const defaultEndMinute = initialInput?.endMinute ?? initialStartMinute + 30;
+  const [title, setTitle] = useState(initialInput?.title ?? '');
+  const [moreOptionsVisible, setMoreOptionsVisible] = useState(initialInput !== undefined);
+  const [allDay, setAllDay] = useState(initialInput?.allDay ?? false);
+  const [effort, setEffort] = useState(
+    String(initialInput?.estimatedEffortMinutes ?? 30),
+  );
+  const [timeZone, setTimeZone] = useState(initialInput?.timeZone ?? initialTimeZone);
+  const [timeBehavior, setTimeBehavior] = useState<TimeBehavior>(
+    initialInput?.timeBehavior ?? 'local_time',
+  );
+  const [isPrivate, setIsPrivate] = useState(initialInput?.private ?? false);
+  const [location, setLocation] = useState(initialInput?.location ?? '');
+  const [notes, setNotes] = useState(initialInput?.notes ?? '');
   const [validationVisible, setValidationVisible] = useState(false);
   const [zeroXpWarningVisible, setZeroXpWarningVisible] = useState(false);
 
-  const endMinute = creationSlotMinute + 30;
+  const startMinute = initialStartMinute;
+  const endMinute = defaultEndMinute;
   const estimatedEffortMinutes = allDay ? parseEffort(effort) : null;
   const draft = {
     title,
-    selectedDate,
+    selectedDate: effectiveSelectedDate,
     allDay,
-    startMinute: allDay ? null : creationSlotMinute,
+    startMinute: allDay ? null : startMinute,
     endMinute: allDay ? null : endMinute,
     estimatedEffortMinutes,
     timeZone,
@@ -140,18 +153,18 @@ export function CalendarMissionFormSheet({
         endMinute,
         estimatedEffortMinutes,
         now,
-        selectedDate,
-        startMinute: creationSlotMinute,
+        selectedDate: effectiveSelectedDate,
+        startMinute,
         timeBehavior,
         timeZone,
       })
     : null;
 
   const buildInput = (rewardEligibility: RewardEligibility): CalendarMissionCreateInput => ({
-    selectedDate,
+    selectedDate: effectiveSelectedDate,
     title: title.trim(),
     allDay,
-    startMinute: allDay ? null : creationSlotMinute,
+    startMinute: allDay ? null : startMinute,
     endMinute: allDay ? null : endMinute,
     estimatedEffortMinutes,
     rewardEligibility,
@@ -226,7 +239,7 @@ export function CalendarMissionFormSheet({
                     { borderColor: colors.border, color: colors.textSecondary },
                   ]}
                   testID="calendar-create-start"
-                  value={formatTime(creationSlotMinute)}
+                  value={formatTime(startMinute)}
                 />
                 <TextInput
                   accessibilityLabel={catalog['calendar.create.end']}
