@@ -1,12 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getLocales } from 'expo-localization';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { View, useColorScheme } from 'react-native';
+import { StyleSheet, View, useColorScheme } from 'react-native';
 
 import type { LocalizationLocale } from '@misyra/localization';
 
 import { rootAuthController, rootAuthStorage } from '../auth/auth-runtime.js';
 import type { ColorScheme } from '../design-system/contracts.js';
+import {
+  CalendarSearchScreen,
+  type CalendarSearchResult,
+} from '../search/calendar-search-screen.js';
+import { resolveCalendarSearchNavigation } from '../search/calendar-search-navigation.js';
+import { createOfflineCalendarSearch } from '../search/offline-search.js';
 import { openMobileDatabase } from '../storage/database.js';
 import {
   createLocalRepositories,
@@ -15,7 +21,10 @@ import {
 } from '../storage/local-repositories.js';
 import { requireRegisteredDeviceId } from '../sync/root-sync-runtime.js';
 import type { AllDayMissionSummary } from './calendar-all-day.js';
-import { CalendarDayScreen } from './calendar-day-screen.js';
+import {
+  CalendarDayScreen,
+  type CalendarSearchFocusTarget,
+} from './calendar-day-screen.js';
 import {
   resolveCalendarLanguage,
   resolveInitialCalendarLanguage,
@@ -147,6 +156,11 @@ export function CalendarRouteScreen() {
   const [adjustmentFeedback, setAdjustmentFeedback] = useState<AllowedMissionAdjustment | null>(
     null,
   );
+  const [searchVisible, setSearchVisible] = useState(false);
+  const [searchFocusTarget, setSearchFocusTarget] = useState<CalendarSearchFocusTarget | undefined>(
+    undefined,
+  );
+  const searchFocusRequestId = useRef(0);
   const adjustmentFeedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -310,15 +324,67 @@ export function CalendarRouteScreen() {
     [router],
   );
 
+  const searchCalendar = useCallback(
+    async (query: string): Promise<readonly CalendarSearchResult[]> => {
+      const authState = await rootAuthController.restore();
+      if (authState.status !== 'signed_in') return [];
+
+      const database = await openMobileDatabase();
+      const repositories = createLocalRepositories(database, authState.session.accountId);
+      const search = createOfflineCalendarSearch(database, authState.session.accountId);
+      const results = await search.query(query);
+      return Promise.all(
+        results.map(async (result) => {
+          if (result.occurrenceId === null) return { ...result, localDate: null };
+          const mission = await repositories.missions.getById(result.occurrenceId);
+          return {
+            ...result,
+            localDate: mission?.occurrence.schedule.localStart.slice(0, 10) ?? null,
+          };
+        }),
+      );
+    },
+    [],
+  );
+
+  const openSearchResult = useCallback(
+    async (result: CalendarSearchResult): Promise<boolean> => {
+      const authState = await rootAuthController.restore();
+      if (authState.status !== 'signed_in') return false;
+
+      const database = await openMobileDatabase();
+      const repositories = createLocalRepositories(database, authState.session.accountId);
+      const resolution = await resolveCalendarSearchNavigation(result, (occurrenceId) =>
+        repositories.missions.getById(occurrenceId),
+      );
+      if (resolution.kind === 'unavailable') return false;
+
+      searchFocusRequestId.current += 1;
+      setSearchFocusTarget({ requestId: searchFocusRequestId.current, ...resolution.target });
+      setTimeout(() => {
+        router.push({
+          pathname: '/mission/[id]',
+          params: { id: resolution.target.missionId },
+        });
+      }, 0);
+      return true;
+    },
+    [router],
+  );
+
   return (
-    <View style={{ flex: 1 }}>
+    <View style={styles.container}>
       <CalendarDayScreen
         allDayMissionsByDate={allDayMissionsByDate}
         language={language}
         onAllDayMissionPress={openMissionDetails}
         onCreateMission={createMission}
         onMissionAdjustment={adjustMission}
+        onSearchPress={() => {
+          setSearchVisible(true);
+        }}
         onTimedMissionPress={openMissionDetails}
+        searchFocusTarget={searchFocusTarget}
         timedMissionsByDate={timedMissionsByDate}
       />
       {adjustmentFeedback === null ? null : (
@@ -329,6 +395,32 @@ export function CalendarRouteScreen() {
           onUndo={undoMissionAdjustment}
         />
       )}
+      {searchVisible ? (
+        <View style={styles.searchOverlay} testID="calendar-search-overlay">
+          <CalendarSearchScreen
+            colorScheme={colorScheme}
+            language={language}
+            onClose={() => {
+              setSearchVisible(false);
+            }}
+            onOpenResult={openSearchResult}
+            search={searchCalendar}
+          />
+        </View>
+      ) : null}
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  searchOverlay: {
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+  },
+});
