@@ -448,8 +448,9 @@ describe('MTS-048 mission deletion synchronization', () => {
   });
 
   it('hides organizer-controlled invitations without requesting external deletion', async () => {
-    const { account, deviceId, occurrenceId, store } =
-      await createAccountDeviceAndMission('external-invitation-delete');
+    const { account, deviceId, occurrenceId, store } = await createAccountDeviceAndMission(
+      'external-invitation-delete',
+    );
     const connectionId = randomUUID();
     const linkId = randomUUID();
 
