@@ -32,10 +32,7 @@ import {
   createCalendarMission,
   type CalendarMissionCreateInput,
 } from './calendar-mission-create.js';
-import type {
-  MissionCardStatus,
-  TimedMissionSummary,
-} from './calendar-mission-layout.js';
+import type { MissionCardStatus, TimedMissionSummary } from './calendar-mission-layout.js';
 
 const LANGUAGE_REFRESH_INTERVAL_MS = 60_000;
 const INITIAL_SYNC_RECHECK_MS = 1_000;
