@@ -337,7 +337,6 @@ export function CalendarRouteScreen() {
     },
     [router],
   );
-
   const searchCalendar = useCallback(
     async (query: string): Promise<readonly CalendarSearchResult[]> => {
       const authState = await rootAuthController.restore();
@@ -373,7 +372,9 @@ export function CalendarRouteScreen() {
       const repositories = createLocalRepositories(database, authState.session.accountId);
       const mission = await repositories.missions.getById(result.occurrenceId);
       if (mission === null) return false;
-      const resolution = await resolveCalendarSearchNavigation(result, () => Promise.resolve(mission));
+      const resolution = await resolveCalendarSearchNavigation(result, () =>
+        Promise.resolve(mission),
+      );
       if (resolution.kind === 'unavailable') return false;
 
       const focusedMaps = calendarMissionMaps([mission]);
