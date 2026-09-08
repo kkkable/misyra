@@ -6,7 +6,7 @@ on:
       - verify/mts-049-prettier-preview-20260908
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   preview:
@@ -14,8 +14,6 @@ jobs:
     steps:
       - name: Checkout verification branch
         uses: actions/checkout@v4
-        with:
-          persist-credentials: false
       - name: Install pinned pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -29,7 +27,7 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
       - name: Install from lockfile
         run: pnpm install --frozen-lockfile
-      - name: Print exact Prettier rewrite
+      - name: Apply exact Prettier rewrite
         run: |
           pnpm exec prettier --write \
             apps/mobile/src/calendar/calendar-all-day.tsx \
@@ -44,3 +42,24 @@ jobs:
             apps/mobile/src/calendar/calendar-route-screen.tsx \
             apps/mobile/src/search/calendar-search-screen.test.mjs \
             apps/mobile/src/search/calendar-search-screen.tsx
+      - name: Commit formatter output on verification branch
+        run: |
+          if git diff --quiet -- \
+            apps/mobile/src/calendar/calendar-all-day.tsx \
+            apps/mobile/src/calendar/calendar-day-screen.tsx \
+            apps/mobile/src/calendar/calendar-route-screen.tsx \
+            apps/mobile/src/search/calendar-search-screen.test.mjs \
+            apps/mobile/src/search/calendar-search-screen.tsx; then
+            echo "No formatter changes to commit."
+            exit 0
+          fi
+          git config user.name "Misyra Verification"
+          git config user.email "actions@users.noreply.github.com"
+          git add \
+            apps/mobile/src/calendar/calendar-all-day.tsx \
+            apps/mobile/src/calendar/calendar-day-screen.tsx \
+            apps/mobile/src/calendar/calendar-route-screen.tsx \
+            apps/mobile/src/search/calendar-search-screen.test.mjs \
+            apps/mobile/src/search/calendar-search-screen.tsx
+          git commit -m "chore: materialize MTS-049 formatter output"
+          git push origin HEAD:verify/mts-049-prettier-preview-20260908
