@@ -372,6 +372,7 @@ function AdjustableMissionCard({
   onMissionPress,
 }: AdjustableMissionCardProps) {
   const mission = card.mission;
+  const colors = themeColors(colorScheme);
   const moveActive = useSharedValue(false);
   const moveTranslationY = useSharedValue(0);
   const resizeActive = useSharedValue(false);
@@ -506,7 +507,7 @@ function AdjustableMissionCard({
               style={styles.resizeTouchTarget}
               testID={`calendar-mission-resize-handle-${mission.id}`}
             >
-              <View style={styles.resizeIndicator} />
+              <View style={[styles.resizeIndicator, { backgroundColor: colors.primary }]} />
             </View>
           </GestureDetector>
         ) : null}
@@ -647,7 +648,6 @@ const styles = StyleSheet.create({
   },
   resizeIndicator: {
     alignSelf: 'center',
-    backgroundColor: 'currentColor',
     borderRadius: radius.pill,
     height: space[1],
     width: space[6],
