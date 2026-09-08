@@ -121,9 +121,7 @@ export function CalendarMissionFormSheet({
   const [title, setTitle] = useState(initialInput?.title ?? '');
   const [moreOptionsVisible, setMoreOptionsVisible] = useState(initialInput !== undefined);
   const [allDay, setAllDay] = useState(initialInput?.allDay ?? false);
-  const [effort, setEffort] = useState(
-    String(initialInput?.estimatedEffortMinutes ?? 30),
-  );
+  const [effort, setEffort] = useState(String(initialInput?.estimatedEffortMinutes ?? 30));
   const [timeZone, setTimeZone] = useState(initialInput?.timeZone ?? initialTimeZone);
   const [timeBehavior, setTimeBehavior] = useState<TimeBehavior>(
     initialInput?.timeBehavior ?? 'local_time',
