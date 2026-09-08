@@ -36,6 +36,12 @@ export const localizationCatalogs = {
     'calendar.help.verified': 'Green — Accepted evidence, on time',
     'calendar.help.late': 'Amber — Accepted late or self-confirmed',
     'calendar.help.private': 'Purple — Private or Trust Mode completion',
+    'calendar.help.recurring':
+      'Repeating missions: when editing or deleting, choose this occurrence, this and future, or the entire series.',
+    'calendar.help.gestures':
+      'Tap a time slot twice to create. Drag or resize an unfinished mission card to change its time.',
+    'calendar.help.completionTiming':
+      'Completion opens at the scheduled start and stays available until 30 days after the scheduled finish. Evidence follows the same completion window.',
     'calendar.help.faq': 'View full FAQ',
     'calendar.timeline.currentTime': 'Current time, {time}',
     'calendar.create.selectSlot': 'Select {time}',
@@ -136,6 +142,10 @@ export const localizationCatalogs = {
     'calendar.help.verified': '綠色 — 證據已接納，準時完成',
     'calendar.help.late': '琥珀色 — 逾時完成或自行確認',
     'calendar.help.private': '紫色 — 私人或信任模式完成',
+    'calendar.help.recurring': '重複任務：編輯或刪除時可選擇只改今次、今次及之後，或整個系列。',
+    'calendar.help.gestures': '連按時間位置兩次可建立任務。拖動或調整任務卡大小可更改時間。',
+    'calendar.help.completionTiming':
+      '任務到預定開始時間即可完成，並於預定結束時間後 30 日到期。證據提交同樣受完成期限限制。',
     'calendar.help.faq': '查看完整常見問題',
     'calendar.timeline.currentTime': '目前時間，{time}',
     'calendar.create.selectSlot': '選擇 {time}',
