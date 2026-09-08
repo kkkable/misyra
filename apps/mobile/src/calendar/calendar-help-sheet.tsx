@@ -79,13 +79,13 @@ export function CalendarHelpSheet({
           style={styles.closeButton}
           testID="calendar-help-close"
         >
-          <Text allowFontScaling style={[styles.actionText, { color: colors.primary }]}>
+          <Text allowFontScaling style={[styles.actionText, { color: colors.primary }]}> 
             {catalog['calendar.shell.close']}
           </Text>
         </Pressable>
       </View>
 
-      <Text allowFontScaling style={[styles.body, { color: colors.textSecondary }]}>
+      <Text allowFontScaling style={[styles.body, { color: colors.textSecondary }]}> 
         {catalog['calendar.help.body']}
       </Text>
 
@@ -98,10 +98,26 @@ export function CalendarHelpSheet({
         ].map(([key, swatch]) => (
           <View key={key} style={styles.statusRow}>
             <View style={[styles.swatch, { backgroundColor: swatch }]} />
-            <Text allowFontScaling style={[styles.statusText, { color: colors.textPrimary }]}>
+            <Text allowFontScaling style={[styles.statusText, { color: colors.textPrimary }]}> 
               {catalog[key as keyof typeof catalog]}
             </Text>
           </View>
+        ))}
+      </View>
+
+      <View style={styles.guideList}>
+        {[
+          'calendar.help.recurring',
+          'calendar.help.gestures',
+          'calendar.help.completionTiming',
+        ].map((key) => (
+          <Text
+            allowFontScaling
+            key={key}
+            style={[styles.guideText, { color: colors.textPrimary }]}
+          >
+            {catalog[key as keyof typeof catalog]}
+          </Text>
         ))}
       </View>
 
@@ -115,7 +131,7 @@ export function CalendarHelpSheet({
         ]}
         testID="calendar-help-faq"
       >
-        <Text allowFontScaling style={[styles.actionText, { color: colors.primary }]}>
+        <Text allowFontScaling style={[styles.actionText, { color: colors.primary }]}> 
           {catalog['calendar.help.faq']}
         </Text>
       </Pressable>
@@ -170,6 +186,13 @@ const styles = StyleSheet.create({
   },
   statusText: {
     flex: 1,
+    fontSize: typography.bodySmall.fontSize,
+    fontWeight: typography.bodySmall.fontWeight,
+  },
+  guideList: {
+    gap: space[2],
+  },
+  guideText: {
     fontSize: typography.bodySmall.fontSize,
     fontWeight: typography.bodySmall.fontWeight,
   },
