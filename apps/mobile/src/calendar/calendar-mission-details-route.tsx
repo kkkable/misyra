@@ -145,7 +145,7 @@ export function CalendarMissionDetailsRouteScreen() {
   const nativeColorScheme = useColorScheme();
   const colorScheme: ColorScheme = nativeColorScheme === 'dark' ? 'dark' : 'light';
   const colors = themeColors(colorScheme);
-  const uses24HourClock = getCalendars()[0]?.uses24hourClock !== false;
+  const uses24HourClock = getCalendars().at(0)?.uses24hourClock !== false;
   const [details, setDetails] = useState<MissionDetailsProjection | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [duplicateDraft, setDuplicateDraft] = useState<CalendarMissionCreateInput | null>(null);
