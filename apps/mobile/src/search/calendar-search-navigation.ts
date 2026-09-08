@@ -23,7 +23,7 @@ export function visibleCalendarSearchPersonalNoteExcerpt(
   result: OfflineSearchResult,
   mission: LocalMission | null,
 ): string | null {
-  if (mission?.occurrence.fieldOwnership !== 'organizer_controlled') return null;
+  if (mission === null || mission.occurrence.deletionState === 'deleted') return null;
   return result.personalNoteExcerpt;
 }
 
