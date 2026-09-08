@@ -1,9 +1,11 @@
 import { accountSettingsSchema, type AccountSettings } from '@misyra/contracts';
 import {
-  createOneTimeMission,
+  createMissionOccurrence,
+  createMissionSeries,
+  type MissionOccurrence,
   type MissionOccurrenceInput,
+  type MissionSeries,
   type MissionSeriesInput,
-  type OneTimeMission,
 } from '@misyra/domain';
 
 import { createAuthenticatedSyncApi, type AuthenticatedSyncApi } from './authenticated-sync-api.js';
@@ -39,7 +41,10 @@ type ServerSyncRunner = (
 ) => Promise<Readonly<{ settledMutations: number; cursor: number }>>;
 
 type MissionProjection = Readonly<{
-  mission: OneTimeMission;
+  mission: Readonly<{
+    series: MissionSeries;
+    occurrence: MissionOccurrence;
+  }>;
   location: string | null;
   notes: string | null;
   version: number;
@@ -160,25 +165,14 @@ function missionFromChange(change: ServerAccountChange): MissionProjection | nul
   ) {
     throw new Error('Mission change occurrence must be an object.');
   }
-  const series = payload.series as MissionSeriesInput;
-  const occurrence = payload.occurrence as MissionOccurrenceInput;
-  const mission = createOneTimeMission({
-    series: { id: series.id, title: series.title },
-    occurrence: {
-      id: occurrence.id,
-      schedule: occurrence.schedule,
-      scheduleState: occurrence.scheduleState,
-      completionState: occurrence.completionState,
-      evidenceState: occurrence.evidenceState,
-      rewardEligibility: occurrence.rewardEligibility,
-      rewardIssuance: occurrence.rewardIssuance,
-      calendarSource: occurrence.calendarSource,
-      fieldOwnership: occurrence.fieldOwnership,
-      synchronizationState: occurrence.synchronizationState,
-      storyState: occurrence.storyState,
-      deletionState: occurrence.deletionState,
-    },
-  });
+  const seriesInput = payload.series as MissionSeriesInput;
+  const occurrenceInput = payload.occurrence as MissionOccurrenceInput;
+  const series = createMissionSeries(seriesInput);
+  const occurrence = createMissionOccurrence(occurrenceInput);
+  if (occurrence.seriesId !== series.id) {
+    throw new Error('Mission change occurrence does not belong to its series.');
+  }
+  const mission = Object.freeze({ series, occurrence });
   return {
     mission,
     location: optionalPayloadString(payload, 'location'),
