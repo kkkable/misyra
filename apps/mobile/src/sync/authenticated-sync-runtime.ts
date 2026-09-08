@@ -194,6 +194,15 @@ async function applyMissionProjection(
   updatedAt: string,
 ) {
   const { mission, location, notes, version } = projection;
+  const tombstone = await transaction.getFirstAsync<{ occurrence_id: string }>(
+    `SELECT occurrence_id
+       FROM mission_occurrence_tombstones
+      WHERE account_id = ? AND occurrence_id = ?`,
+    accountId,
+    mission.occurrence.id,
+  );
+  if (tombstone !== null) return;
+
   const schedule = mission.occurrence.schedule;
   await transaction.runAsync(
     `INSERT INTO cached_mission_series
@@ -255,6 +264,33 @@ async function applyMissionProjection(
   );
 }
 
+async function applyMissionDeleteProjection(
+  transaction: ServerSyncDatabase,
+  accountId: string,
+  occurrenceId: string,
+  deletedAt: string,
+) {
+  await transaction.runAsync(
+    `INSERT INTO mission_occurrence_tombstones
+       (account_id, occurrence_id, deleted_at, reason)
+     VALUES (?, ?, ?, 'user_deleted')
+     ON CONFLICT(account_id, occurrence_id) DO NOTHING`,
+    accountId,
+    occurrenceId,
+    deletedAt,
+  );
+  await transaction.runAsync(
+    'DELETE FROM search_documents WHERE account_id = ? AND occurrence_id = ?',
+    accountId,
+    occurrenceId,
+  );
+  await transaction.runAsync(
+    'DELETE FROM cached_mission_occurrences WHERE account_id = ? AND occurrence_id = ?',
+    accountId,
+    occurrenceId,
+  );
+}
+
 async function applyAuthoritativeChanges(
   transaction: ServerSyncDatabase,
   accountId: string,
@@ -273,6 +309,18 @@ async function applyAuthoritativeChanges(
         settings.trustMode ? 1 : 0,
         new Date().toISOString(),
         accountId,
+      );
+      continue;
+    }
+    if (change.entityType === 'mission' && change.operation === 'delete') {
+      if (change.payload !== null) {
+        throw new Error('Mission delete change payload must be null.');
+      }
+      await applyMissionDeleteProjection(
+        transaction,
+        accountId,
+        change.entityId,
+        new Date().toISOString(),
       );
       continue;
     }
