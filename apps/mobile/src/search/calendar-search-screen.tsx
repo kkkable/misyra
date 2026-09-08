@@ -47,6 +47,7 @@ function resultDateLabel(value: string | null, language: LocalizationLocale): st
   if (date === null) return value;
   if (language === 'en') {
     const month = ENGLISH_SHORT_MONTHS[date.getUTCMonth()];
+    if (month === undefined) return value;
     return `${String(date.getUTCDate())} ${month} ${String(date.getUTCFullYear())}`;
   }
   return new Intl.DateTimeFormat('zh-HK', {
@@ -184,7 +185,9 @@ export function CalendarSearchScreen({
               accessibilityLabel={result.title}
               accessibilityRole="button"
               key={result.documentId}
-              onPress={() => openResult(result)}
+              onPress={() => {
+                void openResult(result);
+              }}
               style={({ pressed }) => [
                 styles.result,
                 {
