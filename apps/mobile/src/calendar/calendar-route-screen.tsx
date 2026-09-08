@@ -143,21 +143,17 @@ function calendarMissionMaps(missions: readonly LocalMission[]): Readonly<{
   return { allDay, timed };
 }
 
-function mergeMissionMaps<T extends { readonly id: string }>(
+function replaceMissionMap<T extends { readonly id: string }>(
   current: Readonly<Record<string, readonly T[]>>,
-  additional: Readonly<Record<string, readonly T[]>>,
+  replacement: Readonly<Record<string, readonly T[]>>,
+  missionId: string,
 ): Readonly<Record<string, readonly T[]>> {
-  const replacementIds = new Set<string>();
-  for (const additions of Object.values(additional)) {
-    for (const mission of additions) replacementIds.add(mission.id);
-  }
-
   const merged: Record<string, readonly T[]> = {};
   for (const [date, missions] of Object.entries(current)) {
-    const retained = missions.filter((mission) => !replacementIds.has(mission.id));
+    const retained = missions.filter((mission) => mission.id !== missionId);
     if (retained.length > 0) merged[date] = retained;
   }
-  for (const [date, additions] of Object.entries(additional)) {
+  for (const [date, additions] of Object.entries(replacement)) {
     merged[date] = [...(merged[date] ?? []), ...additions];
   }
   return merged;
@@ -384,8 +380,12 @@ export function CalendarRouteScreen() {
       if (resolution.kind === 'unavailable') return false;
 
       const focusedMaps = calendarMissionMaps([mission]);
-      setAllDayMissionsByDate((current) => mergeMissionMaps(current, focusedMaps.allDay));
-      setTimedMissionsByDate((current) => mergeMissionMaps(current, focusedMaps.timed));
+      setAllDayMissionsByDate((current) =>
+        replaceMissionMap(current, focusedMaps.allDay, mission.occurrence.id),
+      );
+      setTimedMissionsByDate((current) =>
+        replaceMissionMap(current, focusedMaps.timed, mission.occurrence.id),
+      );
       searchFocusRequestId.current += 1;
       setSearchFocusTarget({ requestId: searchFocusRequestId.current, ...resolution.target });
       setTimeout(() => {
