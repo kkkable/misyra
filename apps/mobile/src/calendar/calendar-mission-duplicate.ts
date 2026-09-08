@@ -47,7 +47,10 @@ function localDateTimeParts(value: string): Readonly<{
   return { date: match[1], minute: hour * 60 + minute };
 }
 
-function timedMinuteRange(localStart: string, localFinish: string): Readonly<{
+function timedMinuteRange(
+  localStart: string,
+  localFinish: string,
+): Readonly<{
   startMinute: number;
   endMinute: number;
 }> {
