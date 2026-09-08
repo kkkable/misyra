@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Modal,
   Pressable,
@@ -72,6 +72,13 @@ function monthLabel(value: string, locale: LocalizationLocale): string {
   }).format(dateForFormatting(value));
 }
 
+export interface CalendarSearchFocusTarget {
+  readonly requestId: number;
+  readonly date: string;
+  readonly minute: number;
+  readonly missionId: string;
+}
+
 export interface CalendarDayScreenProps {
   readonly now?: Date;
   readonly language?: LocalizationLocale;
@@ -82,6 +89,8 @@ export interface CalendarDayScreenProps {
   readonly onAllDayMissionPress?: (mission: AllDayMissionSummary) => void;
   readonly timedMissionsByDate?: Readonly<Record<string, readonly TimedMissionSummary[]>>;
   readonly selectedMissionId?: string;
+  readonly searchFocusTarget?: CalendarSearchFocusTarget;
+  readonly onSearchPress?: (() => void) | undefined;
   readonly onTimedMissionPress?: (mission: TimedMissionSummary) => void;
   readonly onMissionAdjustment?:
     ((adjustment: MissionAdjustmentResult) => void | Promise<void>) | undefined;
@@ -99,6 +108,8 @@ export function CalendarDayScreen({
   onAllDayMissionPress,
   timedMissionsByDate = {},
   selectedMissionId,
+  searchFocusTarget,
+  onSearchPress,
   onTimedMissionPress,
   onMissionAdjustment,
   onCreateMission,
@@ -114,6 +125,7 @@ export function CalendarDayScreen({
     close: catalog['calendar.shell.close'],
     previousMonth: catalog['calendar.shell.previousMonth'],
     nextMonth: catalog['calendar.shell.nextMonth'],
+    search: catalog['calendar.search.action'],
   } as const;
   const nativeColorScheme = useColorScheme();
   const colorScheme: ColorScheme = nativeColorScheme === 'dark' ? 'dark' : 'light';
@@ -136,26 +148,36 @@ export function CalendarDayScreen({
   const [pickerVisible, setPickerVisible] = useState(false);
   const [pickerMonth, setPickerMonth] = useState(initialDateRef.current);
 
+  useEffect(() => {
+    if (searchFocusTarget === undefined) return;
+    setSelectedDate(searchFocusTarget.date);
+    setPickerMonth(searchFocusTarget.date);
+    setPickerVisible(false);
+  }, [searchFocusTarget]);
+
   const currentMinute = minuteOfDay(now);
-  const launch = useMemo(
-    () =>
-      resolveCalendarLaunch({
-        selectedDate,
-        today,
-        currentMinute,
-        ...(firstTimedMissionMinute === undefined ? {} : { firstTimedMissionMinute }),
-        ...(preservedMinute === undefined ? {} : { preservedMinute }),
-        returningFromBackground,
-      }),
-    [
-      currentMinute,
-      firstTimedMissionMinute,
-      preservedMinute,
-      returningFromBackground,
+  const launch = useMemo(() => {
+    if (searchFocusTarget !== undefined && searchFocusTarget.date === selectedDate) {
+      const minute = Math.min(Math.max(Math.floor(searchFocusTarget.minute), 0), 24 * 60 - 1);
+      return { date: selectedDate, minute, reason: 'preserved' as const };
+    }
+    return resolveCalendarLaunch({
       selectedDate,
       today,
-    ],
-  );
+      currentMinute,
+      ...(firstTimedMissionMinute === undefined ? {} : { firstTimedMissionMinute }),
+      ...(preservedMinute === undefined ? {} : { preservedMinute }),
+      returningFromBackground,
+    });
+  }, [
+    currentMinute,
+    firstTimedMissionMinute,
+    preservedMinute,
+    returningFromBackground,
+    searchFocusTarget,
+    selectedDate,
+    today,
+  ]);
   const strip = useMemo(
     () => buildSevenDayStrip(selectedDate, firstWeekday),
     [firstWeekday, selectedDate],
@@ -167,6 +189,10 @@ export function CalendarDayScreen({
   const pickerMonthNumber = parseLocalDateParts(pickerMonth).month;
   const allDayMissions = allDayMissionsByDate[selectedDate] ?? [];
   const timedMissions = timedMissionsByDate[selectedDate] ?? [];
+  const focusedMissionId =
+    searchFocusTarget !== undefined && searchFocusTarget.date === selectedDate
+      ? searchFocusTarget.missionId
+      : selectedMissionId;
 
   const selectDate = (date: string) => {
     setSelectedDate(date);
@@ -204,27 +230,48 @@ export function CalendarDayScreen({
               {fullDateLabel(selectedDate, language)}
             </Text>
           </Pressable>
-          {shouldShowTodayButton(selectedDate, today) ? (
-            <Pressable
-              accessibilityLabel={copy.today}
-              accessibilityRole="button"
-              onPress={() => {
-                selectDate(today);
-              }}
-              style={({ pressed }) => [
-                styles.todayButton,
-                {
-                  backgroundColor: pressed ? colors.primarySoft : colors.surface,
-                  borderColor: colors.border,
-                },
-              ]}
-              testID="calendar-today-button"
-            >
-              <Text allowFontScaling style={[styles.todayLabel, { color: colors.primary }]}>
-                {copy.today}
-              </Text>
-            </Pressable>
-          ) : null}
+          <View style={styles.headerActions}>
+            {shouldShowTodayButton(selectedDate, today) ? (
+              <Pressable
+                accessibilityLabel={copy.today}
+                accessibilityRole="button"
+                onPress={() => {
+                  selectDate(today);
+                }}
+                style={({ pressed }) => [
+                  styles.todayButton,
+                  {
+                    backgroundColor: pressed ? colors.primarySoft : colors.surface,
+                    borderColor: colors.border,
+                  },
+                ]}
+                testID="calendar-today-button"
+              >
+                <Text allowFontScaling style={[styles.todayLabel, { color: colors.primary }]}>
+                  {copy.today}
+                </Text>
+              </Pressable>
+            ) : null}
+            {onSearchPress === undefined ? null : (
+              <Pressable
+                accessibilityLabel={copy.search}
+                accessibilityRole="button"
+                onPress={onSearchPress}
+                style={({ pressed }) => [
+                  styles.searchButton,
+                  {
+                    backgroundColor: pressed ? colors.primarySoft : colors.surface,
+                    borderColor: colors.border,
+                  },
+                ]}
+                testID="calendar-search-trigger"
+              >
+                <Text allowFontScaling style={[styles.todayLabel, { color: colors.primary }]}>
+                  {copy.search}
+                </Text>
+              </Pressable>
+            )}
+          </View>
         </View>
 
         <View
@@ -290,7 +337,7 @@ export function CalendarDayScreen({
         <CalendarInteractiveTimeline
           colorScheme={colorScheme}
           initialCurrentMinute={currentMinute}
-          key={`${selectedDate}-${pickerVisible ? 'picker' : 'calendar'}`}
+          key={`${selectedDate}-${pickerVisible ? 'picker' : 'calendar'}-${String(searchFocusTarget?.requestId ?? 0)}`}
           language={language}
           launchMinute={launch.minute}
           missionLayer={
@@ -303,7 +350,7 @@ export function CalendarDayScreen({
                 onMissionAdjustment={onMissionAdjustment}
                 onMissionPress={onTimedMissionPress}
                 selectedDate={selectedDate}
-                {...(selectedMissionId === undefined ? {} : { selectedMissionId })}
+                {...(focusedMissionId === undefined ? {} : { selectedMissionId: focusedMissionId })}
               />
             ) : undefined
           }
@@ -317,6 +364,7 @@ export function CalendarDayScreen({
                 missions={allDayMissions}
                 onMissionPress={onAllDayMissionPress}
                 selectedDate={selectedDate}
+                {...(focusedMissionId === undefined ? {} : { selectedMissionId: focusedMissionId })}
               />
             ) : undefined
           }
@@ -439,6 +487,11 @@ const styles = StyleSheet.create({
     gap: space[2],
     justifyContent: 'space-between',
   },
+  headerActions: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: space[2],
+  },
   dateHeaderButton: {
     flex: 1,
     justifyContent: 'center',
@@ -448,6 +501,14 @@ const styles = StyleSheet.create({
     fontWeight: typography.title2.fontWeight,
   },
   todayButton: {
+    alignItems: 'center',
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    justifyContent: 'center',
+    minHeight: layout.minimumTouchTarget,
+    paddingHorizontal: space[3],
+  },
+  searchButton: {
     alignItems: 'center',
     borderRadius: radius.pill,
     borderWidth: 1,
