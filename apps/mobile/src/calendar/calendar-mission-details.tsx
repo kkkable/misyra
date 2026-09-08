@@ -167,7 +167,7 @@ function fieldChangeHandler(
 
 export function MissionDetailsScreen({
   colorScheme,
-  details,
+ details,
   language,
   onFieldChange,
   onDuplicate,
@@ -317,7 +317,7 @@ export function MissionDetailsScreen({
               style={[styles.action, { borderColor: colors.border }]}
               testID="mission-details-duplicate"
             >
-              <Text allowFontScaling style={[styles.actionText, { color: colors.primary }]}> 
+              <Text allowFontScaling style={[styles.actionText, { color: colors.primary }]}>
                 {catalog['calendar.details.duplicate']}
               </Text>
             </Pressable>
@@ -332,7 +332,7 @@ export function MissionDetailsScreen({
               style={[styles.action, { borderColor: colors.late }]}
               testID="mission-details-delete"
             >
-              <Text allowFontScaling style={[styles.actionText, { color: colors.late }]}> 
+              <Text allowFontScaling style={[styles.actionText, { color: colors.late }]}>
                 {catalog['calendar.details.delete']}
               </Text>
             </Pressable>
