@@ -103,6 +103,22 @@ BEGIN
      WHERE occurrence_id = OLD.id
        AND account_id = OLD.account_id;
 
+    IF NOT EXISTS (
+      SELECT 1
+        FROM mission_occurrences sibling
+       WHERE sibling.account_id = OLD.account_id
+         AND sibling.series_id = OLD.series_id
+         AND sibling.id <> OLD.id
+         AND sibling.deletion_state = 'active'
+    ) THEN
+      UPDATE mission_series
+         SET title = 'Deleted mission',
+             recurrence_rule = NULL,
+             updated_at = now()
+       WHERE id = OLD.series_id
+         AND account_id = OLD.account_id;
+    END IF;
+
     NEW.local_date := DATE '1970-01-01';
     NEW.local_start := '1970-01-01T00:00:00';
     NEW.local_finish := '1970-01-01T00:00:01';
