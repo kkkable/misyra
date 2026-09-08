@@ -102,7 +102,8 @@ describe('MTS-049 Calendar search focus', () => {
       renderer.root.findByProps({ testID: 'calendar-timeline-scroll' }).props.contentOffset,
     ).toEqual({ x: 0, y: 600 });
     const card = renderer.root.find(
-      (node) => node.type === 'Pressable' && node.props.testID === `calendar-mission-card-${missionId}`,
+      (node) =>
+        node.type === 'Pressable' && node.props.testID === `calendar-mission-card-${missionId}`,
     );
     expect(flattenStyle(card.props.style).borderWidth).toBe(2);
   });
