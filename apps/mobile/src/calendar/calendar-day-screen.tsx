@@ -1,15 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  AccessibilityInfo,
   Modal,
   Pressable,
   StyleSheet,
   Text,
   View,
+  findNodeHandle,
   useColorScheme,
   useWindowDimensions,
 } from 'react-native';
 import { getCalendars } from 'expo-localization';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 
 import { layout, radius, space, typography } from '@misyra/design-tokens';
 import { localizationCatalogs, type LocalizationLocale } from '@misyra/localization';
@@ -26,6 +28,7 @@ import {
   resolveResponsiveCalendarLayout,
   shouldShowTodayButton,
 } from './calendar-day-shell.js';
+import { CalendarHelpSheet } from './calendar-help-sheet.js';
 import { CalendarInteractiveTimeline } from './calendar-interactive-timeline.js';
 import type { CalendarMissionCreateInput } from './calendar-mission-create.js';
 import type { MissionAdjustmentResult } from './calendar-mission-adjustment.js';
@@ -91,6 +94,7 @@ export interface CalendarDayScreenProps {
   readonly selectedMissionId?: string;
   readonly searchFocusTarget?: CalendarSearchFocusTarget;
   readonly onSearchPress?: (() => void) | undefined;
+  readonly onHelpFaqPress?: (() => void) | undefined;
   readonly onTimedMissionPress?: (mission: TimedMissionSummary) => void;
   readonly onMissionAdjustment?:
     ((adjustment: MissionAdjustmentResult) => void | Promise<void>) | undefined;
@@ -110,6 +114,7 @@ export function CalendarDayScreen({
   selectedMissionId,
   searchFocusTarget,
   onSearchPress,
+  onHelpFaqPress,
   onTimedMissionPress,
   onMissionAdjustment,
   onCreateMission,
@@ -126,6 +131,7 @@ export function CalendarDayScreen({
     previousMonth: catalog['calendar.shell.previousMonth'],
     nextMonth: catalog['calendar.shell.nextMonth'],
     search: catalog['calendar.search.action'],
+    help: catalog['calendar.help.title'],
   } as const;
   const nativeColorScheme = useColorScheme();
   const colorScheme: ColorScheme = nativeColorScheme === 'dark' ? 'dark' : 'light';
@@ -144,9 +150,11 @@ export function CalendarDayScreen({
   const uses24HourClock = systemCalendar.uses24hourClock !== false;
 
   const initialDateRef = useRef(resolveInitialCalendarDate(params.date, today));
+  const helpTriggerRef = useRef<View | null>(null);
   const [selectedDate, setSelectedDate] = useState(initialDateRef.current);
   const [pickerVisible, setPickerVisible] = useState(false);
   const [pickerMonth, setPickerMonth] = useState(initialDateRef.current);
+  const [helpVisible, setHelpVisible] = useState(false);
 
   useEffect(() => {
     if (searchFocusTarget === undefined) return;
@@ -202,6 +210,23 @@ export function CalendarDayScreen({
   const openPicker = () => {
     setPickerMonth(selectedDate);
     setPickerVisible(true);
+  };
+
+  const dismissHelp = () => {
+    setHelpVisible(false);
+    void Promise.resolve().then(() => {
+      const handle = findNodeHandle(helpTriggerRef.current);
+      if (handle !== null) AccessibilityInfo.setAccessibilityFocus(handle);
+    });
+  };
+
+  const openFaq = () => {
+    setHelpVisible(false);
+    if (onHelpFaqPress !== undefined) {
+      onHelpFaqPress();
+      return;
+    }
+    router.push({ pathname: '/settings', params: { section: 'help' } });
   };
 
   return (
@@ -271,6 +296,26 @@ export function CalendarDayScreen({
                 </Text>
               </Pressable>
             )}
+            <Pressable
+              accessibilityLabel={copy.help}
+              accessibilityRole="button"
+              onPress={() => {
+                setHelpVisible(true);
+              }}
+              ref={helpTriggerRef}
+              style={({ pressed }) => [
+                styles.helpButton,
+                {
+                  backgroundColor: pressed ? colors.primarySoft : colors.surface,
+                  borderColor: colors.border,
+                },
+              ]}
+              testID="calendar-help-trigger"
+            >
+              <Text allowFontScaling style={[styles.helpLabel, { color: colors.primary }]}>
+                ?
+              </Text>
+            </Pressable>
           </View>
         </View>
 
@@ -373,6 +418,14 @@ export function CalendarDayScreen({
           uses24HourClock={uses24HourClock}
         />
       </View>
+
+      <CalendarHelpSheet
+        colorScheme={colorScheme}
+        language={language}
+        onDismiss={dismissHelp}
+        onFaqPress={openFaq}
+        visible={helpVisible}
+      />
 
       <Modal
         animationType="fade"
@@ -515,6 +568,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: layout.minimumTouchTarget,
     paddingHorizontal: space[3],
+  },
+  helpButton: {
+    alignItems: 'center',
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    justifyContent: 'center',
+    minHeight: layout.minimumTouchTarget,
+    minWidth: layout.minimumTouchTarget,
+  },
+  helpLabel: {
+    fontSize: typography.body.fontSize,
+    fontWeight: typography.body.mediumFontWeight,
   },
   todayLabel: {
     fontSize: typography.bodySmall.fontSize,
