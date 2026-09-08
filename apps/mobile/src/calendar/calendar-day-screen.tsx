@@ -11,7 +11,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { getCalendars } from 'expo-localization';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 
 import { layout, radius, space, typography } from '@misyra/design-tokens';
 import { localizationCatalogs, type LocalizationLocale } from '@misyra/localization';
@@ -222,7 +222,11 @@ export function CalendarDayScreen({
 
   const openFaq = () => {
     setHelpVisible(false);
-    onHelpFaqPress?.();
+    if (onHelpFaqPress !== undefined) {
+      onHelpFaqPress();
+      return;
+    }
+    router.push({ pathname: '/settings', params: { section: 'help' } });
   };
 
   return (
