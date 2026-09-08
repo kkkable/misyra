@@ -85,7 +85,6 @@ BEGIN
       )
       FROM external_event_links links
      WHERE links.occurrence_id = OLD.id
-       AND OLD.calendar_source = 'external'
        AND OLD.field_ownership = 'app_owned';
 
     DELETE FROM external_event_links
