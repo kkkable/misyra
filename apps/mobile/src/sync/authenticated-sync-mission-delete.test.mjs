@@ -272,6 +272,8 @@ describe('MTS-048 authoritative mobile mission tombstones', () => {
         mutationId,
       ),
     ).toBeNull();
-    await expect(createLocalRepositories(database, accountId).missions.getById(occurrenceId)).resolves.toBeNull();
+    await expect(
+      createLocalRepositories(database, accountId).missions.getById(occurrenceId),
+    ).resolves.toBeNull();
   });
 });
