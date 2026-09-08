@@ -99,6 +99,15 @@ async function seedAccount(database, accountId) {
     now,
   );
   await database.runAsync(
+    `INSERT INTO mission_occurrence_tombstones
+      (account_id, occurrence_id, deleted_at, reason)
+     VALUES (?, ?, ?, ?)`,
+    accountId,
+    `deleted-${accountId}`,
+    now,
+    'fixture',
+  );
+  await database.runAsync(
     `INSERT INTO completion_summaries
       (account_id, occurrence_id, completed_at, awarded_xp, payload_json, updated_at)
      VALUES (?, ?, ?, ?, ?, ?)`,
@@ -221,6 +230,7 @@ describe('MTS-028 mobile SQLite migrations', () => {
         'external_links',
         'hidden_event_summaries',
         'local_accounts',
+        'mission_occurrence_tombstones',
         'mutation_queue',
         'notification_registry',
         'personal_notes',
