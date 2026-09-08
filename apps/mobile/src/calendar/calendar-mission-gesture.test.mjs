@@ -126,8 +126,10 @@ describe('MTS-047 rendered gesture arbitration', () => {
       testID: 'calendar-mission-resize-handle-selected',
     });
     expect(resizeHandle).toBeDefined();
-    const resizeIndicator = resizeHandle.findByType('View');
-    expect(JSON.stringify(resizeIndicator.props.style)).not.toContain('currentColor');
+    const usesUnsupportedCurrentColor = resizeHandle
+      .findAllByType('View')
+      .some((node) => JSON.stringify(node.props.style).includes('currentColor'));
+    expect(usesUnsupportedCurrentColor).toBe(false);
 
     const unselected = renderLayer({
       missions: [adjustableMission('unselected')],
