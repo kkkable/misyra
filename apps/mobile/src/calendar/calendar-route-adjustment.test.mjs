@@ -6,9 +6,11 @@ const state = vi.hoisted(() => ({
   childProps: null,
   database: { name: 'calendar-db' },
   feedbackProps: null,
+  listWindow: vi.fn(),
   openDatabase: vi.fn(),
   requireDeviceId: vi.fn(),
   restore: vi.fn(),
+  routerPush: vi.fn(),
   saveAdjustment: vi.fn(),
 }));
 
@@ -24,6 +26,16 @@ vi.mock('expo-localization', () => ({
   getLocales: () => [{ languageTag: 'en-HK' }],
 }));
 
+vi.mock('expo-router', async () => {
+  const { useEffect } = await import('react');
+  return {
+    useRouter: () => ({ push: state.routerPush }),
+    useFocusEffect: (effect) => {
+      useEffect(effect, [effect]);
+    },
+  };
+});
+
 vi.mock('../auth/auth-runtime.js', () => ({
   rootAuthController: { restore: state.restore },
   rootAuthStorage: { read: vi.fn(async () => null) },
@@ -34,7 +46,10 @@ vi.mock('../storage/database.js', () => ({
 }));
 
 vi.mock('../storage/local-repositories.js', () => ({
-  createLocalRepositories: () => ({ settings: { get: vi.fn(async () => null) } }),
+  createLocalRepositories: () => ({
+    calendar: { listWindow: state.listWindow },
+    settings: { get: vi.fn(async () => null) },
+  }),
 }));
 
 vi.mock('../sync/root-sync-runtime.js', () => ({
@@ -87,6 +102,7 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 beforeEach(() => {
   state.childProps = null;
   state.feedbackProps = null;
+  state.listWindow.mockReset().mockResolvedValue([]);
   state.openDatabase.mockReset().mockResolvedValue(state.database);
   state.requireDeviceId.mockReset().mockResolvedValue('22222222-2222-4222-8222-222222222222');
   state.restore.mockReset().mockResolvedValue({
@@ -95,6 +111,7 @@ beforeEach(() => {
       accountId: '11111111-1111-4111-8111-111111111111',
     },
   });
+  state.routerPush.mockReset();
   state.saveAdjustment.mockReset().mockResolvedValue(undefined);
 });
 
@@ -117,7 +134,44 @@ function allowedAdjustment() {
   };
 }
 
-describe('MTS-047 Calendar route adjustment persistence', () => {
+function routeMission({
+  id,
+  title,
+  allDay,
+  localStart,
+  localFinish,
+  completionState = 'incomplete',
+}) {
+  return {
+    series: { id: `series-${id}`, title, recurrence: null },
+    occurrence: {
+      id,
+      seriesId: `series-${id}`,
+      schedule: {
+        localStart,
+        localFinish,
+        startInstant: `${localStart}.000Z`,
+        finishInstant: `${localFinish}.000Z`,
+        timeZone: 'UTC',
+        timeBehavior: 'local_time',
+        allDay,
+        estimatedEffortMinutes: allDay ? 30 : null,
+      },
+      scheduleState: 'scheduled',
+      completionState,
+      evidenceState: completionState === 'completed' ? 'accepted' : 'not_submitted',
+      rewardEligibility: 'eligible',
+      rewardIssuance: completionState === 'completed' ? 'issued' : 'not_issued',
+      calendarSource: 'internal',
+      fieldOwnership: 'app_owned',
+      synchronizationState: 'synced',
+      storyState: 'none',
+      deletionState: 'active',
+    },
+  };
+}
+
+describe('Calendar production route', () => {
   it('saves immediately and makes visible Undo a second synchronized save without restoring XP', async () => {
     vi.useFakeTimers();
     let renderer;
@@ -165,6 +219,63 @@ describe('MTS-047 Calendar route adjustment persistence', () => {
       },
     });
     expect(state.feedbackProps).toBeNull();
+
+    act(() => renderer.unmount());
+  });
+
+  it('loads timed and all-day missions and opens Mission Details from either card type', async () => {
+    state.listWindow.mockResolvedValue([
+      routeMission({
+        id: '44444444-4444-4444-8444-444444444444',
+        title: 'Timed mission',
+        allDay: false,
+        localStart: '2026-09-08T09:15:00',
+        localFinish: '2026-09-08T10:00:00',
+      }),
+      routeMission({
+        id: '55555555-5555-4555-8555-555555555555',
+        title: 'All-day mission',
+        allDay: true,
+        localStart: '2026-09-08T00:00:00',
+        localFinish: '2026-09-09T00:00:00',
+        completionState: 'completed',
+      }),
+    ]);
+
+    let renderer;
+    await act(async () => {
+      renderer = create(createElement(CalendarRouteScreen));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(state.childProps.timedMissionsByDate['2026-09-08']).toEqual([
+      expect.objectContaining({
+        id: '44444444-4444-4444-8444-444444444444',
+        title: 'Timed mission',
+        startMinute: 555,
+        endMinute: 600,
+      }),
+    ]);
+    expect(state.childProps.allDayMissionsByDate['2026-09-08']).toEqual([
+      expect.objectContaining({
+        id: '55555555-5555-4555-8555-555555555555',
+        title: 'All-day mission',
+        completed: true,
+      }),
+    ]);
+
+    state.childProps.onTimedMissionPress({ id: '44444444-4444-4444-8444-444444444444' });
+    state.childProps.onAllDayMissionPress({ id: '55555555-5555-4555-8555-555555555555' });
+
+    expect(state.routerPush).toHaveBeenNthCalledWith(1, {
+      pathname: '/mission/[id]',
+      params: { id: '44444444-4444-4444-8444-444444444444' },
+    });
+    expect(state.routerPush).toHaveBeenNthCalledWith(2, {
+      pathname: '/mission/[id]',
+      params: { id: '55555555-5555-4555-8555-555555555555' },
+    });
 
     act(() => renderer.unmount());
   });

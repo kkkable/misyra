@@ -23,6 +23,13 @@ export default function RootLayout() {
             <Stack screenOptions={{ headerShown: false }}>
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
               <Stack.Screen
+                name="mission/[id]"
+                options={{
+                  gestureEnabled: true,
+                  headerShown: false,
+                }}
+              />
+              <Stack.Screen
                 name="evidence"
                 options={{
                   gestureEnabled: true,
