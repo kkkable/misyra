@@ -312,7 +312,9 @@ export function CalendarDayScreen({
               ]}
               testID="calendar-help-trigger"
             >
-              <Text allowFontScaling style={[styles.helpLabel, { color: colors.primary }]}>?</Text>
+              <Text allowFontScaling style={[styles.helpLabel, { color: colors.primary }]}>
+                ?
+              </Text>
             </Pressable>
           </View>
         </View>
