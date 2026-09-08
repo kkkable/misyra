@@ -206,6 +206,12 @@ describe('MTS-048 mission deletion synchronization', () => {
       [occurrenceId, account.id],
     );
     await pool.query(
+      `INSERT INTO mission_completions
+        (account_id, occurrence_id, completion_type, action_time)
+       VALUES ($1, $2, 'verified', $3)`,
+      [account.id, occurrenceId, '2026-09-08T08:03:00.000Z'],
+    );
+    await pool.query(
       `INSERT INTO reward_ledger
         (account_id, occurrence_id, base_xp, proof_bonus_xp, awarded_xp)
        VALUES ($1, $2, 20, 5, 25)`,
@@ -246,5 +252,15 @@ describe('MTS-048 mission deletion synchronization', () => {
         )
       ).rows[0],
     ).toEqual({ base_xp: 20, proof_bonus_xp: 5, awarded_xp: 25 });
+    expect(
+      (
+        await pool.query(
+          `SELECT completion_type
+             FROM mission_completions
+            WHERE occurrence_id = $1 AND account_id = $2`,
+          [occurrenceId, account.id],
+        )
+      ).rows[0],
+    ).toEqual({ completion_type: 'verified' });
   });
 });
