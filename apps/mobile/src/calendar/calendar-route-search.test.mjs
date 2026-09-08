@@ -104,6 +104,7 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 function distantMission({
   localStart = '2020-01-15T10:30:00',
   localFinish = '2020-01-15T11:00:00',
+  allDay = false,
 } = {}) {
   return {
     series: {
@@ -121,8 +122,8 @@ function distantMission({
         finishInstant: `${localFinish}.000Z`,
         timeZone: 'UTC',
         timeBehavior: 'local_time',
-        allDay: false,
-        estimatedEffortMinutes: null,
+        allDay,
+        estimatedEffortMinutes: allDay ? 30 : null,
       },
       scheduleState: 'scheduled',
       completionState: 'incomplete',
@@ -226,6 +227,43 @@ describe('MTS-049 Calendar route search navigation', () => {
         startMinute: 720,
         endMinute: 750,
       }),
+    ]);
+
+    act(() => renderer.unmount());
+  });
+
+  it('removes a stale timed projection when the re-read search target became all-day', async () => {
+    state.listWindow.mockResolvedValue([
+      distantMission({
+        localStart: '2020-01-15T09:00:00',
+        localFinish: '2020-01-15T09:30:00',
+      }),
+    ]);
+    state.getById.mockResolvedValue(
+      distantMission({
+        localStart: '2020-01-15T00:00:00',
+        localFinish: '2020-01-16T00:00:00',
+        allDay: true,
+      }),
+    );
+
+    let renderer;
+    await act(async () => {
+      renderer = create(createElement(CalendarRouteScreen));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    act(() => state.dayProps.onSearchPress());
+    const [result] = await state.searchProps.search('Archived');
+    await act(async () => {
+      await state.searchProps.onOpenResult(result);
+    });
+
+    expect(state.dayProps.searchFocusTarget).toMatchObject({ minute: 0 });
+    expect(state.dayProps.timedMissionsByDate['2020-01-15']).toBeUndefined();
+    expect(state.dayProps.allDayMissionsByDate['2020-01-15']).toEqual([
+      expect.objectContaining({ id: '44444444-4444-4444-8444-444444444444' }),
     ]);
 
     act(() => renderer.unmount());
