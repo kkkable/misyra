@@ -46,7 +46,10 @@ const visibleResult = {
   localDate: '2026-09-08',
 };
 
-function renderScreen({ search = vi.fn(() => Promise.resolve([])), onOpenResult = vi.fn() } = {}) {
+function renderScreen({
+  search = vi.fn(() => Promise.resolve([])),
+  onOpenResult = vi.fn(),
+} = {}) {
   const onClose = vi.fn();
   let renderer;
   act(() => {
@@ -82,10 +85,16 @@ describe('MTS-049 Calendar search UI', () => {
     });
 
     expect(search).toHaveBeenCalledWith('allergy');
-    expect(renderer.root.findByProps({ testID: 'calendar-search-result-private-result' })).toBeDefined();
-    expect(renderer.root.findByProps({ testID: 'calendar-search-result-visible-result' })).toBeDefined();
     expect(
-      textContent(renderer.root.findByProps({ testID: 'calendar-search-personal-note-private-result' })),
+      renderer.root.findByProps({ testID: 'calendar-search-result-private-result' }),
+    ).toBeDefined();
+    expect(
+      renderer.root.findByProps({ testID: 'calendar-search-result-visible-result' }),
+    ).toBeDefined();
+    expect(
+      textContent(
+        renderer.root.findByProps({ testID: 'calendar-search-personal-note-private-result' }),
+      ),
     ).toContain('allergy follow-up phrase');
     expect(
       renderer.root.findAllByProps({ testID: 'calendar-search-personal-note-visible-result' }),
@@ -126,7 +135,9 @@ describe('MTS-049 Calendar search UI', () => {
       await Promise.resolve();
     });
     await act(async () => {
-      await renderer.root.findByProps({ testID: 'calendar-search-result-visible-result' }).props.onPress();
+      await renderer.root
+        .findByProps({ testID: 'calendar-search-result-visible-result' })
+        .props.onPress();
     });
 
     expect(onClose).toHaveBeenCalledTimes(1);
