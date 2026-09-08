@@ -19,6 +19,7 @@ export const accountDataTables = [
   'local_accounts',
   'cached_mission_series',
   'cached_mission_occurrences',
+  'mission_occurrence_tombstones',
   'completion_summaries',
   'personal_notes',
   'external_links',
@@ -206,6 +207,22 @@ export const mobileMigrations: readonly MobileMigration[] = [
     statements: [
       `ALTER TABLE cached_mission_occurrences
         ADD COLUMN server_version INTEGER CHECK (server_version IS NULL OR server_version > 0)`,
+    ],
+  },
+  {
+    version: 5,
+    name: 'mission-occurrence-tombstones',
+    statements: [
+      `CREATE TABLE mission_occurrence_tombstones (
+        account_id TEXT NOT NULL,
+        occurrence_id TEXT NOT NULL,
+        deleted_at TEXT NOT NULL,
+        reason TEXT,
+        PRIMARY KEY (account_id, occurrence_id),
+        FOREIGN KEY (account_id) REFERENCES local_accounts (account_id) ON DELETE CASCADE
+      )`,
+      `CREATE INDEX mission_occurrence_tombstones_account_idx
+        ON mission_occurrence_tombstones (account_id)`,
     ],
   },
 ];
