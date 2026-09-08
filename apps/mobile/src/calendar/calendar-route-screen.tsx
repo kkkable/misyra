@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getLocales } from 'expo-localization';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { View, useColorScheme } from 'react-native';
 
 import type { LocalizationLocale } from '@misyra/localization';
@@ -7,8 +8,13 @@ import type { LocalizationLocale } from '@misyra/localization';
 import { rootAuthController, rootAuthStorage } from '../auth/auth-runtime.js';
 import type { ColorScheme } from '../design-system/contracts.js';
 import { openMobileDatabase } from '../storage/database.js';
-import { createLocalRepositories, type LocalRepositories } from '../storage/local-repositories.js';
+import {
+  createLocalRepositories,
+  type LocalMission,
+  type LocalRepositories,
+} from '../storage/local-repositories.js';
 import { requireRegisteredDeviceId } from '../sync/root-sync-runtime.js';
+import type { AllDayMissionSummary } from './calendar-all-day.js';
 import { CalendarDayScreen } from './calendar-day-screen.js';
 import {
   resolveCalendarLanguage,
@@ -26,12 +32,20 @@ import {
   createCalendarMission,
   type CalendarMissionCreateInput,
 } from './calendar-mission-create.js';
+import type {
+  MissionCardStatus,
+  TimedMissionSummary,
+} from './calendar-mission-layout.js';
 
 const LANGUAGE_REFRESH_INTERVAL_MS = 60_000;
 const INITIAL_SYNC_RECHECK_MS = 1_000;
 const ADJUSTMENT_UNDO_VISIBLE_MS = 5_000;
+const CALENDAR_WINDOW_DAYS = 730;
 const UUID_HEX = '0123456789abcdef';
 const UUID_VARIANTS = '89ab';
+
+type AllDayMissionsByDate = Readonly<Record<string, readonly AllDayMissionSummary[]>>;
+type TimedMissionsByDate = Readonly<Record<string, readonly TimedMissionSummary[]>>;
 
 function randomHex(length: number): string {
   return Array.from({ length }, () => UUID_HEX[Math.floor(Math.random() * UUID_HEX.length)]).join(
@@ -44,13 +58,95 @@ function generateUuid(): string {
   return `${randomHex(8)}-${randomHex(4)}-4${randomHex(3)}-${variant}${randomHex(3)}-${randomHex(12)}`;
 }
 
+function formatLocalDate(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+function calendarWindow(now: Date): Readonly<{ startLocalDate: string; endLocalDate: string }> {
+  const center = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+  const dayMilliseconds = 24 * 60 * 60 * 1000;
+  return {
+    startLocalDate: formatLocalDate(
+      new Date(center.getTime() - CALENDAR_WINDOW_DAYS * dayMilliseconds),
+    ),
+    endLocalDate: formatLocalDate(
+      new Date(center.getTime() + CALENDAR_WINDOW_DAYS * dayMilliseconds),
+    ),
+  };
+}
+
+function minuteFromLocalDateTime(value: string): number {
+  const match = /T(\d{2}):(\d{2}):\d{2}$/.exec(value);
+  if (match === null) throw new Error('Calendar mission local time is invalid.');
+  return Number(match[1]) * 60 + Number(match[2]);
+}
+
+function missionStatus(mission: LocalMission): MissionCardStatus {
+  const occurrence = mission.occurrence;
+  if (occurrence.completionState === 'incomplete') return 'unfinished';
+  if (occurrence.evidenceState === 'not_required') return 'private';
+  if (occurrence.evidenceState === 'accepted') return 'verified';
+  return 'late';
+}
+
+function calendarMissionMaps(missions: readonly LocalMission[]): Readonly<{
+  allDay: AllDayMissionsByDate;
+  timed: TimedMissionsByDate;
+}> {
+  const allDay: Record<string, AllDayMissionSummary[]> = {};
+  const timed: Record<string, TimedMissionSummary[]> = {};
+
+  for (const mission of missions) {
+    const occurrence = mission.occurrence;
+    const schedule = occurrence.schedule;
+    const localDate = schedule.localStart.slice(0, 10);
+    const orderKey = schedule.startInstant;
+
+    if (schedule.allDay) {
+      const bucket = allDay[localDate] ?? [];
+      bucket.push({
+        id: occurrence.id,
+        title: mission.series.title,
+        orderKey,
+        completed: occurrence.completionState === 'completed',
+      });
+      allDay[localDate] = bucket;
+      continue;
+    }
+
+    const startMinute = minuteFromLocalDateTime(schedule.localStart);
+    const finishDate = schedule.localFinish.slice(0, 10);
+    const endMinute =
+      finishDate === localDate ? minuteFromLocalDateTime(schedule.localFinish) : 24 * 60;
+    if (endMinute <= startMinute) continue;
+
+    const bucket = timed[localDate] ?? [];
+    bucket.push({
+      id: occurrence.id,
+      title: mission.series.title,
+      startMinute,
+      endMinute,
+      orderKey,
+      status: missionStatus(mission),
+      rewardEligibility: occurrence.rewardEligibility,
+      timeZone: schedule.timeZone,
+    });
+    timed[localDate] = bucket;
+  }
+
+  return { allDay, timed };
+}
+
 export function CalendarRouteScreen() {
+  const router = useRouter();
   const deviceLocale = useRef(getLocales()[0]).current;
   const nativeColorScheme = useColorScheme();
   const colorScheme: ColorScheme = nativeColorScheme === 'dark' ? 'dark' : 'light';
   const [language, setLanguage] = useState<LocalizationLocale>(() =>
     resolveInitialCalendarLanguage(deviceLocale),
   );
+  const [allDayMissionsByDate, setAllDayMissionsByDate] = useState<AllDayMissionsByDate>({});
+  const [timedMissionsByDate, setTimedMissionsByDate] = useState<TimedMissionsByDate>({});
   const [adjustmentFeedback, setAdjustmentFeedback] = useState<AllowedMissionAdjustment | null>(
     null,
   );
@@ -112,40 +208,71 @@ export function CalendarRouteScreen() {
     [],
   );
 
-  const createMission = useCallback(async (input: CalendarMissionCreateInput) => {
-    const authState = await rootAuthController.restore();
-    if (authState.status !== 'signed_in') throw new Error('calendar_create_requires_sign_in');
-
-    const deviceId = await requireRegisteredDeviceId(authState.session.accountId);
-    const database = await openMobileDatabase();
-
-    await createCalendarMission({
-      database,
-      accountId: authState.session.accountId,
-      deviceId,
-      input,
-      now: new Date(),
-      generateId: generateUuid,
-    });
-  }, []);
-
-  const saveMissionAdjustment = useCallback(async (adjustment: MissionAdjustmentSave) => {
+  const refreshCalendarMissions = useCallback(async () => {
     const authState = await rootAuthController.restore();
     if (authState.status !== 'signed_in') {
-      throw new Error('calendar_adjustment_requires_sign_in');
+      setAllDayMissionsByDate({});
+      setTimedMissionsByDate({});
+      return;
     }
 
-    const deviceId = await requireRegisteredDeviceId(authState.session.accountId);
     const database = await openMobileDatabase();
-    await saveCalendarMissionAdjustment({
-      database,
-      accountId: authState.session.accountId,
-      deviceId,
-      adjustment,
-      now: new Date(),
-      generateId: generateUuid,
-    });
+    const repositories = createLocalRepositories(database, authState.session.accountId);
+    const missions = await repositories.calendar.listWindow(calendarWindow(new Date()));
+    const maps = calendarMissionMaps(missions);
+    setAllDayMissionsByDate(maps.allDay);
+    setTimedMissionsByDate(maps.timed);
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      void refreshCalendarMissions().catch(() => undefined);
+      return undefined;
+    }, [refreshCalendarMissions]),
+  );
+
+  const createMission = useCallback(
+    async (input: CalendarMissionCreateInput) => {
+      const authState = await rootAuthController.restore();
+      if (authState.status !== 'signed_in') throw new Error('calendar_create_requires_sign_in');
+
+      const deviceId = await requireRegisteredDeviceId(authState.session.accountId);
+      const database = await openMobileDatabase();
+
+      await createCalendarMission({
+        database,
+        accountId: authState.session.accountId,
+        deviceId,
+        input,
+        now: new Date(),
+        generateId: generateUuid,
+      });
+      await refreshCalendarMissions();
+    },
+    [refreshCalendarMissions],
+  );
+
+  const saveMissionAdjustment = useCallback(
+    async (adjustment: MissionAdjustmentSave) => {
+      const authState = await rootAuthController.restore();
+      if (authState.status !== 'signed_in') {
+        throw new Error('calendar_adjustment_requires_sign_in');
+      }
+
+      const deviceId = await requireRegisteredDeviceId(authState.session.accountId);
+      const database = await openMobileDatabase();
+      await saveCalendarMissionAdjustment({
+        database,
+        accountId: authState.session.accountId,
+        deviceId,
+        adjustment,
+        now: new Date(),
+        generateId: generateUuid,
+      });
+      await refreshCalendarMissions();
+    },
+    [refreshCalendarMissions],
+  );
 
   const adjustmentController = useMemo(
     () => createMissionAdjustmentUndoController(saveMissionAdjustment),
@@ -179,12 +306,23 @@ export function CalendarRouteScreen() {
     return true;
   }, [adjustmentController]);
 
+  const openMissionDetails = useCallback(
+    (mission: Readonly<{ id: string }>) => {
+      router.push({ pathname: '/mission/[id]', params: { id: mission.id } });
+    },
+    [router],
+  );
+
   return (
     <View style={{ flex: 1 }}>
       <CalendarDayScreen
+        allDayMissionsByDate={allDayMissionsByDate}
         language={language}
+        onAllDayMissionPress={openMissionDetails}
         onCreateMission={createMission}
         onMissionAdjustment={adjustMission}
+        onTimedMissionPress={openMissionDetails}
+        timedMissionsByDate={timedMissionsByDate}
       />
       {adjustmentFeedback === null ? null : (
         <MissionAdjustmentFeedback
