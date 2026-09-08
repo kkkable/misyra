@@ -19,15 +19,19 @@ type DuplicateSourceRow = Readonly<{
 }>;
 
 const COMPLETION_WINDOW_MILLISECONDS = 30 * 24 * 60 * 60 * 1000;
+const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
 const LOCAL_DATE_TIME_PATTERN = /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2}):\d{2}$/;
 
 function assertNonEmpty(value: string, label: string): void {
   if (value.trim().length === 0) throw new TypeError(`${label} must not be empty.`);
 }
 
-function minuteFromLocalDateTime(value: string): number {
+function localDateTimeParts(value: string): Readonly<{
+  date: string;
+  minute: number;
+}> {
   const match = LOCAL_DATE_TIME_PATTERN.exec(value);
-  if (match === null) throw new Error('Mission local time is invalid.');
+  if (match === null || match[1] === undefined) throw new Error('Mission local time is invalid.');
   const hour = Number(match[2]);
   const minute = Number(match[3]);
   if (
@@ -40,13 +44,30 @@ function minuteFromLocalDateTime(value: string): number {
   ) {
     throw new Error('Mission local time is invalid.');
   }
-  return hour * 60 + minute;
+  return { date: match[1], minute: hour * 60 + minute };
+}
+
+function timedMinuteRange(localStart: string, localFinish: string): Readonly<{
+  startMinute: number;
+  endMinute: number;
+}> {
+  const start = localDateTimeParts(localStart);
+  const finish = localDateTimeParts(localFinish);
+  const startDate = Date.parse(`${start.date}T00:00:00Z`);
+  const finishDate = Date.parse(`${finish.date}T00:00:00Z`);
+  const dayOffset = (finishDate - startDate) / MILLISECONDS_PER_DAY;
+  if (!Number.isInteger(dayOffset) || dayOffset < 0 || dayOffset > 1) {
+    throw new Error('Mission duplicate supports timed durations up to 24 hours.');
+  }
+  const endMinute = finish.minute + dayOffset * 24 * 60;
+  if (endMinute <= start.minute || endMinute - start.minute > 24 * 60) {
+    throw new Error('Mission duplicate timed duration is invalid.');
+  }
+  return { startMinute: start.minute, endMinute };
 }
 
 function localDateFromDateTime(value: string): string {
-  const match = LOCAL_DATE_TIME_PATTERN.exec(value);
-  if (match === null || match[1] === undefined) throw new Error('Mission local date is invalid.');
-  return match[1];
+  return localDateTimeParts(value).date;
 }
 
 function datePart(parts: readonly Intl.DateTimeFormatPart[], type: string): string {
@@ -126,13 +147,16 @@ export async function prepareCalendarMissionDuplicate({
     occurrence.fieldOwnership === 'organizer_controlled'
       ? (source.personal_note ?? source.search_note)
       : (source.search_note ?? source.personal_note);
+  const timedRange = schedule.allDay
+    ? null
+    : timedMinuteRange(schedule.localStart, schedule.localFinish);
 
   return {
     selectedDate,
     title: source.title,
     allDay: schedule.allDay,
-    startMinute: schedule.allDay ? null : minuteFromLocalDateTime(schedule.localStart),
-    endMinute: schedule.allDay ? null : minuteFromLocalDateTime(schedule.localFinish),
+    startMinute: timedRange?.startMinute ?? null,
+    endMinute: timedRange?.endMinute ?? null,
     estimatedEffortMinutes: schedule.allDay ? schedule.estimatedEffortMinutes : null,
     rewardEligibility: 'eligible',
     timeZone: schedule.timeZone,
