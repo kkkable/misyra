@@ -143,6 +143,20 @@ function calendarMissionMaps(missions: readonly LocalMission[]): Readonly<{
   return { allDay, timed };
 }
 
+function mergeMissionMaps<T extends { readonly id: string }>(
+  current: Readonly<Record<string, readonly T[]>>,
+  additional: Readonly<Record<string, readonly T[]>>,
+): Readonly<Record<string, readonly T[]>> {
+  const merged: Record<string, readonly T[]> = { ...current };
+  for (const [date, additions] of Object.entries(additional)) {
+    const existing = merged[date] ?? [];
+    const existingIds = new Set(existing.map((mission) => mission.id));
+    const uniqueAdditions = additions.filter((mission) => !existingIds.has(mission.id));
+    merged[date] = uniqueAdditions.length === 0 ? existing : [...existing, ...uniqueAdditions];
+  }
+  return merged;
+}
+
 export function CalendarRouteScreen() {
   const router = useRouter();
   const deviceLocale = useRef(getLocales()[0]).current;
@@ -353,15 +367,18 @@ export function CalendarRouteScreen() {
   const openSearchResult = useCallback(
     async (result: CalendarSearchResult): Promise<boolean> => {
       const authState = await rootAuthController.restore();
-      if (authState.status !== 'signed_in') return false;
+      if (authState.status !== 'signed_in' || result.occurrenceId === null) return false;
 
       const database = await openMobileDatabase();
       const repositories = createLocalRepositories(database, authState.session.accountId);
-      const resolution = await resolveCalendarSearchNavigation(result, (occurrenceId) =>
-        repositories.missions.getById(occurrenceId),
-      );
+      const mission = await repositories.missions.getById(result.occurrenceId);
+      if (mission === null) return false;
+      const resolution = await resolveCalendarSearchNavigation(result, () => Promise.resolve(mission));
       if (resolution.kind === 'unavailable') return false;
 
+      const focusedMaps = calendarMissionMaps([mission]);
+      setAllDayMissionsByDate((current) => mergeMissionMaps(current, focusedMaps.allDay));
+      setTimedMissionsByDate((current) => mergeMissionMaps(current, focusedMaps.timed));
       searchFocusRequestId.current += 1;
       setSearchFocusTarget({ requestId: searchFocusRequestId.current, ...resolution.target });
       setTimeout(() => {
