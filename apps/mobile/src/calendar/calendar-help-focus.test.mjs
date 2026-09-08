@@ -3,10 +3,12 @@ import { act, create } from 'react-test-renderer';
 import { describe, expect, it, vi } from 'vitest';
 
 const state = vi.hoisted(() => ({
+  routerPush: vi.fn(),
   setAccessibilityFocus: vi.fn(),
 }));
 
 vi.mock('expo-router', () => ({
+  router: { push: state.routerPush },
   useLocalSearchParams: () => ({}),
 }));
 
@@ -90,6 +92,23 @@ describe('MTS-050 Calendar help integration', () => {
     act(() => renderer.root.findByProps({ testID: 'calendar-help-faq' }).props.onPress());
 
     expect(onHelpFaqPress).toHaveBeenCalledTimes(1);
+    expect(renderer.root.findAllByProps({ testID: 'calendar-help-sheet' })).toHaveLength(0);
+  });
+
+  it('routes the default full FAQ action toward Settings help', () => {
+    state.routerPush.mockReset();
+    let renderer;
+    act(() => {
+      renderer = create(createElement(CalendarDayScreen, { now: new Date(2026, 8, 8, 8, 37) }));
+    });
+
+    act(() => renderer.root.findByProps({ testID: 'calendar-help-trigger' }).props.onPress());
+    act(() => renderer.root.findByProps({ testID: 'calendar-help-faq' }).props.onPress());
+
+    expect(state.routerPush).toHaveBeenCalledWith({
+      pathname: '/settings',
+      params: { section: 'help' },
+    });
     expect(renderer.root.findAllByProps({ testID: 'calendar-help-sheet' })).toHaveLength(0);
   });
 });
