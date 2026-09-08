@@ -1,4 +1,4 @@
-import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { layout, radius, space, typography } from '@misyra/design-tokens';
 import type {
@@ -43,6 +43,8 @@ export interface MissionDetailsScreenProps {
   readonly language: LocalizationLocale;
   readonly onFieldChange?:
     ((field: MissionDetailsEditableField, value: string) => void) | undefined;
+  readonly onDuplicate?: ((missionId: string) => void | Promise<void>) | undefined;
+  readonly onDelete?: ((missionId: string) => void | Promise<void>) | undefined;
 }
 
 type Catalog = (typeof localizationCatalogs)[LocalizationLocale];
@@ -168,6 +170,8 @@ export function MissionDetailsScreen({
   details,
   language,
   onFieldChange,
+  onDuplicate,
+  onDelete,
 }: MissionDetailsScreenProps) {
   const catalog = localizationCatalogs[language];
   const colors = themeColors(colorScheme);
@@ -300,6 +304,41 @@ export function MissionDetailsScreen({
           </Text>
         )}
       </View>
+
+      {onDuplicate === undefined && onDelete === undefined ? null : (
+        <View style={styles.actions} testID="mission-details-actions">
+          {onDuplicate === undefined ? null : (
+            <Pressable
+              accessibilityLabel={catalog['calendar.details.duplicate']}
+              accessibilityRole="button"
+              onPress={() => {
+                void Promise.resolve(onDuplicate(details.id)).catch(() => undefined);
+              }}
+              style={[styles.action, { borderColor: colors.border }]}
+              testID="mission-details-duplicate"
+            >
+              <Text allowFontScaling style={[styles.actionText, { color: colors.primary }]}> 
+                {catalog['calendar.details.duplicate']}
+              </Text>
+            </Pressable>
+          )}
+          {onDelete === undefined ? null : (
+            <Pressable
+              accessibilityLabel={catalog['calendar.details.delete']}
+              accessibilityRole="button"
+              onPress={() => {
+                void Promise.resolve(onDelete(details.id)).catch(() => undefined);
+              }}
+              style={[styles.action, { borderColor: colors.late }]}
+              testID="mission-details-delete"
+            >
+              <Text allowFontScaling style={[styles.actionText, { color: colors.late }]}> 
+                {catalog['calendar.details.delete']}
+              </Text>
+            </Pressable>
+          )}
+        </View>
+      )}
     </ScrollView>
   );
 }
@@ -343,5 +382,22 @@ const styles = StyleSheet.create({
   xpText: {
     fontSize: typography.headline.fontSize,
     fontWeight: typography.headline.fontWeight,
+  },
+  actions: {
+    flexDirection: 'row',
+    gap: space[3],
+  },
+  action: {
+    alignItems: 'center',
+    borderRadius: radius.md,
+    borderWidth: 1,
+    flex: 1,
+    justifyContent: 'center',
+    minHeight: layout.minimumTouchTarget,
+    paddingHorizontal: space[3],
+  },
+  actionText: {
+    fontSize: typography.body.fontSize,
+    fontWeight: typography.body.mediumFontWeight,
   },
 });
