@@ -46,10 +46,7 @@ const visibleResult = {
   localDate: '2026-09-08',
 };
 
-function renderScreen({
-  search = vi.fn(() => Promise.resolve([])),
-  onOpenResult = vi.fn(),
-} = {}) {
+function renderScreen({ search = vi.fn(() => Promise.resolve([])), onOpenResult = vi.fn() } = {}) {
   const onClose = vi.fn();
   let renderer;
   act(() => {
