@@ -232,7 +232,9 @@ describe('MTS-048 local mission deletion', () => {
       payload: null,
     });
 
-    await expect(undoCalendarMissionDeletion({ database, accountId, deletion })).resolves.toBe(true);
+    await expect(
+      undoCalendarMissionDeletion({ database, accountId, deletion }),
+    ).resolves.toBe(true);
     await expect(repositories.missions.getById(occurrenceId)).resolves.not.toBeNull();
     expect(
       await database.getFirstAsync(
@@ -282,7 +284,9 @@ describe('MTS-048 local mission deletion', () => {
       deleteMutationId,
     );
 
-    await expect(undoCalendarMissionDeletion({ database, accountId, deletion })).resolves.toBe(false);
+    await expect(
+      undoCalendarMissionDeletion({ database, accountId, deletion }),
+    ).resolves.toBe(false);
     expect(
       await database.getFirstAsync(
         `SELECT occurrence_id
