@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getLocales } from 'expo-localization';
+import { View, useColorScheme } from 'react-native';
 
 import type { LocalizationLocale } from '@misyra/localization';
 
 import { rootAuthController, rootAuthStorage } from '../auth/auth-runtime.js';
+import type { ColorScheme } from '../design-system/contracts.js';
 import { openMobileDatabase } from '../storage/database.js';
 import { createLocalRepositories, type LocalRepositories } from '../storage/local-repositories.js';
 import { requireRegisteredDeviceId } from '../sync/root-sync-runtime.js';
@@ -13,12 +15,21 @@ import {
   resolveInitialCalendarLanguage,
 } from './calendar-language-runtime.js';
 import {
+  createMissionAdjustmentUndoController,
+  type AllowedMissionAdjustment,
+  type MissionAdjustmentResult,
+  type MissionAdjustmentSave,
+} from './calendar-mission-adjustment.js';
+import { MissionAdjustmentFeedback } from './calendar-mission-adjustment-feedback.js';
+import { saveCalendarMissionAdjustment } from './calendar-mission-adjustment-save.js';
+import {
   createCalendarMission,
   type CalendarMissionCreateInput,
 } from './calendar-mission-create.js';
 
 const LANGUAGE_REFRESH_INTERVAL_MS = 60_000;
 const INITIAL_SYNC_RECHECK_MS = 1_000;
+const ADJUSTMENT_UNDO_VISIBLE_MS = 5_000;
 const UUID_HEX = '0123456789abcdef';
 const UUID_VARIANTS = '89ab';
 
@@ -35,9 +46,15 @@ function generateUuid(): string {
 
 export function CalendarRouteScreen() {
   const deviceLocale = useRef(getLocales()[0]).current;
+  const nativeColorScheme = useColorScheme();
+  const colorScheme: ColorScheme = nativeColorScheme === 'dark' ? 'dark' : 'light';
   const [language, setLanguage] = useState<LocalizationLocale>(() =>
     resolveInitialCalendarLanguage(deviceLocale),
   );
+  const [adjustmentFeedback, setAdjustmentFeedback] = useState<AllowedMissionAdjustment | null>(
+    null,
+  );
+  const adjustmentFeedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -86,6 +103,15 @@ export function CalendarRouteScreen() {
     };
   }, [deviceLocale]);
 
+  useEffect(
+    () => () => {
+      if (adjustmentFeedbackTimer.current !== null) {
+        clearTimeout(adjustmentFeedbackTimer.current);
+      }
+    },
+    [],
+  );
+
   const createMission = useCallback(async (input: CalendarMissionCreateInput) => {
     const authState = await rootAuthController.restore();
     if (authState.status !== 'signed_in') throw new Error('calendar_create_requires_sign_in');
@@ -103,5 +129,71 @@ export function CalendarRouteScreen() {
     });
   }, []);
 
-  return <CalendarDayScreen language={language} onCreateMission={createMission} />;
+  const saveMissionAdjustment = useCallback(async (adjustment: MissionAdjustmentSave) => {
+    const authState = await rootAuthController.restore();
+    if (authState.status !== 'signed_in') {
+      throw new Error('calendar_adjustment_requires_sign_in');
+    }
+
+    const deviceId = await requireRegisteredDeviceId(authState.session.accountId);
+    const database = await openMobileDatabase();
+    await saveCalendarMissionAdjustment({
+      database,
+      accountId: authState.session.accountId,
+      deviceId,
+      adjustment,
+      now: new Date(),
+      generateId: generateUuid,
+    });
+  }, []);
+
+  const adjustmentController = useMemo(
+    () => createMissionAdjustmentUndoController(saveMissionAdjustment),
+    [saveMissionAdjustment],
+  );
+  const adjustMission = useCallback(
+    async (adjustment: MissionAdjustmentResult) => {
+      await adjustmentController.commit(adjustment);
+      if (!adjustment.allowed) return;
+
+      setAdjustmentFeedback(adjustment);
+      if (adjustmentFeedbackTimer.current !== null) {
+        clearTimeout(adjustmentFeedbackTimer.current);
+      }
+      adjustmentFeedbackTimer.current = setTimeout(() => {
+        adjustmentFeedbackTimer.current = null;
+        setAdjustmentFeedback(null);
+      }, ADJUSTMENT_UNDO_VISIBLE_MS);
+    },
+    [adjustmentController],
+  );
+  const undoMissionAdjustment = useCallback(async () => {
+    const undone = await adjustmentController.undo();
+    if (!undone) return false;
+
+    if (adjustmentFeedbackTimer.current !== null) {
+      clearTimeout(adjustmentFeedbackTimer.current);
+      adjustmentFeedbackTimer.current = null;
+    }
+    setAdjustmentFeedback(null);
+    return true;
+  }, [adjustmentController]);
+
+  return (
+    <View style={{ flex: 1 }}>
+      <CalendarDayScreen
+        language={language}
+        onCreateMission={createMission}
+        onMissionAdjustment={adjustMission}
+      />
+      {adjustmentFeedback === null ? null : (
+        <MissionAdjustmentFeedback
+          adjustment={adjustmentFeedback}
+          colorScheme={colorScheme}
+          language={language}
+          onUndo={undoMissionAdjustment}
+        />
+      )}
+    </View>
+  );
 }

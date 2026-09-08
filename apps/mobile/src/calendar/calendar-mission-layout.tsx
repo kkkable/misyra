@@ -1,13 +1,23 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { GestureDetector, usePanGesture } from 'react-native-gesture-handler';
+import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 
 import { layout, radius, space, typography } from '@misyra/design-tokens';
 import { localizationCatalogs, type LocalizationLocale } from '@misyra/localization';
 
 import { themeColors, type ColorScheme } from '../design-system/index.js';
+import {
+  commitMissionAdjustment,
+  type AdjustableTimedMission,
+  type MissionAdjustmentKind,
+  type MissionAdjustmentResult,
+} from './calendar-mission-adjustment.js';
 
 const MINUTES_PER_DAY = 24 * 60;
 const TIMELINE_GUTTER = space[10] + space[3];
+const DIRECT_MANIPULATION_LONG_PRESS_MS = 350;
 
 export type MissionCardStatus = 'unfinished' | 'verified' | 'late' | 'private';
 
@@ -18,6 +28,8 @@ export interface TimedMissionSummary {
   readonly endMinute: number;
   readonly orderKey: string;
   readonly status: MissionCardStatus;
+  readonly rewardEligibility: AdjustableTimedMission['rewardEligibility'];
+  readonly timeZone: string;
 }
 
 export interface MissionCardLayout {
@@ -264,7 +276,12 @@ interface TimedMissionLayerProps {
   readonly colorScheme: ColorScheme;
   readonly language: LocalizationLocale;
   readonly missions: readonly TimedMissionSummary[];
+  readonly now: Date;
+  readonly getNow?: (() => Date) | undefined;
+  readonly selectedDate: string;
   readonly selectedMissionId?: string;
+  readonly onMissionAdjustment?:
+    ((adjustment: MissionAdjustmentResult) => void | Promise<void>) | undefined;
   readonly onMissionPress?: ((mission: TimedMissionSummary) => void) | undefined;
 }
 
@@ -322,11 +339,191 @@ function missionPositionStyle(card: MissionCardLayout): ViewStyle {
   };
 }
 
+function adjustableMission(mission: TimedMissionSummary): AdjustableTimedMission {
+  return {
+    id: mission.id,
+    startMinute: mission.startMinute,
+    endMinute: mission.endMinute,
+    rewardEligibility: mission.rewardEligibility,
+    timeZone: mission.timeZone,
+  };
+}
+
+interface AdjustableMissionCardProps {
+  readonly card: MissionCardLayout;
+  readonly colorScheme: ColorScheme;
+  readonly getNow: () => Date;
+  readonly language: LocalizationLocale;
+  readonly selected: boolean;
+  readonly selectedDate: string;
+  readonly onMissionAdjustment?:
+    ((adjustment: MissionAdjustmentResult) => void | Promise<void>) | undefined;
+  readonly onMissionPress?: ((mission: TimedMissionSummary) => void) | undefined;
+}
+
+function AdjustableMissionCard({
+  card,
+  colorScheme,
+  getNow,
+  language,
+  selected,
+  selectedDate,
+  onMissionAdjustment,
+  onMissionPress,
+}: AdjustableMissionCardProps) {
+  const mission = card.mission;
+  const colors = themeColors(colorScheme);
+  const moveActive = useSharedValue(false);
+  const moveTranslationY = useSharedValue(0);
+  const resizeActive = useSharedValue(false);
+  const resizeTranslationY = useSharedValue(0);
+  const committedStartMinute = useSharedValue(mission.startMinute);
+  const committedEndMinute = useSharedValue(mission.endMinute);
+  const committedRewardEligibility = useSharedValue(mission.rewardEligibility);
+  const positionedStyle = missionPositionStyle(card);
+
+  useEffect(() => {
+    committedStartMinute.value = mission.startMinute;
+    committedEndMinute.value = mission.endMinute;
+    committedRewardEligibility.value = mission.rewardEligibility;
+  }, [
+    committedEndMinute,
+    committedRewardEligibility,
+    committedStartMinute,
+    mission.endMinute,
+    mission.rewardEligibility,
+    mission.startMinute,
+  ]);
+
+  const animatedAdjustmentStyle = useAnimatedStyle(() => {
+    const currentStart = committedStartMinute.value;
+    const currentEnd = committedEndMinute.value;
+    const duration = currentEnd - currentStart;
+    if (moveActive.value) {
+      const nextStart = Math.min(
+        Math.max(currentStart + moveTranslationY.value, 0),
+        MINUTES_PER_DAY - duration,
+      );
+      return { height: duration, top: nextStart };
+    }
+    if (resizeActive.value) {
+      const nextEnd = Math.min(
+        Math.max(currentEnd + resizeTranslationY.value, currentStart + 15),
+        MINUTES_PER_DAY,
+      );
+      return { height: nextEnd - currentStart, top: currentStart };
+    }
+    return { height: duration, top: currentStart };
+  });
+
+  const finishAdjustment = (kind: MissionAdjustmentKind, translationY: number) => {
+    try {
+      const result = commitMissionAdjustment({
+        mission: {
+          ...adjustableMission(mission),
+          startMinute: committedStartMinute.value,
+          endMinute: committedEndMinute.value,
+          rewardEligibility: committedRewardEligibility.value,
+        },
+        kind,
+        translationY,
+        selectedDate,
+        now: getNow(),
+      });
+      if (result.allowed) {
+        committedStartMinute.value = result.startMinute;
+        committedEndMinute.value = result.endMinute;
+        committedRewardEligibility.value = result.rewardEligibility;
+      }
+      void onMissionAdjustment?.(result);
+    } finally {
+      if (kind === 'move') {
+        moveActive.value = false;
+        moveTranslationY.value = 0;
+      } else {
+        resizeActive.value = false;
+        resizeTranslationY.value = 0;
+      }
+    }
+  };
+
+  const resizeGesture = usePanGesture({
+    activateAfterLongPress: DIRECT_MANIPULATION_LONG_PRESS_MS,
+    onActivate: () => {
+      resizeActive.value = true;
+    },
+    onUpdate: (event) => {
+      resizeTranslationY.value = event.translationY;
+    },
+    onDeactivate: (event) => {
+      if (!event.canceled) {
+        scheduleOnRN(finishAdjustment, 'resize', event.translationY);
+      } else {
+        resizeActive.value = false;
+        resizeTranslationY.value = 0;
+      }
+    },
+  });
+
+  const moveGesture = usePanGesture({
+    activateAfterLongPress: DIRECT_MANIPULATION_LONG_PRESS_MS,
+    requireToFail: resizeGesture,
+    onActivate: () => {
+      moveActive.value = true;
+    },
+    onUpdate: (event) => {
+      moveTranslationY.value = event.translationY;
+    },
+    onDeactivate: (event) => {
+      if (!event.canceled) {
+        scheduleOnRN(finishAdjustment, 'move', event.translationY);
+      } else {
+        moveActive.value = false;
+        moveTranslationY.value = 0;
+      }
+    },
+  });
+
+  return (
+    <GestureDetector gesture={moveGesture}>
+      <Animated.View
+        pointerEvents="box-none"
+        style={[positionedStyle, animatedAdjustmentStyle]}
+        testID={`calendar-mission-move-gesture-${mission.id}`}
+      >
+        <MissionCard
+          colorScheme={colorScheme}
+          language={language}
+          mission={mission}
+          onPress={onMissionPress}
+          selected={selected}
+          style={styles.gestureCard}
+        />
+        {selected ? (
+          <GestureDetector gesture={resizeGesture}>
+            <View
+              accessibilityLabel={`${mission.title}, resize`}
+              accessibilityRole="adjustable"
+              style={styles.resizeTouchTarget}
+              testID={`calendar-mission-resize-handle-${mission.id}`}
+            >
+              <View style={[styles.resizeIndicator, { backgroundColor: colors.primary }]} />
+            </View>
+          </GestureDetector>
+        ) : null}
+      </Animated.View>
+    </GestureDetector>
+  );
+}
+
 export function TimedMissionLayer({
   colorScheme,
+  getNow = () => new Date(),
   language,
   missions,
+  selectedDate,
   selectedMissionId,
+  onMissionAdjustment,
   onMissionPress,
 }: TimedMissionLayerProps) {
   const colors = themeColors(colorScheme);
@@ -337,17 +534,31 @@ export function TimedMissionLayer({
     <View pointerEvents="box-none" style={styles.layer} testID="calendar-timed-mission-layer">
       {groups.map((group) => (
         <View key={group.id} pointerEvents="box-none">
-          {group.cards.map((card) => (
-            <MissionCard
-              colorScheme={colorScheme}
-              key={card.mission.id}
-              language={language}
-              mission={card.mission}
-              onPress={onMissionPress}
-              selected={selectedMissionId === card.mission.id}
-              style={missionPositionStyle(card)}
-            />
-          ))}
+          {group.cards.map((card) =>
+            card.mission.status === 'unfinished' ? (
+              <AdjustableMissionCard
+                card={card}
+                colorScheme={colorScheme}
+                getNow={getNow}
+                key={card.mission.id}
+                language={language}
+                onMissionAdjustment={onMissionAdjustment}
+                onMissionPress={onMissionPress}
+                selected={selectedMissionId === card.mission.id}
+                selectedDate={selectedDate}
+              />
+            ) : (
+              <MissionCard
+                colorScheme={colorScheme}
+                key={card.mission.id}
+                language={language}
+                mission={card.mission}
+                onPress={onMissionPress}
+                selected={selectedMissionId === card.mission.id}
+                style={missionPositionStyle(card)}
+              />
+            ),
+          )}
           {group.hiddenMissions.length > 0 ? (
             <Pressable
               accessibilityLabel={formatMore(language, group.hiddenMissions.length)}
@@ -390,6 +601,13 @@ const styles = StyleSheet.create({
     fontSize: typography.bodySmall.fontSize,
     fontWeight: typography.bodySmall.fontWeight,
   },
+  gestureCard: {
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+  },
   layer: {
     bottom: 0,
     left: TIMELINE_GUTTER,
@@ -427,5 +645,21 @@ const styles = StyleSheet.create({
   overflowListCard: {
     minHeight: layout.minimumTouchTarget,
     position: 'relative',
+  },
+  resizeIndicator: {
+    alignSelf: 'center',
+    borderRadius: radius.pill,
+    height: space[1],
+    width: space[6],
+  },
+  resizeTouchTarget: {
+    alignItems: 'center',
+    bottom: -layout.minimumTouchTarget / 2,
+    height: layout.minimumTouchTarget,
+    justifyContent: 'center',
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    zIndex: 2,
   },
 });

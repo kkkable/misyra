@@ -44,8 +44,8 @@ export class SyncDeviceOwnershipError extends Error {
 }
 
 export class SyncMutationConflictError extends Error {
-  constructor() {
-    super('Sync mutation identifier was reused with a different mutation');
+  constructor(message = 'Sync mutation identifier was reused with a different mutation') {
+    super(message);
     this.name = 'SyncMutationConflictError';
   }
 }
@@ -64,6 +64,26 @@ interface MutationMatchRow extends QueryResultRow {
 interface SettingsRow extends QueryResultRow {
   language: 'en' | 'zh-HK';
   trustMode: boolean;
+}
+
+interface MissionUpdateRow extends QueryResultRow {
+  seriesId: string;
+  title: string;
+  recurrence: unknown;
+  scheduleState: string;
+  completionState: string;
+  evidenceState: string;
+  rewardEligibility: 'undetermined' | 'eligible' | 'ineligible';
+  rewardIssuance: string;
+  calendarSource: string;
+  fieldOwnership: string;
+  storyState: string;
+  deletionState: string;
+  allDay: boolean;
+  startInstant: string;
+  location: string | null;
+  notes: string | null;
+  version: number;
 }
 
 type SettingsPatch = Readonly<{
@@ -118,6 +138,11 @@ type MissionCreatePayload = Readonly<{
   notes: string | null;
 }>;
 
+type MissionUpdatePayload = Readonly<{
+  schedule: MissionSchedulePayload & Readonly<{ allDay: false; estimatedEffortMinutes: null }>;
+  rewardEligibility: 'eligible' | 'ineligible';
+}>;
+
 type ClientTiming = Readonly<{
   clientOccurredAt: Date;
   effectiveTime: Date;
@@ -160,12 +185,27 @@ function assertExecutableMutationShape(mutation: StoredSyncMutation): void {
   }
 
   if (mutation.entityType === 'mission') {
-    if (mutation.operation !== 'create' || mutation.baseVersion !== null) {
-      throw new SyncMutationValidationError(
-        'Mission synchronization currently supports create operations only',
-      );
+    if (mutation.operation === 'create') {
+      if (mutation.baseVersion !== null) {
+        throw new SyncMutationValidationError('Mission create cannot provide a base version');
+      }
+      return;
     }
-    return;
+    if (mutation.operation === 'update') {
+      if (
+        mutation.baseVersion === null ||
+        !Number.isSafeInteger(mutation.baseVersion) ||
+        mutation.baseVersion <= 0
+      ) {
+        throw new SyncMutationValidationError(
+          'Mission update requires a positive integer base version',
+        );
+      }
+      return;
+    }
+    throw new SyncMutationValidationError(
+      'Mission synchronization supports create and update operations only',
+    );
   }
 
   throw new SyncMutationValidationError(
@@ -455,6 +495,29 @@ function parseMissionCreatePayload(
   };
 }
 
+function parseMissionUpdatePayload(payload: unknown): MissionUpdatePayload {
+  const root = asRecord(payload, 'Mission update payload');
+  const keys = Object.keys(root);
+  if (keys.length !== 2 || keys.some((key) => key !== 'schedule' && key !== 'rewardEligibility')) {
+    throw new SyncMutationValidationError('Mission update contains unsupported fields');
+  }
+  const schedule = parseMissionSchedule(asRecord(root.schedule, 'Mission update schedule'));
+  if (schedule.allDay) {
+    throw new SyncMutationValidationError(
+      'MTS-047 direct manipulation supports timed missions only',
+    );
+  }
+  return {
+    schedule,
+    rewardEligibility: requireLiteral(
+      root,
+      'rewardEligibility',
+      ['eligible', 'ineligible'] as const,
+      'Mission reward eligibility',
+    ),
+  };
+}
+
 function enforceMissionCreatePlacement(
   mission: MissionCreatePayload,
   effectiveTime: Date,
@@ -611,6 +674,133 @@ async function applyMissionCreateMutation(
   return mission;
 }
 
+async function applyMissionUpdateMutation(
+  client: PoolClient,
+  mutation: StoredSyncMutation,
+  effectiveTime: Date,
+): Promise<unknown> {
+  if (mutation.baseVersion === null) {
+    throw new SyncMutationValidationError('Mission update requires a base version');
+  }
+  const update = parseMissionUpdatePayload(mutation.payload);
+  const currentResult = await client.query<MissionUpdateRow>(
+    `SELECT o.series_id AS "seriesId",
+            s.title,
+            s.recurrence_rule AS recurrence,
+            o.schedule_state AS "scheduleState",
+            o.completion_state AS "completionState",
+            o.evidence_state AS "evidenceState",
+            o.reward_eligibility AS "rewardEligibility",
+            o.reward_issuance AS "rewardIssuance",
+            o.calendar_source AS "calendarSource",
+            o.field_ownership AS "fieldOwnership",
+            o.story_state AS "storyState",
+            o.deletion_state AS "deletionState",
+            o.all_day AS "allDay",
+            o.start_instant AS "startInstant",
+            o.location,
+            o.notes,
+            o.version
+       FROM mission_occurrences o
+       JOIN mission_series s ON s.id = o.series_id AND s.account_id = o.account_id
+      WHERE o.id = $1 AND o.account_id = $2
+      FOR UPDATE OF o`,
+    [mutation.entityId, mutation.accountId],
+  );
+  const current = currentResult.rows[0];
+  if (current === undefined) {
+    throw new SyncMutationValidationError('Mission update target was not found');
+  }
+  if (current.version !== mutation.baseVersion) {
+    throw new SyncMutationConflictError(
+      'Mission mutation base version does not match current occurrence version',
+    );
+  }
+  if (
+    current.allDay ||
+    current.scheduleState !== 'scheduled' ||
+    current.completionState !== 'incomplete' ||
+    current.calendarSource !== 'internal' ||
+    current.fieldOwnership !== 'app_owned' ||
+    current.deletionState !== 'active'
+  ) {
+    throw new SyncMutationValidationError(
+      'Mission direct manipulation requires an active unfinished app-owned timed mission',
+    );
+  }
+
+  const editedAfterStart = Date.parse(current.startInstant) < effectiveTime.getTime();
+  const movedIntoPast = Date.parse(update.schedule.startInstant) < effectiveTime.getTime();
+  const rewardEligibility =
+    current.rewardEligibility === 'ineligible' || editedAfterStart || movedIntoPast
+      ? 'ineligible'
+      : current.rewardEligibility;
+  const nextVersion = current.version + 1;
+  const schedule = update.schedule;
+  const updated = await client.query(
+    `UPDATE mission_occurrences
+        SET local_date = $3,
+            local_start = $4,
+            local_finish = $5,
+            start_instant = $6,
+            finish_instant = $7,
+            time_zone = $8,
+            time_behavior = $9,
+            all_day = false,
+            estimated_effort_minutes = NULL,
+            reward_eligibility = $10,
+            synchronization_state = 'synced',
+            version = $11,
+            updated_at = now()
+      WHERE id = $1 AND account_id = $2 AND version = $12`,
+    [
+      mutation.entityId,
+      mutation.accountId,
+      schedule.localStart.slice(0, 10),
+      schedule.localStart,
+      schedule.localFinish,
+      schedule.startInstant,
+      schedule.finishInstant,
+      schedule.timeZone,
+      schedule.timeBehavior,
+      rewardEligibility,
+      nextVersion,
+      current.version,
+    ],
+  );
+  if (updated.rowCount !== 1) {
+    throw new SyncMutationConflictError(
+      'Mission mutation base version does not match current occurrence version',
+    );
+  }
+
+  return {
+    version: nextVersion,
+    series: {
+      id: current.seriesId,
+      title: current.title,
+      recurrence: current.recurrence,
+    },
+    occurrence: {
+      id: mutation.entityId,
+      seriesId: current.seriesId,
+      schedule,
+      scheduleState: current.scheduleState,
+      completionState: current.completionState,
+      evidenceState: current.evidenceState,
+      rewardEligibility,
+      rewardIssuance: current.rewardIssuance,
+      calendarSource: current.calendarSource,
+      fieldOwnership: current.fieldOwnership,
+      synchronizationState: 'synced',
+      storyState: current.storyState,
+      deletionState: current.deletionState,
+    },
+    location: current.location,
+    notes: current.notes,
+  };
+}
+
 async function applyExecutableMutation(
   client: PoolClient,
   mutation: StoredSyncMutation,
@@ -620,6 +810,9 @@ async function applyExecutableMutation(
     return applySettingsMutation(client, mutation.accountId, mutation.operation, mutation.payload);
   }
   if (mutation.entityType === 'mission') {
+    if (mutation.operation === 'update') {
+      return applyMissionUpdateMutation(client, mutation, timing.effectiveTime);
+    }
     return applyMissionCreateMutation(
       client,
       mutation.accountId,

@@ -28,6 +28,7 @@ import {
 } from './calendar-day-shell.js';
 import { CalendarInteractiveTimeline } from './calendar-interactive-timeline.js';
 import type { CalendarMissionCreateInput } from './calendar-mission-create.js';
+import type { MissionAdjustmentResult } from './calendar-mission-adjustment.js';
 import { TimedMissionLayer, type TimedMissionSummary } from './calendar-mission-layout.js';
 
 function parseLocalDateParts(value: string): { year: number; month: number; day: number } {
@@ -82,6 +83,8 @@ export interface CalendarDayScreenProps {
   readonly timedMissionsByDate?: Readonly<Record<string, readonly TimedMissionSummary[]>>;
   readonly selectedMissionId?: string;
   readonly onTimedMissionPress?: (mission: TimedMissionSummary) => void;
+  readonly onMissionAdjustment?:
+    ((adjustment: MissionAdjustmentResult) => void | Promise<void>) | undefined;
   readonly onCreateMission?:
     ((input: CalendarMissionCreateInput) => void | Promise<void>) | undefined;
 }
@@ -97,6 +100,7 @@ export function CalendarDayScreen({
   timedMissionsByDate = {},
   selectedMissionId,
   onTimedMissionPress,
+  onMissionAdjustment,
   onCreateMission,
 }: CalendarDayScreenProps) {
   const params = useLocalSearchParams<{ date?: string | string[] }>();
@@ -295,7 +299,10 @@ export function CalendarDayScreen({
                 colorScheme={colorScheme}
                 language={language}
                 missions={timedMissions}
+                now={now}
+                onMissionAdjustment={onMissionAdjustment}
                 onMissionPress={onTimedMissionPress}
+                selectedDate={selectedDate}
                 {...(selectedMissionId === undefined ? {} : { selectedMissionId })}
               />
             ) : undefined

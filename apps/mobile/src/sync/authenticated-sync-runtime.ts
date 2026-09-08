@@ -42,6 +42,7 @@ type MissionProjection = Readonly<{
   mission: OneTimeMission;
   location: string | null;
   notes: string | null;
+  version: number;
 }>;
 
 export type AuthenticatedSyncRuntimeOptions = Readonly<{
@@ -125,6 +126,15 @@ function optionalPayloadString(payload: Record<string, unknown>, key: string): s
   return trimmed.length === 0 ? null : trimmed;
 }
 
+function missionVersion(payload: Record<string, unknown>): number {
+  const value = payload.version;
+  if (value === undefined) return 1;
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value <= 0) {
+    throw new Error('Mission change version must be a positive integer.');
+  }
+  return value;
+}
+
 function missionFromChange(change: ServerAccountChange): MissionProjection | null {
   if (change.entityType !== 'mission') return null;
   if (change.operation !== 'upsert') throw new Error('Unsupported mission change operation.');
@@ -173,6 +183,7 @@ function missionFromChange(change: ServerAccountChange): MissionProjection | nul
     mission,
     location: optionalPayloadString(payload, 'location'),
     notes: optionalPayloadString(payload, 'notes'),
+    version: missionVersion(payload),
   };
 }
 
@@ -182,7 +193,7 @@ async function applyMissionProjection(
   projection: MissionProjection,
   updatedAt: string,
 ) {
-  const { mission, location, notes } = projection;
+  const { mission, location, notes, version } = projection;
   const schedule = mission.occurrence.schedule;
   await transaction.runAsync(
     `INSERT INTO cached_mission_series
@@ -202,8 +213,8 @@ async function applyMissionProjection(
   );
   await transaction.runAsync(
     `INSERT INTO cached_mission_occurrences
-       (account_id, occurrence_id, series_id, local_date, scheduled_start, scheduled_end, all_day, payload_json, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+       (account_id, occurrence_id, series_id, local_date, scheduled_start, scheduled_end, all_day, payload_json, server_version, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(account_id, occurrence_id) DO UPDATE SET
        series_id = excluded.series_id,
        local_date = excluded.local_date,
@@ -211,6 +222,7 @@ async function applyMissionProjection(
        scheduled_end = excluded.scheduled_end,
        all_day = excluded.all_day,
        payload_json = excluded.payload_json,
+       server_version = excluded.server_version,
        updated_at = excluded.updated_at`,
     accountId,
     mission.occurrence.id,
@@ -220,6 +232,7 @@ async function applyMissionProjection(
     schedule.allDay ? null : schedule.localFinish.slice(11, 16),
     schedule.allDay ? 1 : 0,
     JSON.stringify(mission.occurrence),
+    version,
     updatedAt,
   );
   await transaction.runAsync(
