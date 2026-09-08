@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { GestureDetector, usePanGesture } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
@@ -277,6 +277,7 @@ interface TimedMissionLayerProps {
   readonly language: LocalizationLocale;
   readonly missions: readonly TimedMissionSummary[];
   readonly now: Date;
+  readonly getNow?: (() => Date) | undefined;
   readonly selectedDate: string;
   readonly selectedMissionId?: string;
   readonly onMissionAdjustment?:
@@ -351,8 +352,8 @@ function adjustableMission(mission: TimedMissionSummary): AdjustableTimedMission
 interface AdjustableMissionCardProps {
   readonly card: MissionCardLayout;
   readonly colorScheme: ColorScheme;
+  readonly getNow: () => Date;
   readonly language: LocalizationLocale;
-  readonly now: Date;
   readonly selected: boolean;
   readonly selectedDate: string;
   readonly onMissionAdjustment?:
@@ -363,48 +364,86 @@ interface AdjustableMissionCardProps {
 function AdjustableMissionCard({
   card,
   colorScheme,
+  getNow,
   language,
-  now,
   selected,
   selectedDate,
   onMissionAdjustment,
   onMissionPress,
 }: AdjustableMissionCardProps) {
   const mission = card.mission;
-  const missionForAdjustment = adjustableMission(mission);
   const moveActive = useSharedValue(false);
   const moveTranslationY = useSharedValue(0);
   const resizeActive = useSharedValue(false);
   const resizeTranslationY = useSharedValue(0);
-  const duration = mission.endMinute - mission.startMinute;
+  const committedStartMinute = useSharedValue(mission.startMinute);
+  const committedEndMinute = useSharedValue(mission.endMinute);
+  const committedRewardEligibility = useSharedValue(mission.rewardEligibility);
   const positionedStyle = missionPositionStyle(card);
+
+  useEffect(() => {
+    committedStartMinute.value = mission.startMinute;
+    committedEndMinute.value = mission.endMinute;
+    committedRewardEligibility.value = mission.rewardEligibility;
+  }, [
+    committedEndMinute,
+    committedRewardEligibility,
+    committedStartMinute,
+    mission.endMinute,
+    mission.rewardEligibility,
+    mission.startMinute,
+  ]);
+
   const animatedAdjustmentStyle = useAnimatedStyle(() => {
+    const currentStart = committedStartMinute.value;
+    const currentEnd = committedEndMinute.value;
+    const duration = currentEnd - currentStart;
     if (moveActive.value) {
       const nextStart = Math.min(
-        Math.max(mission.startMinute + moveTranslationY.value, 0),
+        Math.max(currentStart + moveTranslationY.value, 0),
         MINUTES_PER_DAY - duration,
       );
       return { height: duration, top: nextStart };
     }
     if (resizeActive.value) {
       const nextEnd = Math.min(
-        Math.max(mission.endMinute + resizeTranslationY.value, mission.startMinute + 15),
+        Math.max(currentEnd + resizeTranslationY.value, currentStart + 15),
         MINUTES_PER_DAY,
       );
-      return { height: nextEnd - mission.startMinute, top: mission.startMinute };
+      return { height: nextEnd - currentStart, top: currentStart };
     }
-    return { height: card.height, top: card.top };
+    return { height: duration, top: currentStart };
   });
 
   const finishAdjustment = (kind: MissionAdjustmentKind, translationY: number) => {
-    const result = commitMissionAdjustment({
-      mission: missionForAdjustment,
-      kind,
-      translationY,
-      selectedDate,
-      now,
-    });
-    void onMissionAdjustment?.(result);
+    try {
+      const result = commitMissionAdjustment({
+        mission: {
+          ...adjustableMission(mission),
+          startMinute: committedStartMinute.value,
+          endMinute: committedEndMinute.value,
+          rewardEligibility: committedRewardEligibility.value,
+        },
+        kind,
+        translationY,
+        selectedDate,
+        now: getNow(),
+      });
+      if (result.allowed) {
+        committedStartMinute.value = result.startMinute;
+        committedEndMinute.value = result.endMinute;
+        committedRewardEligibility.value = result.rewardEligibility;
+      }
+      void onMissionAdjustment?.(result);
+    } finally {
+      if (kind === 'move') {
+        moveActive.value = false;
+        moveTranslationY.value = 0;
+      } else {
+        resizeActive.value = false;
+        resizeTranslationY.value = 0;
+      }
+    }
   };
 
   const resizeGesture = usePanGesture({
@@ -418,13 +457,10 @@ function AdjustableMissionCard({
     onDeactivate: (event) => {
       if (!event.canceled) {
         scheduleOnRN(finishAdjustment, 'resize', event.translationY);
+      } else {
+        resizeActive.value = false;
+        resizeTranslationY.value = 0;
       }
-      resizeActive.value = false;
-      resizeTranslationY.value = 0;
-    },
-    onFinalize: () => {
-      resizeActive.value = false;
-      resizeTranslationY.value = 0;
     },
   });
 
@@ -440,13 +476,10 @@ function AdjustableMissionCard({
     onDeactivate: (event) => {
       if (!event.canceled) {
         scheduleOnRN(finishAdjustment, 'move', event.translationY);
+      } else {
+        moveActive.value = false;
+        moveTranslationY.value = 0;
       }
-      moveActive.value = false;
-      moveTranslationY.value = 0;
-    },
-    onFinalize: () => {
-      moveActive.value = false;
-      moveTranslationY.value = 0;
     },
   });
 
@@ -484,9 +517,9 @@ function AdjustableMissionCard({
 
 export function TimedMissionLayer({
   colorScheme,
+  getNow = () => new Date(),
   language,
   missions,
-  now,
   selectedDate,
   selectedMissionId,
   onMissionAdjustment,
@@ -505,9 +538,9 @@ export function TimedMissionLayer({
               <AdjustableMissionCard
                 card={card}
                 colorScheme={colorScheme}
+                getNow={getNow}
                 key={card.mission.id}
                 language={language}
-                now={now}
                 onMissionAdjustment={onMissionAdjustment}
                 onMissionPress={onMissionPress}
                 selected={selectedMissionId === card.mission.id}
