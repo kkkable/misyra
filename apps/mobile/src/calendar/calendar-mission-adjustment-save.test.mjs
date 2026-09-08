@@ -3,6 +3,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { saveCalendarMissionAdjustment } from './calendar-mission-adjustment-save.js';
+import { createCalendarMission } from './calendar-mission-create.js';
 import { applyMobileMigrations } from '../storage/schema.js';
 
 class NodeSqliteAdapter {
@@ -89,8 +90,7 @@ const initialSchedule = {
   estimatedEffortMinutes: null,
 };
 
-async function setupCachedMission(database) {
-  await applyMobileMigrations(database);
+async function setupLocalAccount(database) {
   await database.runAsync(
     `INSERT INTO local_accounts
       (account_id, created_at, language, trust_mode, app_time_zone)
@@ -98,6 +98,11 @@ async function setupCachedMission(database) {
     accountId,
     '2026-09-07T12:00:00.000Z',
   );
+}
+
+async function setupCachedMission(database) {
+  await applyMobileMigrations(database);
+  await setupLocalAccount(database);
   await database.runAsync(
     `INSERT INTO cached_mission_series
       (account_id, series_id, title, timezone, payload_json, updated_at)
@@ -225,5 +230,83 @@ describe('MTS-047 local-first mission adjustment save', () => {
       payload: { rewardEligibility: 'ineligible' },
     });
     expect(second.payload.schedule.localStart).toBe('2026-09-08T09:00:00');
+  });
+
+  it('keeps drag and resize save available for a mission created offline before first sync', async () => {
+    const database = createDatabase();
+    await applyMobileMigrations(database);
+    await setupLocalAccount(database);
+    const ids = [
+      seriesId,
+      occurrenceId,
+      '55555555-5555-4555-8555-555555555555',
+      '66666666-6666-4666-8666-666666666666',
+    ];
+    const generateId = () => ids.shift();
+
+    await createCalendarMission({
+      database,
+      accountId,
+      deviceId,
+      input: {
+        selectedDate: '2026-09-08',
+        title: 'Offline mission',
+        startMinute: 9 * 60,
+        endMinute: 10 * 60,
+        rewardEligibility: 'eligible',
+        timeZone: 'Asia/Tokyo',
+      },
+      now: new Date('2026-09-07T12:00:00.000Z'),
+      generateId,
+    });
+
+    await expect(
+      saveCalendarMissionAdjustment({
+        database,
+        accountId,
+        deviceId,
+        adjustment: {
+          missionId: occurrenceId,
+          startMinute: 9 * 60 + 15,
+          endMinute: 10 * 60 + 15,
+          rewardEligibility: 'eligible',
+          source: 'move',
+        },
+        now: new Date('2026-09-07T12:01:00.000Z'),
+        generateId,
+      }),
+    ).resolves.toBeUndefined();
+
+    const cached = await database.getFirstAsync(
+      `SELECT scheduled_start, scheduled_end, server_version
+         FROM cached_mission_occurrences
+        WHERE account_id = ? AND occurrence_id = ?`,
+      accountId,
+      occurrenceId,
+    );
+    expect(cached).toMatchObject({
+      scheduled_start: '09:15',
+      scheduled_end: '10:15',
+      server_version: 2,
+    });
+
+    const queued = await database.getAllAsync(
+      `SELECT command_json
+         FROM mutation_queue
+        WHERE account_id = ?
+        ORDER BY sequence`,
+      accountId,
+    );
+    expect(queued).toHaveLength(2);
+    expect(JSON.parse(queued[0].command_json).mutation).toMatchObject({
+      entityId: occurrenceId,
+      operation: 'create',
+      baseVersion: null,
+    });
+    expect(JSON.parse(queued[1].command_json).mutation).toMatchObject({
+      entityId: occurrenceId,
+      operation: 'update',
+      baseVersion: 1,
+    });
   });
 });
