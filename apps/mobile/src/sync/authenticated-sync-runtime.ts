@@ -270,6 +270,13 @@ async function applyMissionDeleteProjection(
   occurrenceId: string,
   deletedAt: string,
 ) {
+  const cached = await transaction.getFirstAsync<{ series_id: string }>(
+    `SELECT series_id
+       FROM cached_mission_occurrences
+      WHERE account_id = ? AND occurrence_id = ?`,
+    accountId,
+    occurrenceId,
+  );
   await transaction.runAsync(
     `INSERT INTO mission_occurrence_tombstones
        (account_id, occurrence_id, deleted_at, reason)
@@ -289,6 +296,21 @@ async function applyMissionDeleteProjection(
     accountId,
     occurrenceId,
   );
+  if (cached !== null) {
+    await transaction.runAsync(
+      `DELETE FROM cached_mission_series
+        WHERE account_id = ? AND series_id = ?
+          AND NOT EXISTS (
+            SELECT 1
+              FROM cached_mission_occurrences
+             WHERE account_id = ? AND series_id = ?
+          )`,
+      accountId,
+      cached.series_id,
+      accountId,
+      cached.series_id,
+    );
+  }
 }
 
 async function applyAuthoritativeChanges(
