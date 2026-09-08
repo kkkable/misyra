@@ -30,7 +30,14 @@ function minuteFromLocalDateTime(value: string): number {
   if (match === null) throw new Error('Mission local time is invalid.');
   const hour = Number(match[2]);
   const minute = Number(match[3]);
-  if (!Number.isInteger(hour) || hour < 0 || hour > 23 || !Number.isInteger(minute) || minute < 0 || minute > 59) {
+  if (
+    !Number.isInteger(hour) ||
+    hour < 0 ||
+    hour > 23 ||
+    !Number.isInteger(minute) ||
+    minute < 0 ||
+    minute > 59
+  ) {
     throw new Error('Mission local time is invalid.');
   }
   return hour * 60 + minute;
