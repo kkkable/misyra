@@ -83,9 +83,6 @@ export async function saveCalendarMissionAdjustment({
     adjustment.missionId,
   );
   if (cached === null) throw new Error('Mission adjustment target was not found.');
-  if (!Number.isSafeInteger(cached.server_version) || (cached.server_version ?? 0) <= 0) {
-    throw new Error('Mission adjustment requires an authoritative server version.');
-  }
 
   const occurrence = createMissionOccurrence(
     JSON.parse(cached.payload_json) as MissionOccurrenceInput,
@@ -103,6 +100,14 @@ export async function saveCalendarMissionAdjustment({
     );
   }
 
+  const baseVersion =
+    cached.server_version === null && occurrence.synchronizationState === 'pending'
+      ? 1
+      : cached.server_version;
+  if (!Number.isSafeInteger(baseVersion) || (baseVersion ?? 0) <= 0) {
+    throw new Error('Mission adjustment requires an authoritative or pending-create version.');
+  }
+
   const schedule = createZonedTimedSchedule({
     localStart: localDateTime(cached.local_date, adjustment.startMinute),
     localFinish: localDateTime(cached.local_date, adjustment.endMinute),
@@ -115,7 +120,6 @@ export async function saveCalendarMissionAdjustment({
     throw new Error('Mission adjustment requires resolved XP eligibility.');
   }
 
-  const baseVersion = cached.server_version as number;
   const nextVersion = baseVersion + 1;
   const occurredAt = now.toISOString();
   const mutationId = generateId();
@@ -149,7 +153,7 @@ export async function saveCalendarMissionAdjustment({
         accountId,
         adjustment.missionId,
       );
-      if (latest?.server_version !== baseVersion) {
+      if (latest?.server_version !== cached.server_version) {
         throw new Error('Mission adjustment cache version changed before save.');
       }
       await transaction.runAsync(
