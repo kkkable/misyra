@@ -57,12 +57,14 @@ function renderForm({ language = 'en', onSubmit = vi.fn() } = {}) {
 }
 
 function openRecurrence(renderer) {
-  act(() =>
-    renderer.root.findByProps({ testID: 'calendar-create-more-options' }).props.onPress(),
-  );
+  act(() => {
+    renderer.root.findByProps({ testID: 'calendar-create-more-options' }).props.onPress();
+  });
   const recurrence = renderer.root.findByProps({ testID: 'calendar-create-recurrence' });
   expect(recurrence.props.accessibilityRole).toBe('button');
-  act(() => recurrence.props.onPress());
+  act(() => {
+    recurrence.props.onPress();
+  });
   return renderer.root.findByProps({ testID: 'calendar-recurrence-editor' });
 }
 
@@ -85,13 +87,15 @@ function textSnapshot(node) {
 }
 
 function setTitle(renderer, title) {
-  act(() =>
-    renderer.root.findByProps({ testID: 'calendar-create-title' }).props.onChangeText(title),
-  );
+  act(() => {
+    renderer.root.findByProps({ testID: 'calendar-create-title' }).props.onChangeText(title);
+  });
 }
 
 function saveMission(renderer) {
-  act(() => renderer.root.findByProps({ testID: 'calendar-create-save' }).props.onPress());
+  act(() => {
+    renderer.root.findByProps({ testID: 'calendar-create-save' }).props.onPress();
+  });
 }
 
 beforeEach(() => {
@@ -103,7 +107,7 @@ describe('MTS-051 recurrence editor UI', () => {
     const english = renderForm().renderer;
     const englishEditor = openRecurrence(english);
     expect(textSnapshot(englishEditor)).toMatchInlineSnapshot(
-      '"Repeat | Does not repeat | Daily | Weekly | Monthly | Yearly | Custom | Ends | Never | On date | After count | Cancel | Done"',
+      `"Repeat | Does not repeat | Daily | Weekly | Monthly | Yearly | Custom | Ends | Never | On date | After count | Cancel | Done"`,
     );
     expect(english.root.findAllByProps({ testID: 'recurrence-pause' })).toHaveLength(0);
     expect(english.root.findAllByProps({ testID: 'recurrence-exception-dates' })).toHaveLength(0);
@@ -111,7 +115,7 @@ describe('MTS-051 recurrence editor UI', () => {
     const chinese = renderForm({ language: 'zh-HK' }).renderer;
     const chineseEditor = openRecurrence(chinese);
     expect(textSnapshot(chineseEditor)).toMatchInlineSnapshot(
-      '"重複 | 不重複 | 每日 | 每週 | 每月 | 每年 | 自訂 | 結束 | 永不 | 於日期 | 完成次數後 | 取消 | 完成"',
+      `"重複 | 不重複 | 每日 | 每週 | 每月 | 每年 | 自訂 | 結束 | 永不 | 於日期 | 完成次數後 | 取消 | 完成"`,
     );
   });
 
@@ -119,22 +123,24 @@ describe('MTS-051 recurrence editor UI', () => {
     const { renderer, onSubmit } = renderForm();
     openRecurrence(renderer);
 
-    act(() =>
-      renderer.root.findByProps({ testID: 'recurrence-preset-monthly' }).props.onPress(),
-    );
-    act(() =>
-      renderer.root.findByProps({ testID: 'recurrence-monthly-ordinal' }).props.onPress(),
-    );
-    act(() =>
-      renderer.root.findByProps({ testID: 'recurrence-interval' }).props.onChangeText('2'),
-    );
-    act(() => renderer.root.findByProps({ testID: 'recurrence-end-count' }).props.onPress());
-    act(() =>
-      renderer.root
-        .findByProps({ testID: 'recurrence-end-count-input' })
-        .props.onChangeText('7'),
-    );
-    act(() => renderer.root.findByProps({ testID: 'recurrence-done' }).props.onPress());
+    act(() => {
+      renderer.root.findByProps({ testID: 'recurrence-preset-monthly' }).props.onPress();
+    });
+    act(() => {
+      renderer.root.findByProps({ testID: 'recurrence-monthly-ordinal' }).props.onPress();
+    });
+    act(() => {
+      renderer.root.findByProps({ testID: 'recurrence-interval' }).props.onChangeText('2');
+    });
+    act(() => {
+      renderer.root.findByProps({ testID: 'recurrence-end-count' }).props.onPress();
+    });
+    act(() => {
+      renderer.root.findByProps({ testID: 'recurrence-end-count-input' }).props.onChangeText('7');
+    });
+    act(() => {
+      renderer.root.findByProps({ testID: 'recurrence-done' }).props.onPress();
+    });
 
     setTitle(renderer, 'Second Tuesday mission');
     saveMission(renderer);
@@ -153,28 +159,32 @@ describe('MTS-051 recurrence editor UI', () => {
     const { renderer, onSubmit } = renderForm();
     openRecurrence(renderer);
 
-    act(() =>
-      renderer.root.findByProps({ testID: 'recurrence-preset-yearly' }).props.onPress(),
-    );
-    act(() =>
-      renderer.root.findByProps({ testID: 'recurrence-yearly-ordinal' }).props.onPress(),
-    );
-    act(() =>
-      renderer.root.findByProps({ testID: 'recurrence-month' }).props.onChangeText('12'),
-    );
-    act(() =>
-      renderer.root.findByProps({ testID: 'recurrence-ordinal-last' }).props.onPress(),
-    );
-    act(() =>
-      renderer.root.findByProps({ testID: 'recurrence-weekday-5' }).props.onPress(),
-    );
-    act(() => renderer.root.findByProps({ testID: 'recurrence-end-date' }).props.onPress());
-    act(() =>
+    act(() => {
+      renderer.root.findByProps({ testID: 'recurrence-preset-yearly' }).props.onPress();
+    });
+    act(() => {
+      renderer.root.findByProps({ testID: 'recurrence-yearly-ordinal' }).props.onPress();
+    });
+    act(() => {
+      renderer.root.findByProps({ testID: 'recurrence-month' }).props.onChangeText('12');
+    });
+    act(() => {
+      renderer.root.findByProps({ testID: 'recurrence-ordinal-last' }).props.onPress();
+    });
+    act(() => {
+      renderer.root.findByProps({ testID: 'recurrence-weekday-5' }).props.onPress();
+    });
+    act(() => {
+      renderer.root.findByProps({ testID: 'recurrence-end-date' }).props.onPress();
+    });
+    act(() => {
       renderer.root
         .findByProps({ testID: 'recurrence-end-date-input' })
-        .props.onChangeText('2027-12-31'),
-    );
-    act(() => renderer.root.findByProps({ testID: 'recurrence-done' }).props.onPress());
+        .props.onChangeText('2027-12-31');
+    });
+    act(() => {
+      renderer.root.findByProps({ testID: 'recurrence-done' }).props.onPress();
+    });
 
     setTitle(renderer, 'Last Friday of December');
     saveMission(renderer);
@@ -193,25 +203,27 @@ describe('MTS-051 recurrence editor UI', () => {
     const { renderer, onSubmit } = renderForm();
     openRecurrence(renderer);
 
-    act(() =>
-      renderer.root.findByProps({ testID: 'recurrence-preset-custom' }).props.onPress(),
-    );
-    act(() =>
-      renderer.root.findByProps({ testID: 'recurrence-custom-weekly' }).props.onPress(),
-    );
-    act(() =>
-      renderer.root.findByProps({ testID: 'recurrence-interval' }).props.onChangeText('3'),
-    );
-    act(() =>
-      renderer.root.findByProps({ testID: 'recurrence-weekday-2' }).props.onPress(),
-    );
-    act(() =>
-      renderer.root.findByProps({ testID: 'recurrence-weekday-1' }).props.onPress(),
-    );
-    act(() =>
-      renderer.root.findByProps({ testID: 'recurrence-weekday-3' }).props.onPress(),
-    );
-    act(() => renderer.root.findByProps({ testID: 'recurrence-done' }).props.onPress());
+    act(() => {
+      renderer.root.findByProps({ testID: 'recurrence-preset-custom' }).props.onPress();
+    });
+    act(() => {
+      renderer.root.findByProps({ testID: 'recurrence-custom-weekly' }).props.onPress();
+    });
+    act(() => {
+      renderer.root.findByProps({ testID: 'recurrence-interval' }).props.onChangeText('3');
+    });
+    act(() => {
+      renderer.root.findByProps({ testID: 'recurrence-weekday-2' }).props.onPress();
+    });
+    act(() => {
+      renderer.root.findByProps({ testID: 'recurrence-weekday-1' }).props.onPress();
+    });
+    act(() => {
+      renderer.root.findByProps({ testID: 'recurrence-weekday-3' }).props.onPress();
+    });
+    act(() => {
+      renderer.root.findByProps({ testID: 'recurrence-done' }).props.onPress();
+    });
 
     setTitle(renderer, 'Mon Wed rotation');
     saveMission(renderer);
