@@ -86,6 +86,11 @@ interface MissionUpdateRow extends QueryResultRow {
   version: number;
 }
 
+interface MissionDeleteRow extends QueryResultRow {
+  deletionState: string;
+  version: number;
+}
+
 type SettingsPatch = Readonly<{
   language?: 'en' | 'zh-HK';
   trustMode?: boolean;
@@ -203,8 +208,23 @@ function assertExecutableMutationShape(mutation: StoredSyncMutation): void {
       }
       return;
     }
+    if (mutation.operation === 'delete') {
+      if (
+        mutation.baseVersion === null ||
+        !Number.isSafeInteger(mutation.baseVersion) ||
+        mutation.baseVersion <= 0
+      ) {
+        throw new SyncMutationValidationError(
+          'Mission delete requires a positive integer base version',
+        );
+      }
+      if (mutation.payload !== null) {
+        throw new SyncMutationValidationError('Mission delete payload must be null');
+      }
+      return;
+    }
     throw new SyncMutationValidationError(
-      'Mission synchronization supports create and update operations only',
+      'Mission synchronization supports create, update, and delete operations only',
     );
   }
 
@@ -711,6 +731,9 @@ async function applyMissionUpdateMutation(
   if (current === undefined) {
     throw new SyncMutationValidationError('Mission update target was not found');
   }
+  if (current.deletionState === 'deleted') {
+    throw new SyncMutationConflictError('Mission occurrence is permanently deleted');
+  }
   if (current.version !== mutation.baseVersion) {
     throw new SyncMutationConflictError(
       'Mission mutation base version does not match current occurrence version',
@@ -801,6 +824,52 @@ async function applyMissionUpdateMutation(
   };
 }
 
+async function applyMissionDeleteMutation(
+  client: PoolClient,
+  mutation: StoredSyncMutation,
+  effectiveTime: Date,
+): Promise<null> {
+  const currentResult = await client.query<MissionDeleteRow>(
+    `SELECT deletion_state AS "deletionState", version
+       FROM mission_occurrences
+      WHERE id = $1 AND account_id = $2
+      FOR UPDATE`,
+    [mutation.entityId, mutation.accountId],
+  );
+  const current = currentResult.rows[0];
+  if (current === undefined) {
+    throw new SyncMutationValidationError('Mission delete target was not found');
+  }
+  if (current.deletionState === 'deleted') {
+    throw new SyncMutationConflictError('Mission occurrence is permanently deleted');
+  }
+
+  const nextVersion = current.version + 1;
+  await client.query(
+    `INSERT INTO mission_occurrence_tombstones
+       (occurrence_id, account_id, deleted_at, reason)
+     VALUES ($1, $2, $3, 'user_deleted')
+     ON CONFLICT (occurrence_id) DO NOTHING`,
+    [mutation.entityId, mutation.accountId, effectiveTime],
+  );
+  const updated = await client.query(
+    `UPDATE mission_occurrences
+        SET deletion_state = 'deleted',
+            synchronization_state = 'synced',
+            version = $3,
+            updated_at = now()
+      WHERE id = $1
+        AND account_id = $2
+        AND deletion_state = 'active'
+        AND version = $4`,
+    [mutation.entityId, mutation.accountId, nextVersion, current.version],
+  );
+  if (updated.rowCount !== 1) {
+    throw new SyncMutationConflictError('Mission occurrence changed while deletion was applied');
+  }
+  return null;
+}
+
 async function applyExecutableMutation(
   client: PoolClient,
   mutation: StoredSyncMutation,
@@ -812,6 +881,9 @@ async function applyExecutableMutation(
   if (mutation.entityType === 'mission') {
     if (mutation.operation === 'update') {
       return applyMissionUpdateMutation(client, mutation, timing.effectiveTime);
+    }
+    if (mutation.operation === 'delete') {
+      return applyMissionDeleteMutation(client, mutation, timing.effectiveTime);
     }
     return applyMissionCreateMutation(
       client,
