@@ -313,10 +313,7 @@ export function createServerSync(options: ServerSyncOptions) {
     const pushResult = await pushQueuedMutations();
     const cursor = await pullAuthoritativeState();
     if (pushResult.conflicts.length > 0) {
-      if (options.applyConflicts === undefined) {
-        throw new Error('Conflict outcomes require an application handler before settlement.');
-      }
-      await options.applyConflicts(pushResult.conflicts);
+      await options.applyConflicts?.(pushResult.conflicts);
       await deleteQueuedMutations(
         options.database,
         options.accountId,
