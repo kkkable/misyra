@@ -23,7 +23,12 @@ vi.mock('react-native', async () => {
     Text: 'Text',
     TextInput,
     View: 'View',
-    useWindowDimensions: () => ({ width: 393, height: 852, scale: 3, fontScale: mockState.fontScale }),
+    useWindowDimensions: () => ({
+      width: 393,
+      height: 852,
+      scale: 3,
+      fontScale: mockState.fontScale,
+    }),
   };
 });
 
@@ -52,7 +57,9 @@ function renderForm({ language = 'en', onSubmit = vi.fn() } = {}) {
 }
 
 function openRecurrence(renderer) {
-  act(() => renderer.root.findByProps({ testID: 'calendar-create-more-options' }).props.onPress());
+  act(() =>
+    renderer.root.findByProps({ testID: 'calendar-create-more-options' }).props.onPress(),
+  );
   const recurrence = renderer.root.findByProps({ testID: 'calendar-create-recurrence' });
   expect(recurrence.props.accessibilityRole).toBe('button');
   act(() => recurrence.props.onPress());
@@ -78,7 +85,9 @@ function textSnapshot(node) {
 }
 
 function setTitle(renderer, title) {
-  act(() => renderer.root.findByProps({ testID: 'calendar-create-title' }).props.onChangeText(title));
+  act(() =>
+    renderer.root.findByProps({ testID: 'calendar-create-title' }).props.onChangeText(title),
+  );
 }
 
 function saveMission(renderer) {
@@ -110,11 +119,21 @@ describe('MTS-051 recurrence editor UI', () => {
     const { renderer, onSubmit } = renderForm();
     openRecurrence(renderer);
 
-    act(() => renderer.root.findByProps({ testID: 'recurrence-preset-monthly' }).props.onPress());
-    act(() => renderer.root.findByProps({ testID: 'recurrence-monthly-ordinal' }).props.onPress());
-    act(() => renderer.root.findByProps({ testID: 'recurrence-interval' }).props.onChangeText('2'));
+    act(() =>
+      renderer.root.findByProps({ testID: 'recurrence-preset-monthly' }).props.onPress(),
+    );
+    act(() =>
+      renderer.root.findByProps({ testID: 'recurrence-monthly-ordinal' }).props.onPress(),
+    );
+    act(() =>
+      renderer.root.findByProps({ testID: 'recurrence-interval' }).props.onChangeText('2'),
+    );
     act(() => renderer.root.findByProps({ testID: 'recurrence-end-count' }).props.onPress());
-    act(() => renderer.root.findByProps({ testID: 'recurrence-end-count-input' }).props.onChangeText('7'));
+    act(() =>
+      renderer.root
+        .findByProps({ testID: 'recurrence-end-count-input' })
+        .props.onChangeText('7'),
+    );
     act(() => renderer.root.findByProps({ testID: 'recurrence-done' }).props.onPress());
 
     setTitle(renderer, 'Second Tuesday mission');
@@ -134,14 +153,26 @@ describe('MTS-051 recurrence editor UI', () => {
     const { renderer, onSubmit } = renderForm();
     openRecurrence(renderer);
 
-    act(() => renderer.root.findByProps({ testID: 'recurrence-preset-yearly' }).props.onPress());
-    act(() => renderer.root.findByProps({ testID: 'recurrence-yearly-ordinal' }).props.onPress());
-    act(() => renderer.root.findByProps({ testID: 'recurrence-month' }).props.onChangeText('12'));
-    act(() => renderer.root.findByProps({ testID: 'recurrence-ordinal-last' }).props.onPress());
-    act(() => renderer.root.findByProps({ testID: 'recurrence-weekday-5' }).props.onPress());
+    act(() =>
+      renderer.root.findByProps({ testID: 'recurrence-preset-yearly' }).props.onPress(),
+    );
+    act(() =>
+      renderer.root.findByProps({ testID: 'recurrence-yearly-ordinal' }).props.onPress(),
+    );
+    act(() =>
+      renderer.root.findByProps({ testID: 'recurrence-month' }).props.onChangeText('12'),
+    );
+    act(() =>
+      renderer.root.findByProps({ testID: 'recurrence-ordinal-last' }).props.onPress(),
+    );
+    act(() =>
+      renderer.root.findByProps({ testID: 'recurrence-weekday-5' }).props.onPress(),
+    );
     act(() => renderer.root.findByProps({ testID: 'recurrence-end-date' }).props.onPress());
     act(() =>
-      renderer.root.findByProps({ testID: 'recurrence-end-date-input' }).props.onChangeText('2027-12-31'),
+      renderer.root
+        .findByProps({ testID: 'recurrence-end-date-input' })
+        .props.onChangeText('2027-12-31'),
     );
     act(() => renderer.root.findByProps({ testID: 'recurrence-done' }).props.onPress());
 
@@ -162,12 +193,24 @@ describe('MTS-051 recurrence editor UI', () => {
     const { renderer, onSubmit } = renderForm();
     openRecurrence(renderer);
 
-    act(() => renderer.root.findByProps({ testID: 'recurrence-preset-custom' }).props.onPress());
-    act(() => renderer.root.findByProps({ testID: 'recurrence-custom-weekly' }).props.onPress());
-    act(() => renderer.root.findByProps({ testID: 'recurrence-interval' }).props.onChangeText('3'));
-    act(() => renderer.root.findByProps({ testID: 'recurrence-weekday-2' }).props.onPress());
-    act(() => renderer.root.findByProps({ testID: 'recurrence-weekday-1' }).props.onPress());
-    act(() => renderer.root.findByProps({ testID: 'recurrence-weekday-3' }).props.onPress());
+    act(() =>
+      renderer.root.findByProps({ testID: 'recurrence-preset-custom' }).props.onPress(),
+    );
+    act(() =>
+      renderer.root.findByProps({ testID: 'recurrence-custom-weekly' }).props.onPress(),
+    );
+    act(() =>
+      renderer.root.findByProps({ testID: 'recurrence-interval' }).props.onChangeText('3'),
+    );
+    act(() =>
+      renderer.root.findByProps({ testID: 'recurrence-weekday-2' }).props.onPress(),
+    );
+    act(() =>
+      renderer.root.findByProps({ testID: 'recurrence-weekday-1' }).props.onPress(),
+    );
+    act(() =>
+      renderer.root.findByProps({ testID: 'recurrence-weekday-3' }).props.onPress(),
+    );
     act(() => renderer.root.findByProps({ testID: 'recurrence-done' }).props.onPress());
 
     setTitle(renderer, 'Mon Wed rotation');
