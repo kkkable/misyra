@@ -165,6 +165,15 @@ describe('MTS-048 authoritative mobile mission tombstones', () => {
         occurrenceId,
       ),
     ).toEqual({ occurrence_id: occurrenceId });
+    expect(
+      await database.getFirstAsync(
+        `SELECT title
+           FROM cached_mission_series
+          WHERE account_id = ? AND series_id = ?`,
+        accountId,
+        seriesId,
+      ),
+    ).toBeNull();
 
     await runAuthenticatedServerSync({
       database,
