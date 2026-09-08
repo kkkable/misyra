@@ -194,8 +194,10 @@ export async function undoCalendarMissionDeletion({
     );
     if (queued === null) return;
     const envelope = JSON.parse(queued.command_json) as {
+      inFlight?: unknown;
       mutation?: { entityId?: unknown; operation?: unknown };
     };
+    if (envelope.inFlight === true || envelope.inFlight === 1) return;
     if (
       envelope.mutation?.entityId !== deletion.occurrenceId ||
       envelope.mutation.operation !== 'delete'
