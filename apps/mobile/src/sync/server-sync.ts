@@ -314,9 +314,15 @@ export function createServerSync(options: ServerSyncOptions) {
     const cursor = await pullAuthoritativeState();
     if (pushResult.conflicts.length > 0) {
       if (options.applyConflicts === undefined) {
-        throw new Error('Conflict outcomes require an application handler before settlement.');
+        const requiresApplicationEffects = pushResult.conflicts.some(
+          (conflict) => conflict.kind !== 'mission_deleted',
+        );
+        if (requiresApplicationEffects) {
+          throw new Error('Conflict outcomes require an application handler before settlement.');
+        }
+      } else {
+        await options.applyConflicts(pushResult.conflicts);
       }
-      await options.applyConflicts(pushResult.conflicts);
       await deleteQueuedMutations(
         options.database,
         options.accountId,
