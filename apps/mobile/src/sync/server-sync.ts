@@ -261,6 +261,8 @@ export function createServerSync(options: ServerSyncOptions) {
       }
 
       if (batchConflicts.length > 0) {
+        const unsettledIds = inFlightIds.filter((mutationId) => !settledIds.has(mutationId));
+        await setQueuedMutationsInFlight(options.database, options.accountId, unsettledIds, false);
         return {
           settled,
           conflicts: batchConflicts,
