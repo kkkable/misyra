@@ -35,15 +35,26 @@ type CalendarMissionCreateOptions = Readonly<{
 }>;
 
 const MINUTES_PER_DAY = 24 * 60;
+const MAX_TIMED_END_MINUTE = MINUTES_PER_DAY * 2;
 const LOCAL_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 function assertNonEmpty(value: string, label: string): void {
   if (value.trim().length === 0) throw new TypeError(`${label} must not be empty.`);
 }
 
-function assertMinute(value: number, label: string): void {
+function assertStartMinute(value: number): void {
   if (!Number.isInteger(value) || value < 0 || value > MINUTES_PER_DAY) {
-    throw new RangeError(`${label} must be an integer from 0 to ${String(MINUTES_PER_DAY)}.`);
+    throw new RangeError(
+      `Mission start minute must be an integer from 0 to ${String(MINUTES_PER_DAY)}.`,
+    );
+  }
+}
+
+function assertEndMinute(value: number): void {
+  if (!Number.isInteger(value) || value < 0 || value > MAX_TIMED_END_MINUTE) {
+    throw new RangeError(
+      `Mission end minute must be an integer from 0 to ${String(MAX_TIMED_END_MINUTE)}.`,
+    );
   }
 }
 
@@ -57,20 +68,23 @@ function localDateTime(localDate: string, minute: number): string {
   if (!LOCAL_DATE_PATTERN.test(localDate)) {
     throw new TypeError('Mission date must use YYYY-MM-DD format.');
   }
-  assertMinute(minute, 'Mission minute');
-  if (minute === MINUTES_PER_DAY) {
-    const date = new Date(`${localDate}T12:00:00Z`);
-    date.setUTCDate(date.getUTCDate() + 1);
-    return `${date.toISOString().slice(0, 10)}T00:00:00`;
+  if (!Number.isInteger(minute) || minute < 0 || minute > MAX_TIMED_END_MINUTE) {
+    throw new RangeError('Mission local date-time minute is outside the supported range.');
   }
-  const hour = Math.floor(minute / 60);
-  const minuteWithinHour = minute % 60;
-  return `${localDate}T${String(hour).padStart(2, '0')}:${String(minuteWithinHour).padStart(2, '0')}:00`;
+  const dayOffset = Math.floor(minute / MINUTES_PER_DAY);
+  const minuteWithinDay = minute % MINUTES_PER_DAY;
+  const date = new Date(`${localDate}T12:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + dayOffset);
+  const hour = Math.floor(minuteWithinDay / 60);
+  const minuteWithinHour = minuteWithinDay % 60;
+  return `${date.toISOString().slice(0, 10)}T${String(hour).padStart(2, '0')}:${String(minuteWithinHour).padStart(2, '0')}:00`;
 }
 
 function localClock(minute: number): string {
-  assertMinute(minute, 'Mission minute');
-  const normalized = minute === MINUTES_PER_DAY ? 0 : minute;
+  if (!Number.isInteger(minute) || minute < 0 || minute > MAX_TIMED_END_MINUTE) {
+    throw new RangeError('Mission clock minute is outside the supported range.');
+  }
+  const normalized = minute % MINUTES_PER_DAY;
   return `${String(Math.floor(normalized / 60)).padStart(2, '0')}:${String(normalized % 60).padStart(2, '0')}`;
 }
 
@@ -113,10 +127,13 @@ export async function createCalendarMission({
   } else {
     if (input.startMinute === null) throw new RangeError('Mission start minute is required.');
     if (input.endMinute === null) throw new RangeError('Mission end minute is required.');
-    assertMinute(input.startMinute, 'Mission start minute');
-    assertMinute(input.endMinute, 'Mission end minute');
+    assertStartMinute(input.startMinute);
+    assertEndMinute(input.endMinute);
     if (input.endMinute <= input.startMinute) {
       throw new RangeError('Mission end must be after its start.');
+    }
+    if (input.endMinute - input.startMinute > MINUTES_PER_DAY) {
+      throw new RangeError('Mission duration cannot exceed 24 hours.');
     }
     schedule = createZonedTimedSchedule({
       localStart: localDateTime(input.selectedDate, input.startMinute),
