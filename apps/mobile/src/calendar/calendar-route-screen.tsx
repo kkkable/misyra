@@ -11,7 +11,10 @@ import {
   CalendarSearchScreen,
   type CalendarSearchResult,
 } from '../search/calendar-search-screen.js';
-import { resolveCalendarSearchNavigation } from '../search/calendar-search-navigation.js';
+import {
+  resolveCalendarSearchNavigation,
+  visibleCalendarSearchPersonalNoteExcerpt,
+} from '../search/calendar-search-navigation.js';
 import { createOfflineCalendarSearch } from '../search/offline-search.js';
 import { openMobileDatabase } from '../storage/database.js';
 import {
@@ -21,10 +24,7 @@ import {
 } from '../storage/local-repositories.js';
 import { requireRegisteredDeviceId } from '../sync/root-sync-runtime.js';
 import type { AllDayMissionSummary } from './calendar-all-day.js';
-import {
-  CalendarDayScreen,
-  type CalendarSearchFocusTarget,
-} from './calendar-day-screen.js';
+import { CalendarDayScreen, type CalendarSearchFocusTarget } from './calendar-day-screen.js';
 import {
   resolveCalendarLanguage,
   resolveInitialCalendarLanguage,
@@ -157,9 +157,9 @@ export function CalendarRouteScreen() {
     null,
   );
   const [searchVisible, setSearchVisible] = useState(false);
-  const [searchFocusTarget, setSearchFocusTarget] = useState<CalendarSearchFocusTarget | undefined>(
-    undefined,
-  );
+  const [searchFocusTarget, setSearchFocusTarget] = useState<
+    CalendarSearchFocusTarget | undefined
+  >(undefined);
   const searchFocusRequestId = useRef(0);
   const adjustmentFeedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -335,10 +335,13 @@ export function CalendarRouteScreen() {
       const results = await search.query(query);
       return Promise.all(
         results.map(async (result) => {
-          if (result.occurrenceId === null) return { ...result, localDate: null };
+          if (result.occurrenceId === null) {
+            return { ...result, personalNoteExcerpt: null, localDate: null };
+          }
           const mission = await repositories.missions.getById(result.occurrenceId);
           return {
             ...result,
+            personalNoteExcerpt: visibleCalendarSearchPersonalNoteExcerpt(result, mission),
             localDate: mission?.occurrence.schedule.localStart.slice(0, 10) ?? null,
           };
         }),
