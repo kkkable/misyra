@@ -2,10 +2,7 @@ import { DatabaseSync } from 'node:sqlite';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import {
-  deleteCalendarMission,
-  undoCalendarMissionDeletion,
-} from './calendar-mission-delete.js';
+import { deleteCalendarMission, undoCalendarMissionDeletion } from './calendar-mission-delete.js';
 import { prepareCalendarMissionDuplicate } from './calendar-mission-duplicate.js';
 import { createLocalRepositories } from '../storage/local-repositories.js';
 import { applyMobileMigrations } from '../storage/schema.js';
@@ -168,7 +165,7 @@ async function insertMission(
 }
 
 describe('MTS-048 local mission deletion', () => {
-  it('optimistically tombstones a mission, cancels its local notification, and safely undoes while the delete is still queued', async () => {
+  it('tombstones locally and safely undoes while delete is queued', async () => {
     const database = createDatabase();
     await setupAccount(database);
     await insertMission(database);
@@ -235,9 +232,7 @@ describe('MTS-048 local mission deletion', () => {
       payload: null,
     });
 
-    await expect(
-      undoCalendarMissionDeletion({ database, accountId, deletion }),
-    ).resolves.toBe(true);
+    await expect(undoCalendarMissionDeletion({ database, accountId, deletion })).resolves.toBe(true);
     await expect(repositories.missions.getById(occurrenceId)).resolves.not.toBeNull();
     expect(
       await database.getFirstAsync(
@@ -268,7 +263,7 @@ describe('MTS-048 local mission deletion', () => {
     ).toBeNull();
   });
 
-  it('does not revive a deletion after its queued delete has already been settled', async () => {
+  it('does not revive after the delete settles', async () => {
     const database = createDatabase();
     await setupAccount(database);
     await insertMission(database);
@@ -287,9 +282,7 @@ describe('MTS-048 local mission deletion', () => {
       deleteMutationId,
     );
 
-    await expect(
-      undoCalendarMissionDeletion({ database, accountId, deletion }),
-    ).resolves.toBe(false);
+    await expect(undoCalendarMissionDeletion({ database, accountId, deletion })).resolves.toBe(false);
     expect(
       await database.getFirstAsync(
         `SELECT occurrence_id
@@ -303,7 +296,7 @@ describe('MTS-048 local mission deletion', () => {
 });
 
 describe('MTS-048 mission duplication draft', () => {
-  it('creates no record until Save and defaults an expired imported copy to today without copying provider or outcome state', async () => {
+  it('builds an expired imported duplicate as a state-free draft only', async () => {
     const database = createDatabase();
     await setupAccount(database);
     const expiredOccurrence = occurrence({
