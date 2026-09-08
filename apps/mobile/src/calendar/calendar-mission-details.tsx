@@ -167,7 +167,7 @@ function fieldChangeHandler(
 
 export function MissionDetailsScreen({
   colorScheme,
- details,
+  details,
   language,
   onFieldChange,
   onDuplicate,
