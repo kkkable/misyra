@@ -52,7 +52,7 @@ function renderSheet({ language = 'en', onDismiss = vi.fn(), onFaqPress = vi.fn(
 }
 
 describe('MTS-050 Calendar help bottom sheet', () => {
-  it('renders concise written colour meanings and the full FAQ action in English and zh-HK', () => {
+  it('renders every approved contextual guide topic in English and zh-HK', () => {
     const english = renderSheet().renderer;
     const chinese = renderSheet({ language: 'zh-HK' }).renderer;
 
@@ -62,6 +62,12 @@ describe('MTS-050 Calendar help bottom sheet', () => {
     expect(englishText).toContain('Green — Accepted evidence, on time');
     expect(englishText).toContain('Amber — Accepted late or self-confirmed');
     expect(englishText).toContain('Purple — Private or Trust Mode completion');
+    expect(englishText).toContain('Repeating missions');
+    expect(englishText).toContain('this and future');
+    expect(englishText).toContain('Tap a time slot twice');
+    expect(englishText).toContain('Drag or resize');
+    expect(englishText).toContain('Completion opens at the scheduled start');
+    expect(englishText).toContain('30 days after the scheduled finish');
     expect(english.root.findByProps({ testID: 'calendar-help-faq' })).toBeDefined();
 
     const chineseText = textContent(chinese.toJSON());
@@ -70,6 +76,12 @@ describe('MTS-050 Calendar help bottom sheet', () => {
     expect(chineseText).toContain('綠色 — 證據已接納，準時完成');
     expect(chineseText).toContain('琥珀色 — 逾時完成或自行確認');
     expect(chineseText).toContain('紫色 — 私人或信任模式完成');
+    expect(chineseText).toContain('重複任務');
+    expect(chineseText).toContain('今次及之後');
+    expect(chineseText).toContain('連按時間位置兩次');
+    expect(chineseText).toContain('拖動或調整任務卡大小');
+    expect(chineseText).toContain('任務到預定開始時間即可完成');
+    expect(chineseText).toContain('預定結束時間後 30 日');
   });
 
   it('dismisses from the close button and outside backdrop and forwards the FAQ action', () => {
