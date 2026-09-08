@@ -12,7 +12,11 @@ import { openMobileDatabase } from '../storage/database.js';
 import { createLocalRepositories, type MissionDetails } from '../storage/local-repositories.js';
 import { requireRegisteredDeviceId } from '../sync/root-sync-runtime.js';
 import { resolveInitialCalendarLanguage } from './calendar-language-runtime.js';
-import { deleteCalendarMission } from './calendar-mission-delete.js';
+import {
+  deleteCalendarMission,
+  undoCalendarMissionDeletion,
+  type CalendarMissionDeletion,
+} from './calendar-mission-delete.js';
 import { prepareCalendarMissionDuplicate } from './calendar-mission-duplicate.js';
 import {
   MissionDetailsScreen,
@@ -26,6 +30,7 @@ import {
 import { CalendarMissionFormSheet } from './calendar-mission-form-sheet.js';
 
 const COMPLETION_WINDOW_MILLISECONDS = 30 * 24 * 60 * 60 * 1000;
+const DELETE_UNDO_VISIBLE_MILLISECONDS = 5_000;
 const UUID_HEX = '0123456789abcdef';
 const UUID_VARIANTS = '89ab';
 
@@ -37,6 +42,11 @@ type SearchDetailsRow = Readonly<{
 
 type CompletionRow = Readonly<{
   awarded_xp: number;
+}>;
+
+type PendingDeletion = Readonly<{
+  accountId: string;
+  deletion: CalendarMissionDeletion;
 }>;
 
 function randomHex(length: number): string {
@@ -134,6 +144,8 @@ export function CalendarMissionDetailsRouteScreen() {
   const [details, setDetails] = useState<MissionDetailsProjection | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [duplicateDraft, setDuplicateDraft] = useState<CalendarMissionCreateInput | null>(null);
+  const [pendingDeletion, setPendingDeletion] = useState<PendingDeletion | null>(null);
+  const deletionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadDetails = useCallback(async () => {
     if (missionId === null) {
@@ -188,13 +200,20 @@ export function CalendarMissionDetailsRouteScreen() {
     };
   }, [loadDetails]);
 
+  useEffect(
+    () => () => {
+      if (deletionTimer.current !== null) clearTimeout(deletionTimer.current);
+    },
+    [],
+  );
+
   const deleteMission = useCallback(
     async (targetMissionId: string) => {
       const authState = await rootAuthController.restore();
       if (authState.status !== 'signed_in') throw new Error('calendar_delete_requires_sign_in');
       const deviceId = await requireRegisteredDeviceId(authState.session.accountId);
       const database = await openMobileDatabase();
-      await deleteCalendarMission({
+      const deletion = await deleteCalendarMission({
         database,
         accountId: authState.session.accountId,
         deviceId,
@@ -202,10 +221,38 @@ export function CalendarMissionDetailsRouteScreen() {
         now: new Date(),
         generateId: generateUuid,
       });
-      router.back();
+      setPendingDeletion({ accountId: authState.session.accountId, deletion });
+      setDetails(null);
+      if (deletionTimer.current !== null) clearTimeout(deletionTimer.current);
+      deletionTimer.current = setTimeout(() => {
+        deletionTimer.current = null;
+        setPendingDeletion(null);
+        router.back();
+      }, DELETE_UNDO_VISIBLE_MILLISECONDS);
     },
     [router],
   );
+
+  const undoDeletion = useCallback(async () => {
+    if (pendingDeletion === null) return;
+    if (deletionTimer.current !== null) {
+      clearTimeout(deletionTimer.current);
+      deletionTimer.current = null;
+    }
+    const database = await openMobileDatabase();
+    const restored = await undoCalendarMissionDeletion({
+      database,
+      accountId: pendingDeletion.accountId,
+      deletion: pendingDeletion.deletion,
+    });
+    setPendingDeletion(null);
+    if (!restored) {
+      router.back();
+      return;
+    }
+    setLoaded(false);
+    await loadDetails();
+  }, [loadDetails, pendingDeletion, router]);
 
   const duplicateMission = useCallback(async (targetMissionId: string) => {
     const authState = await rootAuthController.restore();
@@ -264,6 +311,28 @@ export function CalendarMissionDetailsRouteScreen() {
   );
 
   if (!loaded) return <View style={{ flex: 1, backgroundColor: colors.canvas }} />;
+  if (pendingDeletion !== null) {
+    return (
+      <View style={[styles.missing, { backgroundColor: colors.canvas }]}>
+        {header}
+        <Pressable
+          accessibilityLabel={catalog['calendar.adjustment.undo']}
+          accessibilityRole="button"
+          onPress={() => {
+            void undoDeletion().catch(() => {
+              router.back();
+            });
+          }}
+          style={styles.undoButton}
+          testID="mission-delete-undo"
+        >
+          <Text allowFontScaling style={[styles.closeText, { color: colors.primary }]}>
+            {catalog['calendar.adjustment.undo']}
+          </Text>
+        </Pressable>
+      </View>
+    );
+  }
   if (details === null) {
     return (
       <View style={[styles.missing, { backgroundColor: colors.canvas }]}>
@@ -330,5 +399,11 @@ const styles = StyleSheet.create({
     fontSize: typography.body.fontSize,
     paddingHorizontal: layout.screenHorizontalPadding,
     paddingTop: space[4],
+  },
+  undoButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: layout.minimumTouchTarget,
+    paddingHorizontal: layout.screenHorizontalPadding,
   },
 });
