@@ -265,6 +265,50 @@ describe('MTS-048 local mission deletion', () => {
     ).toBeNull();
   });
 
+  it('refuses Undo once the queued delete has gone in flight', async () => {
+    const database = createDatabase();
+    await setupAccount(database);
+    await insertMission(database);
+
+    const deletion = await deleteCalendarMission({
+      database,
+      accountId,
+      deviceId,
+      occurrenceId,
+      now: new Date('2026-09-08T08:30:00.000Z'),
+      generateId: () => deleteMutationId,
+    });
+    await database.runAsync(
+      `UPDATE mutation_queue
+          SET command_json = json_set(command_json, '$.inFlight', 1)
+        WHERE account_id = ? AND mutation_id = ?`,
+      accountId,
+      deleteMutationId,
+    );
+
+    await expect(undoCalendarMissionDeletion({ database, accountId, deletion })).resolves.toBe(
+      false,
+    );
+    expect(
+      await database.getFirstAsync(
+        `SELECT occurrence_id
+           FROM mission_occurrence_tombstones
+          WHERE account_id = ? AND occurrence_id = ?`,
+        accountId,
+        occurrenceId,
+      ),
+    ).toEqual({ occurrence_id: occurrenceId });
+    expect(
+      await database.getFirstAsync(
+        `SELECT mutation_id
+           FROM mutation_queue
+          WHERE account_id = ? AND mutation_id = ?`,
+        accountId,
+        deleteMutationId,
+      ),
+    ).toEqual({ mutation_id: deleteMutationId });
+  });
+
   it('does not revive after the delete settles', async () => {
     const database = createDatabase();
     await setupAccount(database);
@@ -396,5 +440,36 @@ describe('MTS-048 mission duplication draft', () => {
       accountId,
     );
     expect(after).toEqual(before);
+  });
+
+  it('preserves a next-day finish when duplicating an overnight timed mission', async () => {
+    const database = createDatabase();
+    await setupAccount(database);
+    await insertMission(database, {
+      title: 'Overnight handoff',
+      missionOccurrence: occurrence({
+        schedule: timedSchedule({
+          localStart: '2026-09-08T23:30:00',
+          localFinish: '2026-09-09T00:30:00',
+          startInstant: '2026-09-08T23:30:00.000Z',
+          finishInstant: '2026-09-09T00:30:00.000Z',
+        }),
+      }),
+      scheduledStart: '23:30',
+      scheduledEnd: '00:30',
+    });
+
+    const draft = await prepareCalendarMissionDuplicate({
+      database,
+      accountId,
+      occurrenceId,
+      now: new Date('2026-09-08T12:00:00.000Z'),
+    });
+
+    expect(draft).toMatchObject({
+      selectedDate: '2026-09-08',
+      startMinute: 23 * 60 + 30,
+      endMinute: 24 * 60 + 30,
+    });
   });
 });
