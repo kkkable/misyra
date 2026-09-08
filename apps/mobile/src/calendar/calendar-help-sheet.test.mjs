@@ -60,8 +60,8 @@ describe('MTS-050 Calendar help bottom sheet', () => {
     expect(englishText).toContain('Calendar help');
     expect(englishText).toContain('Transparent — Unfinished');
     expect(englishText).toContain('Green — Accepted evidence, on time');
-    expect(englishText).toContain('Amber — Accepted late or self-confirmed');
-    expect(englishText).toContain('Purple — Private or Trust Mode completion');
+    expect(englishText).toContain('Yellow — Accepted late or self-confirmed');
+    expect(englishText).toContain('Grey — Private or Trust Mode completion');
     expect(englishText).toContain('Repeating missions');
     expect(englishText).toContain('this and future');
     expect(englishText).toContain('Tap a time slot twice');
@@ -74,8 +74,8 @@ describe('MTS-050 Calendar help bottom sheet', () => {
     expect(chineseText).toContain('日曆說明');
     expect(chineseText).toContain('透明 — 未完成');
     expect(chineseText).toContain('綠色 — 證據已接納，準時完成');
-    expect(chineseText).toContain('琥珀色 — 逾時完成或自行確認');
-    expect(chineseText).toContain('紫色 — 私人或信任模式完成');
+    expect(chineseText).toContain('黃色 — 逾時完成或自行確認');
+    expect(chineseText).toContain('灰色 — 私人或信任模式完成');
     expect(chineseText).toContain('重複任務');
     expect(chineseText).toContain('今次及之後');
     expect(chineseText).toContain('連按時間位置兩次');
