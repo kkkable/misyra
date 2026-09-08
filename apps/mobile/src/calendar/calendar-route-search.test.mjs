@@ -101,7 +101,10 @@ import { CalendarRouteScreen } from './calendar-route-screen.js';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
-function distantMission() {
+function distantMission({
+  localStart = '2020-01-15T10:30:00',
+  localFinish = '2020-01-15T11:00:00',
+} = {}) {
   return {
     series: {
       id: '33333333-3333-4333-8333-333333333333',
@@ -112,10 +115,10 @@ function distantMission() {
       id: '44444444-4444-4444-8444-444444444444',
       seriesId: '33333333-3333-4333-8333-333333333333',
       schedule: {
-        localStart: '2020-01-15T10:30:00',
-        localFinish: '2020-01-15T11:00:00',
-        startInstant: '2020-01-15T10:30:00.000Z',
-        finishInstant: '2020-01-15T11:00:00.000Z',
+        localStart,
+        localFinish,
+        startInstant: `${localStart}.000Z`,
+        finishInstant: `${localFinish}.000Z`,
         timeZone: 'UTC',
         timeBehavior: 'local_time',
         allDay: false,
@@ -183,6 +186,45 @@ describe('MTS-049 Calendar route search navigation', () => {
         id: '44444444-4444-4444-8444-444444444444',
         startMinute: 630,
         endMinute: 660,
+      }),
+    ]);
+
+    act(() => renderer.unmount());
+  });
+
+  it('replaces stale cached coordinates with the re-read mission before focusing it', async () => {
+    state.listWindow.mockResolvedValue([
+      distantMission({
+        localStart: '2020-01-15T09:00:00',
+        localFinish: '2020-01-15T09:30:00',
+      }),
+    ]);
+    state.getById.mockResolvedValue(
+      distantMission({
+        localStart: '2020-01-15T12:00:00',
+        localFinish: '2020-01-15T12:30:00',
+      }),
+    );
+
+    let renderer;
+    await act(async () => {
+      renderer = create(createElement(CalendarRouteScreen));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    act(() => state.dayProps.onSearchPress());
+    const [result] = await state.searchProps.search('Archived');
+    await act(async () => {
+      await state.searchProps.onOpenResult(result);
+    });
+
+    expect(state.dayProps.searchFocusTarget).toMatchObject({ minute: 720 });
+    expect(state.dayProps.timedMissionsByDate['2020-01-15']).toEqual([
+      expect.objectContaining({
+        id: '44444444-4444-4444-8444-444444444444',
+        startMinute: 720,
+        endMinute: 750,
       }),
     ]);
 
