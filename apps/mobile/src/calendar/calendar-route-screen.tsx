@@ -157,9 +157,9 @@ export function CalendarRouteScreen() {
     null,
   );
   const [searchVisible, setSearchVisible] = useState(false);
-  const [searchFocusTarget, setSearchFocusTarget] = useState<
-    CalendarSearchFocusTarget | undefined
-  >(undefined);
+  const [searchFocusTarget, setSearchFocusTarget] = useState<CalendarSearchFocusTarget | undefined>(
+    undefined,
+  );
   const searchFocusRequestId = useRef(0);
   const adjustmentFeedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
