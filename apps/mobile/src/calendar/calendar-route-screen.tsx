@@ -405,7 +405,7 @@ export function CalendarRouteScreen() {
           setSearchVisible(true);
         }}
         onTimedMissionPress={openMissionDetails}
-        searchFocusTarget={searchFocusTarget}
+        {...(searchFocusTarget === undefined ? {} : { searchFocusTarget })}
         timedMissionsByDate={timedMissionsByDate}
       />
       {adjustmentFeedback === null ? null : (
