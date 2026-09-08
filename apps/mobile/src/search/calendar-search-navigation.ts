@@ -19,6 +19,14 @@ function minuteFromLocalDateTime(value: string): number {
   return Number(match[1]) * 60 + Number(match[2]);
 }
 
+export function visibleCalendarSearchPersonalNoteExcerpt(
+  result: OfflineSearchResult,
+  mission: LocalMission | null,
+): string | null {
+  if (mission?.occurrence.fieldOwnership !== 'organizer_controlled') return null;
+  return result.personalNoteExcerpt;
+}
+
 export async function resolveCalendarSearchNavigation(
   result: OfflineSearchResult,
   readMission: MissionReader,
