@@ -1,0 +1,46 @@
+name: MTS-049 format preview
+
+on:
+  push:
+    branches:
+      - verify/mts-049-prettier-preview-20260908
+
+permissions:
+  contents: read
+
+jobs:
+  preview:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout verification branch
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install pinned pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.5
+          run_install: false
+      - name: Set up pinned Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - name: Install from lockfile
+        run: pnpm install --frozen-lockfile
+      - name: Print exact Prettier rewrite
+        run: |
+          pnpm exec prettier --write \
+            apps/mobile/src/calendar/calendar-all-day.tsx \
+            apps/mobile/src/calendar/calendar-day-screen.tsx \
+            apps/mobile/src/calendar/calendar-route-screen.tsx \
+            apps/mobile/src/search/calendar-search-screen.test.mjs \
+            apps/mobile/src/search/calendar-search-screen.tsx \
+            --config packages/config/prettier.config.mjs
+          git diff -- \
+            apps/mobile/src/calendar/calendar-all-day.tsx \
+            apps/mobile/src/calendar/calendar-day-screen.tsx \
+            apps/mobile/src/calendar/calendar-route-screen.tsx \
+            apps/mobile/src/search/calendar-search-screen.test.mjs \
+            apps/mobile/src/search/calendar-search-screen.tsx
