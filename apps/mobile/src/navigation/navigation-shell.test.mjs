@@ -83,6 +83,7 @@ describe('MTS-010 route inventory', () => {
         '+not-found.tsx',
         '_layout.tsx',
         'evidence.tsx',
+        'mission',
         'story.tsx',
       ]),
     );
@@ -113,18 +114,28 @@ describe('MTS-010 tab-navigation shell', () => {
     expect(tabs.props.screenOptions.tabBarStyle.minHeight).toBeGreaterThanOrEqual(44);
   });
 
-  it('places Evidence and Story above the tab navigator as full-screen modal routes', () => {
+  it('keeps Mission Details above tabs while Evidence and Story remain full-screen modal routes', () => {
     const renderer = render(createElement(RootLayout));
     const screens = renderer.root.findAllByType('StackScreen');
 
-    expect(screens.map((screen) => screen.props.name)).toEqual(['(tabs)', 'evidence', 'story']);
+    expect(screens.map((screen) => screen.props.name)).toEqual([
+      '(tabs)',
+      'mission/[id]',
+      'evidence',
+      'story',
+    ]);
     expect(screens[0].props.options).toMatchObject({ headerShown: false });
     expect(screens[1].props.options).toMatchObject({
       gestureEnabled: true,
       headerShown: false,
+    });
+    expect(screens[1].props.options.presentation).toBeUndefined();
+    expect(screens[2].props.options).toMatchObject({
+      gestureEnabled: true,
+      headerShown: false,
       presentation: 'fullScreenModal',
     });
-    expect(screens[2].props.options).toMatchObject({
+    expect(screens[3].props.options).toMatchObject({
       gestureEnabled: true,
       headerShown: false,
       presentation: 'fullScreenModal',
