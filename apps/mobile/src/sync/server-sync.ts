@@ -147,6 +147,30 @@ async function deleteQueuedMutations(
   });
 }
 
+async function setQueuedMutationsInFlight(
+  database: ServerSyncDatabase,
+  accountId: string,
+  mutationIds: readonly string[],
+  inFlight: boolean,
+): Promise<void> {
+  if (mutationIds.length === 0) return;
+  await database.withExclusiveTransactionAsync(async (transaction) => {
+    for (const mutationId of mutationIds) {
+      await transaction.runAsync(
+        inFlight
+          ? `UPDATE mutation_queue
+                SET command_json = json_set(command_json, '$.inFlight', 1)
+              WHERE account_id = ? AND mutation_id = ?`
+          : `UPDATE mutation_queue
+                SET command_json = json_remove(command_json, '$.inFlight')
+              WHERE account_id = ? AND mutation_id = ?`,
+        accountId,
+        mutationId,
+      );
+    }
+  });
+}
+
 function serverPending(items: readonly PendingMutation[]): PendingMutation[] {
   return items.filter((item) => item.destination.kind === 'server');
 }
@@ -216,10 +240,23 @@ export function createServerSync(options: ServerSyncOptions) {
         return { settled, conflicts: [], deferredSettlementIds: new Set() };
       }
 
-      const result = await options.transport.push(pending.map((item) => item.mutation));
-      const batchConflicts = [...(result.conflicts ?? [])];
-      const settledIds = validateSettledPrefix(pending, result.acceptedMutationIds, batchConflicts);
+      const inFlightIds = pending.map((item) => item.mutation.mutationId);
+      await setQueuedMutationsInFlight(options.database, options.accountId, inFlightIds, true);
+
+      let result: Awaited<ReturnType<ServerSyncTransport['push']>>;
+      let batchConflicts: SyncConflictResult[];
+      let settledIds: Set<string>;
+      try {
+        result = await options.transport.push(pending.map((item) => item.mutation));
+        batchConflicts = [...(result.conflicts ?? [])];
+        settledIds = validateSettledPrefix(pending, result.acceptedMutationIds, batchConflicts);
+      } catch (error) {
+        await setQueuedMutationsInFlight(options.database, options.accountId, inFlightIds, false);
+        throw error;
+      }
+
       if (settledIds.size === 0) {
+        await setQueuedMutationsInFlight(options.database, options.accountId, inFlightIds, false);
         return { settled, conflicts: [], deferredSettlementIds: new Set() };
       }
 
