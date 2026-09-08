@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { resolveCalendarSearchNavigation } from './calendar-search-navigation.js';
+import {
+  resolveCalendarSearchNavigation,
+  visibleCalendarSearchPersonalNoteExcerpt,
+} from './calendar-search-navigation.js';
 
 const baseResult = {
   documentId: 'mission-result',
@@ -12,11 +15,13 @@ const baseResult = {
   localDate: '2026-09-05',
 };
 
-function mission({ allDay = false } = {}) {
+function mission({ allDay = false, fieldOwnership = 'app_owned', deletionState = 'active' } = {}) {
   return {
     series: { id: '22222222-2222-4222-8222-222222222222', title: 'Search result' },
     occurrence: {
       id: baseResult.occurrenceId,
+      fieldOwnership,
+      deletionState,
       schedule: {
         localStart: allDay ? '2026-09-09T00:00:00' : '2026-09-09T10:30:00',
         localFinish: allDay ? '2026-09-10T00:00:00' : '2026-09-09T11:00:00',
@@ -63,5 +68,25 @@ describe('MTS-049 Calendar search navigation', () => {
     await expect(
       resolveCalendarSearchNavigation({ ...baseResult, occurrenceId: null }, readMission),
     ).resolves.toEqual({ kind: 'unavailable' });
+    await expect(
+      resolveCalendarSearchNavigation(baseResult, () =>
+        Promise.resolve(mission({ deletionState: 'deleted' })),
+      ),
+    ).resolves.toEqual({ kind: 'unavailable' });
+  });
+
+  it('keeps an attributed note excerpt for active app-owned missions and hides it for unavailable missions', () => {
+    const attributedResult = { ...baseResult, personalNoteExcerpt: 'allergy follow-up phrase' };
+
+    expect(visibleCalendarSearchPersonalNoteExcerpt(attributedResult, mission())).toBe(
+      'allergy follow-up phrase',
+    );
+    expect(visibleCalendarSearchPersonalNoteExcerpt(attributedResult, null)).toBeNull();
+    expect(
+      visibleCalendarSearchPersonalNoteExcerpt(
+        attributedResult,
+        mission({ deletionState: 'deleted' }),
+      ),
+    ).toBeNull();
   });
 });
