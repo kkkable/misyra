@@ -68,82 +68,22 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
-      - name: Diagnose unchanged calendar tests
+      - name: Diagnose root Node tests
         continue-on-error: true
         run: >-
-          pnpm --filter @misyra/mobile exec vitest run --config ../../packages/config/vitest.config.mjs
-          src/calendar/calendar-all-day.test.mjs
-          src/calendar/calendar-day-screen.test.mjs
-          src/calendar/calendar-day-shell.test.mjs
-          src/calendar/calendar-help-focus.test.mjs
-          src/calendar/calendar-help-sheet.test.mjs
-          src/calendar/calendar-language-runtime.test.mjs
-          src/calendar/calendar-locale-time-audit.test.mjs
-          src/calendar/calendar-mission-adjustment-feedback.test.mjs
-          src/calendar/calendar-mission-adjustment-save.test.mjs
-          src/calendar/calendar-mission-adjustment.test.mjs
-          src/calendar/calendar-mission-delete-duplicate.test.mjs
-          src/calendar/calendar-mission-details.test.mjs
-          src/calendar/calendar-mission-form-ui.test.mjs
-          src/calendar/calendar-mission-form.test.mjs
-          src/calendar/calendar-mission-gesture-runtime.test.mjs
-          src/calendar/calendar-mission-gesture.test.mjs
-          src/calendar/calendar-mission-layout.test.mjs
-          src/calendar/calendar-recurrence-editor.test.mjs
-          src/calendar/calendar-route-search.test.mjs
-          src/calendar/calendar-search-focus.test.mjs
-          src/calendar/calendar-timeline.test.mjs
+          node --test
+          tests/mts-001/*.test.mjs
+          tests/mts-002/*.test.mjs
+          tests/mts-003/*.test.mjs
+          tests/mts-004/*.test.mjs
+          tests/mts-006/*.test.mjs
+          tests/mts-007/*.test.mjs
+          tests/mts-008/*.test.mjs
+          tests/mts-012/*.test.mjs
 
-      - name: Diagnose unchanged UI and lifecycle tests
+      - name: Diagnose full mobile test invocation
         continue-on-error: true
-        run: >-
-          pnpm --filter @misyra/mobile exec vitest run --config ../../packages/config/vitest.config.mjs
-          src/auth/auth-api.test.mjs
-          src/auth/auth-messages.test.mjs
-          src/auth/auth-session.test.mjs
-          src/auth/root-auth-gate.test.mjs
-          src/auth/secure-session-storage.test.mjs
-          src/auth/session-lifecycle.test.mjs
-          src/auth/session-refresh-offline.review.test.mjs
-          src/auth/sign-in-screen.test.mjs
-          src/auth/sign-out-cleanup.test.mjs
-          src/design-system/contracts.test.ts
-          src/design-system/primitives.component.test.mjs
-          src/experience/motion-haptics.test.mjs
-          src/navigation/navigation-shell.test.mjs
-          src/onboarding/onboarding-flow.test.mjs
-          src/onboarding/onboarding-screen.test.mjs
-          src/onboarding/root-onboarding-gate.test.mjs
-
-      - name: Diagnose unchanged search and storage tests
-        continue-on-error: true
-        run: >-
-          pnpm --filter @misyra/mobile exec vitest run --config ../../packages/config/vitest.config.mjs
-          src/search/calendar-search-navigation.test.mjs
-          src/search/calendar-search-screen.test.mjs
-          src/search/offline-search.test.mjs
-          src/storage/local-repositories.review-corrections.test.mjs
-          src/storage/local-repositories.review.test.mjs
-          src/storage/local-repositories.story-deletion.test.mjs
-          src/storage/local-repositories.test.mjs
-          src/storage/mutation-queue.contract.test.mjs
-          src/storage/mutation-queue.test.mjs
-          src/storage/schema.test.mjs
-
-      - name: Diagnose unchanged sync tests
-        continue-on-error: true
-        run: >-
-          pnpm --filter @misyra/mobile exec vitest run --config ../../packages/config/vitest.config.mjs
-          src/sync/authenticated-sync-mission-delete.test.mjs
-          src/sync/authenticated-sync-recurrence.test.mjs
-          src/sync/authenticated-sync-runtime.test.mjs
-          src/sync/conflict-application.test.mjs
-          src/sync/root-sync-runtime.test.mjs
-          src/sync/server-sync-conflicts.review.test.mjs
-          src/sync/server-sync-order.test.mjs
-          src/sync/server-sync.test.mjs
-          src/sync/sync-runtime-lifecycle.review.test.mjs
-          src/sync/sync-session-provider.review.test.mjs
+        run: pnpm --filter @misyra/mobile test
 
       - name: Run unit, integration, and mobile component tests
         run: pnpm test
