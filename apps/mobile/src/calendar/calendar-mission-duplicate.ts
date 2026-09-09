@@ -14,7 +14,7 @@ type DuplicateSourceRow = Readonly<{
   title: string;
   payload_json: string;
   location: string | null;
-  search_note: string | null;
+  general_note: string | null;
   personal_note: string | null;
 }>;
 
@@ -118,11 +118,11 @@ export async function prepareCalendarMissionDuplicate({
          WHERE d.account_id = o.account_id AND d.occurrence_id = o.occurrence_id
          ORDER BY d.document_id
          LIMIT 1) AS location,
-       (SELECT d.personal_note
+       (SELECT d.general_note
           FROM search_documents d
          WHERE d.account_id = o.account_id AND d.occurrence_id = o.occurrence_id
          ORDER BY d.document_id
-         LIMIT 1) AS search_note,
+         LIMIT 1) AS general_note,
        (SELECT p.note
           FROM personal_notes p
          WHERE p.account_id = o.account_id AND p.occurrence_id = o.occurrence_id
@@ -148,8 +148,8 @@ export async function prepareCalendarMissionDuplicate({
     : localDateFromDateTime(schedule.localStart);
   const notes =
     occurrence.fieldOwnership === 'organizer_controlled'
-      ? (source.personal_note ?? source.search_note)
-      : (source.search_note ?? source.personal_note);
+      ? (source.personal_note ?? source.general_note)
+      : (source.general_note ?? source.personal_note);
   const timedRange = schedule.allDay
     ? null
     : timedMinuteRange(schedule.localStart, schedule.localFinish);
