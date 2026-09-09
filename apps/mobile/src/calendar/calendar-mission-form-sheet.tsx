@@ -261,7 +261,9 @@ export function CalendarMissionFormSheet({
                 <Pressable
                   accessibilityLabel={catalog['calendar.create.recurrence']}
                   accessibilityRole="button"
-                  onPress={() => setRecurrenceEditorVisible(true)}
+                  onPress={() => {
+                    setRecurrenceEditorVisible(true);
+                  }}
                   style={[styles.toggleRow, { borderColor: colors.border }]}
                   testID="calendar-create-recurrence"
                 >
@@ -279,7 +281,9 @@ export function CalendarMissionFormSheet({
                     colorScheme={colorScheme}
                     initialRecurrence={recurrence}
                     language={language}
-                    onCancel={() => setRecurrenceEditorVisible(false)}
+                    onCancel={() => {
+                      setRecurrenceEditorVisible(false);
+                    }}
                     onDone={(value) => {
                       setRecurrence(value);
                       setRecurrenceEditorVisible(false);
