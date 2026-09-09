@@ -94,7 +94,7 @@ describe('MTS-046 general mission note migration', () => {
     ).toEqual({ personal_note: 'Private personal note', general_note: 'General mission note' });
   });
 
-  it('moves v5 general mission notes without altering Personal Mission Notes', async () => {
+  it('moves v5 general mission notes while preserving canonical Personal Mission Notes', async () => {
     const database = new NodeSqliteAdapter();
     databases.push(database);
     await database.execAsync('PRAGMA foreign_keys = ON');
@@ -155,6 +155,17 @@ describe('MTS-046 general mission note migration', () => {
       'Legacy general mission note',
       updatedAt,
     );
+    await database.runAsync(
+      `INSERT INTO search_documents
+        (account_id, document_id, occurrence_id, title, personal_note, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      accountId,
+      'private-index-document',
+      occurrenceId,
+      'Legacy personal index',
+      'Private local note',
+      updatedAt,
+    );
 
     await applyMigrations(database, mobileMigrations);
 
@@ -167,7 +178,19 @@ describe('MTS-046 general mission note migration', () => {
         accountId,
         occurrenceId,
       ),
-    ).toEqual({ personal_note: null, general_note: 'Legacy general mission note' });
+    ).toEqual({
+      personal_note: 'Private local note',
+      general_note: 'Legacy general mission note',
+    });
+    expect(
+      await database.getFirstAsync(
+        `SELECT personal_note, general_note
+           FROM search_documents
+          WHERE account_id = ? AND document_id = ?`,
+        accountId,
+        'private-index-document',
+      ),
+    ).toEqual({ personal_note: 'Private local note', general_note: null });
     expect(
       await database.getFirstAsync(
         `SELECT note
