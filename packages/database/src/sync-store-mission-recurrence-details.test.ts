@@ -86,9 +86,7 @@ describe('MTS-044–051 recurring and Mission Details synchronization', () => {
       appVersion: '1.0.0',
       notificationCapability: 'denied',
     });
-    const store = createPostgresSyncStore(pool, () =>
-      new Date('2026-09-06T08:00:00.000Z'),
-    );
+    const store = createPostgresSyncStore(pool, () => new Date('2026-09-06T08:00:00.000Z'));
     const seriesId = randomUUID();
     const firstOccurrenceId = randomUUID();
     const secondOccurrenceId = randomUUID();
@@ -158,9 +156,7 @@ describe('MTS-044–051 recurring and Mission Details synchronization', () => {
       appVersion: '1.0.0',
       notificationCapability: 'denied',
     });
-    const store = createPostgresSyncStore(pool, () =>
-      new Date('2026-09-07T08:00:00.000Z'),
-    );
+    const store = createPostgresSyncStore(pool, () => new Date('2026-09-07T08:00:00.000Z'));
     const seriesId = randomUUID();
     const occurrenceId = randomUUID();
 
@@ -210,7 +206,7 @@ describe('MTS-044–051 recurring and Mission Details synchronization', () => {
     );
     expect(stored.rows[0]).toMatchObject({
       title: 'Updated mission',
-      local_date: '2026-09-09',
+      local_date: new Date('2026-09-09T00:00:00.000Z'),
       local_start: '2026-09-09T11:00:00',
       local_finish: '2026-09-09T11:30:00',
       location: 'Kowloon',
