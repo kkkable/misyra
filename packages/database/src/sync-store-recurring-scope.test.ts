@@ -58,7 +58,7 @@ afterAll(async () => {
 });
 
 describe('MTS-051/MTS-052 recurring mission synchronization', () => {
-  it('accepts a recurring create and synchronizes a This-and-future series split without changing occurrence history fields', async () => {
+  it('accepts recurring create and synchronizes a This-and-future series split', async () => {
     const auth = createPostgresAuthStore(pool);
     const devices = createPostgresDeviceSettingsStore(pool);
     const account = await auth.findOrCreateAccount('google', `recurring-scope-${randomUUID()}`);
