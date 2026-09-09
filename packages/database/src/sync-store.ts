@@ -122,7 +122,7 @@ type MissionCreatePayload = Readonly<{
   series: Readonly<{
     id: string;
     title: string;
-    recurrence: unknown | null;
+    recurrence: Record<string, unknown> | null;
   }>;
   occurrence: Readonly<{
     id: string;
@@ -278,13 +278,17 @@ function optionalString(
   return trimmed.length === 0 ? null : trimmed;
 }
 
-function optionalObject(source: Record<string, unknown>, key: string, label: string): unknown | null {
+function optionalObject(
+  source: Record<string, unknown>,
+  key: string,
+  label: string,
+): Record<string, unknown> | null {
   const value = source[key];
   if (value === undefined || value === null) return null;
   if (typeof value !== 'object' || Array.isArray(value)) {
     throw new SyncMutationValidationError(`${label} must be an object or null`);
   }
-  return value;
+  return value as Record<string, unknown>;
 }
 
 function requireUuid(source: Record<string, unknown>, key: string, label: string): string {
