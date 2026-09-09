@@ -10,6 +10,7 @@ import { themeColors, type ColorScheme } from '../design-system/index.js';
 import { haptics } from '../experience/native-haptics.js';
 import type { CalendarMissionCreateInput } from './calendar-mission-create.js';
 import { CalendarMissionFormSheet } from './calendar-mission-form-sheet.js';
+import { domainWeekStartFromRegionalFirstWeekday } from './calendar-region.js';
 import { formatTimelineTime, TimedTimeline } from './calendar-timeline.js';
 
 const SLOT_MINUTES = 30;
@@ -87,7 +88,9 @@ export function CalendarInteractiveTimeline({
 }: CalendarInteractiveTimelineProps) {
   const colors = themeColors(colorScheme);
   const catalog = localizationCatalogs[language];
-  const missionTimeZone = getCalendars()[0].timeZone ?? 'UTC';
+  const systemCalendar = getCalendars()[0];
+  const missionTimeZone = systemCalendar.timeZone ?? 'UTC';
+  const weekStartsOn = domainWeekStartFromRegionalFirstWeekday(systemCalendar.firstWeekday);
   const [selectedSlotMinute, setSelectedSlotMinute] = useState<number | null>(null);
   const [creationSlotMinute, setCreationSlotMinute] = useState<number | null>(null);
 
@@ -190,6 +193,7 @@ export function CalendarInteractiveTimeline({
           selectedDate={selectedDate}
           timeZone={missionTimeZone}
           uses24HourClock={uses24HourClock}
+          weekStartsOn={weekStartsOn}
         />
       )}
     </>
