@@ -303,7 +303,9 @@ export function CalendarRecurrenceEditor({
           accessibilityRole="radio"
           accessibilityState={{ checked: ordinal === value }}
           key={id}
-          onPress={() => setOrdinal(value)}
+          onPress={() => {
+            setOrdinal(value);
+          }}
           style={optionStyle}
           testID={`recurrence-ordinal-${id}`}
         >
@@ -405,7 +407,9 @@ export function CalendarRecurrenceEditor({
             accessibilityRole="radio"
             accessibilityState={{ checked: preset === value }}
             key={value}
-            onPress={() => choosePreset(value)}
+            onPress={() => {
+              choosePreset(value);
+            }}
             style={optionStyle}
             testID={testID}
           >
@@ -465,7 +469,9 @@ export function CalendarRecurrenceEditor({
             <Pressable
               accessibilityRole="radio"
               accessibilityState={{ checked: monthlyMode === 'date' }}
-              onPress={() => setMonthlyMode('date')}
+              onPress={() => {
+                setMonthlyMode('date');
+              }}
               style={optionStyle}
               testID="recurrence-monthly-date"
             >
@@ -512,7 +518,9 @@ export function CalendarRecurrenceEditor({
             <Pressable
               accessibilityRole="radio"
               accessibilityState={{ checked: yearlyMode === 'date' }}
-              onPress={() => setYearlyMode('date')}
+              onPress={() => {
+                setYearlyMode('date');
+              }}
               style={optionStyle}
               testID="recurrence-yearly-date"
             >
@@ -575,7 +583,9 @@ export function CalendarRecurrenceEditor({
             accessibilityRole="radio"
             accessibilityState={{ checked: endMode === value }}
             key={value}
-            onPress={() => setEndMode(value)}
+            onPress={() => {
+              setEndMode(value);
+            }}
             style={optionStyle}
             testID={testID}
           >
