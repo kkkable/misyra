@@ -144,10 +144,14 @@ export async function saveCalendarMissionDetails({
   let scheduledStart: string | null;
   let scheduledEnd: string | null;
   if (allDay) {
+    const estimatedEffortMinutes = currentOccurrence.schedule.estimatedEffortMinutes;
+    if (estimatedEffortMinutes === null) {
+      throw new RangeError('All-day missions require estimated effort minutes.');
+    }
     schedule = createZonedAllDaySchedule({
       localDate: edit.selectedDate,
       timeZone: edit.timeZone.trim(),
-      estimatedEffortMinutes: currentOccurrence.schedule.estimatedEffortMinutes,
+      estimatedEffortMinutes,
     });
     scheduledStart = null;
     scheduledEnd = null;
