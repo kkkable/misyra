@@ -111,7 +111,9 @@ export const localizationCatalogs = {
     'calendar.details.personalNote': 'Personal note',
     'calendar.details.providerDescription': 'Organizer notes',
     'calendar.details.organizerControlled': 'Organizer-controlled',
-    'calendar.details.recurringEditPending': 'Recurring mission edits use recurrence scope controls.',
+    'calendar.details.recurringEditPending':
+      'Recurring mission edits use recurrence scope controls.',
+    'calendar.details.save': 'Save changes',
     'calendar.details.duplicate': 'Duplicate',
     'calendar.details.delete': 'Delete',
     'calendar.details.status.future': 'Upcoming',
@@ -245,6 +247,7 @@ export const localizationCatalogs = {
     'calendar.details.providerDescription': '主辦者備註',
     'calendar.details.organizerControlled': '由主辦者控制',
     'calendar.details.recurringEditPending': '重複任務編輯會使用重複範圍控制。',
+    'calendar.details.save': '儲存變更',
     'calendar.details.duplicate': '複製',
     'calendar.details.delete': '刪除',
     'calendar.details.status.future': '即將開始',
