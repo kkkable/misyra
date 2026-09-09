@@ -1,12 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { getLocales } from 'expo-localization';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { StyleSheet, View, useColorScheme } from 'react-native';
 
-import type { LocalizationLocale } from '@misyra/localization';
-
-import { rootAuthController, rootAuthStorage } from '../auth/auth-runtime.js';
+import { rootAuthController } from '../auth/auth-runtime.js';
 import type { ColorScheme } from '../design-system/contracts.js';
+import { useAppLanguage } from '../localization/use-app-language.js';
 import {
   CalendarSearchScreen,
   type CalendarSearchResult,
@@ -17,18 +15,10 @@ import {
 } from '../search/calendar-search-navigation.js';
 import { createOfflineCalendarSearch } from '../search/offline-search.js';
 import { openMobileDatabase } from '../storage/database.js';
-import {
-  createLocalRepositories,
-  type LocalMission,
-  type LocalRepositories,
-} from '../storage/local-repositories.js';
+import { createLocalRepositories, type LocalMission } from '../storage/local-repositories.js';
 import { requireRegisteredDeviceId } from '../sync/root-sync-runtime.js';
 import type { AllDayMissionSummary } from './calendar-all-day.js';
 import { CalendarDayScreen, type CalendarSearchFocusTarget } from './calendar-day-screen.js';
-import {
-  resolveCalendarLanguage,
-  resolveInitialCalendarLanguage,
-} from './calendar-language-runtime.js';
 import {
   createMissionAdjustmentUndoController,
   type AllowedMissionAdjustment,
@@ -43,8 +33,6 @@ import {
 } from './calendar-mission-create.js';
 import type { MissionCardStatus, TimedMissionSummary } from './calendar-mission-layout.js';
 
-const LANGUAGE_REFRESH_INTERVAL_MS = 60_000;
-const INITIAL_SYNC_RECHECK_MS = 1_000;
 const ADJUSTMENT_UNDO_VISIBLE_MS = 5_000;
 const CALENDAR_WINDOW_DAYS = 730;
 const UUID_HEX = '0123456789abcdef';
@@ -161,12 +149,9 @@ function replaceMissionMap<T extends { readonly id: string }>(
 
 export function CalendarRouteScreen() {
   const router = useRouter();
-  const deviceLocale = useRef(getLocales()[0]).current;
+  const language = useAppLanguage();
   const nativeColorScheme = useColorScheme();
   const colorScheme: ColorScheme = nativeColorScheme === 'dark' ? 'dark' : 'light';
-  const [language, setLanguage] = useState<LocalizationLocale>(() =>
-    resolveInitialCalendarLanguage(deviceLocale),
-  );
   const [allDayMissionsByDate, setAllDayMissionsByDate] = useState<AllDayMissionsByDate>({});
   const [timedMissionsByDate, setTimedMissionsByDate] = useState<TimedMissionsByDate>({});
   const [adjustmentFeedback, setAdjustmentFeedback] = useState<AllowedMissionAdjustment | null>(
@@ -178,53 +163,6 @@ export function CalendarRouteScreen() {
   );
   const searchFocusRequestId = useRef(0);
   const adjustmentFeedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    let repositories: LocalRepositories | null = null;
-    let repositoryAccountId: string | null = null;
-    let refreshInFlight: Promise<void> | null = null;
-
-    const readSettings = async (accountId: string) => {
-      if (repositories === null || repositoryAccountId !== accountId) {
-        const database = await openMobileDatabase();
-        repositories = createLocalRepositories(database, accountId);
-        repositoryAccountId = accountId;
-      }
-      return repositories.settings.get();
-    };
-
-    const refreshLanguage = () => {
-      if (refreshInFlight !== null) return refreshInFlight;
-      refreshInFlight = resolveCalendarLanguage({
-        deviceLocale,
-        readSession: () => rootAuthStorage.read(),
-        readSettings,
-      })
-        .then((resolution) => {
-          if (active) setLanguage(resolution.language);
-        })
-        .catch(() => undefined)
-        .finally(() => {
-          refreshInFlight = null;
-        });
-      return refreshInFlight;
-    };
-
-    void refreshLanguage();
-    const initialSyncRecheck = setTimeout(() => {
-      void refreshLanguage();
-    }, INITIAL_SYNC_RECHECK_MS);
-    const refreshInterval = setInterval(() => {
-      void refreshLanguage();
-    }, LANGUAGE_REFRESH_INTERVAL_MS);
-
-    return () => {
-      active = false;
-      clearTimeout(initialSyncRecheck);
-      clearInterval(refreshInterval);
-    };
-  }, [deviceLocale]);
 
   useEffect(
     () => () => {
