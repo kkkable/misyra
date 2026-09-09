@@ -15,6 +15,7 @@ import { themeColors, type ColorScheme } from '../design-system/index.js';
 import type { CalendarMissionCreateInput } from './calendar-mission-create.js';
 import { validateMissionForm } from './calendar-mission-form.js';
 import { CalendarRecurrenceEditor } from './calendar-recurrence-editor.js';
+import { formatTimelineTime } from './calendar-timeline.js';
 
 const MINUTES_PER_DAY = 24 * 60;
 const MAX_TIMED_END_MINUTE = MINUTES_PER_DAY * 2;
@@ -46,11 +47,55 @@ function localDateTime(localDate: string, minute: number): string {
   return `${date.toISOString().slice(0, 10)}T${String(hour).padStart(2, '0')}:${String(minuteWithinHour).padStart(2, '0')}:00`;
 }
 
-function clockInput(minute: number): string {
-  return `${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`;
+function clockInput(
+  minute: number,
+  language: LocalizationLocale,
+  uses24HourClock: boolean,
+): string {
+  const boundedMinute = Math.max(0, minute);
+  if (!uses24HourClock) {
+    return formatTimelineTime(boundedMinute % MINUTES_PER_DAY, language, false);
+  }
+  return `${String(Math.floor(boundedMinute / 60)).padStart(2, '0')}:${String(boundedMinute % 60).padStart(2, '0')}`;
 }
 
-function parseClockInput(value: string, maximum: number): number | null {
+function parseTwelveHourClockInput(value: string): number | null {
+  const normalized = value.trim().replaceAll('.', '').replace(/\s+/g, ' ');
+  const englishMatch = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i.exec(normalized);
+  const chineseMatch = /^(上午|下午)\s*(\d{1,2}):(\d{2})$/.exec(normalized);
+  const hourText = englishMatch?.[1] ?? chineseMatch?.[2];
+  const minuteText = englishMatch?.[2] ?? chineseMatch?.[3];
+  const period = englishMatch?.[3]?.toUpperCase() ?? chineseMatch?.[1];
+
+  if (hourText === undefined || minuteText === undefined || period === undefined) return null;
+
+  const hour = Number(hourText);
+  const minute = Number(minuteText);
+  if (!Number.isInteger(hour) || hour < 1 || hour > 12 || minute < 0 || minute > 59) {
+    return null;
+  }
+
+  const hourFromMidnight = hour % 12;
+  const isAfternoon = period === 'PM' || period === '下午';
+  return (hourFromMidnight + (isAfternoon ? 12 : 0)) * 60 + minute;
+}
+
+function parseClockInput(
+  value: string,
+  maximum: number,
+  uses24HourClock: boolean,
+  startMinute?: number,
+): number | null {
+  if (!uses24HourClock) {
+    const minute = parseTwelveHourClockInput(value);
+    if (minute === null) return null;
+    const adjustedMinute =
+      startMinute !== undefined && maximum > MINUTES_PER_DAY && minute <= startMinute
+        ? minute + MINUTES_PER_DAY
+        : minute;
+    return adjustedMinute <= maximum ? adjustedMinute : null;
+  }
+
   const match = /^(\d{1,2}):(\d{2})$/.exec(value.trim());
   if (match === null) return null;
   const hour = Number(match[1]);
@@ -126,6 +171,7 @@ export function CalendarMissionFormSheet({
   onSubmit,
   selectedDate,
   timeZone: initialTimeZone,
+  uses24HourClock,
   weekStartsOn = 1,
 }: CalendarMissionFormSheetProps) {
   const colors = themeColors(colorScheme);
@@ -134,8 +180,12 @@ export function CalendarMissionFormSheet({
   const initialStartMinute = initialInput?.startMinute ?? creationSlotMinute;
   const defaultEndMinute = initialInput?.endMinute ?? initialStartMinute + 30;
   const [title, setTitle] = useState(initialInput?.title ?? '');
-  const [startText, setStartText] = useState(clockInput(initialStartMinute));
-  const [endText, setEndText] = useState(clockInput(defaultEndMinute));
+  const [startText, setStartText] = useState(
+    clockInput(initialStartMinute, language, uses24HourClock),
+  );
+  const [endText, setEndText] = useState(
+    clockInput(defaultEndMinute, language, uses24HourClock),
+  );
   const [moreOptionsVisible, setMoreOptionsVisible] = useState(initialInput !== undefined);
   const [allDay, setAllDay] = useState(initialInput?.allDay ?? false);
   const [effort, setEffort] = useState(String(initialInput?.estimatedEffortMinutes ?? 30));
@@ -151,8 +201,11 @@ export function CalendarMissionFormSheet({
   const [validationVisible, setValidationVisible] = useState(false);
   const [zeroXpWarningVisible, setZeroXpWarningVisible] = useState(false);
 
-  const startMinute = parseClockInput(startText, MINUTES_PER_DAY);
-  const endMinute = parseClockInput(endText, MAX_TIMED_END_MINUTE);
+  const startMinute = parseClockInput(startText, MINUTES_PER_DAY, uses24HourClock);
+  const endMinute =
+    startMinute === null
+      ? null
+      : parseClockInput(endText, MAX_TIMED_END_MINUTE, uses24HourClock, startMinute);
   const estimatedEffortMinutes = allDay ? parseEffort(effort) : null;
   const draft = {
     title,
@@ -236,7 +289,7 @@ export function CalendarMissionFormSheet({
           testID="calendar-create-sheet"
         >
           <ScrollView contentContainerStyle={styles.formContent} keyboardShouldPersistTaps="handled">
-            <Text accessibilityRole="header" allowFontScaling style={[styles.heading, { color: colors.textPrimary }]}>
+            <Text accessibilityRole="header" allowFontScaling style={[styles.heading, { color: colors.textPrimary }]}> 
               {catalog['calendar.create.title']}
             </Text>
             <TextInput
@@ -255,7 +308,11 @@ export function CalendarMissionFormSheet({
                   autoCapitalize="none"
                   onChangeText={setStartText}
                   placeholder={catalog['calendar.create.timeInputHint']}
-                  style={[styles.input, styles.flexInput, { borderColor: colors.border, color: colors.textPrimary }]}
+                  style={[
+                    styles.input,
+                    styles.flexInput,
+                    { borderColor: colors.border, color: colors.textPrimary },
+                  ]}
                   testID="calendar-create-start"
                   value={startText}
                 />
@@ -264,7 +321,11 @@ export function CalendarMissionFormSheet({
                   autoCapitalize="none"
                   onChangeText={setEndText}
                   placeholder={catalog['calendar.create.timeInputHint']}
-                  style={[styles.input, styles.flexInput, { borderColor: colors.border, color: colors.textPrimary }]}
+                  style={[
+                    styles.input,
+                    styles.flexInput,
+                    { borderColor: colors.border, color: colors.textPrimary },
+                  ]}
                   testID="calendar-create-end"
                   value={endText}
                 />
@@ -275,13 +336,19 @@ export function CalendarMissionFormSheet({
                 <Pressable
                   accessibilityLabel={catalog['calendar.create.recurrence']}
                   accessibilityRole="button"
-                  onPress={() => { setRecurrenceEditorVisible(true); }}
+                  onPress={() => {
+                    setRecurrenceEditorVisible(true);
+                  }}
                   style={[styles.toggleRow, { borderColor: colors.border }]}
                   testID="calendar-create-recurrence"
                 >
-                  <Text allowFontScaling style={[styles.bodyText, { color: colors.textPrimary }]}>{catalog['calendar.create.recurrence']}</Text>
-                  <Text allowFontScaling style={[styles.bodyText, { color: colors.textSecondary }]}>
-                    {recurrence === null ? catalog['calendar.create.doesNotRepeat'] : catalog['calendar.recurrence.title']}
+                  <Text allowFontScaling style={[styles.bodyText, { color: colors.textPrimary }]}> 
+                    {catalog['calendar.create.recurrence']}
+                  </Text>
+                  <Text allowFontScaling style={[styles.bodyText, { color: colors.textSecondary }]}> 
+                    {recurrence === null
+                      ? catalog['calendar.create.doesNotRepeat']
+                      : catalog['calendar.recurrence.title']}
                   </Text>
                 </Pressable>
                 {recurrenceEditorVisible ? (
@@ -289,8 +356,13 @@ export function CalendarMissionFormSheet({
                     colorScheme={colorScheme}
                     initialRecurrence={recurrence}
                     language={language}
-                    onCancel={() => { setRecurrenceEditorVisible(false); }}
-                    onDone={(value) => { setRecurrence(value); setRecurrenceEditorVisible(false); }}
+                    onCancel={() => {
+                      setRecurrenceEditorVisible(false);
+                    }}
+                    onDone={(value) => {
+                      setRecurrence(value);
+                      setRecurrenceEditorVisible(false);
+                    }}
                     selectedDate={effectiveSelectedDate}
                     weekStartsOn={weekStartsOn}
                   />
@@ -299,12 +371,20 @@ export function CalendarMissionFormSheet({
                   accessibilityLabel={catalog['calendar.create.allDay']}
                   accessibilityRole="checkbox"
                   accessibilityState={{ checked: allDay }}
-                  onPress={() => { setAllDay((value) => !value); setValidationVisible(false); setZeroXpWarningVisible(false); }}
+                  onPress={() => {
+                    setAllDay((value) => !value);
+                    setValidationVisible(false);
+                    setZeroXpWarningVisible(false);
+                  }}
                   style={[styles.toggleRow, { borderColor: colors.border }]}
                   testID="calendar-create-all-day"
                 >
-                  <Text allowFontScaling style={[styles.bodyText, { color: colors.textPrimary }]}>{catalog['calendar.create.allDay']}</Text>
-                  <Text allowFontScaling style={[styles.bodyText, { color: colors.textSecondary }]}>{allDay ? catalog['calendar.create.on'] : catalog['calendar.create.off']}</Text>
+                  <Text allowFontScaling style={[styles.bodyText, { color: colors.textPrimary }]}> 
+                    {catalog['calendar.create.allDay']}
+                  </Text>
+                  <Text allowFontScaling style={[styles.bodyText, { color: colors.textSecondary }]}> 
+                    {allDay ? catalog['calendar.create.on'] : catalog['calendar.create.off']}
+                  </Text>
                 </Pressable>
                 {allDay ? (
                   <TextInput
@@ -327,44 +407,136 @@ export function CalendarMissionFormSheet({
                 <Pressable
                   accessibilityLabel={catalog['calendar.create.travelBehavior']}
                   accessibilityRole="button"
-                  onPress={() => { setTimeBehavior((value) => value === 'local_time' ? 'fixed_instant' : 'local_time'); }}
+                  onPress={() => {
+                    setTimeBehavior((value) =>
+                      value === 'local_time' ? 'fixed_instant' : 'local_time',
+                    );
+                  }}
                   style={[styles.toggleRow, { borderColor: colors.border }]}
                   testID="calendar-create-travel-behavior"
                 >
-                  <Text allowFontScaling style={[styles.bodyText, { color: colors.textPrimary }]}>{catalog['calendar.create.travelBehavior']}</Text>
-                  <Text allowFontScaling style={[styles.bodyText, { color: colors.textSecondary }]}>{timeBehavior === 'local_time' ? catalog['calendar.create.keepLocalTime'] : catalog['calendar.create.fixedInstant']}</Text>
+                  <Text allowFontScaling style={[styles.bodyText, { color: colors.textPrimary }]}> 
+                    {catalog['calendar.create.travelBehavior']}
+                  </Text>
+                  <Text allowFontScaling style={[styles.bodyText, { color: colors.textSecondary }]}> 
+                    {timeBehavior === 'local_time'
+                      ? catalog['calendar.create.keepLocalTime']
+                      : catalog['calendar.create.fixedInstant']}
+                  </Text>
                 </Pressable>
                 <Pressable
                   accessibilityLabel={catalog['calendar.create.private']}
                   accessibilityRole="checkbox"
                   accessibilityState={{ checked: isPrivate }}
-                  onPress={() => { setIsPrivate((value) => !value); }}
+                  onPress={() => {
+                    setIsPrivate((value) => !value);
+                  }}
                   style={[styles.toggleRow, { borderColor: colors.border }]}
                   testID="calendar-create-private"
                 >
-                  <Text allowFontScaling style={[styles.bodyText, { color: colors.textPrimary }]}>{catalog['calendar.create.private']}</Text>
-                  <Text allowFontScaling style={[styles.bodyText, { color: colors.textSecondary }]}>{isPrivate ? catalog['calendar.create.on'] : catalog['calendar.create.off']}</Text>
+                  <Text allowFontScaling style={[styles.bodyText, { color: colors.textPrimary }]}> 
+                    {catalog['calendar.create.private']}
+                  </Text>
+                  <Text allowFontScaling style={[styles.bodyText, { color: colors.textSecondary }]}> 
+                    {isPrivate ? catalog['calendar.create.on'] : catalog['calendar.create.off']}
+                  </Text>
                 </Pressable>
-                <TextInput accessibilityLabel={catalog['calendar.create.location']} onChangeText={setLocation} placeholder={catalog['calendar.create.location']} style={[styles.input, { borderColor: colors.border, color: colors.textPrimary }]} testID="calendar-create-location" value={location} />
-                <TextInput accessibilityLabel={catalog['calendar.create.notes']} multiline onChangeText={setNotes} placeholder={catalog['calendar.create.notes']} style={[styles.input, styles.notesInput, { borderColor: colors.border, color: colors.textPrimary }]} testID="calendar-create-notes" value={notes} />
+                <TextInput
+                  accessibilityLabel={catalog['calendar.create.location']}
+                  onChangeText={setLocation}
+                  placeholder={catalog['calendar.create.location']}
+                  style={[styles.input, { borderColor: colors.border, color: colors.textPrimary }]}
+                  testID="calendar-create-location"
+                  value={location}
+                />
+                <TextInput
+                  accessibilityLabel={catalog['calendar.create.notes']}
+                  multiline
+                  onChangeText={setNotes}
+                  placeholder={catalog['calendar.create.notes']}
+                  style={[
+                    styles.input,
+                    styles.notesInput,
+                    { borderColor: colors.border, color: colors.textPrimary },
+                  ]}
+                  testID="calendar-create-notes"
+                  value={notes}
+                />
               </>
             ) : (
-              <Pressable accessibilityLabel={catalog['calendar.create.moreOptions']} accessibilityRole="button" onPress={() => { setMoreOptionsVisible(true); }} style={styles.moreOptions} testID="calendar-create-more-options">
-                <Text allowFontScaling style={[styles.actionText, { color: colors.primary }]}>{catalog['calendar.create.moreOptions']}</Text>
+              <Pressable
+                accessibilityLabel={catalog['calendar.create.moreOptions']}
+                accessibilityRole="button"
+                onPress={() => {
+                  setMoreOptionsVisible(true);
+                }}
+                style={styles.moreOptions}
+                testID="calendar-create-more-options"
+              >
+                <Text allowFontScaling style={[styles.actionText, { color: colors.primary }]}> 
+                  {catalog['calendar.create.moreOptions']}
+                </Text>
               </Pressable>
             )}
-            {validationVisible ? <Text accessibilityRole="alert" allowFontScaling style={[styles.warningText, { color: colors.late }]} testID="calendar-create-validation-error">{catalog['calendar.create.validationError']}</Text> : null}
+            {validationVisible ? (
+              <Text
+                accessibilityRole="alert"
+                allowFontScaling
+                style={[styles.warningText, { color: colors.late }]}
+                testID="calendar-create-validation-error"
+              >
+                {catalog['calendar.create.validationError']}
+              </Text>
+            ) : null}
             {zeroXpWarningVisible ? (
               <View style={styles.warningGroup} testID="calendar-create-zero-xp-warning">
-                <Text accessibilityRole="alert" allowFontScaling style={[styles.warningText, { color: colors.late }]}>{catalog['calendar.create.pastZeroXpWarning']}</Text>
-                <Pressable accessibilityLabel={catalog['calendar.create.confirmZeroXp']} accessibilityRole="button" onPress={() => { submit(true); }} style={styles.action} testID="calendar-create-confirm-zero-xp">
-                  <Text allowFontScaling style={[styles.actionText, { color: colors.primary }]}>{catalog['calendar.create.confirmZeroXp']}</Text>
+                <Text
+                  accessibilityRole="alert"
+                  allowFontScaling
+                  style={[styles.warningText, { color: colors.late }]}
+                >
+                  {catalog['calendar.create.pastZeroXpWarning']}
+                </Text>
+                <Pressable
+                  accessibilityLabel={catalog['calendar.create.confirmZeroXp']}
+                  accessibilityRole="button"
+                  onPress={() => {
+                    submit(true);
+                  }}
+                  style={styles.action}
+                  testID="calendar-create-confirm-zero-xp"
+                >
+                  <Text allowFontScaling style={[styles.actionText, { color: colors.primary }]}> 
+                    {catalog['calendar.create.confirmZeroXp']}
+                  </Text>
                 </Pressable>
               </View>
             ) : null}
             <View style={styles.actions}>
-              <Pressable accessibilityLabel={catalog['calendar.create.cancel']} accessibilityRole="button" onPress={onCancel} style={styles.action} testID="calendar-create-cancel"><Text allowFontScaling style={[styles.actionText, { color: colors.textSecondary }]}>{catalog['calendar.create.cancel']}</Text></Pressable>
-              <Pressable accessibilityLabel={catalog['calendar.create.save']} accessibilityRole="button" onPress={() => { submit(false); }} style={styles.action} testID="calendar-create-save"><Text allowFontScaling style={[styles.actionText, { color: colors.primary }]}>{catalog['calendar.create.save']}</Text></Pressable>
+              <Pressable
+                accessibilityLabel={catalog['calendar.create.cancel']}
+                accessibilityRole="button"
+                onPress={onCancel}
+                style={styles.action}
+                testID="calendar-create-cancel"
+              >
+                <Text allowFontScaling style={[styles.actionText, { color: colors.textSecondary }]}> 
+                  {catalog['calendar.create.cancel']}
+                </Text>
+              </Pressable>
+              <Pressable
+                accessibilityLabel={catalog['calendar.create.save']}
+                accessibilityRole="button"
+                onPress={() => {
+                  submit(false);
+                }}
+                style={styles.action}
+                testID="calendar-create-save"
+              >
+                <Text allowFontScaling style={[styles.actionText, { color: colors.primary }]}> 
+                  {catalog['calendar.create.save']}
+                </Text>
+              </Pressable>
             </View>
           </ScrollView>
         </View>
@@ -375,19 +547,51 @@ export function CalendarMissionFormSheet({
 
 const styles = StyleSheet.create({
   backdrop: { alignItems: 'center', flex: 1, justifyContent: 'flex-end', padding: space[4] },
-  sheet: { borderRadius: radius.lg, maxHeight: '90%', maxWidth: layout.maximumPhoneWidth, width: '100%' },
+  sheet: {
+    borderRadius: radius.lg,
+    maxHeight: '90%',
+    maxWidth: layout.maximumPhoneWidth,
+    width: '100%',
+  },
   formContent: { gap: space[3], padding: space[4] },
   heading: { fontSize: typography.headline.fontSize, fontWeight: typography.headline.fontWeight },
-  input: { borderRadius: radius.md, borderWidth: 1, fontSize: typography.body.fontSize, minHeight: layout.minimumTouchTarget, paddingHorizontal: space[3], paddingVertical: space[2] },
+  input: {
+    borderRadius: radius.md,
+    borderWidth: 1,
+    fontSize: typography.body.fontSize,
+    minHeight: layout.minimumTouchTarget,
+    paddingHorizontal: space[3],
+    paddingVertical: space[2],
+  },
   row: { flexDirection: 'row', gap: space[2] },
   flexInput: { flex: 1 },
-  toggleRow: { alignItems: 'center', borderRadius: radius.md, borderWidth: 1, flexDirection: 'row', justifyContent: 'space-between', minHeight: layout.minimumTouchTarget, paddingHorizontal: space[3], paddingVertical: space[2] },
+  toggleRow: {
+    alignItems: 'center',
+    borderRadius: radius.md,
+    borderWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    minHeight: layout.minimumTouchTarget,
+    paddingHorizontal: space[3],
+    paddingVertical: space[2],
+  },
   bodyText: { fontSize: typography.body.fontSize },
   notesInput: { minHeight: layout.minimumTouchTarget * 2, textAlignVertical: 'top' },
   warningGroup: { gap: space[2] },
   warningText: { fontSize: typography.bodySmall.fontSize },
-  moreOptions: { alignItems: 'flex-start', justifyContent: 'center', minHeight: layout.minimumTouchTarget, paddingHorizontal: space[1] },
+  moreOptions: {
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    minHeight: layout.minimumTouchTarget,
+    paddingHorizontal: space[1],
+  },
   actions: { flexDirection: 'row', justifyContent: 'flex-end' },
-  action: { alignItems: 'center', justifyContent: 'center', minHeight: layout.minimumTouchTarget, minWidth: layout.minimumTouchTarget * 2, paddingHorizontal: space[3] },
+  action: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: layout.minimumTouchTarget,
+    minWidth: layout.minimumTouchTarget * 2,
+    paddingHorizontal: space[3],
+  },
   actionText: { fontSize: typography.body.fontSize, fontWeight: typography.body.mediumFontWeight },
 });
