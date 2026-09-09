@@ -93,6 +93,7 @@ export interface CalendarDayScreenProps {
   readonly timedMissionsByDate?: Readonly<Record<string, readonly TimedMissionSummary[]>>;
   readonly selectedMissionId?: string;
   readonly searchFocusTarget?: CalendarSearchFocusTarget;
+  readonly onClearMissionSelection?: (() => void) | undefined;
   readonly onSearchPress?: (() => void) | undefined;
   readonly onHelpFaqPress?: (() => void) | undefined;
   readonly onTimedMissionPress?: (mission: TimedMissionSummary) => void;
@@ -113,6 +114,7 @@ export function CalendarDayScreen({
   timedMissionsByDate = {},
   selectedMissionId,
   searchFocusTarget,
+  onClearMissionSelection,
   onSearchPress,
   onHelpFaqPress,
   onTimedMissionPress,
@@ -203,11 +205,13 @@ export function CalendarDayScreen({
       : selectedMissionId;
 
   const selectDate = (date: string) => {
+    onClearMissionSelection?.();
     setSelectedDate(date);
     setPickerMonth(date);
   };
 
   const openPicker = () => {
+    onClearMissionSelection?.();
     setPickerMonth(selectedDate);
     setPickerVisible(true);
   };
@@ -300,6 +304,7 @@ export function CalendarDayScreen({
               accessibilityLabel={copy.help}
               accessibilityRole="button"
               onPress={() => {
+                onClearMissionSelection?.();
                 setHelpVisible(true);
               }}
               ref={helpTriggerRef}
@@ -400,6 +405,7 @@ export function CalendarDayScreen({
             ) : undefined
           }
           now={now}
+          onClearMissionSelection={onClearMissionSelection}
           onCreateMission={onCreateMission}
           scrollHeader={
             allDayMissions.length > 0 ? (
