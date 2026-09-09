@@ -231,6 +231,10 @@ export const mobileMigrations: readonly MobileMigration[] = [
     statements: [
       `ALTER TABLE search_documents
         ADD COLUMN general_note TEXT`,
+      `DROP TRIGGER IF EXISTS search_documents_fts_insert`,
+      `DROP TRIGGER IF EXISTS search_documents_fts_delete`,
+      `DROP TRIGGER IF EXISTS search_documents_fts_update`,
+      `DROP TABLE IF EXISTS search_documents_fts`,
     ],
   },
 ];
