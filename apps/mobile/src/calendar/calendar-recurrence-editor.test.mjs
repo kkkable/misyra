@@ -36,7 +36,7 @@ import { CalendarMissionFormSheet } from './calendar-mission-form-sheet.js';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
-function renderForm({ language = 'en', onSubmit = vi.fn() } = {}) {
+function renderForm({ language = 'en', onSubmit = vi.fn(), weekStartsOn = 1 } = {}) {
   let renderer;
   act(() => {
     renderer = create(
@@ -50,6 +50,7 @@ function renderForm({ language = 'en', onSubmit = vi.fn() } = {}) {
         selectedDate: '2026-09-08',
         timeZone: 'Asia/Hong_Kong',
         uses24HourClock: true,
+        weekStartsOn,
       }),
     );
   });
@@ -199,8 +200,8 @@ describe('MTS-051 recurrence editor UI', () => {
     );
   });
 
-  it('supports Custom weekly intervals on selected weekdays', () => {
-    const { renderer, onSubmit } = renderForm();
+  it('supports Custom weekly intervals on selected weekdays with a Monday regional week start', () => {
+    const { renderer, onSubmit } = renderForm({ weekStartsOn: 1 });
     openRecurrence(renderer);
 
     act(() => {
@@ -236,6 +237,70 @@ describe('MTS-051 recurrence editor UI', () => {
         },
       }),
     );
+  });
+
+  it('orders and labels weekday choices from a Sunday regional week start and persists that phase', () => {
+    const { renderer, onSubmit } = renderForm({ weekStartsOn: 0 });
+    openRecurrence(renderer);
+
+    act(() => {
+      renderer.root.findByProps({ testID: 'recurrence-preset-weekly' }).props.onPress();
+    });
+
+    const weekdayButtons = renderer.root.findAll(
+      (node) =>
+        node.type === 'Pressable' &&
+        typeof node.props.testID === 'string' &&
+        node.props.testID.startsWith('recurrence-weekday-'),
+    );
+    expect(weekdayButtons.map((node) => node.props.testID)).toEqual([
+      'recurrence-weekday-0',
+      'recurrence-weekday-1',
+      'recurrence-weekday-2',
+      'recurrence-weekday-3',
+      'recurrence-weekday-4',
+      'recurrence-weekday-5',
+      'recurrence-weekday-6',
+    ]);
+    expect(weekdayButtons.map((node) => node.props.accessibilityLabel)).toEqual([
+      'Sunday',
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+    ]);
+    expect(textSnapshot(renderer.root.findByProps({ testID: 'calendar-recurrence-editor' }))).toContain(
+      'Sun | Mon | Tue | Wed | Thu | Fri | Sat',
+    );
+
+    act(() => {
+      renderer.root.findByProps({ testID: 'recurrence-done' }).props.onPress();
+    });
+    setTitle(renderer, 'Regional weekly mission');
+    saveMission(renderer);
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recurrence: {
+          pattern: { type: 'weekly', interval: 1, weekdays: [2], weekStartsOn: 0 },
+          end: { type: 'never' },
+        },
+      }),
+    );
+  });
+
+  it('uses localized weekday names in zh-HK instead of numeric domain values', () => {
+    const renderer = renderForm({ language: 'zh-HK', weekStartsOn: 1 }).renderer;
+    openRecurrence(renderer);
+    act(() => {
+      renderer.root.findByProps({ testID: 'recurrence-preset-weekly' }).props.onPress();
+    });
+
+    const monday = renderer.root.findByProps({ testID: 'recurrence-weekday-1' });
+    expect(monday.props.accessibilityLabel).toBe('星期一');
+    expect(textSnapshot(monday)).toBe('一');
   });
 
   it('keeps recurrence controls readable at 2x font scale and opts visible text into font scaling', () => {
