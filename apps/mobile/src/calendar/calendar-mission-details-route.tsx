@@ -1,17 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { getCalendars, getLocales } from 'expo-localization';
+import { getCalendars } from 'expo-localization';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
 
 import { layout, space, typography } from '@misyra/design-tokens';
-import { localizationCatalogs, type LocalizationLocale } from '@misyra/localization';
+import { localizationCatalogs } from '@misyra/localization';
 
 import { rootAuthController } from '../auth/auth-runtime.js';
 import { themeColors, type ColorScheme } from '../design-system/index.js';
+import { useAppLanguage } from '../localization/use-app-language.js';
 import { openMobileDatabase } from '../storage/database.js';
 import { createLocalRepositories, type MissionDetails } from '../storage/local-repositories.js';
 import { requireRegisteredDeviceId } from '../sync/root-sync-runtime.js';
-import { resolveInitialCalendarLanguage } from './calendar-language-runtime.js';
 import {
   deleteCalendarMission,
   undoCalendarMissionDeletion,
@@ -28,6 +28,7 @@ import {
   type CalendarMissionCreateInput,
 } from './calendar-mission-create.js';
 import { CalendarMissionFormSheet } from './calendar-mission-form-sheet.js';
+import { domainWeekStartFromRegionalFirstWeekday } from './calendar-region.js';
 
 const COMPLETION_WINDOW_MILLISECONDS = 30 * 24 * 60 * 60 * 1000;
 const DELETE_UNDO_VISIBLE_MILLISECONDS = 5_000;
@@ -139,13 +140,14 @@ export function CalendarMissionDetailsRouteScreen() {
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const router = useRouter();
   const missionId = routeMissionId(params.id);
-  const deviceLocale = useRef(getLocales()[0]).current;
-  const language: LocalizationLocale = resolveInitialCalendarLanguage(deviceLocale);
+  const language = useAppLanguage();
   const catalog = localizationCatalogs[language];
   const nativeColorScheme = useColorScheme();
   const colorScheme: ColorScheme = nativeColorScheme === 'dark' ? 'dark' : 'light';
   const colors = themeColors(colorScheme);
-  const uses24HourClock = getCalendars().at(0)?.uses24hourClock !== false;
+  const systemCalendar = getCalendars().at(0);
+  const uses24HourClock = systemCalendar?.uses24hourClock !== false;
+  const weekStartsOn = domainWeekStartFromRegionalFirstWeekday(systemCalendar?.firstWeekday);
   const [details, setDetails] = useState<MissionDetailsProjection | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [duplicateDraft, setDuplicateDraft] = useState<CalendarMissionCreateInput | null>(null);
@@ -373,6 +375,7 @@ export function CalendarMissionDetailsRouteScreen() {
           selectedDate={duplicateDraft.selectedDate}
           timeZone={duplicateDraft.timeZone}
           uses24HourClock={uses24HourClock}
+          weekStartsOn={weekStartsOn}
         />
       )}
     </View>
