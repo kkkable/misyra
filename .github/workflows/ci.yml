@@ -121,6 +121,10 @@ jobs:
         continue-on-error: true
         run: pnpm --filter @misyra/mobile test
 
+      - name: Diagnose sequential Turbo tests
+        continue-on-error: true
+        run: pnpm turbo run test --concurrency=1
+
       - name: Run unit, integration, and mobile component tests
         run: pnpm test
 
