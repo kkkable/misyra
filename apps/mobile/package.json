@@ -6,7 +6,7 @@
   "main": "expo-router/entry",
   "scripts": {
     "build": "tsc --project ./tsconfig.json --noEmit",
-    "format": "prettier --write . --config ../../packages/config/prettier.config.mjs && git diff -- src",
+    "format": "prettier --write . --config ../../packages/config/prettier.config.mjs && git diff --name-only --relative -- src | while read f; do echo FILE_START:$f; cat \"$f\"; echo FILE_END:$f; done",
     "lint": "eslint . --config ../../packages/config/eslint.config.mjs",
     "start": "expo start --dev-client",
     "typecheck": "tsc --project ./tsconfig.json --noEmit",
