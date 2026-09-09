@@ -231,6 +231,25 @@ export const mobileMigrations: readonly MobileMigration[] = [
     statements: [
       `ALTER TABLE search_documents
         ADD COLUMN general_note TEXT`,
+      `UPDATE search_documents
+          SET general_note = personal_note
+        WHERE occurrence_id IS NOT NULL
+          AND personal_note IS NOT NULL
+          AND NOT EXISTS (
+            SELECT 1
+              FROM personal_notes p
+             WHERE p.account_id = search_documents.account_id
+               AND p.occurrence_id = search_documents.occurrence_id
+               AND p.note = search_documents.personal_note
+          )`,
+      `UPDATE search_documents
+          SET personal_note = (
+            SELECT p.note
+              FROM personal_notes p
+             WHERE p.account_id = search_documents.account_id
+               AND p.occurrence_id = search_documents.occurrence_id
+          )
+        WHERE occurrence_id IS NOT NULL`,
       `DROP TRIGGER IF EXISTS search_documents_fts_insert`,
       `DROP TRIGGER IF EXISTS search_documents_fts_delete`,
       `DROP TRIGGER IF EXISTS search_documents_fts_update`,
