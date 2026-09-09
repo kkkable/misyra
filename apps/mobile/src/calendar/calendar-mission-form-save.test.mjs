@@ -151,11 +151,15 @@ describe('MTS-045 mission form persistence', () => {
     expect(saved.occurrence.evidenceState).toBe('not_required');
     expect(saved.occurrence.schedule.timeBehavior).toBe('fixed_instant');
     const search = await database.getFirstAsync(
-      `SELECT location, personal_note
+      `SELECT location, general_note, personal_note
          FROM search_documents
         WHERE account_id = ?`,
       '11111111-1111-4111-8111-111111111111',
     );
-    expect(search).toEqual({ location: 'Central', personal_note: 'Bring documents' });
+    expect(search).toEqual({
+      location: 'Central',
+      general_note: 'Bring documents',
+      personal_note: null,
+    });
   });
 });
