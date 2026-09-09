@@ -68,6 +68,18 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
+      - name: Diagnose mobile slot creation test
+        continue-on-error: true
+        run: pnpm --filter @misyra/mobile exec vitest run --config ../../packages/config/vitest.config.mjs src/calendar/calendar-slot-creation.test.mjs
+
+      - name: Diagnose mobile route adjustment test
+        continue-on-error: true
+        run: pnpm --filter @misyra/mobile exec vitest run --config ../../packages/config/vitest.config.mjs src/calendar/calendar-route-adjustment.test.mjs
+
+      - name: Diagnose mobile mission form save test
+        continue-on-error: true
+        run: pnpm --filter @misyra/mobile exec vitest run --config ../../packages/config/vitest.config.mjs src/calendar/calendar-mission-form-save.test.mjs
+
       - name: Run unit, integration, and mobile component tests
         run: pnpm test
 
