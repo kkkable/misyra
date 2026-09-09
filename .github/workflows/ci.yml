@@ -81,6 +81,42 @@ jobs:
           tests/mts-008/*.test.mjs
           tests/mts-012/*.test.mjs
 
+      - name: Diagnose config tests
+        continue-on-error: true
+        run: pnpm --filter @misyra/config --if-present test
+
+      - name: Diagnose contracts tests
+        continue-on-error: true
+        run: pnpm --filter @misyra/contracts --if-present test
+
+      - name: Diagnose database tests
+        continue-on-error: true
+        run: pnpm --filter @misyra/database --if-present test
+
+      - name: Diagnose design-token tests
+        continue-on-error: true
+        run: pnpm --filter @misyra/design-tokens --if-present test
+
+      - name: Diagnose domain tests
+        continue-on-error: true
+        run: pnpm --filter @misyra/domain --if-present test
+
+      - name: Diagnose localization tests
+        continue-on-error: true
+        run: pnpm --filter @misyra/localization --if-present test
+
+      - name: Diagnose testing-package tests
+        continue-on-error: true
+        run: pnpm --filter @misyra/testing --if-present test
+
+      - name: Diagnose API tests
+        continue-on-error: true
+        run: pnpm --filter @misyra/api --if-present test
+
+      - name: Diagnose worker tests
+        continue-on-error: true
+        run: pnpm --filter @misyra/worker --if-present test
+
       - name: Diagnose full mobile test invocation
         continue-on-error: true
         run: pnpm --filter @misyra/mobile test
