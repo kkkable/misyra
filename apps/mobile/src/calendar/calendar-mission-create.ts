@@ -1,9 +1,12 @@
 import {
-  createOneTimeMission,
+  createMissionOccurrence,
+  createMissionSeries,
   createZonedAllDaySchedule,
   createZonedTimedSchedule,
   evaluateSchedulePlacement,
-  type OneTimeMission,
+  type MissionOccurrence,
+  type MissionRecurrence,
+  type MissionSeries,
   type RewardEligibility,
   type TimeBehavior,
 } from '@misyra/domain';
@@ -20,6 +23,7 @@ export type CalendarMissionCreateInput = Readonly<{
   rewardEligibility: RewardEligibility;
   timeZone: string;
   timeBehavior?: TimeBehavior;
+  recurrence?: MissionRecurrence | null;
   private?: boolean;
   location?: string | null;
   notes?: string | null;
@@ -32,6 +36,11 @@ type CalendarMissionCreateOptions = Readonly<{
   input: CalendarMissionCreateInput;
   now: Date;
   generateId: () => string;
+}>;
+
+type CalendarMission = Readonly<{
+  series: MissionSeries;
+  occurrence: MissionOccurrence;
 }>;
 
 const MINUTES_PER_DAY = 24 * 60;
@@ -100,7 +109,7 @@ export async function createCalendarMission({
   input,
   now,
   generateId,
-}: CalendarMissionCreateOptions): Promise<OneTimeMission> {
+}: CalendarMissionCreateOptions): Promise<CalendarMission> {
   assertNonEmpty(accountId, 'Account ID');
   assertNonEmpty(deviceId, 'Device ID');
   assertNonEmpty(input.title, 'Mission title');
@@ -155,26 +164,27 @@ export async function createCalendarMission({
   const seriesId = generateId();
   const occurrenceId = generateId();
   const mutationId = generateId();
-  const mission = createOneTimeMission({
-    series: {
-      id: seriesId,
-      title: input.title.trim(),
-    },
-    occurrence: {
-      id: occurrenceId,
-      schedule,
-      scheduleState: 'scheduled',
-      completionState: 'incomplete',
-      evidenceState: input.private === true ? 'not_required' : 'not_submitted',
-      rewardEligibility: placement.rewardEligibility,
-      rewardIssuance: 'not_issued',
-      calendarSource: 'internal',
-      fieldOwnership: 'app_owned',
-      synchronizationState: 'pending',
-      storyState: 'none',
-      deletionState: 'active',
-    },
+  const series = createMissionSeries({
+    id: seriesId,
+    title: input.title.trim(),
+    recurrence: input.recurrence ?? null,
   });
+  const occurrence = createMissionOccurrence({
+    id: occurrenceId,
+    seriesId: series.id,
+    schedule,
+    scheduleState: 'scheduled',
+    completionState: 'incomplete',
+    evidenceState: input.private === true ? 'not_required' : 'not_submitted',
+    rewardEligibility: placement.rewardEligibility,
+    rewardIssuance: 'not_issued',
+    calendarSource: 'internal',
+    fieldOwnership: 'app_owned',
+    synchronizationState: 'pending',
+    storyState: 'none',
+    deletionState: 'active',
+  });
+  const mission: CalendarMission = Object.freeze({ series, occurrence });
   const occurredAt = now.toISOString();
   const location = optionalText(input.location);
   const notes = optionalText(input.notes);

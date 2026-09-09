@@ -51,6 +51,29 @@ function createDatabase() {
   return database;
 }
 
+async function seedAccount(database) {
+  await applyMobileMigrations(database);
+  await database.runAsync(
+    `INSERT INTO local_accounts
+      (account_id, created_at, language, trust_mode, app_time_zone)
+     VALUES (?, ?, ?, ?, ?)`,
+    '11111111-1111-4111-8111-111111111111',
+    '2026-09-06T17:00:00.000Z',
+    'en',
+    0,
+    'Asia/Hong_Kong',
+  );
+}
+
+function ids() {
+  const values = [
+    '33333333-3333-4333-8333-333333333333',
+    '44444444-4444-4444-8444-444444444444',
+    '55555555-5555-4555-8555-555555555555',
+  ];
+  return () => values.shift();
+}
+
 afterEach(() => {
   while (databases.length > 0) databases.pop()?.close();
 });
@@ -58,17 +81,7 @@ afterEach(() => {
 describe('MTS-044 local-first mission save', () => {
   it('atomically writes the optimistic mission cache and queues its server mutation', async () => {
     const database = createDatabase();
-    await applyMobileMigrations(database);
-    await database.runAsync(
-      `INSERT INTO local_accounts
-        (account_id, created_at, language, trust_mode, app_time_zone)
-       VALUES (?, ?, ?, ?, ?)`,
-      '11111111-1111-4111-8111-111111111111',
-      '2026-09-06T17:00:00.000Z',
-      'en',
-      0,
-      'Asia/Hong_Kong',
-    );
+    await seedAccount(database);
 
     const saved = await createCalendarMission({
       database,
@@ -83,14 +96,7 @@ describe('MTS-044 local-first mission save', () => {
         timeZone: 'Asia/Hong_Kong',
       },
       now: new Date('2026-09-06T17:00:00.000Z'),
-      generateId: (() => {
-        const ids = [
-          '33333333-3333-4333-8333-333333333333',
-          '44444444-4444-4444-8444-444444444444',
-          '55555555-5555-4555-8555-555555555555',
-        ];
-        return () => ids.shift();
-      })(),
+      generateId: ids(),
     });
 
     expect(saved.occurrence.rewardEligibility).toBe('eligible');
@@ -131,5 +137,45 @@ describe('MTS-044 local-first mission save', () => {
       series: saved.series,
       occurrence: saved.occurrence,
     });
+  });
+
+  it('persists the recurrence selected by the mission form in cache and the queued create mutation', async () => {
+    const database = createDatabase();
+    await seedAccount(database);
+    const recurrence = {
+      pattern: { type: 'weekly', interval: 2, weekdays: [1, 3], weekStartsOn: 1 },
+      end: { type: 'count', occurrenceCount: 6 },
+    };
+
+    const saved = await createCalendarMission({
+      database,
+      accountId: '11111111-1111-4111-8111-111111111111',
+      deviceId: '22222222-2222-4222-8222-222222222222',
+      input: {
+        selectedDate: '2026-09-07',
+        title: 'Recurring mission',
+        startMinute: 10 * 60,
+        endMinute: 10 * 60 + 30,
+        rewardEligibility: 'eligible',
+        timeZone: 'Asia/Hong_Kong',
+        recurrence,
+      },
+      now: new Date('2026-09-06T17:00:00.000Z'),
+      generateId: ids(),
+    });
+
+    expect(saved.series.recurrence).toEqual(recurrence);
+
+    const series = await database.getFirstAsync(
+      'SELECT payload_json FROM cached_mission_series WHERE account_id = ?',
+      '11111111-1111-4111-8111-111111111111',
+    );
+    expect(JSON.parse(series.payload_json).recurrence).toEqual(recurrence);
+
+    const queued = await database.getFirstAsync(
+      'SELECT command_json FROM mutation_queue WHERE account_id = ?',
+      '11111111-1111-4111-8111-111111111111',
+    );
+    expect(JSON.parse(queued.command_json).mutation.payload.series.recurrence).toEqual(recurrence);
   });
 });
