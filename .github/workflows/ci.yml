@@ -125,6 +125,10 @@ jobs:
         continue-on-error: true
         run: pnpm turbo run test --concurrency=1
 
+      - name: Diagnose two-way Turbo tests
+        continue-on-error: true
+        run: pnpm turbo run test --concurrency=2
+
       - name: Run unit, integration, and mobile component tests
         run: pnpm test
 
