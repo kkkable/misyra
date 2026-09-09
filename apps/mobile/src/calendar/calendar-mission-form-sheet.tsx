@@ -31,6 +31,7 @@ interface CalendarMissionFormSheetProps {
   readonly selectedDate: string;
   readonly timeZone: string;
   readonly uses24HourClock: boolean;
+  readonly weekStartsOn?: number;
 }
 
 function localDateTime(localDate: string, minute: number): string {
@@ -113,6 +114,7 @@ export function CalendarMissionFormSheet({
   selectedDate,
   timeZone: initialTimeZone,
   uses24HourClock,
+  weekStartsOn = 1,
 }: CalendarMissionFormSheetProps) {
   const colors = themeColors(colorScheme);
   const catalog = localizationCatalogs[language];
@@ -289,6 +291,7 @@ export function CalendarMissionFormSheet({
                       setRecurrenceEditorVisible(false);
                     }}
                     selectedDate={effectiveSelectedDate}
+                    weekStartsOn={weekStartsOn}
                   />
                 ) : null}
                 <Pressable
