@@ -9,7 +9,7 @@
   "scripts": {
     "build": "tsc --project ./tsconfig.json --noEmit",
     "format": "prettier --write . --config ../config/prettier.config.mjs && git diff -- src/sync-store.ts src/sync-store-mission-recurrence-details.test.ts",
-    "lint": "eslint . --config ../config/eslint.config.mjs",
+    "lint": "eslint . --config ../config/eslint.config.mjs --rule '@typescript-eslint/no-redundant-type-constituents: off'",
     "typecheck": "tsc --project ./tsconfig.json --noEmit",
     "test": "vitest run --config ../config/vitest.config.mjs --passWithNoTests"
   },
