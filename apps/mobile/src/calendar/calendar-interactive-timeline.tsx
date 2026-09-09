@@ -25,6 +25,7 @@ type CalendarInteractiveTimelineProps = Readonly<{
   missionLayer?: ReactNode;
   now: Date;
   onCreateMission?: ((input: CalendarMissionCreateInput) => void | Promise<void>) | undefined;
+  onSelectionClear?: (() => void) | undefined;
   scrollHeader?: ReactNode;
   selectedDate: string;
   today: string;
@@ -78,6 +79,7 @@ export function CalendarInteractiveTimeline({
   missionLayer,
   now,
   onCreateMission,
+  onSelectionClear,
   scrollHeader,
   selectedDate,
   today,
@@ -91,6 +93,7 @@ export function CalendarInteractiveTimeline({
 
   const clearSelection = () => {
     setSelectedSlotMinute(null);
+    onSelectionClear?.();
   };
 
   const closeCreation = () => {
@@ -122,6 +125,7 @@ export function CalendarInteractiveTimeline({
             accessibilityRole="button"
             key={minute}
             onPress={() => {
+              onSelectionClear?.();
               if (selectedSlotMinute === minute) {
                 setCreationSlotMinute(minute);
                 return;
