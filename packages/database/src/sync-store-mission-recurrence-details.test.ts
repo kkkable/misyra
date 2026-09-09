@@ -46,7 +46,12 @@ function timedSchedule(localDate: string, hour: number) {
   } as const;
 }
 
-function createPayload(seriesId: string, occurrenceId: string, localDate: string, recurrence: unknown) {
+function createPayload(
+  seriesId: string,
+  occurrenceId: string,
+  localDate: string,
+  recurrence: unknown,
+) {
   return {
     series: { id: seriesId, title: 'Recurring mission', recurrence },
     occurrence: {
@@ -81,7 +86,9 @@ describe('MTS-044–051 recurring and Mission Details synchronization', () => {
       appVersion: '1.0.0',
       notificationCapability: 'denied',
     });
-    const store = createPostgresSyncStore(pool, () => new Date('2026-09-06T08:00:00.000Z'));
+    const store = createPostgresSyncStore(pool, () =>
+      new Date('2026-09-06T08:00:00.000Z'),
+    );
     const seriesId = randomUUID();
     const firstOccurrenceId = randomUUID();
     const secondOccurrenceId = randomUUID();
@@ -122,7 +129,10 @@ describe('MTS-044–051 recurring and Mission Details synchronization', () => {
       [seriesId, account.id],
     );
     expect(series.rowCount).toBe(1);
-    expect(series.rows[0]).toMatchObject({ title: 'Recurring mission', recurrence_rule: recurrence });
+    expect(series.rows[0]).toMatchObject({
+      title: 'Recurring mission',
+      recurrence_rule: recurrence,
+    });
 
     const occurrences = await pool.query(
       `SELECT id, series_id
@@ -148,7 +158,9 @@ describe('MTS-044–051 recurring and Mission Details synchronization', () => {
       appVersion: '1.0.0',
       notificationCapability: 'denied',
     });
-    const store = createPostgresSyncStore(pool, () => new Date('2026-09-07T08:00:00.000Z'));
+    const store = createPostgresSyncStore(pool, () =>
+      new Date('2026-09-07T08:00:00.000Z'),
+    );
     const seriesId = randomUUID();
     const occurrenceId = randomUUID();
 
