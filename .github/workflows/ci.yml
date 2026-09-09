@@ -68,66 +68,12 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
-      - name: Diagnose root Node tests
+      - name: Diagnose migration 6 upgrade
         continue-on-error: true
         run: >-
-          node --test
-          tests/mts-001/*.test.mjs
-          tests/mts-002/*.test.mjs
-          tests/mts-003/*.test.mjs
-          tests/mts-004/*.test.mjs
-          tests/mts-006/*.test.mjs
-          tests/mts-007/*.test.mjs
-          tests/mts-008/*.test.mjs
-          tests/mts-012/*.test.mjs
-
-      - name: Diagnose config tests
-        continue-on-error: true
-        run: pnpm --filter @misyra/config --if-present test
-
-      - name: Diagnose contracts tests
-        continue-on-error: true
-        run: pnpm --filter @misyra/contracts --if-present test
-
-      - name: Diagnose database tests
-        continue-on-error: true
-        run: pnpm --filter @misyra/database --if-present test
-
-      - name: Diagnose design-token tests
-        continue-on-error: true
-        run: pnpm --filter @misyra/design-tokens --if-present test
-
-      - name: Diagnose domain tests
-        continue-on-error: true
-        run: pnpm --filter @misyra/domain --if-present test
-
-      - name: Diagnose localization tests
-        continue-on-error: true
-        run: pnpm --filter @misyra/localization --if-present test
-
-      - name: Diagnose testing-package tests
-        continue-on-error: true
-        run: pnpm --filter @misyra/testing --if-present test
-
-      - name: Diagnose API tests
-        continue-on-error: true
-        run: pnpm --filter @misyra/api --if-present test
-
-      - name: Diagnose worker tests
-        continue-on-error: true
-        run: pnpm --filter @misyra/worker --if-present test
-
-      - name: Diagnose full mobile test invocation
-        continue-on-error: true
-        run: pnpm --filter @misyra/mobile test
-
-      - name: Diagnose sequential Turbo tests
-        continue-on-error: true
-        run: pnpm turbo run test --concurrency=1
-
-      - name: Diagnose two-way Turbo tests
-        continue-on-error: true
-        run: pnpm turbo run test --concurrency=2
+          pnpm --filter @misyra/mobile exec vitest run
+          src/storage/schema-general-note.test.mjs
+          --config ../../packages/config/vitest.config.mjs
 
       - name: Run unit, integration, and mobile component tests
         run: pnpm test
