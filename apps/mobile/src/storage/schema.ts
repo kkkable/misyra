@@ -225,6 +225,14 @@ export const mobileMigrations: readonly MobileMigration[] = [
         ON mission_occurrence_tombstones (account_id)`,
     ],
   },
+  {
+    version: 6,
+    name: 'separate-general-mission-notes',
+    statements: [
+      `ALTER TABLE search_documents
+        ADD COLUMN general_note TEXT`,
+    ],
+  },
 ];
 
 export const MOBILE_SCHEMA_VERSION = mobileMigrations.length;
