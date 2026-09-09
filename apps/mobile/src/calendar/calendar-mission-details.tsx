@@ -16,14 +16,7 @@ export type MissionDetailsLifecycle = 'future' | 'active' | 'completed' | 'expir
 export type MissionCancellationAttribution = 'organizer' | 'event' | null;
 export type MissionZeroXpReason = 'created_or_moved_into_past' | 'edited_after_start' | null;
 export type MissionDetailsEditableField =
-  | 'title'
-  | 'date'
-  | 'start'
-  | 'end'
-  | 'timeZone'
-  | 'location'
-  | 'notes'
-  | 'personalNote';
+  'title' | 'date' | 'start' | 'end' | 'timeZone' | 'location' | 'notes' | 'personalNote';
 
 export type MissionDetailsStructuredSchedule = Readonly<{
   date: string;
@@ -236,9 +229,9 @@ export function MissionDetailsScreen({
             onChangeText={fieldChangeHandler(onFieldChange, 'date')}
             placeholder={catalog['calendar.recurrence.localDateInputHint']}
             testID="mission-details-date"
-            value={details.structuredSchedule?.date ?? ''}
+            value={details.structuredSchedule.date}
           />
-          {details.structuredSchedule?.allDay === true ? null : (
+          {details.structuredSchedule.allDay ? null : (
             <View style={styles.scheduleRow}>
               <View style={styles.flexField}>
                 <DetailsField
@@ -248,7 +241,7 @@ export function MissionDetailsScreen({
                   onChangeText={fieldChangeHandler(onFieldChange, 'start')}
                   placeholder={catalog['calendar.create.timeInputHint']}
                   testID="mission-details-start"
-                  value={details.structuredSchedule?.start ?? ''}
+                  value={details.structuredSchedule.start}
                 />
               </View>
               <View style={styles.flexField}>
@@ -259,7 +252,7 @@ export function MissionDetailsScreen({
                   onChangeText={fieldChangeHandler(onFieldChange, 'end')}
                   placeholder={catalog['calendar.create.timeInputHint']}
                   testID="mission-details-end"
-                  value={details.structuredSchedule?.end ?? ''}
+                  value={details.structuredSchedule.end}
                 />
               </View>
             </View>
@@ -270,7 +263,7 @@ export function MissionDetailsScreen({
             label={catalog['calendar.create.timeZone']}
             onChangeText={fieldChangeHandler(onFieldChange, 'timeZone')}
             testID="mission-details-time-zone"
-            value={details.structuredSchedule?.timeZone ?? ''}
+            value={details.structuredSchedule.timeZone}
           />
         </View>
       ) : null}
@@ -335,8 +328,7 @@ export function MissionDetailsScreen({
           style={[styles.primaryAction, { backgroundColor: colors.primary }]}
           testID="mission-details-save"
         >
-          <Text allowFontScaling style={[styles.actionText, { color: colors.primaryText }]}
-          >
+          <Text allowFontScaling style={[styles.actionText, { color: colors.primaryText }]}>
             {catalog['calendar.create.save']}
           </Text>
         </Pressable>
@@ -409,8 +401,7 @@ export function MissionDetailsScreen({
               style={[styles.action, { borderColor: colors.border }]}
               testID="mission-details-duplicate"
             >
-              <Text allowFontScaling style={[styles.actionText, { color: colors.primary }]}
-              >
+              <Text allowFontScaling style={[styles.actionText, { color: colors.primary }]}>
                 {catalog['calendar.details.duplicate']}
               </Text>
             </Pressable>
@@ -425,8 +416,7 @@ export function MissionDetailsScreen({
               style={[styles.action, { borderColor: colors.late }]}
               testID="mission-details-delete"
             >
-              <Text allowFontScaling style={[styles.actionText, { color: colors.late }]}
-              >
+              <Text allowFontScaling style={[styles.actionText, { color: colors.late }]}>
                 {catalog['calendar.details.delete']}
               </Text>
             </Pressable>
@@ -462,7 +452,10 @@ const styles = StyleSheet.create({
   scheduleRow: { flexDirection: 'row', gap: space[2] },
   flexField: { flex: 1 },
   statusText: { fontSize: typography.body.fontSize, fontWeight: typography.body.mediumFontWeight },
-  supportingText: { fontSize: typography.bodySmall.fontSize, fontWeight: typography.bodySmall.fontWeight },
+  supportingText: {
+    fontSize: typography.bodySmall.fontSize,
+    fontWeight: typography.bodySmall.fontWeight,
+  },
   xpText: { fontSize: typography.headline.fontSize, fontWeight: typography.headline.fontWeight },
   actions: { flexDirection: 'row', gap: space[3] },
   action: {
