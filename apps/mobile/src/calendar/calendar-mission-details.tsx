@@ -143,11 +143,16 @@ function statusText(details: MissionDetailsProjection, catalog: Catalog): string
 
 function evidenceText(state: EvidenceState, catalog: Catalog): string {
   switch (state) {
-    case 'pending': return catalog['calendar.details.evidence.pending'];
-    case 'accepted': return catalog['calendar.details.evidence.accepted'];
-    case 'rejected': return catalog['calendar.details.evidence.rejected'];
-    case 'not_required': return catalog['calendar.details.evidence.notRequired'];
-    default: return catalog['calendar.details.evidence.notSubmitted'];
+    case 'pending':
+      return catalog['calendar.details.evidence.pending'];
+    case 'accepted':
+      return catalog['calendar.details.evidence.accepted'];
+    case 'rejected':
+      return catalog['calendar.details.evidence.rejected'];
+    case 'not_required':
+      return catalog['calendar.details.evidence.notRequired'];
+    default:
+      return catalog['calendar.details.evidence.notSubmitted'];
   }
 }
 
@@ -170,7 +175,9 @@ function fieldChangeHandler(
   field: MissionDetailsEditableField,
 ): ((value: string) => void) | undefined {
   if (onFieldChange === undefined) return undefined;
-  return (value) => { onFieldChange(field, value); };
+  return (value) => {
+    onFieldChange(field, value);
+  };
 }
 
 export function MissionDetailsScreen({
@@ -186,16 +193,21 @@ export function MissionDetailsScreen({
   const colors = themeColors(colorScheme);
   const historical = isHistorical(details.lifecycle) || details.completionState === 'completed';
   const appOwnedEditable = !historical && details.fieldOwnership === 'app_owned';
-  const structuredEditable = appOwnedEditable && details.structuredSchedule !== undefined && details.recurring !== true;
+  const structuredEditable =
+    appOwnedEditable && details.structuredSchedule !== undefined && details.recurring !== true;
   const personalNoteEditable = !historical && details.fieldOwnership === 'organizer_controlled';
   const writtenStatus = statusText(details, catalog);
   const writtenEvidence = evidenceText(details.evidenceState, catalog);
-  const zeroReason = details.rewardEligibility === 'ineligible'
-    ? zeroXpReasonText(details.zeroXpReason, catalog)
-    : null;
+  const zeroReason =
+    details.rewardEligibility === 'ineligible'
+      ? zeroXpReasonText(details.zeroXpReason, catalog)
+      : null;
 
   return (
-    <ScrollView contentContainerStyle={[styles.content, { backgroundColor: colors.canvas }]} testID="mission-details-screen">
+    <ScrollView
+      contentContainerStyle={[styles.content, { backgroundColor: colors.canvas }]}
+      testID="mission-details-screen"
+    >
       <View accessibilityLabel={details.title} accessibilityRole="header">
         <DetailsField
           colorScheme={colorScheme}
@@ -264,13 +276,21 @@ export function MissionDetailsScreen({
       ) : null}
 
       {details.recurring === true && appOwnedEditable ? (
-        <Text allowFontScaling style={[styles.supportingText, { color: colors.textSecondary }]} testID="mission-details-recurring-scope-pending">
+        <Text
+          allowFontScaling
+          style={[styles.supportingText, { color: colors.textSecondary }]}
+          testID="mission-details-recurring-scope-pending"
+        >
           {catalog['calendar.details.recurringEditPending']}
         </Text>
       ) : null}
 
       {details.fieldOwnership === 'organizer_controlled' ? (
-        <Text accessibilityRole="text" allowFontScaling style={[styles.supportingText, { color: colors.textSecondary }]}>
+        <Text
+          accessibilityRole="text"
+          allowFontScaling
+          style={[styles.supportingText, { color: colors.textSecondary }]}
+        >
           {catalog['calendar.details.organizerControlled']}
         </Text>
       ) : null}
@@ -285,7 +305,14 @@ export function MissionDetailsScreen({
       />
 
       {details.fieldOwnership === 'organizer_controlled' ? (
-        <DetailsField colorScheme={colorScheme} editable={false} label={catalog['calendar.details.providerDescription']} multiline testID="mission-details-provider-description" value={details.providerDescription ?? ''} />
+        <DetailsField
+          colorScheme={colorScheme}
+          editable={false}
+          label={catalog['calendar.details.providerDescription']}
+          multiline
+          testID="mission-details-provider-description"
+          value={details.providerDescription ?? ''}
+        />
       ) : (
         <DetailsField
           colorScheme={colorScheme}
@@ -300,19 +327,40 @@ export function MissionDetailsScreen({
 
       {structuredEditable && onSave !== undefined ? (
         <Pressable
-          accessibilityLabel={catalog['calendar.details.save']}
+          accessibilityLabel={catalog['calendar.create.save']}
           accessibilityRole="button"
-          onPress={() => { void Promise.resolve(onSave()).catch(() => undefined); }}
+          onPress={() => {
+            void Promise.resolve(onSave()).catch(() => undefined);
+          }}
           style={[styles.primaryAction, { backgroundColor: colors.primary }]}
           testID="mission-details-save"
         >
-          <Text allowFontScaling style={[styles.actionText, { color: colors.primaryText }]}>{catalog['calendar.details.save']}</Text>
+          <Text allowFontScaling style={[styles.actionText, { color: colors.primaryText }]}
+          >
+            {catalog['calendar.create.save']}
+          </Text>
         </Pressable>
       ) : null}
 
       <View style={styles.section}>
-        <Text accessibilityLabel={writtenStatus} accessibilityRole="text" allowFontScaling style={[styles.statusText, { color: colors.textPrimary }]} testID="mission-details-status">{writtenStatus}</Text>
-        <Text accessibilityLabel={writtenEvidence} accessibilityRole="text" allowFontScaling style={[styles.supportingText, { color: colors.textSecondary }]} testID="mission-details-evidence-state">{writtenEvidence}</Text>
+        <Text
+          accessibilityLabel={writtenStatus}
+          accessibilityRole="text"
+          allowFontScaling
+          style={[styles.statusText, { color: colors.textPrimary }]}
+          testID="mission-details-status"
+        >
+          {writtenStatus}
+        </Text>
+        <Text
+          accessibilityLabel={writtenEvidence}
+          accessibilityRole="text"
+          allowFontScaling
+          style={[styles.supportingText, { color: colors.textSecondary }]}
+          testID="mission-details-evidence-state"
+        >
+          {writtenEvidence}
+        </Text>
       </View>
 
       {details.fieldOwnership === 'organizer_controlled' ? (
@@ -328,22 +376,59 @@ export function MissionDetailsScreen({
       ) : null}
 
       <View style={styles.section}>
-        <Text accessibilityLabel={details.xpSummary} accessibilityRole="text" allowFontScaling style={[styles.xpText, { color: colors.textPrimary }]} testID="mission-details-xp-summary">{details.xpSummary}</Text>
+        <Text
+          accessibilityLabel={details.xpSummary}
+          accessibilityRole="text"
+          allowFontScaling
+          style={[styles.xpText, { color: colors.textPrimary }]}
+          testID="mission-details-xp-summary"
+        >
+          {details.xpSummary}
+        </Text>
         {zeroReason === null ? null : (
-          <Text accessibilityRole="text" allowFontScaling style={[styles.supportingText, { color: colors.textSecondary }]} testID="mission-details-zero-xp-reason">{zeroReason}</Text>
+          <Text
+            accessibilityRole="text"
+            allowFontScaling
+            style={[styles.supportingText, { color: colors.textSecondary }]}
+            testID="mission-details-zero-xp-reason"
+          >
+            {zeroReason}
+          </Text>
         )}
       </View>
 
       {onDuplicate === undefined && onDelete === undefined ? null : (
         <View style={styles.actions} testID="mission-details-actions">
           {onDuplicate === undefined ? null : (
-            <Pressable accessibilityLabel={catalog['calendar.details.duplicate']} accessibilityRole="button" onPress={() => { void Promise.resolve(onDuplicate(details.id)).catch(() => undefined); }} style={[styles.action, { borderColor: colors.border }]} testID="mission-details-duplicate">
-              <Text allowFontScaling style={[styles.actionText, { color: colors.primary }]}>{catalog['calendar.details.duplicate']}</Text>
+            <Pressable
+              accessibilityLabel={catalog['calendar.details.duplicate']}
+              accessibilityRole="button"
+              onPress={() => {
+                void Promise.resolve(onDuplicate(details.id)).catch(() => undefined);
+              }}
+              style={[styles.action, { borderColor: colors.border }]}
+              testID="mission-details-duplicate"
+            >
+              <Text allowFontScaling style={[styles.actionText, { color: colors.primary }]}
+              >
+                {catalog['calendar.details.duplicate']}
+              </Text>
             </Pressable>
           )}
           {onDelete === undefined ? null : (
-            <Pressable accessibilityLabel={catalog['calendar.details.delete']} accessibilityRole="button" onPress={() => { void Promise.resolve(onDelete(details.id)).catch(() => undefined); }} style={[styles.action, { borderColor: colors.late }]} testID="mission-details-delete">
-              <Text allowFontScaling style={[styles.actionText, { color: colors.late }]}>{catalog['calendar.details.delete']}</Text>
+            <Pressable
+              accessibilityLabel={catalog['calendar.details.delete']}
+              accessibilityRole="button"
+              onPress={() => {
+                void Promise.resolve(onDelete(details.id)).catch(() => undefined);
+              }}
+              style={[styles.action, { borderColor: colors.late }]}
+              testID="mission-details-delete"
+            >
+              <Text allowFontScaling style={[styles.actionText, { color: colors.late }]}
+              >
+                {catalog['calendar.details.delete']}
+              </Text>
             </Pressable>
           )}
         </View>
@@ -353,11 +438,25 @@ export function MissionDetailsScreen({
 }
 
 const styles = StyleSheet.create({
-  content: { gap: space[4], paddingBottom: space[8], paddingHorizontal: layout.screenHorizontalPadding, paddingTop: space[4] },
+  content: {
+    gap: space[4],
+    paddingBottom: space[8],
+    paddingHorizontal: layout.screenHorizontalPadding,
+    paddingTop: space[4],
+  },
   section: { gap: space[2] },
   fieldGroup: { gap: space[1] },
-  fieldLabel: { fontSize: typography.caption1.fontSize, fontWeight: typography.caption1.fontWeight },
-  field: { borderRadius: radius.md, borderWidth: 1, fontSize: typography.body.fontSize, paddingHorizontal: space[3], paddingVertical: space[2] },
+  fieldLabel: {
+    fontSize: typography.caption1.fontSize,
+    fontWeight: typography.caption1.fontWeight,
+  },
+  field: {
+    borderRadius: radius.md,
+    borderWidth: 1,
+    fontSize: typography.body.fontSize,
+    paddingHorizontal: space[3],
+    paddingVertical: space[2],
+  },
   multilineField: { minHeight: layout.minimumTouchTarget * 2, textAlignVertical: 'top' },
   scheduleGrid: { gap: space[3] },
   scheduleRow: { flexDirection: 'row', gap: space[2] },
@@ -366,7 +465,21 @@ const styles = StyleSheet.create({
   supportingText: { fontSize: typography.bodySmall.fontSize, fontWeight: typography.bodySmall.fontWeight },
   xpText: { fontSize: typography.headline.fontSize, fontWeight: typography.headline.fontWeight },
   actions: { flexDirection: 'row', gap: space[3] },
-  action: { alignItems: 'center', borderRadius: radius.md, borderWidth: 1, flex: 1, justifyContent: 'center', minHeight: layout.minimumTouchTarget, paddingHorizontal: space[3] },
-  primaryAction: { alignItems: 'center', borderRadius: radius.md, justifyContent: 'center', minHeight: layout.minimumTouchTarget, paddingHorizontal: space[3] },
+  action: {
+    alignItems: 'center',
+    borderRadius: radius.md,
+    borderWidth: 1,
+    flex: 1,
+    justifyContent: 'center',
+    minHeight: layout.minimumTouchTarget,
+    paddingHorizontal: space[3],
+  },
+  primaryAction: {
+    alignItems: 'center',
+    borderRadius: radius.md,
+    justifyContent: 'center',
+    minHeight: layout.minimumTouchTarget,
+    paddingHorizontal: space[3],
+  },
   actionText: { fontSize: typography.body.fontSize, fontWeight: typography.body.mediumFontWeight },
 });
