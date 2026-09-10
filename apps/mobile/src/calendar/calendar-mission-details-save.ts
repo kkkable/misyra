@@ -52,7 +52,8 @@ function optionalText(value: string | null): string | null {
 }
 
 function localDateTime(localDate: string, minute: number): string {
-  if (!LOCAL_DATE_PATTERN.test(localDate)) throw new TypeError('Mission date must use YYYY-MM-DD format.');
+  if (!LOCAL_DATE_PATTERN.test(localDate))
+    throw new TypeError('Mission date must use YYYY-MM-DD format.');
   if (!Number.isInteger(minute) || minute < 0 || minute > MAX_TIMED_END_MINUTE) {
     throw new RangeError('Mission minute is outside the supported range.');
   }
@@ -85,9 +86,11 @@ async function resolveBaseVersion(
     const command = JSON.parse(row.command_json) as {
       mutation?: { entityType?: string; entityId?: string; operation?: string };
     };
-    return command.mutation?.entityType === 'mission' &&
+    return (
+      command.mutation?.entityType === 'mission' &&
       command.mutation.entityId === missionId &&
-      command.mutation.operation === 'create';
+      command.mutation.operation === 'create'
+    );
   });
   if (!hasPendingCreate) throw new Error('Mission has no authoritative version or pending create.');
   return 1;
@@ -160,9 +163,13 @@ export async function saveCalendarMissionDetails({
       throw new RangeError('Timed Mission Details edits require start and end times.');
     }
     if (
-      !Number.isInteger(edit.startMinute) || edit.startMinute < 0 || edit.startMinute > MINUTES_PER_DAY ||
-      !Number.isInteger(edit.endMinute) || edit.endMinute <= edit.startMinute ||
-      edit.endMinute > MAX_TIMED_END_MINUTE || edit.endMinute - edit.startMinute > MINUTES_PER_DAY
+      !Number.isInteger(edit.startMinute) ||
+      edit.startMinute < 0 ||
+      edit.startMinute > MINUTES_PER_DAY ||
+      !Number.isInteger(edit.endMinute) ||
+      edit.endMinute <= edit.startMinute ||
+      edit.endMinute > MAX_TIMED_END_MINUTE ||
+      edit.endMinute - edit.startMinute > MINUTES_PER_DAY
     ) {
       throw new RangeError('Mission start and end times are invalid.');
     }
@@ -177,7 +184,9 @@ export async function saveCalendarMissionDetails({
   }
 
   const actionInstant = now.toISOString();
-  const editedAfterStart = new Date(actionInstant).getTime() >= new Date(currentOccurrence.schedule.startInstant).getTime();
+  const editedAfterStart =
+    new Date(actionInstant).getTime() >=
+    new Date(currentOccurrence.schedule.startInstant).getTime();
   const placement = evaluateSchedulePlacement({
     targetStartInstant: schedule.startInstant,
     actionInstant,
