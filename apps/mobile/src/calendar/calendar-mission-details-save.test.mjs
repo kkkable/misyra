@@ -144,4 +144,58 @@ describe('MTS-046 Mission Details persistence', () => {
       baseVersion: 1,
     });
   });
+
+  it('rejects editing an unfinished mission at its exact completion-window expiry even when moved into the future', async () => {
+    const database = createDatabase();
+    await seedAccount(database);
+    const ids = uuidFactory();
+    const mission = await createCalendarMission({
+      database,
+      accountId: '11111111-1111-4111-8111-111111111111',
+      deviceId: '22222222-2222-4222-8222-222222222222',
+      input: {
+        selectedDate: '2026-08-01',
+        title: 'Expired mission',
+        startMinute: 9 * 60,
+        endMinute: 9 * 60 + 30,
+        rewardEligibility: 'eligible',
+        timeZone: 'UTC',
+      },
+      now: new Date('2026-08-01T08:00:00.000Z'),
+      generateId: ids,
+    });
+
+    await expect(
+      saveCalendarMissionDetails({
+        database,
+        accountId: '11111111-1111-4111-8111-111111111111',
+        deviceId: '22222222-2222-4222-8222-222222222222',
+        edit: {
+          missionId: mission.occurrence.id,
+          title: 'Should remain expired',
+          selectedDate: '2026-09-01',
+          startMinute: 11 * 60,
+          endMinute: 11 * 60 + 30,
+          timeZone: 'UTC',
+          location: null,
+          notes: null,
+        },
+        now: new Date('2026-08-31T09:30:00.000Z'),
+        generateId: ids,
+      }),
+    ).rejects.toThrow('Mission completion window has expired.');
+
+    const cached = await database.getFirstAsync(
+      `SELECT local_date, scheduled_start, scheduled_end
+           FROM cached_mission_occurrences
+          WHERE account_id = ? AND occurrence_id = ?`,
+      '11111111-1111-4111-8111-111111111111',
+      mission.occurrence.id,
+    );
+    expect(cached).toMatchObject({
+      local_date: '2026-08-01',
+      scheduled_start: '09:00',
+      scheduled_end: '09:30',
+    });
+  });
 });

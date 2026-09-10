@@ -14,6 +14,7 @@ import {
 } from '@misyra/domain';
 
 import { createMutationQueue, type MutationQueueDatabase } from '../storage/mutation-queue.js';
+import { assertMissionCompletionWindowOpen } from './calendar-historical-state.js';
 
 const MINUTES_PER_DAY = 24 * 60;
 const MAX_TIMED_END_MINUTE = MINUTES_PER_DAY * 2;
@@ -256,6 +257,7 @@ export async function saveCalendarMissionDetails({
     JSON.parse(row.series_payload_json) as MissionSeriesInput,
   );
   assertEditable(currentOccurrence);
+  assertMissionCompletionWindowOpen(currentOccurrence, now);
 
   const recurring = currentSeries.recurrence !== null;
   if (recurring && scope === undefined) {
