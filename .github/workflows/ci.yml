@@ -7,113 +7,13 @@ on:
       - main
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  apply-calendar-selection-refinement:
-    if: github.event_name == 'pull_request' && github.head_ref == 'fix/mts-044-051-cross-ticket-corrections'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout feature branch
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.ref }}
-          persist-credentials: true
-          fetch-depth: 0
-
-      - name: Install pinned pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10.34.5
-          run_install: false
-
-      - name: Set up pinned Node with pnpm cache
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24.19.0
-          cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
-
-      - name: Install from lockfile
-        run: pnpm install --frozen-lockfile
-
-      - name: Apply reviewed Calendar-owned selection refinements
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-
-          day_path = Path('apps/mobile/src/calendar/calendar-day-screen.tsx')
-          day = day_path.read_text()
-
-          replacements = [
-              ("  readonly selectedMissionId?: string;\n", ""),
-              ("  selectedMissionId,\n  searchFocusTarget,", "  searchFocusTarget,"),
-              ("  const [userSelectedMissionId, setUserSelectedMissionId] = useState<string | undefined>(undefined);", "  const [selectedMissionId, setSelectedMissionId] = useState<string | undefined>(undefined);"),
-              ("    setUserSelectedMissionId(undefined);", "    setSelectedMissionId(undefined);"),
-              ("      : (userSelectedMissionId ?? selectedMissionId);", "      : selectedMissionId;"),
-              ("    setUserSelectedMissionId(undefined);", "    setSelectedMissionId(undefined);"),
-              ("      userSelectedMissionId ?? selectedMissionId,\n      mission.id,", "      selectedMissionId,\n      mission.id,"),
-              ("    setUserSelectedMissionId(resolution.selectedMissionId);", "    setSelectedMissionId(resolution.selectedMissionId);"),
-              ("  const openPicker = () => {\n    setPickerMonth(selectedDate);", "  const openPicker = () => {\n    clearMissionSelection();\n    setPickerMonth(selectedDate);"),
-              ("                onPress={onSearchPress}", "                onPress={() => {\n                  clearMissionSelection();\n                  onSearchPress();\n                }}"),
-              ("              onPress={() => {\n                setHelpVisible(true);", "              onPress={() => {\n                clearMissionSelection();\n                setHelpVisible(true);"),
-          ]
-          for old, new in replacements:
-              if old not in day:
-                  raise SystemExit(f'missing CalendarDayScreen pattern: {old!r}')
-              day = day.replace(old, new)
-          if 'userSelectedMissionId' in day:
-              raise SystemExit('userSelectedMissionId remained after Calendar-owned rename')
-          day_path.write_text(day)
-
-          route_test_path = Path('apps/mobile/src/calendar/calendar-route-adjustment.test.mjs')
-          route_test = route_test_path.read_text()
-          old = """    await act(async () => {\n      state.childProps.onTimedMissionPress({ id: '44444444-4444-4444-8444-444444444444' });\n    });\n    await act(async () => {\n      state.childProps.onTimedMissionPress({ id: '44444444-4444-4444-8444-444444444444' });\n    });\n    await act(async () => {\n      state.childProps.onAllDayMissionPress({ id: '55555555-5555-4555-8555-555555555555' });\n    });\n    await act(async () => {\n      state.childProps.onAllDayMissionPress({ id: '55555555-5555-4555-8555-555555555555' });\n    });\n"""
-          new = """    await act(async () => {\n      state.childProps.onTimedMissionPress({ id: '44444444-4444-4444-8444-444444444444' });\n    });\n    await act(async () => {\n      state.childProps.onAllDayMissionPress({ id: '55555555-5555-4555-8555-555555555555' });\n    });\n"""
-          if old not in route_test:
-              raise SystemExit('missing stale route-level double-callback block')
-          route_test_path.write_text(route_test.replace(old, new))
-
-          day_test_path = Path('apps/mobile/src/calendar/calendar-day-screen.test.mjs')
-          day_test = day_test_path.read_text()
-          old = """    const onTimedMissionPress = vi.fn();\n    const renderer = renderScreen({\n"""
-          new = """    const onTimedMissionPress = vi.fn();\n    const onSearchPress = vi.fn();\n    const renderer = renderScreen({\n"""
-          if old not in day_test:
-              raise SystemExit('missing timed test setup block')
-          day_test = day_test.replace(old, new, 1)
-          old = """      onTimedMissionPress,\n    });\n"""
-          new = """      onSearchPress,\n      onTimedMissionPress,\n    });\n"""
-          if old not in day_test:
-              raise SystemExit('missing timed test props block')
-          day_test = day_test.replace(old, new, 1)
-          old = """    act(() => todayMission.props.onPress());\n    expect(onTimedMissionPress).not.toHaveBeenCalled();\n\n    const otherDay = renderer.root.findByProps({ testID: 'calendar-day-2026-09-01' });\n"""
-          new = """    act(() => todayMission.props.onPress());\n    expect(onTimedMissionPress).not.toHaveBeenCalled();\n\n    act(() => renderer.root.findByProps({ testID: 'calendar-search-trigger' }).props.onPress());\n    expect(onSearchPress).toHaveBeenCalledTimes(1);\n    todayMission = renderer.root.find(\n      (node) => node.type === 'Pressable' && node.props.testID === 'calendar-mission-card-today-a',\n    );\n    act(() => todayMission.props.onPress());\n    expect(onTimedMissionPress).not.toHaveBeenCalled();\n\n    const otherDay = renderer.root.findByProps({ testID: 'calendar-day-2026-09-01' });\n"""
-          if old not in day_test:
-              raise SystemExit('missing timed scroll-clear assertion block')
-          day_test_path.write_text(day_test.replace(old, new, 1))
-          PY
-
-          pnpm exec prettier --write \
-            apps/mobile/src/calendar/calendar-day-screen.tsx \
-            apps/mobile/src/calendar/calendar-day-screen.test.mjs \
-            apps/mobile/src/calendar/calendar-route-adjustment.test.mjs \
-            --config packages/config/prettier.config.mjs
-
-          git checkout origin/${{ github.event.pull_request.base.ref }} -- .github/workflows/ci.yml
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .github/workflows/ci.yml \
-            apps/mobile/src/calendar/calendar-day-screen.tsx \
-            apps/mobile/src/calendar/calendar-day-screen.test.mjs \
-            apps/mobile/src/calendar/calendar-route-adjustment.test.mjs
-          git commit -m "fix: complete Calendar-owned mission selection"
-          git push origin HEAD:${{ github.event.pull_request.head.ref }}
-
   quality:
     runs-on: ubuntu-latest
     timeout-minutes: 30
