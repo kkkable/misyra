@@ -33,12 +33,12 @@ describe('MTS-054 historical Calendar lifecycle', () => {
     });
     const mission = occurrence(schedule);
 
-    expect(
-      historicalLifecycleForMission(mission, new Date('2026-04-07T05:29:59.999Z')),
-    ).toBe('active');
-    expect(
-      historicalLifecycleForMission(mission, new Date('2026-04-07T05:30:00.000Z')),
-    ).toBe('expired');
+    expect(historicalLifecycleForMission(mission, new Date('2026-04-07T05:29:59.999Z'))).toBe(
+      'active',
+    );
+    expect(historicalLifecycleForMission(mission, new Date('2026-04-07T05:30:00.000Z'))).toBe(
+      'expired',
+    );
   });
 
   it('uses the all-day scheduled finish as the start of the 30-day completion window', () => {
@@ -49,12 +49,12 @@ describe('MTS-054 historical Calendar lifecycle', () => {
     });
     const mission = occurrence(schedule);
 
-    expect(
-      historicalLifecycleForMission(mission, new Date('2026-10-01T15:59:59.999Z')),
-    ).toBe('active');
-    expect(
-      historicalLifecycleForMission(mission, new Date('2026-10-01T16:00:00.000Z')),
-    ).toBe('expired');
+    expect(historicalLifecycleForMission(mission, new Date('2026-10-01T15:59:59.999Z'))).toBe(
+      'active',
+    );
+    expect(historicalLifecycleForMission(mission, new Date('2026-10-01T16:00:00.000Z'))).toBe(
+      'expired',
+    );
   });
 
   it('keeps completed and cancelled states historically authoritative', () => {
