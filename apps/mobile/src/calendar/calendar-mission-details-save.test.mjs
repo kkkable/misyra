@@ -7,34 +7,61 @@ import { saveCalendarMissionDetails } from './calendar-mission-details-save.js';
 import { applyMobileMigrations } from '../storage/schema.js';
 
 class NodeSqliteAdapter {
-  constructor() { this.database = new DatabaseSync(':memory:'); }
-  async execAsync(sql) { this.database.exec(sql); }
-  async runAsync(sql, ...params) { return this.database.prepare(sql).run(...params); }
-  async getFirstAsync(sql, ...params) { return this.database.prepare(sql).get(...params) ?? null; }
-  async getAllAsync(sql, ...params) { return this.database.prepare(sql).all(...params); }
+  constructor() {
+    this.database = new DatabaseSync(':memory:');
+  }
+  async execAsync(sql) {
+    this.database.exec(sql);
+  }
+  async runAsync(sql, ...params) {
+    return this.database.prepare(sql).run(...params);
+  }
+  async getFirstAsync(sql, ...params) {
+    return this.database.prepare(sql).get(...params) ?? null;
+  }
+  async getAllAsync(sql, ...params) {
+    return this.database.prepare(sql).all(...params);
+  }
   async withExclusiveTransactionAsync(task) {
     this.database.exec('BEGIN IMMEDIATE');
-    try { await task(this); this.database.exec('COMMIT'); }
-    catch (error) { this.database.exec('ROLLBACK'); throw error; }
+    try {
+      await task(this);
+      this.database.exec('COMMIT');
+    } catch (error) {
+      this.database.exec('ROLLBACK');
+      throw error;
+    }
   }
-  close() { this.database.close(); }
+  close() {
+    this.database.close();
+  }
 }
 const databases = [];
-function createDatabase() { const db = new NodeSqliteAdapter(); databases.push(db); return db; }
+function createDatabase() {
+  const db = new NodeSqliteAdapter();
+  databases.push(db);
+  return db;
+}
 async function seedAccount(database) {
   await applyMobileMigrations(database);
   await database.runAsync(
     `INSERT INTO local_accounts
       (account_id, created_at, language, trust_mode, app_time_zone)
      VALUES (?, ?, ?, ?, ?)`,
-    '11111111-1111-4111-8111-111111111111', '2026-09-01T00:00:00.000Z', 'en', 0, 'UTC',
+    '11111111-1111-4111-8111-111111111111',
+    '2026-09-01T00:00:00.000Z',
+    'en',
+    0,
+    'UTC',
   );
 }
 function uuidFactory() {
   let counter = 1;
   return () => `bbbbbbbb-bbbb-4bbb-8bbb-${String(counter++).padStart(12, '0')}`;
 }
-afterEach(() => { while (databases.length > 0) databases.pop()?.close(); });
+afterEach(() => {
+  while (databases.length > 0) databases.pop()?.close();
+});
 
 describe('MTS-046 Mission Details persistence', () => {
   it('optimistically updates structured app-owned fields, queues a server mutation, separates general notes, and applies the after-start XP rule', async () => {
@@ -46,8 +73,14 @@ describe('MTS-046 Mission Details persistence', () => {
       accountId: '11111111-1111-4111-8111-111111111111',
       deviceId: '22222222-2222-4222-8222-222222222222',
       input: {
-        selectedDate: '2026-09-07', title: 'Before', startMinute: 9 * 60, endMinute: 9 * 60 + 30,
-        rewardEligibility: 'eligible', timeZone: 'UTC', location: 'Old place', notes: 'General old note',
+        selectedDate: '2026-09-07',
+        title: 'Before',
+        startMinute: 9 * 60,
+        endMinute: 9 * 60 + 30,
+        rewardEligibility: 'eligible',
+        timeZone: 'UTC',
+        location: 'Old place',
+        notes: 'General old note',
       },
       now: new Date('2026-09-07T08:00:00.000Z'),
       generateId: ids,
@@ -78,12 +111,14 @@ describe('MTS-046 Mission Details persistence', () => {
     const occurrence = await database.getFirstAsync(
       `SELECT scheduled_start, scheduled_end, payload_json, server_version
          FROM cached_mission_occurrences WHERE account_id = ? AND occurrence_id = ?`,
-      '11111111-1111-4111-8111-111111111111', mission.occurrence.id,
+      '11111111-1111-4111-8111-111111111111',
+      mission.occurrence.id,
     );
     const search = await database.getFirstAsync(
       `SELECT location, general_note, personal_note FROM search_documents
         WHERE account_id = ? AND occurrence_id = ?`,
-      '11111111-1111-4111-8111-111111111111', mission.occurrence.id,
+      '11111111-1111-4111-8111-111111111111',
+      mission.occurrence.id,
     );
     const queued = await database.getAllAsync(
       `SELECT command_json FROM mutation_queue WHERE account_id = ? ORDER BY sequence`,
@@ -96,10 +131,17 @@ describe('MTS-046 Mission Details persistence', () => {
     expect(occurrence.scheduled_end).toBe('11:45');
     expect(JSON.parse(occurrence.payload_json).rewardEligibility).toBe('ineligible');
     expect(occurrence.server_version).toBe(2);
-    expect(search).toMatchObject({ location: 'New place', general_note: 'General new note', personal_note: null });
+    expect(search).toMatchObject({
+      location: 'New place',
+      general_note: 'General new note',
+      personal_note: null,
+    });
     expect(queued).toHaveLength(2);
     expect(JSON.parse(queued[1].command_json).mutation).toMatchObject({
-      entityType: 'mission', entityId: mission.occurrence.id, operation: 'update', baseVersion: 1,
+      entityType: 'mission',
+      entityId: mission.occurrence.id,
+      operation: 'update',
+      baseVersion: 1,
     });
   });
 });
