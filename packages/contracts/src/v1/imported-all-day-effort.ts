@@ -13,14 +13,27 @@ export const importedAllDayEffortEstimationRequestSchema = z
   })
   .strict();
 
-export const importedAllDayEffortEstimationResponseSchema = z
-  .object({
-    providerTitle: providerTextSchema,
-    titleReadOnly: z.literal(true),
-    estimatedEffortMinutes: positiveEffortMinutesSchema,
-    estimationSource: z.enum(['ai', 'fallback']),
-  })
-  .strict();
+export const importedAllDayEffortEstimationResponseSchema = z.discriminatedUnion(
+  'estimationSource',
+  [
+    z
+      .object({
+        providerTitle: providerTextSchema,
+        titleReadOnly: z.literal(true),
+        estimatedEffortMinutes: positiveEffortMinutesSchema,
+        estimationSource: z.literal('ai'),
+      })
+      .strict(),
+    z
+      .object({
+        providerTitle: providerTextSchema,
+        titleReadOnly: z.literal(true),
+        estimatedEffortMinutes: z.literal(30),
+        estimationSource: z.literal('fallback'),
+      })
+      .strict(),
+  ],
+);
 
 export const importedAllDayEffortEditRequestSchema = z
   .object({
