@@ -65,7 +65,12 @@ function recurrence() {
   };
 }
 
-function occurrence(id, localDate, completionState = 'incomplete', evidenceState = 'not_submitted') {
+function occurrence(
+  id,
+  localDate,
+  completionState = 'incomplete',
+  evidenceState = 'not_submitted',
+) {
   return {
     id,
     seriesId,

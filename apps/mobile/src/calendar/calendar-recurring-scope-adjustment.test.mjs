@@ -64,7 +64,12 @@ const originalRecurrence = {
   end: { type: 'never' },
 };
 
-function occurrence(id, localDate, completionState = 'incomplete', evidenceState = 'not_submitted') {
+function occurrence(
+  id,
+  localDate,
+  completionState = 'incomplete',
+  evidenceState = 'not_submitted',
+) {
   return {
     id,
     seriesId: sourceSeriesId,
@@ -156,7 +161,8 @@ describe('MTS-052 recurring scoped edit persistence', () => {
       },
       scope: 'this_and_future',
       now: new Date('2026-09-08T12:00:00.000Z'),
-      generateId: () => `${String(mutationCounter++).repeat(8).slice(0, 8)}-9999-4999-8999-999999999999`,
+      generateId: () =>
+        `${String(mutationCounter++).repeat(8).slice(0, 8)}-9999-4999-8999-999999999999`,
       generateSeriesId: () => targetSeriesId,
     });
 

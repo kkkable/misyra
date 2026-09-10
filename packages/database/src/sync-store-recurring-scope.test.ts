@@ -115,10 +115,10 @@ describe('MTS-051/MTS-052 recurring mission synchronization', () => {
     ).resolves.toMatchObject({ acceptedMutationIds: [expect.any(String)] });
 
     await expect(
-      pool.query(
-        'SELECT recurrence_rule FROM mission_series WHERE id = $1 AND account_id = $2',
-        [sourceSeriesId, account.id],
-      ),
+      pool.query('SELECT recurrence_rule FROM mission_series WHERE id = $1 AND account_id = $2', [
+        sourceSeriesId,
+        account.id,
+      ]),
     ).resolves.toMatchObject({ rows: [{ recurrence_rule: originalRecurrence }] });
 
     await pool.query(
