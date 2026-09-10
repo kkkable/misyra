@@ -15,36 +15,41 @@ const databaseUrl = `postgresql://${postgresUser}:${postgresPassword}@127.0.0.1:
 const adminUrl = `postgresql://${postgresUser}:${postgresPassword}@127.0.0.1:${postgresPort}/postgres`;
 let pool: Pool;
 
+type TimeZoneRegistrationInput = Readonly<{
+  accountId: string;
+  installationId: string;
+  platform: 'ios' | 'android';
+  appVersion: string;
+  notificationCapability: 'not_determined' | 'denied' | 'authorized' | 'unavailable';
+  timeZone: string;
+}>;
+
+type TimeZoneRegistrationResult = Readonly<{
+  deviceId: string;
+  timeZoneChanged: boolean;
+}>;
+
+type TimeZoneSettings = Readonly<{
+  language: 'en' | 'zh-HK';
+  trustMode: boolean;
+  appTimeZone: string;
+}>;
+
+type TimeZoneSettingsUpdate = Readonly<{
+  language?: 'en' | 'zh-HK' | undefined;
+  trustMode?: boolean | undefined;
+  appTimeZone?: string | undefined;
+}>;
+
 type TimeZoneAwareStore = Readonly<{
-  registerDevice(input: Readonly<{
-    accountId: string;
-    installationId: string;
-    platform: 'ios' | 'android';
-    appVersion: string;
-    notificationCapability: 'not_determined' | 'denied' | 'authorized' | 'unavailable';
-    timeZone: string;
-  }>): Promise<Readonly<{ deviceId: string; timeZoneChanged: boolean }>>;
-  getAccountSettings(accountId: string): Promise<
-    Readonly<{
-      language: 'en' | 'zh-HK';
-      trustMode: boolean;
-      appTimeZone: string;
-    }>
-  >;
+  registerDeviceWithTimeZoneState(
+    input: TimeZoneRegistrationInput,
+  ): Promise<TimeZoneRegistrationResult>;
+  getAccountSettings(accountId: string): Promise<TimeZoneSettings>;
   updateAccountSettings(
     accountId: string,
-    settings: Readonly<{
-      language?: 'en' | 'zh-HK' | undefined;
-      trustMode?: boolean | undefined;
-      appTimeZone?: string | undefined;
-    }>,
-  ): Promise<
-    Readonly<{
-      language: 'en' | 'zh-HK';
-      trustMode: boolean;
-      appTimeZone: string;
-    }>
-  >;
+    settings: TimeZoneSettingsUpdate,
+  ): Promise<TimeZoneSettings>;
 }>;
 
 function createTimeZoneAwareStore(): TimeZoneAwareStore {
@@ -72,7 +77,7 @@ describe('MTS-053 device-zone and account-zone ownership', () => {
     const store = createTimeZoneAwareStore();
     const account = await authStore.findOrCreateAccount('google', `mts053-${randomUUID()}`);
 
-    const first = await store.registerDevice({
+    const first = await store.registerDeviceWithTimeZoneState({
       accountId: account.id,
       installationId: 'installation-zone-1',
       platform: 'ios',
@@ -95,7 +100,7 @@ describe('MTS-053 device-zone and account-zone ownership', () => {
       appTimeZone: 'America/New_York',
     });
 
-    const unchanged = await store.registerDevice({
+    const unchanged = await store.registerDeviceWithTimeZoneState({
       accountId: account.id,
       installationId: 'installation-zone-1',
       platform: 'ios',
@@ -127,7 +132,7 @@ describe('MTS-053 device-zone and account-zone ownership', () => {
       [account.id],
     );
 
-    const changed = await store.registerDevice({
+    const changed = await store.registerDeviceWithTimeZoneState({
       accountId: account.id,
       installationId: 'installation-zone-1',
       platform: 'ios',
@@ -173,7 +178,7 @@ describe('MTS-053 device-zone and account-zone ownership', () => {
       [account.id],
     );
 
-    const registration = await store.registerDevice({
+    const registration = await store.registerDeviceWithTimeZoneState({
       accountId: account.id,
       installationId: 'legacy-installation',
       platform: 'android',
