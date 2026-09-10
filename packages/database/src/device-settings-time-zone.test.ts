@@ -45,8 +45,8 @@ type TimeZoneAwareStore = Readonly<{
   registerDeviceWithTimeZoneState(
     input: TimeZoneRegistrationInput,
   ): Promise<TimeZoneRegistrationResult>;
-  getAccountSettings(accountId: string): Promise<TimeZoneSettings>;
-  updateAccountSettings(
+  getAccountSettingsWithTimeZone(accountId: string): Promise<TimeZoneSettings>;
+  updateAccountSettingsWithTimeZone(
     accountId: string,
     settings: TimeZoneSettingsUpdate,
   ): Promise<TimeZoneSettings>;
@@ -86,14 +86,14 @@ describe('MTS-053 device-zone and account-zone ownership', () => {
       timeZone: 'Asia/Tokyo',
     });
     expect(first.timeZoneChanged).toBe(false);
-    await expect(store.getAccountSettings(account.id)).resolves.toEqual({
+    await expect(store.getAccountSettingsWithTimeZone(account.id)).resolves.toEqual({
       language: 'en',
       trustMode: false,
       appTimeZone: 'Asia/Tokyo',
     });
 
     await expect(
-      store.updateAccountSettings(account.id, { appTimeZone: 'America/New_York' }),
+      store.updateAccountSettingsWithTimeZone(account.id, { appTimeZone: 'America/New_York' }),
     ).resolves.toEqual({
       language: 'en',
       trustMode: false,
@@ -109,7 +109,7 @@ describe('MTS-053 device-zone and account-zone ownership', () => {
       timeZone: 'Asia/Tokyo',
     });
     expect(unchanged).toEqual({ deviceId: first.deviceId, timeZoneChanged: false });
-    await expect(store.getAccountSettings(account.id)).resolves.toEqual({
+    await expect(store.getAccountSettingsWithTimeZone(account.id)).resolves.toEqual({
       language: 'en',
       trustMode: false,
       appTimeZone: 'America/New_York',
@@ -141,7 +141,7 @@ describe('MTS-053 device-zone and account-zone ownership', () => {
       timeZone: 'Europe/London',
     });
     expect(changed).toEqual({ deviceId: first.deviceId, timeZoneChanged: true });
-    await expect(store.getAccountSettings(account.id)).resolves.toEqual({
+    await expect(store.getAccountSettingsWithTimeZone(account.id)).resolves.toEqual({
       language: 'en',
       trustMode: false,
       appTimeZone: 'Europe/London',
@@ -188,7 +188,7 @@ describe('MTS-053 device-zone and account-zone ownership', () => {
     });
 
     expect(registration.timeZoneChanged).toBe(false);
-    await expect(store.getAccountSettings(account.id)).resolves.toEqual({
+    await expect(store.getAccountSettingsWithTimeZone(account.id)).resolves.toEqual({
       language: 'zh-HK',
       trustMode: true,
       appTimeZone: 'Asia/Hong_Kong',
