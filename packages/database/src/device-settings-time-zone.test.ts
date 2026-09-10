@@ -53,7 +53,7 @@ type TimeZoneAwareStore = Readonly<{
 }>;
 
 function createTimeZoneAwareStore(): TimeZoneAwareStore {
-  return createPostgresDeviceSettingsStore(pool) as unknown as TimeZoneAwareStore;
+  return createPostgresDeviceSettingsStore(pool);
 }
 
 beforeAll(async () => {
