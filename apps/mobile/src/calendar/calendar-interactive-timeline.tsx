@@ -27,6 +27,7 @@ type CalendarInteractiveTimelineProps = Readonly<{
   missionLayer?: ReactNode;
   now: Date;
   onClearMissionSelection?: (() => void) | undefined;
+  onSelectionClear?: (() => void) | undefined;
   onCreateMission?: ((input: CalendarMissionCreateInput) => void | Promise<void>) | undefined;
   scrollHeader?: ReactNode;
   selectedDate: string;
@@ -81,6 +82,7 @@ export function CalendarInteractiveTimeline({
   missionLayer,
   now,
   onClearMissionSelection,
+  onSelectionClear,
   onCreateMission,
   scrollHeader,
   selectedDate,
@@ -95,15 +97,20 @@ export function CalendarInteractiveTimeline({
   const [selectedSlotMinute, setSelectedSlotMinute] = useState<number | null>(null);
   const [creationSlotMinute, setCreationSlotMinute] = useState<number | null>(null);
 
+  const notifyMissionSelectionClear = () => {
+    onClearMissionSelection?.();
+    onSelectionClear?.();
+  };
+
   const clearSelection = () => {
     setSelectedSlotMinute(null);
-    onClearMissionSelection?.();
+    notifyMissionSelectionClear();
   };
 
   const closeCreation = () => {
     setCreationSlotMinute(null);
     setSelectedSlotMinute(null);
-    onClearMissionSelection?.();
+    notifyMissionSelectionClear();
   };
 
   const slotLayer = (
@@ -131,7 +138,7 @@ export function CalendarInteractiveTimeline({
             hitSlop={{ top: SLOT_TOUCH_EXPANSION, bottom: SLOT_TOUCH_EXPANSION }}
             key={minute}
             onPress={() => {
-              onClearMissionSelection?.();
+              notifyMissionSelectionClear();
               if (selectedSlotMinute === minute) {
                 setCreationSlotMinute(minute);
                 return;
