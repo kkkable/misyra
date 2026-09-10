@@ -7,59 +7,13 @@ on:
       - main
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  format-corrective-files:
-    if: github.event_name == 'pull_request' && github.head_ref == 'fix/mts-044-051-cross-ticket-corrections'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout feature branch
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.ref }}
-          persist-credentials: true
-          fetch-depth: 0
-
-      - name: Install pinned pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10.34.5
-          run_install: false
-
-      - name: Set up pinned Node with pnpm cache
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24.19.0
-          cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
-
-      - name: Install from lockfile
-        run: pnpm install --frozen-lockfile
-
-      - name: Format corrective files and restore CI
-        run: |
-          pnpm exec prettier --write \
-            apps/mobile/src/calendar/calendar-day-screen.tsx \
-            apps/mobile/src/calendar/calendar-day-screen.test.mjs \
-            --config packages/config/prettier.config.mjs
-          git checkout origin/${{ github.event.pull_request.base.ref }} -- .github/workflows/ci.yml
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .github/workflows/ci.yml \
-            apps/mobile/src/calendar/calendar-day-screen.tsx \
-            apps/mobile/src/calendar/calendar-day-screen.test.mjs
-          if git diff --cached --quiet; then
-            exit 0
-          fi
-          git commit -m "chore: format mission selection corrections"
-          git push origin HEAD:${{ github.event.pull_request.head.ref }}
-
   quality:
     runs-on: ubuntu-latest
     timeout-minutes: 30

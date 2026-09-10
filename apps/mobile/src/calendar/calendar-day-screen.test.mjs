@@ -261,7 +261,9 @@ describe('MTS-043 Calendar timed-mission composition', () => {
     expect(onTimedMissionPress).toHaveBeenCalledWith(expect.objectContaining({ id: 'today-a' }));
 
     onTimedMissionPress.mockClear();
-    act(() => renderer.root.findByProps({ testID: 'calendar-timeline-scroll' }).props.onScrollBeginDrag());
+    act(() =>
+      renderer.root.findByProps({ testID: 'calendar-timeline-scroll' }).props.onScrollBeginDrag(),
+    );
     todayMission = renderer.root.find(
       (node) => node.type === 'Pressable' && node.props.testID === 'calendar-mission-card-today-a',
     );

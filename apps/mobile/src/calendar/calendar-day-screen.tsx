@@ -156,9 +156,7 @@ export function CalendarDayScreen({
   const [pickerVisible, setPickerVisible] = useState(false);
   const [pickerMonth, setPickerMonth] = useState(initialDateRef.current);
   const [helpVisible, setHelpVisible] = useState(false);
-  const [userSelectedMissionId, setUserSelectedMissionId] = useState<string | undefined>(
-    undefined,
-  );
+  const [userSelectedMissionId, setUserSelectedMissionId] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     if (searchFocusTarget === undefined) return;
