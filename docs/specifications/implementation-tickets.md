@@ -2469,7 +2469,7 @@ Resolve device zone, account override, device-change auto-update, and per-missio
 
 ### Acceptance criteria
 
-- [ ] Current app zone updates from device change without notice.
+- [ ] Current app zone updates from device change and shows a small notice without confirmation.
 - [ ] Earlier streak days do not recalculate.
 - [ ] Internal missions default to keep local time.
 - [ ] Imported events preserve provider behavior unless overridden.
@@ -2478,7 +2478,7 @@ Resolve device zone, account override, device-change auto-update, and per-missio
 
 - [ ] Device-zone simulation tests.
 - [ ] Travel display tests.
-- [ ] No-notice assertion.
+- [ ] Device-zone change notice assertion.
 
 ### Code-review focus
 
