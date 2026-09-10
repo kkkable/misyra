@@ -27,7 +27,7 @@ export function AppTimeZoneNotice({
       ]}
       testID="app-time-zone-change-notice"
     >
-      <Text allowFontScaling style={[styles.message, { color: colors.textPrimary }]}> 
+      <Text allowFontScaling style={[styles.message, { color: colors.textPrimary }]}>
         {appTimeZoneUpdatedMessage(language, timeZone)}
       </Text>
     </View>
