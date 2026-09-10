@@ -66,6 +66,31 @@ describe('MTS-055 imported all-day effort estimation contract', () => {
     ).toBe(false);
   });
 
+  it('requires fallback responses to carry exactly the deterministic 30-minute effort', () => {
+    expect(
+      importedAllDayEffortEstimationResponseSchema.parse({
+        providerTitle: null,
+        titleReadOnly: true,
+        estimatedEffortMinutes: 30,
+        estimationSource: 'fallback',
+      }),
+    ).toEqual({
+      providerTitle: null,
+      titleReadOnly: true,
+      estimatedEffortMinutes: 30,
+      estimationSource: 'fallback',
+    });
+
+    expect(
+      importedAllDayEffortEstimationResponseSchema.safeParse({
+        providerTitle: 'Busy',
+        titleReadOnly: true,
+        estimatedEffortMinutes: 45,
+        estimationSource: 'fallback',
+      }).success,
+    ).toBe(false);
+  });
+
   it('defines the post-import effort edit boundary with authoritative save time', () => {
     const request = importedAllDayEffortEditRequestSchema.parse({
       scheduledStartInstant: '2026-09-10T09:00:00.000Z',
