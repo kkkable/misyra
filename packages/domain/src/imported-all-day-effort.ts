@@ -61,7 +61,10 @@ export function resolveImportedAllDayEffortEstimate(
 export function resolveImportedAllDayEffortEdit(
   input: ImportedAllDayEffortEditInput,
 ): ImportedAllDayEffortEditResult {
-  assertPositiveEffortMinutes(input.currentEstimatedEffortMinutes, 'Current estimated effort minutes');
+  assertPositiveEffortMinutes(
+    input.currentEstimatedEffortMinutes,
+    'Current estimated effort minutes',
+  );
   assertPositiveEffortMinutes(input.estimatedEffortMinutes, 'Estimated effort minutes');
 
   const effortChanged = input.currentEstimatedEffortMinutes !== input.estimatedEffortMinutes;
