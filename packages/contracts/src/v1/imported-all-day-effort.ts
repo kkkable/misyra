@@ -45,9 +45,7 @@ export type ImportedAllDayEffortEstimationRequest = z.infer<
 export type ImportedAllDayEffortEstimationResponse = z.infer<
   typeof importedAllDayEffortEstimationResponseSchema
 >;
-export type ImportedAllDayEffortEditRequest = z.infer<
-  typeof importedAllDayEffortEditRequestSchema
->;
+export type ImportedAllDayEffortEditRequest = z.infer<typeof importedAllDayEffortEditRequestSchema>;
 export type ImportedAllDayEffortEditResponse = z.infer<
   typeof importedAllDayEffortEditResponseSchema
 >;
