@@ -71,7 +71,8 @@ function ids() {
     '44444444-4444-4444-8444-444444444444',
     '55555555-5555-4555-8555-555555555555',
   ];
-  return () => values.shift();
+  let counter = 6;
+  return () => values.shift() ?? `66666666-6666-4666-8666-${String(counter++).padStart(12, '0')}`;
 }
 
 afterEach(() => {
@@ -139,7 +140,7 @@ describe('MTS-044 local-first mission save', () => {
     });
   });
 
-  it('persists the recurrence selected by the mission form in cache and the queued create mutation', async () => {
+  it('persists recurrence and materializes every valid counted occurrence exactly once', async () => {
     const database = createDatabase();
     await seedAccount(database);
     const recurrence = {
@@ -165,17 +166,32 @@ describe('MTS-044 local-first mission save', () => {
     });
 
     expect(saved.series.recurrence).toEqual(recurrence);
-
     const series = await database.getFirstAsync(
       'SELECT payload_json FROM cached_mission_series WHERE account_id = ?',
       '11111111-1111-4111-8111-111111111111',
     );
     expect(JSON.parse(series.payload_json).recurrence).toEqual(recurrence);
 
-    const queued = await database.getFirstAsync(
-      'SELECT command_json FROM mutation_queue WHERE account_id = ?',
+    const occurrences = await database.getAllAsync(
+      `SELECT occurrence_id, local_date FROM cached_mission_occurrences
+        WHERE account_id = ? ORDER BY local_date`,
       '11111111-1111-4111-8111-111111111111',
     );
-    expect(JSON.parse(queued.command_json).mutation.payload.series.recurrence).toEqual(recurrence);
+    expect(occurrences).toHaveLength(6);
+    expect(new Set(occurrences.map((row) => row.occurrence_id)).size).toBe(6);
+    expect(occurrences[0].local_date).toBe('2026-09-07');
+
+    const queued = await database.getAllAsync(
+      'SELECT command_json FROM mutation_queue WHERE account_id = ? ORDER BY sequence',
+      '11111111-1111-4111-8111-111111111111',
+    );
+    expect(queued).toHaveLength(6);
+    expect(
+      queued.every(
+        (row) =>
+          JSON.parse(row.command_json).mutation.payload.series.recurrence.pattern.weekStartsOn ===
+          1,
+      ),
+    ).toBe(true);
   });
 });

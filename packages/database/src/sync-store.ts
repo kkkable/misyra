@@ -122,7 +122,7 @@ type MissionCreatePayload = Readonly<{
   series: Readonly<{
     id: string;
     title: string;
-    recurrence: null;
+    recurrence: Record<string, unknown> | null;
   }>;
   occurrence: Readonly<{
     id: string;
@@ -143,10 +143,22 @@ type MissionCreatePayload = Readonly<{
   notes: string | null;
 }>;
 
-type MissionUpdatePayload = Readonly<{
+type MissionAdjustmentUpdatePayload = Readonly<{
+  kind: 'adjustment';
   schedule: MissionSchedulePayload & Readonly<{ allDay: false; estimatedEffortMinutes: null }>;
   rewardEligibility: 'eligible' | 'ineligible';
 }>;
+
+type MissionDetailsUpdatePayload = Readonly<{
+  kind: 'details';
+  title: string;
+  schedule: MissionSchedulePayload;
+  rewardEligibility: 'eligible' | 'ineligible';
+  location: string | null;
+  notes: string | null;
+}>;
+
+type MissionUpdatePayload = MissionAdjustmentUpdatePayload | MissionDetailsUpdatePayload;
 
 type ClientTiming = Readonly<{
   clientOccurredAt: Date;
@@ -264,6 +276,19 @@ function optionalString(
   }
   const trimmed = value.trim();
   return trimmed.length === 0 ? null : trimmed;
+}
+
+function optionalObject(
+  source: Record<string, unknown>,
+  key: string,
+  label: string,
+): Record<string, unknown> | null {
+  const value = source[key];
+  if (value === undefined || value === null) return null;
+  if (typeof value !== 'object' || Array.isArray(value)) {
+    throw new SyncMutationValidationError(`${label} must be an object or null`);
+  }
+  return value as Record<string, unknown>;
 }
 
 function requireUuid(source: Record<string, unknown>, key: string, label: string): string {
@@ -438,9 +463,6 @@ function parseMissionCreatePayload(
   if (occurrenceSeriesId !== seriesId) {
     throw new SyncMutationValidationError('Mission occurrence must belong to its supplied series');
   }
-  if (seriesSource.recurrence !== null) {
-    throw new SyncMutationValidationError('MTS-045 mission create must be non-recurring');
-  }
 
   const schedule = parseMissionSchedule(scheduleSource);
 
@@ -448,7 +470,7 @@ function parseMissionCreatePayload(
     series: {
       id: seriesId,
       title: requireString(seriesSource, 'title', 'Mission title').trim(),
-      recurrence: null,
+      recurrence: optionalObject(seriesSource, 'recurrence', 'Mission recurrence'),
     },
     occurrence: {
       id: occurrenceId,
@@ -517,6 +539,34 @@ function parseMissionCreatePayload(
 
 function parseMissionUpdatePayload(payload: unknown): MissionUpdatePayload {
   const root = asRecord(payload, 'Mission update payload');
+  if (root.kind === 'details') {
+    const keys = Object.keys(root);
+    const supported = new Set([
+      'kind',
+      'title',
+      'schedule',
+      'rewardEligibility',
+      'location',
+      'notes',
+    ]);
+    if (keys.some((key) => !supported.has(key)) || keys.length !== supported.size) {
+      throw new SyncMutationValidationError('Mission Details update contains unsupported fields');
+    }
+    return {
+      kind: 'details',
+      title: requireString(root, 'title', 'Mission title').trim(),
+      schedule: parseMissionSchedule(asRecord(root.schedule, 'Mission update schedule')),
+      rewardEligibility: requireLiteral(
+        root,
+        'rewardEligibility',
+        ['eligible', 'ineligible'] as const,
+        'Mission reward eligibility',
+      ),
+      location: optionalString(root, 'location', 'Mission location'),
+      notes: optionalString(root, 'notes', 'Mission notes'),
+    };
+  }
+
   const keys = Object.keys(root);
   if (keys.length !== 2 || keys.some((key) => key !== 'schedule' && key !== 'rewardEligibility')) {
     throw new SyncMutationValidationError('Mission update contains unsupported fields');
@@ -528,6 +578,7 @@ function parseMissionUpdatePayload(payload: unknown): MissionUpdatePayload {
     );
   }
   return {
+    kind: 'adjustment',
     schedule,
     rewardEligibility: requireLiteral(
       root,
@@ -634,6 +685,28 @@ async function applySettingsMutation(
   return row;
 }
 
+async function upsertMissionSeries(
+  client: PoolClient,
+  accountId: string,
+  series: MissionCreatePayload['series'],
+): Promise<void> {
+  const recurrenceJson = series.recurrence === null ? null : JSON.stringify(series.recurrence);
+  const result = await client.query(
+    `INSERT INTO mission_series (id, account_id, title, recurrence_rule)
+     VALUES ($1, $2, $3, $4::jsonb)
+     ON CONFLICT (id) DO UPDATE
+       SET title = EXCLUDED.title
+     WHERE mission_series.account_id = EXCLUDED.account_id
+       AND mission_series.title = EXCLUDED.title
+       AND mission_series.recurrence_rule IS NOT DISTINCT FROM EXCLUDED.recurrence_rule
+     RETURNING id`,
+    [series.id, accountId, series.title, recurrenceJson],
+  );
+  if (result.rowCount !== 1) {
+    throw new SyncMutationConflictError('Recurring mission series metadata does not match');
+  }
+}
+
 async function applyMissionCreateMutation(
   client: PoolClient,
   accountId: string,
@@ -645,11 +718,7 @@ async function applyMissionCreateMutation(
     parseMissionCreatePayload(payload, entityId),
     effectiveTime,
   );
-  await client.query(
-    `INSERT INTO mission_series (id, account_id, title, recurrence_rule)
-     VALUES ($1, $2, $3, NULL)`,
-    [mission.series.id, accountId, mission.series.title],
-  );
+  await upsertMissionSeries(client, accountId, mission.series);
   const schedule = mission.occurrence.schedule;
   await client.query(
     `INSERT INTO mission_occurrences (
@@ -740,7 +809,6 @@ async function applyMissionUpdateMutation(
     );
   }
   if (
-    current.allDay ||
     current.scheduleState !== 'scheduled' ||
     current.completionState !== 'incomplete' ||
     current.calendarSource !== 'internal' ||
@@ -748,18 +816,51 @@ async function applyMissionUpdateMutation(
     current.deletionState !== 'active'
   ) {
     throw new SyncMutationValidationError(
+      'Mission edits require an active unfinished app-owned mission',
+    );
+  }
+  if (update.kind === 'adjustment' && current.allDay) {
+    throw new SyncMutationValidationError(
       'Mission direct manipulation requires an active unfinished app-owned timed mission',
     );
   }
+  if (update.kind === 'details' && current.recurrence !== null) {
+    throw new SyncMutationValidationError(
+      'Recurring Mission Details edits require recurrence scope selection',
+    );
+  }
+  if (update.kind === 'details' && update.schedule.allDay !== current.allDay) {
+    throw new SyncMutationValidationError('Mission Details cannot change the all-day mode');
+  }
 
-  const editedAfterStart = Date.parse(current.startInstant) < effectiveTime.getTime();
+  const editedAfterStart = Date.parse(current.startInstant) <= effectiveTime.getTime();
   const movedIntoPast = Date.parse(update.schedule.startInstant) < effectiveTime.getTime();
   const rewardEligibility =
-    current.rewardEligibility === 'ineligible' || editedAfterStart || movedIntoPast
+    current.rewardEligibility === 'ineligible' ||
+    update.rewardEligibility === 'ineligible' ||
+    editedAfterStart ||
+    movedIntoPast
       ? 'ineligible'
-      : current.rewardEligibility;
+      : update.rewardEligibility;
   const nextVersion = current.version + 1;
   const schedule = update.schedule;
+  const title = update.kind === 'details' ? update.title : current.title;
+  const location = update.kind === 'details' ? update.location : current.location;
+  const notes = update.kind === 'details' ? update.notes : current.notes;
+
+  if (update.kind === 'details') {
+    const seriesUpdated = await client.query(
+      `UPDATE mission_series
+          SET title = $3,
+              updated_at = now()
+        WHERE id = $1 AND account_id = $2`,
+      [current.seriesId, mutation.accountId, title],
+    );
+    if (seriesUpdated.rowCount !== 1) {
+      throw new SyncMutationConflictError('Mission series changed while details were saved');
+    }
+  }
+
   const updated = await client.query(
     `UPDATE mission_occurrences
         SET local_date = $3,
@@ -769,13 +870,15 @@ async function applyMissionUpdateMutation(
             finish_instant = $7,
             time_zone = $8,
             time_behavior = $9,
-            all_day = false,
-            estimated_effort_minutes = NULL,
-            reward_eligibility = $10,
+            all_day = $10,
+            estimated_effort_minutes = $11,
+            reward_eligibility = $12,
+            location = $13,
+            notes = $14,
             synchronization_state = 'synced',
-            version = $11,
+            version = $15,
             updated_at = now()
-      WHERE id = $1 AND account_id = $2 AND version = $12`,
+      WHERE id = $1 AND account_id = $2 AND version = $16`,
     [
       mutation.entityId,
       mutation.accountId,
@@ -786,7 +889,11 @@ async function applyMissionUpdateMutation(
       schedule.finishInstant,
       schedule.timeZone,
       schedule.timeBehavior,
+      schedule.allDay,
+      schedule.estimatedEffortMinutes,
       rewardEligibility,
+      location,
+      notes,
       nextVersion,
       current.version,
     ],
@@ -801,7 +908,7 @@ async function applyMissionUpdateMutation(
     version: nextVersion,
     series: {
       id: current.seriesId,
-      title: current.title,
+      title,
       recurrence: current.recurrence,
     },
     occurrence: {
@@ -819,8 +926,8 @@ async function applyMissionUpdateMutation(
       storyState: current.storyState,
       deletionState: current.deletionState,
     },
-    location: current.location,
-    notes: current.notes,
+    location,
+    notes,
   };
 }
 

@@ -1,18 +1,15 @@
-export type CalendarMissionTapResolution = Readonly<{
+export type MissionTapResolution = Readonly<{
   selectedMissionId: string;
   openDetails: boolean;
 }>;
 
-export function resolveCalendarMissionTap(
-  selectedMissionId: string | undefined,
-  tappedMissionId: string,
-): CalendarMissionTapResolution {
-  if (tappedMissionId.trim().length === 0) {
-    throw new TypeError('Tapped mission ID must not be empty.');
-  }
-
+export function resolveMissionTap(
+  selectedMissionId: string | null,
+  missionId: string,
+): MissionTapResolution {
+  if (missionId.trim().length === 0) throw new TypeError('Mission ID must not be empty.');
   return {
-    selectedMissionId: tappedMissionId,
-    openDetails: selectedMissionId === tappedMissionId,
+    selectedMissionId: missionId,
+    openDetails: selectedMissionId === missionId,
   };
 }

@@ -216,7 +216,7 @@ describe('authenticated mission synchronization', () => {
     });
     expect(
       await database.getFirstAsync(
-        `SELECT title, location, personal_note
+        `SELECT title, location, general_note, personal_note
            FROM search_documents
           WHERE account_id = ? AND document_id = ?`,
         accountId,
@@ -225,7 +225,8 @@ describe('authenticated mission synchronization', () => {
     ).toEqual({
       title: 'Private all-day mission',
       location: 'Central',
-      personal_note: 'Bring documents',
+      general_note: 'Bring documents',
+      personal_note: null,
     });
   });
 });

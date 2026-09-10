@@ -9,10 +9,7 @@ import {
   resolveInitialCalendarLanguage,
 } from '../calendar/calendar-language-runtime.js';
 import { openMobileDatabase } from '../storage/database.js';
-import {
-  createLocalRepositories,
-  type LocalRepositories,
-} from '../storage/local-repositories.js';
+import { createLocalRepositories, type LocalRepositories } from '../storage/local-repositories.js';
 
 const LANGUAGE_REFRESH_INTERVAL_MS = 60_000;
 const INITIAL_SYNC_RECHECK_MS = 1_000;

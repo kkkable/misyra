@@ -3,20 +3,21 @@ import { getCalendars } from 'expo-localization';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { createZonedTimedSchedule, evaluateSchedulePlacement } from '@misyra/domain';
-import { radius, space } from '@misyra/design-tokens';
+import { layout, radius, space } from '@misyra/design-tokens';
 import { localizationCatalogs, type LocalizationLocale } from '@misyra/localization';
 
 import { themeColors, type ColorScheme } from '../design-system/index.js';
 import { haptics } from '../experience/native-haptics.js';
 import type { CalendarMissionCreateInput } from './calendar-mission-create.js';
 import { CalendarMissionFormSheet } from './calendar-mission-form-sheet.js';
-import { domainWeekStartFromRegionalFirstWeekday } from './calendar-region.js';
+import { platformFirstWeekdayToDomain } from './calendar-region-runtime.js';
 import { formatTimelineTime, TimedTimeline } from './calendar-timeline.js';
 
 const SLOT_MINUTES = 30;
 const MINUTES_PER_DAY = 24 * 60;
 const TIMELINE_GUTTER = space[10] + space[3];
 const LOCAL_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const SLOT_TOUCH_EXPANSION = Math.max(0, (layout.minimumTouchTarget - SLOT_MINUTES) / 2);
 
 type CalendarInteractiveTimelineProps = Readonly<{
   colorScheme: ColorScheme;
@@ -25,8 +26,8 @@ type CalendarInteractiveTimelineProps = Readonly<{
   launchMinute: number;
   missionLayer?: ReactNode;
   now: Date;
+  onClearMissionSelection?: (() => void) | undefined;
   onCreateMission?: ((input: CalendarMissionCreateInput) => void | Promise<void>) | undefined;
-  onSelectionClear?: (() => void) | undefined;
   scrollHeader?: ReactNode;
   selectedDate: string;
   today: string;
@@ -79,8 +80,8 @@ export function CalendarInteractiveTimeline({
   launchMinute,
   missionLayer,
   now,
+  onClearMissionSelection,
   onCreateMission,
-  onSelectionClear,
   scrollHeader,
   selectedDate,
   today,
@@ -90,18 +91,19 @@ export function CalendarInteractiveTimeline({
   const catalog = localizationCatalogs[language];
   const systemCalendar = getCalendars()[0];
   const missionTimeZone = systemCalendar.timeZone ?? 'UTC';
-  const weekStartsOn = domainWeekStartFromRegionalFirstWeekday(systemCalendar.firstWeekday);
+  const weekStartsOn = platformFirstWeekdayToDomain(Number(systemCalendar.firstWeekday));
   const [selectedSlotMinute, setSelectedSlotMinute] = useState<number | null>(null);
   const [creationSlotMinute, setCreationSlotMinute] = useState<number | null>(null);
 
   const clearSelection = () => {
     setSelectedSlotMinute(null);
-    onSelectionClear?.();
+    onClearMissionSelection?.();
   };
 
   const closeCreation = () => {
     setCreationSlotMinute(null);
     setSelectedSlotMinute(null);
+    onClearMissionSelection?.();
   };
 
   const slotLayer = (
@@ -126,9 +128,10 @@ export function CalendarInteractiveTimeline({
               formatSlotTime(minute, language, uses24HourClock),
             )}
             accessibilityRole="button"
+            hitSlop={{ top: SLOT_TOUCH_EXPANSION, bottom: SLOT_TOUCH_EXPANSION }}
             key={minute}
             onPress={() => {
-              onSelectionClear?.();
+              onClearMissionSelection?.();
               if (selectedSlotMinute === minute) {
                 setCreationSlotMinute(minute);
                 return;

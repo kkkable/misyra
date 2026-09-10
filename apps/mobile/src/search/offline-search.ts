@@ -23,6 +23,7 @@ interface SearchRow {
   readonly location: string | null;
   readonly provider_text: string | null;
   readonly personal_note: string | null;
+  readonly general_note: string | null;
 }
 
 function searchTokens(query: string): string[] {
@@ -66,7 +67,8 @@ function personalNoteCausedMatch(row: SearchRow, tokens: readonly string[]): boo
     const visibleMatched =
       fieldMatchesToken(row.title, token) ||
       fieldMatchesToken(row.location, token) ||
-      fieldMatchesToken(row.provider_text, token);
+      fieldMatchesToken(row.provider_text, token) ||
+      fieldMatchesToken(row.general_note, token);
     return !visibleMatched && fieldMatchesToken(row.personal_note, token);
   });
 }
@@ -97,6 +99,7 @@ async function ensureSearchIndex(database: OfflineSearchDatabase): Promise<void>
       title,
       location,
       provider_text,
+      general_note,
       personal_note,
       content='search_documents',
       content_rowid='rowid'
@@ -104,36 +107,36 @@ async function ensureSearchIndex(database: OfflineSearchDatabase): Promise<void>
     await transaction.execAsync(`CREATE TRIGGER IF NOT EXISTS search_documents_fts_insert
       AFTER INSERT ON search_documents BEGIN
         INSERT INTO search_documents_fts(
-          rowid, account_id, document_id, title, location, provider_text, personal_note
+          rowid, account_id, document_id, title, location, provider_text, general_note, personal_note
         ) VALUES (
           new.rowid, new.account_id, new.document_id, new.title, new.location,
-          new.provider_text, new.personal_note
+          new.provider_text, new.general_note, new.personal_note
         );
       END`);
     await transaction.execAsync(`CREATE TRIGGER IF NOT EXISTS search_documents_fts_delete
       AFTER DELETE ON search_documents BEGIN
         INSERT INTO search_documents_fts(
           search_documents_fts, rowid, account_id, document_id, title, location,
-          provider_text, personal_note
+          provider_text, general_note, personal_note
         ) VALUES (
           'delete', old.rowid, old.account_id, old.document_id, old.title, old.location,
-          old.provider_text, old.personal_note
+          old.provider_text, old.general_note, old.personal_note
         );
       END`);
     await transaction.execAsync(`CREATE TRIGGER IF NOT EXISTS search_documents_fts_update
       AFTER UPDATE ON search_documents BEGIN
         INSERT INTO search_documents_fts(
           search_documents_fts, rowid, account_id, document_id, title, location,
-          provider_text, personal_note
+          provider_text, general_note, personal_note
         ) VALUES (
           'delete', old.rowid, old.account_id, old.document_id, old.title, old.location,
-          old.provider_text, old.personal_note
+          old.provider_text, old.general_note, old.personal_note
         );
         INSERT INTO search_documents_fts(
-          rowid, account_id, document_id, title, location, provider_text, personal_note
+          rowid, account_id, document_id, title, location, provider_text, general_note, personal_note
         ) VALUES (
           new.rowid, new.account_id, new.document_id, new.title, new.location,
-          new.provider_text, new.personal_note
+          new.provider_text, new.general_note, new.personal_note
         );
       END`);
     await transaction.execAsync(
@@ -170,7 +173,8 @@ export function createOfflineCalendarSearch(database: OfflineSearchDatabase, acc
                       d.title,
                       d.location,
                       d.provider_text,
-                      d.personal_note
+                      d.personal_note,
+                      d.general_note
                  FROM search_documents d
                  ${nonHanTokens.length > 0 ? 'JOIN search_documents_fts f ON f.rowid = d.rowid' : ''}
                  LEFT JOIN cached_mission_occurrences o
@@ -183,6 +187,7 @@ export function createOfflineCalendarSearch(database: OfflineSearchDatabase, acc
                         `(instr(lower(d.title), ?) > 0
                           OR instr(lower(coalesce(d.location, '')), ?) > 0
                           OR instr(lower(coalesce(d.provider_text, '')), ?) > 0
+                          OR instr(lower(coalesce(d.general_note, '')), ?) > 0
                           OR instr(lower(coalesce(d.personal_note, '')), ?) > 0)`,
                     )
                     .join(' AND ')}
@@ -199,7 +204,7 @@ export function createOfflineCalendarSearch(database: OfflineSearchDatabase, acc
                          d.document_id
                 LIMIT ?`,
               accountId,
-              ...hanTokens.flatMap((token) => [token, token, token, token]),
+              ...hanTokens.flatMap((token) => [token, token, token, token, token]),
               ...(nonHanTokens.length > 0 ? [toFtsQuery(nonHanTokens)] : []),
               limit,
             )
@@ -209,7 +214,8 @@ export function createOfflineCalendarSearch(database: OfflineSearchDatabase, acc
                       d.title,
                       d.location,
                       d.provider_text,
-                      d.personal_note
+                      d.personal_note,
+                      d.general_note
                  FROM search_documents_fts f
                  JOIN search_documents d ON d.rowid = f.rowid
                  LEFT JOIN cached_mission_occurrences o

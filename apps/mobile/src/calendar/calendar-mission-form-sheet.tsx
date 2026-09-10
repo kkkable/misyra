@@ -31,7 +31,7 @@ interface CalendarMissionFormSheetProps {
   readonly selectedDate: string;
   readonly timeZone: string;
   readonly uses24HourClock: boolean;
-  readonly weekStartsOn?: number;
+  readonly weekStartsOn?: number | undefined;
 }
 
 function localDateTime(localDate: string, minute: number): string {
@@ -45,6 +45,65 @@ function localDateTime(localDate: string, minute: number): string {
   const hour = Math.floor(minuteWithinDay / 60);
   const minuteWithinHour = minuteWithinDay % 60;
   return `${date.toISOString().slice(0, 10)}T${String(hour).padStart(2, '0')}:${String(minuteWithinHour).padStart(2, '0')}:00`;
+}
+
+function clockInput(
+  minute: number,
+  language: LocalizationLocale,
+  uses24HourClock: boolean,
+): string {
+  const boundedMinute = Math.max(0, minute);
+  if (!uses24HourClock) {
+    return formatTimelineTime(boundedMinute % MINUTES_PER_DAY, language, false);
+  }
+  return `${String(Math.floor(boundedMinute / 60)).padStart(2, '0')}:${String(boundedMinute % 60).padStart(2, '0')}`;
+}
+
+function parseTwelveHourClockInput(value: string): number | null {
+  const normalized = value.trim().replaceAll('.', '').replace(/\s+/g, ' ');
+  const englishMatch = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i.exec(normalized);
+  const chineseMatch = /^(上午|下午)\s*(\d{1,2}):(\d{2})$/.exec(normalized);
+  const hourText = englishMatch?.[1] ?? chineseMatch?.[2];
+  const minuteText = englishMatch?.[2] ?? chineseMatch?.[3];
+  const period = englishMatch?.[3]?.toUpperCase() ?? chineseMatch?.[1];
+
+  if (hourText === undefined || minuteText === undefined || period === undefined) return null;
+
+  const hour = Number(hourText);
+  const minute = Number(minuteText);
+  if (!Number.isInteger(hour) || hour < 1 || hour > 12 || minute < 0 || minute > 59) {
+    return null;
+  }
+
+  const hourFromMidnight = hour % 12;
+  const isAfternoon = period === 'PM' || period === '下午';
+  return (hourFromMidnight + (isAfternoon ? 12 : 0)) * 60 + minute;
+}
+
+function parseClockInput(
+  value: string,
+  maximum: number,
+  uses24HourClock: boolean,
+  startMinute?: number,
+): number | null {
+  if (!uses24HourClock) {
+    const minute = parseTwelveHourClockInput(value);
+    if (minute === null) return null;
+    const adjustedMinute =
+      startMinute !== undefined && maximum > MINUTES_PER_DAY && minute <= startMinute
+        ? minute + MINUTES_PER_DAY
+        : minute;
+    return adjustedMinute <= maximum ? adjustedMinute : null;
+  }
+
+  const match = /^(\d{1,2}):(\d{2})$/.exec(value.trim());
+  if (match === null) return null;
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (!Number.isInteger(hour) || !Number.isInteger(minute) || minute < 0 || minute > 59)
+    return null;
+  const total = hour * 60 + minute;
+  return total >= 0 && total <= maximum ? total : null;
 }
 
 function parseEffort(value: string): number | null {
@@ -122,6 +181,10 @@ export function CalendarMissionFormSheet({
   const initialStartMinute = initialInput?.startMinute ?? creationSlotMinute;
   const defaultEndMinute = initialInput?.endMinute ?? initialStartMinute + 30;
   const [title, setTitle] = useState(initialInput?.title ?? '');
+  const [startText, setStartText] = useState(
+    clockInput(initialStartMinute, language, uses24HourClock),
+  );
+  const [endText, setEndText] = useState(clockInput(defaultEndMinute, language, uses24HourClock));
   const [moreOptionsVisible, setMoreOptionsVisible] = useState(initialInput !== undefined);
   const [allDay, setAllDay] = useState(initialInput?.allDay ?? false);
   const [effort, setEffort] = useState(String(initialInput?.estimatedEffortMinutes ?? 30));
@@ -137,8 +200,11 @@ export function CalendarMissionFormSheet({
   const [validationVisible, setValidationVisible] = useState(false);
   const [zeroXpWarningVisible, setZeroXpWarningVisible] = useState(false);
 
-  const startMinute = initialStartMinute;
-  const endMinute = defaultEndMinute;
+  const startMinute = parseClockInput(startText, MINUTES_PER_DAY, uses24HourClock);
+  const endMinute =
+    startMinute === null
+      ? null
+      : parseClockInput(endText, MAX_TIMED_END_MINUTE, uses24HourClock, startMinute);
   const estimatedEffortMinutes = allDay ? parseEffort(effort) : null;
   const draft = {
     title,
@@ -150,18 +216,30 @@ export function CalendarMissionFormSheet({
     timeZone,
   } as const;
   const validation = validateMissionForm(draft);
-  const placement = validation.valid
-    ? resolvePlacement({
-        allDay,
-        endMinute,
-        estimatedEffortMinutes,
-        now,
-        selectedDate: effectiveSelectedDate,
-        startMinute,
-        timeBehavior,
-        timeZone,
-      })
-    : null;
+  const placement =
+    validation.valid && startMinute !== null && endMinute !== null
+      ? resolvePlacement({
+          allDay,
+          endMinute,
+          estimatedEffortMinutes,
+          now,
+          selectedDate: effectiveSelectedDate,
+          startMinute,
+          timeBehavior,
+          timeZone,
+        })
+      : allDay && validation.valid
+        ? resolvePlacement({
+            allDay,
+            endMinute: 0,
+            estimatedEffortMinutes,
+            now,
+            selectedDate: effectiveSelectedDate,
+            startMinute: 0,
+            timeBehavior,
+            timeZone,
+          })
+        : null;
 
   const buildInput = (rewardEligibility: RewardEligibility): CalendarMissionCreateInput => ({
     selectedDate: effectiveSelectedDate,
@@ -193,9 +271,6 @@ export function CalendarMissionFormSheet({
     setZeroXpWarningVisible(false);
     void Promise.resolve(onSubmit(buildInput(placement.rewardEligibility))).catch(() => undefined);
   };
-
-  const formatTime = (minute: number) =>
-    formatTimelineTime(minute % MINUTES_PER_DAY, language, uses24HourClock);
 
   return (
     <Modal animationType="fade" onRequestClose={onCancel} transparent visible>
@@ -236,25 +311,29 @@ export function CalendarMissionFormSheet({
               <View style={styles.row}>
                 <TextInput
                   accessibilityLabel={catalog['calendar.create.start']}
-                  editable={false}
+                  autoCapitalize="none"
+                  onChangeText={setStartText}
+                  placeholder={catalog['calendar.create.timeInputHint']}
                   style={[
                     styles.input,
                     styles.flexInput,
-                    { borderColor: colors.border, color: colors.textSecondary },
+                    { borderColor: colors.border, color: colors.textPrimary },
                   ]}
                   testID="calendar-create-start"
-                  value={formatTime(startMinute)}
+                  value={startText}
                 />
                 <TextInput
                   accessibilityLabel={catalog['calendar.create.end']}
-                  editable={false}
+                  autoCapitalize="none"
+                  onChangeText={setEndText}
+                  placeholder={catalog['calendar.create.timeInputHint']}
                   style={[
                     styles.input,
                     styles.flexInput,
-                    { borderColor: colors.border, color: colors.textSecondary },
+                    { borderColor: colors.border, color: colors.textPrimary },
                   ]}
                   testID="calendar-create-end"
-                  value={formatTime(endMinute)}
+                  value={endText}
                 />
               </View>
             )}
@@ -476,26 +555,15 @@ export function CalendarMissionFormSheet({
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    alignItems: 'center',
-    flex: 1,
-    justifyContent: 'flex-end',
-    padding: space[4],
-  },
+  backdrop: { alignItems: 'center', flex: 1, justifyContent: 'flex-end', padding: space[4] },
   sheet: {
     borderRadius: radius.lg,
     maxHeight: '90%',
     maxWidth: layout.maximumPhoneWidth,
     width: '100%',
   },
-  formContent: {
-    gap: space[3],
-    padding: space[4],
-  },
-  heading: {
-    fontSize: typography.headline.fontSize,
-    fontWeight: typography.headline.fontWeight,
-  },
+  formContent: { gap: space[3], padding: space[4] },
+  heading: { fontSize: typography.headline.fontSize, fontWeight: typography.headline.fontWeight },
   input: {
     borderRadius: radius.md,
     borderWidth: 1,
@@ -504,13 +572,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: space[3],
     paddingVertical: space[2],
   },
-  row: {
-    flexDirection: 'row',
-    gap: space[2],
-  },
-  flexInput: {
-    flex: 1,
-  },
+  row: { flexDirection: 'row', gap: space[2] },
+  flexInput: { flex: 1 },
   toggleRow: {
     alignItems: 'center',
     borderRadius: radius.md,
@@ -521,29 +584,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: space[3],
     paddingVertical: space[2],
   },
-  bodyText: {
-    fontSize: typography.body.fontSize,
-  },
-  notesInput: {
-    minHeight: layout.minimumTouchTarget * 2,
-    textAlignVertical: 'top',
-  },
-  warningGroup: {
-    gap: space[2],
-  },
-  warningText: {
-    fontSize: typography.bodySmall.fontSize,
-  },
+  bodyText: { fontSize: typography.body.fontSize },
+  notesInput: { minHeight: layout.minimumTouchTarget * 2, textAlignVertical: 'top' },
+  warningGroup: { gap: space[2] },
+  warningText: { fontSize: typography.bodySmall.fontSize },
   moreOptions: {
     alignItems: 'flex-start',
     justifyContent: 'center',
     minHeight: layout.minimumTouchTarget,
     paddingHorizontal: space[1],
   },
-  actions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-  },
+  actions: { flexDirection: 'row', justifyContent: 'flex-end' },
   action: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -551,8 +602,5 @@ const styles = StyleSheet.create({
     minWidth: layout.minimumTouchTarget * 2,
     paddingHorizontal: space[3],
   },
-  actionText: {
-    fontSize: typography.body.fontSize,
-    fontWeight: typography.body.mediumFontWeight,
-  },
+  actionText: { fontSize: typography.body.fontSize, fontWeight: typography.body.mediumFontWeight },
 });
