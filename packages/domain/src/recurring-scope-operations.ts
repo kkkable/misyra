@@ -1,4 +1,4 @@
-import type { MissionOccurrence, MissionSeries } from './mission-model.js';
+import type { MissionOccurrence, MissionRecurrence, MissionSeries } from './mission-model.js';
 
 export type RecurringSeriesScope = 'this_occurrence' | 'this_and_future' | 'entire_series';
 export type RecurringScopeOperation = 'edit' | 'delete';
@@ -131,5 +131,40 @@ export function planRecurringSeriesScope(
     preservedOccurrenceIds: freezeIds(preserved),
     retiredOccurrenceIds: Object.freeze(retiredIds),
     splitBoundary,
+  });
+}
+
+export function recurrenceForThisAndFutureSplit(
+  series: MissionSeries,
+  occurrences: readonly MissionOccurrence[],
+  selectedOccurrenceId: string,
+): MissionRecurrence {
+  const recurrence = series.recurrence;
+  if (recurrence === null) {
+    throw new TypeError('Recurring split requires a recurring series.');
+  }
+
+  planRecurringSeriesScope({
+    series,
+    occurrences,
+    selectedOccurrenceId,
+    scope: 'this_and_future',
+    operation: 'edit',
+  });
+
+  if (recurrence.end.type !== 'count') {
+    return recurrence;
+  }
+
+  const ordered = [...occurrences].sort(compareOccurrences);
+  const selectedIndex = ordered.findIndex((occurrence) => occurrence.id === selectedOccurrenceId);
+  const remainingOccurrenceCount = recurrence.end.occurrenceCount - selectedIndex;
+  if (remainingOccurrenceCount <= 0) {
+    throw new RangeError('Recurring split boundary exceeds the series occurrence count.');
+  }
+
+  return Object.freeze({
+    pattern: recurrence.pattern,
+    end: Object.freeze({ type: 'count', occurrenceCount: remainingOccurrenceCount }),
   });
 }

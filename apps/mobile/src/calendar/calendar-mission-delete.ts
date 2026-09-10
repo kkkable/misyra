@@ -1,8 +1,15 @@
-import { createMissionOccurrence, type MissionOccurrenceInput } from '@misyra/domain';
+import {
+  createMissionOccurrence,
+  createMissionSeries,
+  planRecurringSeriesScope,
+  type MissionOccurrenceInput,
+  type MissionSeriesInput,
+  type RecurringSeriesScope,
+} from '@misyra/domain';
 
 import { createMutationQueue, type MutationQueueDatabase } from '../storage/mutation-queue.js';
 
-export type CalendarMissionDeletion = Readonly<{
+type CalendarMissionDeletionEntry = Readonly<{
   occurrenceId: string;
   mutationId: string;
   originalPayloadJson: string;
@@ -14,20 +21,32 @@ export type CalendarMissionDeletion = Readonly<{
   }>[];
 }>;
 
+export type CalendarMissionDeletion = CalendarMissionDeletionEntry &
+  Readonly<{
+    scopedDeletions?: readonly CalendarMissionDeletionEntry[] | undefined;
+  }>;
+
 type DeleteCalendarMissionOptions = Readonly<{
   database: MutationQueueDatabase;
   accountId: string;
   deviceId: string;
   occurrenceId: string;
+  scope?: RecurringSeriesScope | undefined;
   now: Date;
   generateId: () => string;
 }>;
 
 type CachedOccurrenceRow = Readonly<{
+  occurrence_id: string;
   payload_json: string;
   server_version: number | null;
   updated_at: string;
 }>;
+
+type CachedMissionRow = CachedOccurrenceRow &
+  Readonly<{
+    series_payload_json: string;
+  }>;
 
 type NotificationRow = Readonly<{
   notification_id: string;
@@ -53,20 +72,16 @@ function resolveDeleteBaseVersion(
   return serverVersion;
 }
 
-export async function deleteCalendarMission({
+async function deleteSingleCalendarMission({
   database,
   accountId,
   deviceId,
   occurrenceId,
   now,
   generateId,
-}: DeleteCalendarMissionOptions): Promise<CalendarMissionDeletion> {
-  assertNonEmpty(accountId, 'Account ID');
-  assertNonEmpty(deviceId, 'Device ID');
-  assertNonEmpty(occurrenceId, 'Occurrence ID');
-
+}: Omit<DeleteCalendarMissionOptions, 'scope'>): Promise<CalendarMissionDeletionEntry> {
   const cached = await database.getFirstAsync<CachedOccurrenceRow>(
-    `SELECT payload_json, server_version, updated_at
+    `SELECT occurrence_id, payload_json, server_version, updated_at
        FROM cached_mission_occurrences
       WHERE account_id = ? AND occurrence_id = ?`,
     accountId,
@@ -122,7 +137,7 @@ export async function deleteCalendarMission({
     destination: { kind: 'server' },
     applyLocal: async (transaction) => {
       const latest = await transaction.getFirstAsync<CachedOccurrenceRow>(
-        `SELECT payload_json, server_version, updated_at
+        `SELECT occurrence_id, payload_json, server_version, updated_at
            FROM cached_mission_occurrences
           WHERE account_id = ? AND occurrence_id = ?`,
         accountId,
@@ -172,6 +187,95 @@ export async function deleteCalendarMission({
   };
 }
 
+export async function deleteCalendarMission({
+  database,
+  accountId,
+  deviceId,
+  occurrenceId,
+  scope,
+  now,
+  generateId,
+}: DeleteCalendarMissionOptions): Promise<CalendarMissionDeletion> {
+  assertNonEmpty(accountId, 'Account ID');
+  assertNonEmpty(deviceId, 'Device ID');
+  assertNonEmpty(occurrenceId, 'Occurrence ID');
+
+  const selected = await database.getFirstAsync<CachedMissionRow>(
+    `SELECT o.occurrence_id, o.payload_json, o.server_version, o.updated_at,
+            s.payload_json AS series_payload_json
+       FROM cached_mission_occurrences o
+       JOIN cached_mission_series s
+         ON s.account_id = o.account_id AND s.series_id = o.series_id
+      WHERE o.account_id = ? AND o.occurrence_id = ?`,
+    accountId,
+    occurrenceId,
+  );
+  if (selected === null) throw new Error('Mission deletion target was not found.');
+
+  const selectedOccurrence = createMissionOccurrence(
+    JSON.parse(selected.payload_json) as MissionOccurrenceInput,
+  );
+  const series = createMissionSeries(
+    JSON.parse(selected.series_payload_json) as MissionSeriesInput,
+  );
+  if (series.recurrence === null) {
+    if (scope !== undefined && scope !== 'this_occurrence') {
+      throw new Error('Series scope requires a recurring mission.');
+    }
+    return deleteSingleCalendarMission({
+      database,
+      accountId,
+      deviceId,
+      occurrenceId,
+      now,
+      generateId,
+    });
+  }
+  if (scope === undefined) {
+    throw new Error('Recurring mission deletion requires an explicit scope.');
+  }
+
+  const cachedOccurrences = await database.getAllAsync<CachedOccurrenceRow>(
+    `SELECT occurrence_id, payload_json, server_version, updated_at
+       FROM cached_mission_occurrences
+      WHERE account_id = ? AND series_id = ?
+      ORDER BY occurrence_id`,
+    accountId,
+    series.id,
+  );
+  const occurrences = cachedOccurrences.map((row) =>
+    createMissionOccurrence(JSON.parse(row.payload_json) as MissionOccurrenceInput),
+  );
+  const plan = planRecurringSeriesScope({
+    series,
+    occurrences,
+    selectedOccurrenceId: selectedOccurrence.id,
+    scope,
+    operation: 'delete',
+  });
+  if (plan.affectedOccurrenceIds.length === 0) {
+    throw new Error('Recurring mission scope contains no unfinished occurrence to delete.');
+  }
+
+  const deletions: CalendarMissionDeletionEntry[] = [];
+  for (const targetOccurrenceId of plan.affectedOccurrenceIds) {
+    deletions.push(
+      await deleteSingleCalendarMission({
+        database,
+        accountId,
+        deviceId,
+        occurrenceId: targetOccurrenceId,
+        now,
+        generateId,
+      }),
+    );
+  }
+  const primary =
+    deletions.find((deletion) => deletion.occurrenceId === occurrenceId) ?? deletions[0];
+  if (primary === undefined) throw new Error('Recurring mission deletion produced no operation.');
+  return { ...primary, scopedDeletions: Object.freeze(deletions) };
+}
+
 export async function undoCalendarMissionDeletion({
   database,
   accountId,
@@ -182,80 +286,84 @@ export async function undoCalendarMissionDeletion({
   deletion: CalendarMissionDeletion;
 }>): Promise<boolean> {
   assertNonEmpty(accountId, 'Account ID');
+  const deletions = deletion.scopedDeletions ?? [deletion];
   let restored = false;
 
   await database.withExclusiveTransactionAsync(async (transaction) => {
-    const queued = await transaction.getFirstAsync<{ command_json: string }>(
-      `SELECT command_json
-         FROM mutation_queue
-        WHERE account_id = ? AND mutation_id = ?`,
-      accountId,
-      deletion.mutationId,
-    );
-    if (queued === null) return;
-    const envelope = JSON.parse(queued.command_json) as {
-      inFlight?: unknown;
-      mutation?: { entityId?: unknown; operation?: unknown };
-    };
-    if (envelope.inFlight === true || envelope.inFlight === 1) return;
-    if (
-      envelope.mutation?.entityId !== deletion.occurrenceId ||
-      envelope.mutation.operation !== 'delete'
-    ) {
-      return;
+    for (const item of deletions) {
+      const queued = await transaction.getFirstAsync<{ command_json: string }>(
+        `SELECT command_json
+           FROM mutation_queue
+          WHERE account_id = ? AND mutation_id = ?`,
+        accountId,
+        item.mutationId,
+      );
+      if (queued === null) return;
+      const envelope = JSON.parse(queued.command_json) as {
+        inFlight?: unknown;
+        mutation?: { entityId?: unknown; operation?: unknown };
+      };
+      if (envelope.inFlight === true || envelope.inFlight === 1) return;
+      if (
+        envelope.mutation?.entityId !== item.occurrenceId ||
+        envelope.mutation.operation !== 'delete'
+      ) {
+        return;
+      }
+      const tombstone = await transaction.getFirstAsync<{ occurrence_id: string }>(
+        `SELECT occurrence_id
+           FROM mission_occurrence_tombstones
+          WHERE account_id = ? AND occurrence_id = ?`,
+        accountId,
+        item.occurrenceId,
+      );
+      const cached = await transaction.getFirstAsync<{ occurrence_id: string }>(
+        `SELECT occurrence_id
+           FROM cached_mission_occurrences
+          WHERE account_id = ? AND occurrence_id = ?`,
+        accountId,
+        item.occurrenceId,
+      );
+      if (tombstone === null || cached === null) return;
     }
 
-    const tombstone = await transaction.getFirstAsync<{ occurrence_id: string }>(
-      `SELECT occurrence_id
-         FROM mission_occurrence_tombstones
-        WHERE account_id = ? AND occurrence_id = ?`,
-      accountId,
-      deletion.occurrenceId,
-    );
-    const cached = await transaction.getFirstAsync<{ occurrence_id: string }>(
-      `SELECT occurrence_id
-         FROM cached_mission_occurrences
-        WHERE account_id = ? AND occurrence_id = ?`,
-      accountId,
-      deletion.occurrenceId,
-    );
-    if (tombstone === null || cached === null) return;
-
-    await transaction.runAsync(
-      `UPDATE cached_mission_occurrences
-          SET payload_json = ?, updated_at = ?
-        WHERE account_id = ? AND occurrence_id = ?`,
-      deletion.originalPayloadJson,
-      deletion.originalUpdatedAt,
-      accountId,
-      deletion.occurrenceId,
-    );
-    await transaction.runAsync(
-      'DELETE FROM mission_occurrence_tombstones WHERE account_id = ? AND occurrence_id = ?',
-      accountId,
-      deletion.occurrenceId,
-    );
-    for (const notification of deletion.notifications) {
+    for (const item of deletions) {
       await transaction.runAsync(
-        `INSERT INTO notification_registry
-          (account_id, notification_id, occurrence_id, scheduled_at, updated_at)
-         VALUES (?, ?, ?, ?, ?)
-         ON CONFLICT(account_id, notification_id) DO UPDATE SET
-           occurrence_id = excluded.occurrence_id,
-           scheduled_at = excluded.scheduled_at,
-           updated_at = excluded.updated_at`,
+        `UPDATE cached_mission_occurrences
+            SET payload_json = ?, updated_at = ?
+          WHERE account_id = ? AND occurrence_id = ?`,
+        item.originalPayloadJson,
+        item.originalUpdatedAt,
         accountId,
-        notification.notificationId,
-        deletion.occurrenceId,
-        notification.scheduledAt,
-        notification.updatedAt,
+        item.occurrenceId,
+      );
+      await transaction.runAsync(
+        'DELETE FROM mission_occurrence_tombstones WHERE account_id = ? AND occurrence_id = ?',
+        accountId,
+        item.occurrenceId,
+      );
+      for (const notification of item.notifications) {
+        await transaction.runAsync(
+          `INSERT INTO notification_registry
+            (account_id, notification_id, occurrence_id, scheduled_at, updated_at)
+           VALUES (?, ?, ?, ?, ?)
+           ON CONFLICT(account_id, notification_id) DO UPDATE SET
+             occurrence_id = excluded.occurrence_id,
+             scheduled_at = excluded.scheduled_at,
+             updated_at = excluded.updated_at`,
+          accountId,
+          notification.notificationId,
+          item.occurrenceId,
+          notification.scheduledAt,
+          notification.updatedAt,
+        );
+      }
+      await transaction.runAsync(
+        'DELETE FROM mutation_queue WHERE account_id = ? AND mutation_id = ?',
+        accountId,
+        item.mutationId,
       );
     }
-    await transaction.runAsync(
-      'DELETE FROM mutation_queue WHERE account_id = ? AND mutation_id = ?',
-      accountId,
-      deletion.mutationId,
-    );
     restored = true;
   });
 

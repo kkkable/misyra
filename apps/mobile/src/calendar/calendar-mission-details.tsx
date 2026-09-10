@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { layout, radius, space, typography } from '@misyra/design-tokens';
@@ -7,10 +8,17 @@ import type {
   EvidenceState,
   FieldOwnership,
   RewardEligibility,
+  RecurringSeriesScope,
 } from '@misyra/domain';
 import { localizationCatalogs, type LocalizationLocale } from '@misyra/localization';
 
 import { fieldContract, themeColors, type ColorScheme } from '../design-system/index.js';
+import {
+  CalendarRecurringScopeChooser,
+  type CalendarRecurringScopeOperation,
+} from './calendar-recurring-scope-chooser.js';
+
+export { CalendarRecurringScopeChooser } from './calendar-recurring-scope-chooser.js';
 
 export type MissionDetailsLifecycle = 'future' | 'active' | 'completed' | 'expired' | 'cancelled';
 export type MissionCancellationAttribution = 'organizer' | 'event' | null;
@@ -53,9 +61,10 @@ export interface MissionDetailsScreenProps {
   readonly language: LocalizationLocale;
   readonly onFieldChange?:
     ((field: MissionDetailsEditableField, value: string) => void) | undefined;
-  readonly onSave?: (() => void | Promise<void>) | undefined;
+  readonly onSave?: ((scope?: RecurringSeriesScope) => void | Promise<void>) | undefined;
   readonly onDuplicate?: ((missionId: string) => void | Promise<void>) | undefined;
-  readonly onDelete?: ((missionId: string) => void | Promise<void>) | undefined;
+  readonly onDelete?:
+    ((missionId: string, scope?: RecurringSeriesScope) => void | Promise<void>) | undefined;
 }
 
 type Catalog = (typeof localizationCatalogs)[LocalizationLocale];
@@ -184,10 +193,12 @@ export function MissionDetailsScreen({
 }: MissionDetailsScreenProps) {
   const catalog = localizationCatalogs[language];
   const colors = themeColors(colorScheme);
+  const [scopeOperation, setScopeOperation] = useState<CalendarRecurringScopeOperation | null>(
+    null,
+  );
   const historical = isHistorical(details.lifecycle) || details.completionState === 'completed';
   const appOwnedEditable = !historical && details.fieldOwnership === 'app_owned';
-  const structuredEditable =
-    appOwnedEditable && details.structuredSchedule !== undefined && details.recurring !== true;
+  const structuredEditable = appOwnedEditable && details.structuredSchedule !== undefined;
   const personalNoteEditable = !historical && details.fieldOwnership === 'organizer_controlled';
   const writtenStatus = statusText(details, catalog);
   const writtenEvidence = evidenceText(details.evidenceState, catalog);
@@ -204,7 +215,7 @@ export function MissionDetailsScreen({
       <View accessibilityLabel={details.title} accessibilityRole="header">
         <DetailsField
           colorScheme={colorScheme}
-          editable={appOwnedEditable && details.recurring !== true}
+          editable={appOwnedEditable}
           label={catalog['calendar.details.title']}
           onChangeText={fieldChangeHandler(onFieldChange, 'title')}
           testID="mission-details-title"
@@ -290,7 +301,7 @@ export function MissionDetailsScreen({
 
       <DetailsField
         colorScheme={colorScheme}
-        editable={appOwnedEditable && details.recurring !== true}
+        editable={appOwnedEditable}
         label={catalog['calendar.details.location']}
         onChangeText={fieldChangeHandler(onFieldChange, 'location')}
         testID="mission-details-location"
@@ -309,7 +320,7 @@ export function MissionDetailsScreen({
       ) : (
         <DetailsField
           colorScheme={colorScheme}
-          editable={appOwnedEditable && details.recurring !== true}
+          editable={appOwnedEditable}
           label={catalog['calendar.details.notes']}
           multiline
           onChangeText={fieldChangeHandler(onFieldChange, 'notes')}
@@ -323,6 +334,10 @@ export function MissionDetailsScreen({
           accessibilityLabel={catalog['calendar.create.save']}
           accessibilityRole="button"
           onPress={() => {
+            if (details.recurring === true) {
+              setScopeOperation('edit');
+              return;
+            }
             void Promise.resolve(onSave()).catch(() => undefined);
           }}
           style={[styles.primaryAction, { backgroundColor: colors.primary }]}
@@ -411,6 +426,10 @@ export function MissionDetailsScreen({
               accessibilityLabel={catalog['calendar.details.delete']}
               accessibilityRole="button"
               onPress={() => {
+                if (details.recurring === true) {
+                  setScopeOperation('delete');
+                  return;
+                }
                 void Promise.resolve(onDelete(details.id)).catch(() => undefined);
               }}
               style={[styles.action, { borderColor: colors.late }]}
@@ -422,6 +441,26 @@ export function MissionDetailsScreen({
             </Pressable>
           )}
         </View>
+      )}
+
+      {scopeOperation === null ? null : (
+        <CalendarRecurringScopeChooser
+          colorScheme={colorScheme}
+          language={language}
+          onCancel={() => {
+            setScopeOperation(null);
+          }}
+          onSelect={(scope) => {
+            const operation = scopeOperation;
+            setScopeOperation(null);
+            if (operation === 'edit' && onSave !== undefined) {
+              void Promise.resolve(onSave(scope)).catch(() => undefined);
+            } else if (operation === 'delete' && onDelete !== undefined) {
+              void Promise.resolve(onDelete(details.id, scope)).catch(() => undefined);
+            }
+          }}
+          operation={scopeOperation}
+        />
       )}
     </ScrollView>
   );

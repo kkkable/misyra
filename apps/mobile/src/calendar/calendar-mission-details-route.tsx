@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
 
 import { layout, space, typography } from '@misyra/design-tokens';
+import type { RecurringSeriesScope } from '@misyra/domain';
 import { localizationCatalogs } from '@misyra/localization';
 
 import { rootAuthController } from '../auth/auth-runtime.js';
@@ -271,45 +272,49 @@ export function CalendarMissionDetailsRouteScreen() {
     });
   }, []);
 
-  const saveDetails = useCallback(async () => {
-    if (details === null || details.structuredSchedule === undefined || details.recurring === true)
-      return;
-    const authState = await rootAuthController.restore();
-    if (authState.status !== 'signed_in') throw new Error('calendar_edit_requires_sign_in');
-    const startMinute = details.structuredSchedule.allDay
-      ? null
-      : parseClock(details.structuredSchedule.start);
-    const endMinute = details.structuredSchedule.allDay
-      ? null
-      : parseClock(details.structuredSchedule.end);
-    if (!details.structuredSchedule.allDay && (startMinute === null || endMinute === null)) {
-      throw new RangeError('calendar_edit_invalid_time');
-    }
-    const deviceId = await requireRegisteredDeviceId(authState.session.accountId);
-    const database = await openMobileDatabase();
-    await saveCalendarMissionDetails({
-      database,
-      accountId: authState.session.accountId,
-      deviceId,
-      edit: {
-        missionId: details.id,
-        title: details.title,
-        selectedDate: details.structuredSchedule.date,
-        startMinute,
-        endMinute,
-        timeZone: details.structuredSchedule.timeZone,
-        location: details.location,
-        notes: details.notes,
-      },
-      now: new Date(),
-      generateId: generateUuid,
-    });
-    setLoaded(false);
-    await loadDetails();
-  }, [details, loadDetails]);
+  const saveDetails = useCallback(
+    async (scope?: RecurringSeriesScope) => {
+      if (details === null || details.structuredSchedule === undefined) return;
+      const authState = await rootAuthController.restore();
+      if (authState.status !== 'signed_in') throw new Error('calendar_edit_requires_sign_in');
+      const startMinute = details.structuredSchedule.allDay
+        ? null
+        : parseClock(details.structuredSchedule.start);
+      const endMinute = details.structuredSchedule.allDay
+        ? null
+        : parseClock(details.structuredSchedule.end);
+      if (!details.structuredSchedule.allDay && (startMinute === null || endMinute === null)) {
+        throw new RangeError('calendar_edit_invalid_time');
+      }
+      const deviceId = await requireRegisteredDeviceId(authState.session.accountId);
+      const database = await openMobileDatabase();
+      await saveCalendarMissionDetails({
+        database,
+        accountId: authState.session.accountId,
+        deviceId,
+        edit: {
+          missionId: details.id,
+          title: details.title,
+          selectedDate: details.structuredSchedule.date,
+          startMinute,
+          endMinute,
+          timeZone: details.structuredSchedule.timeZone,
+          location: details.location,
+          notes: details.notes,
+        },
+        scope,
+        now: new Date(),
+        generateId: generateUuid,
+        generateSeriesId: generateUuid,
+      });
+      setLoaded(false);
+      await loadDetails();
+    },
+    [details, loadDetails],
+  );
 
   const deleteMission = useCallback(
-    async (targetMissionId: string) => {
+    async (targetMissionId: string, scope?: RecurringSeriesScope) => {
       const authState = await rootAuthController.restore();
       if (authState.status !== 'signed_in') throw new Error('calendar_delete_requires_sign_in');
       const deviceId = await requireRegisteredDeviceId(authState.session.accountId);
@@ -319,6 +324,7 @@ export function CalendarMissionDetailsRouteScreen() {
         accountId: authState.session.accountId,
         deviceId,
         occurrenceId: targetMissionId,
+        scope,
         now: new Date(),
         generateId: generateUuid,
       });
