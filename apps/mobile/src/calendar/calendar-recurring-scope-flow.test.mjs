@@ -32,6 +32,14 @@ const recurringDetails = {
   id: '44444444-4444-4444-8444-444444444444',
   title: 'Recurring mission',
   scheduleText: '9 Sep 2026 · 09:00–09:30',
+  structuredSchedule: {
+    date: '2026-09-09',
+    start: '09:00',
+    end: '09:30',
+    timeZone: 'Asia/Tokyo',
+    allDay: false,
+  },
+  recurring: true,
   location: null,
   providerDescription: null,
   notes: null,
@@ -45,30 +53,31 @@ const recurringDetails = {
   xpSummary: '30 XP',
   zeroXpReason: null,
   cancellationAttribution: null,
-  recurrence: {
-    pattern: { type: 'weekly', interval: 1, weekdays: [3], weekStartsOn: 1 },
-    end: { type: 'never' },
-  },
 };
 
 function find(renderer, testID) {
   return renderer.root.findByProps({ testID });
 }
 
+function renderDetails(props = {}) {
+  let renderer;
+  act(() => {
+    renderer = create(
+      createElement(detailsModule.MissionDetailsScreen, {
+        colorScheme: 'light',
+        details: recurringDetails,
+        language: 'en',
+        ...props,
+      }),
+    );
+  });
+  return renderer;
+}
+
 describe('MTS-052 recurring scope chooser', () => {
   it('requires an explicit scope before deleting a recurring occurrence and never defaults to entire series', () => {
     const onDelete = vi.fn();
-    let renderer;
-    act(() => {
-      renderer = create(
-        createElement(detailsModule.MissionDetailsScreen, {
-          colorScheme: 'light',
-          details: recurringDetails,
-          language: 'en',
-          onDelete,
-        }),
-      );
-    });
+    const renderer = renderDetails({ onDelete });
 
     act(() => {
       find(renderer, 'mission-details-delete').props.onPress();
@@ -86,6 +95,28 @@ describe('MTS-052 recurring scope chooser', () => {
 
     expect(onDelete).toHaveBeenCalledTimes(1);
     expect(onDelete).toHaveBeenCalledWith(recurringDetails.id, 'this_and_future');
+  });
+
+  it('keeps recurring fields editable but requires an explicit scope before saving', () => {
+    const onSave = vi.fn();
+    const renderer = renderDetails({ onSave });
+
+    expect(find(renderer, 'mission-details-title').props.editable).toBe(true);
+    expect(find(renderer, 'mission-details-start').props.editable).toBe(true);
+
+    act(() => {
+      find(renderer, 'mission-details-save').props.onPress();
+    });
+
+    expect(onSave).not.toHaveBeenCalled();
+    expect(find(renderer, 'recurring-scope-chooser').props.accessibilityLabel).toContain('Edit');
+
+    act(() => {
+      find(renderer, 'recurring-scope-entire-series').props.onPress();
+    });
+
+    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(onSave).toHaveBeenCalledWith('entire_series');
   });
 
   it('uses the same operation-agnostic component for restore and exposes all three localized scopes', () => {
