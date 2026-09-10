@@ -54,19 +54,25 @@ function assertNonEmpty(value: string, label: string): void {
 }
 function assertStartMinute(value: number): void {
   if (!Number.isInteger(value) || value < 0 || value > MINUTES_PER_DAY) {
-    throw new RangeError(`Mission start minute must be an integer from 0 to ${String(MINUTES_PER_DAY)}.`);
+    throw new RangeError(
+      `Mission start minute must be an integer from 0 to ${String(MINUTES_PER_DAY)}.`,
+    );
   }
 }
 function assertEndMinute(value: number): void {
   if (!Number.isInteger(value) || value < 0 || value > MAX_TIMED_END_MINUTE) {
-    throw new RangeError(`Mission end minute must be an integer from 0 to ${String(MAX_TIMED_END_MINUTE)}.`);
+    throw new RangeError(
+      `Mission end minute must be an integer from 0 to ${String(MAX_TIMED_END_MINUTE)}.`,
+    );
   }
 }
 function assertPositiveInteger(value: number, label: string): void {
-  if (!Number.isInteger(value) || value <= 0) throw new RangeError(`${label} must be a positive integer.`);
+  if (!Number.isInteger(value) || value <= 0)
+    throw new RangeError(`${label} must be a positive integer.`);
 }
 function localDateTime(localDate: string, minute: number): string {
-  if (!LOCAL_DATE_PATTERN.test(localDate)) throw new TypeError('Mission date must use YYYY-MM-DD format.');
+  if (!LOCAL_DATE_PATTERN.test(localDate))
+    throw new TypeError('Mission date must use YYYY-MM-DD format.');
   if (!Number.isInteger(minute) || minute < 0 || minute > MAX_TIMED_END_MINUTE) {
     throw new RangeError('Mission local date-time minute is outside the supported range.');
   }
@@ -79,7 +85,8 @@ function localDateTime(localDate: string, minute: number): string {
   return `${date.toISOString().slice(0, 10)}T${String(hour).padStart(2, '0')}:${String(minuteWithinHour).padStart(2, '0')}:00`;
 }
 function localClock(minute: number): string {
-  if (!Number.isInteger(minute) || minute < 0 || minute > MAX_TIMED_END_MINUTE) throw new RangeError('Mission clock minute is outside the supported range.');
+  if (!Number.isInteger(minute) || minute < 0 || minute > MAX_TIMED_END_MINUTE)
+    throw new RangeError('Mission clock minute is outside the supported range.');
   const normalized = minute % MINUTES_PER_DAY;
   return `${String(Math.floor(normalized / 60)).padStart(2, '0')}:${String(normalized % 60).padStart(2, '0')}`;
 }
@@ -88,7 +95,8 @@ function optionalText(value: string | null | undefined): string | null {
   return trimmed.length === 0 ? null : trimmed;
 }
 function addLocalDays(localDate: string, days: number): string {
-  if (!LOCAL_DATE_PATTERN.test(localDate)) throw new TypeError('Mission date must use YYYY-MM-DD format.');
+  if (!LOCAL_DATE_PATTERN.test(localDate))
+    throw new TypeError('Mission date must use YYYY-MM-DD format.');
   const date = new Date(`${localDate}T12:00:00.000Z`);
   if (Number.isNaN(date.getTime())) throw new TypeError('Mission date must be valid.');
   date.setUTCDate(date.getUTCDate() + days);
@@ -110,10 +118,15 @@ function buildSchedule(input: CalendarMissionCreateInput, localDate: string) {
   const allDay = input.allDay ?? false;
   if (allDay) {
     const estimatedEffortMinutes = input.estimatedEffortMinutes;
-    if (estimatedEffortMinutes === null || estimatedEffortMinutes === undefined) throw new RangeError('Estimated effort minutes are required for an all-day mission.');
+    if (estimatedEffortMinutes === null || estimatedEffortMinutes === undefined)
+      throw new RangeError('Estimated effort minutes are required for an all-day mission.');
     assertPositiveInteger(estimatedEffortMinutes, 'Estimated effort minutes');
     return {
-      schedule: createZonedAllDaySchedule({ localDate, timeZone: input.timeZone, estimatedEffortMinutes }),
+      schedule: createZonedAllDaySchedule({
+        localDate,
+        timeZone: input.timeZone,
+        estimatedEffortMinutes,
+      }),
       scheduledStart: null,
       scheduledEnd: null,
     } as const;
@@ -123,8 +136,10 @@ function buildSchedule(input: CalendarMissionCreateInput, localDate: string) {
   if (input.endMinute === null) throw new RangeError('Mission end minute is required.');
   assertStartMinute(input.startMinute);
   assertEndMinute(input.endMinute);
-  if (input.endMinute <= input.startMinute) throw new RangeError('Mission end must be after its start.');
-  if (input.endMinute - input.startMinute > MINUTES_PER_DAY) throw new RangeError('Mission duration cannot exceed 24 hours.');
+  if (input.endMinute <= input.startMinute)
+    throw new RangeError('Mission end must be after its start.');
+  if (input.endMinute - input.startMinute > MINUTES_PER_DAY)
+    throw new RangeError('Mission duration cannot exceed 24 hours.');
   return {
     schedule: createZonedTimedSchedule({
       localStart: localDateTime(localDate, input.startMinute),
@@ -151,8 +166,15 @@ export async function createCalendarMission({
   assertNonEmpty(input.timeZone, 'Time zone');
 
   const dates = occurrenceDates(input);
-  if (dates.length === 0) throw new RangeError('Recurrence does not create an occurrence in the bounded materialization window.');
-  const series = createMissionSeries({ id: generateId(), title: input.title.trim(), recurrence: input.recurrence ?? null });
+  if (dates.length === 0)
+    throw new RangeError(
+      'Recurrence does not create an occurrence in the bounded materialization window.',
+    );
+  const series = createMissionSeries({
+    id: generateId(),
+    title: input.title.trim(),
+    recurrence: input.recurrence ?? null,
+  });
   const occurredAt = now.toISOString();
   const location = optionalText(input.location);
   const notes = optionalText(input.notes);
@@ -167,7 +189,8 @@ export async function createCalendarMission({
       currentRewardEligibility: input.rewardEligibility,
     });
     if (!placement.allowed) {
-      if (localDate === dates[0]) throw new RangeError('Mission start is outside the historical window.');
+      if (localDate === dates[0])
+        throw new RangeError('Mission start is outside the historical window.');
       continue;
     }
 
@@ -219,25 +242,44 @@ export async function createCalendarMission({
              timezone = excluded.timezone,
              payload_json = excluded.payload_json,
              updated_at = excluded.updated_at`,
-          accountId, series.id, series.title, input.timeZone, JSON.stringify(series), occurredAt,
+          accountId,
+          series.id,
+          series.title,
+          input.timeZone,
+          JSON.stringify(series),
+          occurredAt,
         );
         await transaction.runAsync(
           `INSERT INTO cached_mission_occurrences
             (account_id, occurrence_id, series_id, local_date, scheduled_start, scheduled_end, all_day, payload_json, updated_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          accountId, occurrence.id, series.id, localDate, built.scheduledStart, built.scheduledEnd,
-          (input.allDay ?? false) ? 1 : 0, JSON.stringify(occurrence), occurredAt,
+          accountId,
+          occurrence.id,
+          series.id,
+          localDate,
+          built.scheduledStart,
+          built.scheduledEnd,
+          (input.allDay ?? false) ? 1 : 0,
+          JSON.stringify(occurrence),
+          occurredAt,
         );
         await transaction.runAsync(
           `INSERT INTO search_documents
             (account_id, document_id, occurrence_id, title, location, provider_text, personal_note, general_note, updated_at)
            VALUES (?, ?, ?, ?, ?, NULL, NULL, ?, ?)`,
-          accountId, occurrence.id, occurrence.id, series.title, location, notes, occurredAt,
+          accountId,
+          occurrence.id,
+          occurrence.id,
+          series.title,
+          location,
+          notes,
+          occurredAt,
         );
       },
     });
   }
 
-  if (firstMission === null) throw new RangeError('Recurrence did not create an eligible occurrence.');
+  if (firstMission === null)
+    throw new RangeError('Recurrence did not create an eligible occurrence.');
   return firstMission;
 }
