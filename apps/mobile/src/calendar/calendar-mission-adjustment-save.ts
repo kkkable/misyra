@@ -4,6 +4,7 @@ import {
   createZonedTimedSchedule,
   evaluateSchedulePlacement,
   planRecurringSeriesScope,
+  recurrenceForThisAndFutureSplit,
   resolveRewardEligibilityAfterEdit,
   type MissionOccurrence,
   type MissionOccurrenceInput,
@@ -251,7 +252,13 @@ export async function saveCalendarMissionAdjustment({
     targetSeries = createMissionSeries({
       id: targetSeriesId,
       title: sourceSeries.title,
-      recurrence: sourceSeries.recurrence,
+      recurrence: recurrenceForThisAndFutureSplit(
+        sourceSeries,
+        rows.map((row) =>
+          createMissionOccurrence(JSON.parse(row.payload_json) as MissionOccurrenceInput),
+        ),
+        adjustment.missionId,
+      ),
     });
     truncatedSourceSeries = splitSourceSeries(sourceSeries, selectedRow.local_date);
   }
