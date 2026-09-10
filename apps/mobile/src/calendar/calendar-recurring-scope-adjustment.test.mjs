@@ -61,7 +61,7 @@ function createDatabase() {
 
 const originalRecurrence = {
   pattern: { type: 'daily', interval: 1 },
-  end: { type: 'never' },
+  end: { type: 'count', occurrenceCount: 6 },
 };
 
 function occurrence(
@@ -183,7 +183,10 @@ describe('MTS-052 recurring scoped edit persistence', () => {
     expect(JSON.parse(targetSeries.payload_json)).toEqual({
       id: targetSeriesId,
       title: 'Daily review',
-      recurrence: originalRecurrence,
+      recurrence: {
+        pattern: { type: 'daily', interval: 1 },
+        end: { type: 'count', occurrenceCount: 5 },
+      },
     });
 
     const rows = await database.getAllAsync(
@@ -224,6 +227,9 @@ describe('MTS-052 recurring scoped edit persistence', () => {
     expect(updates.map((mutation) => mutation.entityId)).toEqual([selectedId, unfinishedFutureId]);
     expect(updates.every((mutation) => mutation.operation === 'update')).toBe(true);
     expect(updates.every((mutation) => mutation.payload.series?.id === targetSeriesId)).toBe(true);
+    expect(
+      updates.every((mutation) => mutation.payload.series?.recurrence?.end?.occurrenceCount === 5),
+    ).toBe(true);
     expect(updates[0].payload.sourceSeries).toEqual({
       id: sourceSeriesId,
       recurrence: {

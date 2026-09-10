@@ -54,16 +54,12 @@ describe('MTS-052 count-ended recurring splits', () => {
       },
     });
 
-    expect(
-      recurrenceForThisAndFutureSplit(series, occurrences, occurrences[1].id),
-    ).toEqual({
+    expect(recurrenceForThisAndFutureSplit(series, occurrences, occurrences[1].id)).toEqual({
       pattern: { type: 'daily', interval: 1 },
       end: { type: 'count', occurrenceCount: 5 },
     });
 
-    expect(
-      recurrenceForThisAndFutureSplit(series, occurrences, occurrences[3].id),
-    ).toEqual({
+    expect(recurrenceForThisAndFutureSplit(series, occurrences, occurrences[3].id)).toEqual({
       pattern: { type: 'daily', interval: 1 },
       end: { type: 'count', occurrenceCount: 3 },
     });
@@ -78,9 +74,9 @@ describe('MTS-052 count-ended recurring splits', () => {
         end: { type: 'never' },
       },
     });
-    expect(
-      recurrenceForThisAndFutureSplit(neverSeries, occurrences, occurrences[1].id),
-    ).toEqual(neverSeries.recurrence);
+    expect(recurrenceForThisAndFutureSplit(neverSeries, occurrences, occurrences[1].id)).toEqual(
+      neverSeries.recurrence,
+    );
 
     const dateSeries = createMissionSeries({
       id: seriesId,
@@ -90,8 +86,8 @@ describe('MTS-052 count-ended recurring splits', () => {
         end: { type: 'date', inclusiveLocalDate: '2026-09-30' },
       },
     });
-    expect(
-      recurrenceForThisAndFutureSplit(dateSeries, occurrences, occurrences[1].id),
-    ).toEqual(dateSeries.recurrence);
+    expect(recurrenceForThisAndFutureSplit(dateSeries, occurrences, occurrences[1].id)).toEqual(
+      dateSeries.recurrence,
+    );
   });
 });
