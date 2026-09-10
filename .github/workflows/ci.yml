@@ -2,59 +2,96 @@ name: CI
 
 on:
   pull_request:
+  push:
+    branches:
+      - main
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  mts053-schema-parity-helper:
-    if: github.event_name == 'pull_request' && github.head_ref == 'feat/mts-053-app-time-zone-travel'
+  quality:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 30
+    env:
+      MTS004_INTEGRATION: '1'
+      TURBO_TELEMETRY_DISABLED: '1'
+      CI_CONTRACT_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
     steps:
-      - name: Checkout feature branch
+      - name: Checkout clean repository
         uses: actions/checkout@v4
         with:
-          ref: feat/mts-053-app-time-zone-travel
+          persist-credentials: false
           fetch-depth: 0
-          persist-credentials: true
 
-      - name: Align Drizzle device time-zone schema and restore CI
-        shell: bash
-        run: |
-          python <<'PY'
-          from pathlib import Path
+      - name: Install pinned pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.5
+          run_install: false
 
-          path = Path('packages/database/src/schema.ts')
-          text = path.read_text()
-          old = "    notificationCapability: text('notification_capability').notNull(),\n    createdAt: createdAt(),"
-          new = "    notificationCapability: text('notification_capability').notNull(),\n    timeZone: text('time_zone'),\n    createdAt: createdAt(),"
-          if text.count(old) != 1:
-              raise SystemExit(f'expected one devices schema insertion point, found {text.count(old)}')
-          path.write_text(text.replace(old, new))
+      - name: Set up pinned Node with pnpm cache
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
 
-          Path('packages/database/src/device-time-zone-schema-parity.test.ts').write_text("""import { getTableConfig } from 'drizzle-orm/pg-core';
-          import { describe, expect, it } from 'vitest';
+      - name: Install from lockfile
+        run: pnpm install --frozen-lockfile
 
-          import { devices } from './schema.js';
+      - name: Install Bicep compiler in runner only
+        run: az bicep install
 
-          describe('MTS-053 device time-zone schema parity', () => {
-            it('declares the migrated devices.time_zone column in Drizzle', () => {
-              const columnNames = getTableConfig(devices).columns.map((column) => column.name);
-              expect(columnNames).toContain('time_zone');
-            });
-          });
-          """)
-          PY
+      - name: Start deterministic local dependencies
+        run: docker compose --file compose.yaml up -d --wait postgres azurite
 
-          git fetch origin main
-          git checkout origin/main -- .github/workflows/ci.yml
-          git config user.name "misyra-ci-helper"
-          git config user.email "misyra-ci-helper@users.noreply.github.com"
-          git add .github/workflows/ci.yml packages/database/src/schema.ts packages/database/src/device-time-zone-schema-parity.test.ts
-          git commit -m "fix: align MTS-053 device schema declaration"
-          git push origin HEAD:feat/mts-053-app-time-zone-travel
+      - name: Prove failing-fixture gates reject bad inputs
+        run: pnpm ci:fixtures
+
+      - name: Check workspace formatting
+        run: pnpm format
+
+      - name: Check CI-owned formatting
+        run: pnpm format:ci
+
+      - name: Lint workspaces
+        run: pnpm lint
+
+      - name: Lint CI-owned scripts and tests
+        run: pnpm lint:ci
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Run unit, integration, and mobile component tests
+        run: pnpm test
+
+      - name: Build all workspaces
+        run: pnpm build
+
+      - name: Reject high and critical dependency findings
+        run: pnpm audit --audit-level high
+
+      - name: Scan tracked implementation and configuration for secrets
+        run: pnpm ci:secrets
+
+      - name: Verify localization completeness
+        run: pnpm ci:localization
+
+      - name: Verify privacy and logging boundaries
+        run: pnpm ci:privacy
+
+      - name: Compile Bicep and environment parameter shapes
+        run: pnpm validate:infra
+
+      - name: Verify contract compatibility boundary
+        run: pnpm ci:contracts
+
+      - name: Stop local dependencies
+        if: always()
+        run: docker compose --file compose.yaml down --volumes
