@@ -15,6 +15,42 @@ const databaseUrl = `postgresql://${postgresUser}:${postgresPassword}@127.0.0.1:
 const adminUrl = `postgresql://${postgresUser}:${postgresPassword}@127.0.0.1:${postgresPort}/postgres`;
 let pool: Pool;
 
+type TimeZoneAwareStore = Readonly<{
+  registerDevice(input: Readonly<{
+    accountId: string;
+    installationId: string;
+    platform: 'ios' | 'android';
+    appVersion: string;
+    notificationCapability: 'not_determined' | 'denied' | 'authorized' | 'unavailable';
+    timeZone: string;
+  }>): Promise<Readonly<{ deviceId: string; timeZoneChanged: boolean }>>;
+  getAccountSettings(accountId: string): Promise<
+    Readonly<{
+      language: 'en' | 'zh-HK';
+      trustMode: boolean;
+      appTimeZone: string;
+    }>
+  >;
+  updateAccountSettings(
+    accountId: string,
+    settings: Readonly<{
+      language?: 'en' | 'zh-HK' | undefined;
+      trustMode?: boolean | undefined;
+      appTimeZone?: string | undefined;
+    }>,
+  ): Promise<
+    Readonly<{
+      language: 'en' | 'zh-HK';
+      trustMode: boolean;
+      appTimeZone: string;
+    }>
+  >;
+}>;
+
+function createTimeZoneAwareStore(): TimeZoneAwareStore {
+  return createPostgresDeviceSettingsStore(pool) as unknown as TimeZoneAwareStore;
+}
+
 beforeAll(async () => {
   const admin = new Pool({ connectionString: adminUrl });
   await admin.query(`CREATE DATABASE "${databaseName}"`);
@@ -33,7 +69,7 @@ afterAll(async () => {
 describe('MTS-053 device-zone and account-zone ownership', () => {
   it('initializes the account zone from the first device, preserves a manual override on ordinary registration, and replaces it only after an actual device-zone change', async () => {
     const authStore = createPostgresAuthStore(pool);
-    const store = createPostgresDeviceSettingsStore(pool);
+    const store = createTimeZoneAwareStore();
     const account = await authStore.findOrCreateAccount('google', `mts053-${randomUUID()}`);
 
     const first = await store.registerDevice({
@@ -122,7 +158,7 @@ describe('MTS-053 device-zone and account-zone ownership', () => {
 
   it('treats a newly observed zone on a pre-MTS-053 device as initialization rather than a false change notice', async () => {
     const authStore = createPostgresAuthStore(pool);
-    const store = createPostgresDeviceSettingsStore(pool);
+    const store = createTimeZoneAwareStore();
     const account = await authStore.findOrCreateAccount('apple', `mts053-${randomUUID()}`);
 
     await pool.query(
