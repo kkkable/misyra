@@ -9,16 +9,31 @@ class NodeSqliteAdapter {
   constructor() {
     this.database = new DatabaseSync(':memory:');
   }
-  async execAsync(sql) { this.database.exec(sql); }
-  async runAsync(sql, ...params) { return this.database.prepare(sql).run(...params); }
-  async getFirstAsync(sql, ...params) { return this.database.prepare(sql).get(...params) ?? null; }
-  async getAllAsync(sql, ...params) { return this.database.prepare(sql).all(...params); }
+  async execAsync(sql) {
+    this.database.exec(sql);
+  }
+  async runAsync(sql, ...params) {
+    return this.database.prepare(sql).run(...params);
+  }
+  async getFirstAsync(sql, ...params) {
+    return this.database.prepare(sql).get(...params) ?? null;
+  }
+  async getAllAsync(sql, ...params) {
+    return this.database.prepare(sql).all(...params);
+  }
   async withExclusiveTransactionAsync(task) {
     this.database.exec('BEGIN IMMEDIATE');
-    try { await task(this); this.database.exec('COMMIT'); }
-    catch (error) { this.database.exec('ROLLBACK'); throw error; }
+    try {
+      await task(this);
+      this.database.exec('COMMIT');
+    } catch (error) {
+      this.database.exec('ROLLBACK');
+      throw error;
+    }
   }
-  close() { this.database.close(); }
+  close() {
+    this.database.close();
+  }
 }
 
 const databases = [];
@@ -35,7 +50,9 @@ async function seedAccount(database) {
      VALUES (?, ?, ?, ?, ?)`,
     '11111111-1111-4111-8111-111111111111',
     '2026-01-01T00:00:00.000Z',
-    'en', 0, 'UTC',
+    'en',
+    0,
+    'UTC',
   );
 }
 function uuidFactory() {
@@ -45,7 +62,9 @@ function uuidFactory() {
     return `aaaaaaaa-aaaa-4aaa-8aaa-${suffix}`;
   };
 }
-afterEach(() => { while (databases.length > 0) databases.pop()?.close(); });
+afterEach(() => {
+  while (databases.length > 0) databases.pop()?.close();
+});
 
 describe('MTS-051 recurring occurrence materialization', () => {
   it('materializes the bounded recurrence window with one permanent UUID per valid occurrence and no duplicate anchor', async () => {
