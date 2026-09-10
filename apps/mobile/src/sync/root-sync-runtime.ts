@@ -1,3 +1,4 @@
+import { getCalendars } from 'expo-localization';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
@@ -34,11 +35,21 @@ function deviceMetadata() {
     typeof configuredAppVersion === 'string' && configuredAppVersion.length > 0
       ? configuredAppVersion
       : '0.0.0';
+  const localizedTimeZone = getCalendars()[0]?.timeZone;
+  const intlTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const timeZone =
+    typeof localizedTimeZone === 'string' && localizedTimeZone.length > 0
+      ? localizedTimeZone
+      : intlTimeZone;
+  if (typeof timeZone !== 'string' || timeZone.length === 0) {
+    throw new Error('device_time_zone_unavailable');
+  }
 
   return Promise.resolve({
     platform,
     appVersion,
     notificationCapability: 'not_determined' as const,
+    timeZone,
   });
 }
 
