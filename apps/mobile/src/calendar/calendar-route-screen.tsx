@@ -1,12 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { getLocales } from 'expo-localization';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { StyleSheet, View, useColorScheme } from 'react-native';
 
-import type { LocalizationLocale } from '@misyra/localization';
-
-import { rootAuthController, rootAuthStorage } from '../auth/auth-runtime.js';
+import { rootAuthController } from '../auth/auth-runtime.js';
 import type { ColorScheme } from '../design-system/contracts.js';
+import { useAppLanguage } from '../localization/app-language-runtime.js';
 import {
   CalendarSearchScreen,
   type CalendarSearchResult,
@@ -17,18 +15,10 @@ import {
 } from '../search/calendar-search-navigation.js';
 import { createOfflineCalendarSearch } from '../search/offline-search.js';
 import { openMobileDatabase } from '../storage/database.js';
-import {
-  createLocalRepositories,
-  type LocalMission,
-  type LocalRepositories,
-} from '../storage/local-repositories.js';
+import { createLocalRepositories, type LocalMission } from '../storage/local-repositories.js';
 import { requireRegisteredDeviceId } from '../sync/root-sync-runtime.js';
 import type { AllDayMissionSummary } from './calendar-all-day.js';
 import { CalendarDayScreen, type CalendarSearchFocusTarget } from './calendar-day-screen.js';
-import {
-  resolveCalendarLanguage,
-  resolveInitialCalendarLanguage,
-} from './calendar-language-runtime.js';
 import {
   createMissionAdjustmentUndoController,
   type AllowedMissionAdjustment,
@@ -42,9 +32,8 @@ import {
   type CalendarMissionCreateInput,
 } from './calendar-mission-create.js';
 import type { MissionCardStatus, TimedMissionSummary } from './calendar-mission-layout.js';
+import { resolveMissionTap } from './calendar-mission-selection.js';
 
-const LANGUAGE_REFRESH_INTERVAL_MS = 60_000;
-const INITIAL_SYNC_RECHECK_MS = 1_000;
 const ADJUSTMENT_UNDO_VISIBLE_MS = 5_000;
 const CALENDAR_WINDOW_DAYS = 730;
 const UUID_HEX = '0123456789abcdef';
@@ -161,14 +150,12 @@ function replaceMissionMap<T extends { readonly id: string }>(
 
 export function CalendarRouteScreen() {
   const router = useRouter();
-  const deviceLocale = useRef(getLocales()[0]).current;
+  const language = useAppLanguage();
   const nativeColorScheme = useColorScheme();
   const colorScheme: ColorScheme = nativeColorScheme === 'dark' ? 'dark' : 'light';
-  const [language, setLanguage] = useState<LocalizationLocale>(() =>
-    resolveInitialCalendarLanguage(deviceLocale),
-  );
   const [allDayMissionsByDate, setAllDayMissionsByDate] = useState<AllDayMissionsByDate>({});
   const [timedMissionsByDate, setTimedMissionsByDate] = useState<TimedMissionsByDate>({});
+  const [selectedMissionId, setSelectedMissionId] = useState<string | null>(null);
   const [adjustmentFeedback, setAdjustmentFeedback] = useState<AllowedMissionAdjustment | null>(
     null,
   );
@@ -178,53 +165,6 @@ export function CalendarRouteScreen() {
   );
   const searchFocusRequestId = useRef(0);
   const adjustmentFeedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    let repositories: LocalRepositories | null = null;
-    let repositoryAccountId: string | null = null;
-    let refreshInFlight: Promise<void> | null = null;
-
-    const readSettings = async (accountId: string) => {
-      if (repositories === null || repositoryAccountId !== accountId) {
-        const database = await openMobileDatabase();
-        repositories = createLocalRepositories(database, accountId);
-        repositoryAccountId = accountId;
-      }
-      return repositories.settings.get();
-    };
-
-    const refreshLanguage = () => {
-      if (refreshInFlight !== null) return refreshInFlight;
-      refreshInFlight = resolveCalendarLanguage({
-        deviceLocale,
-        readSession: () => rootAuthStorage.read(),
-        readSettings,
-      })
-        .then((resolution) => {
-          if (active) setLanguage(resolution.language);
-        })
-        .catch(() => undefined)
-        .finally(() => {
-          refreshInFlight = null;
-        });
-      return refreshInFlight;
-    };
-
-    void refreshLanguage();
-    const initialSyncRecheck = setTimeout(() => {
-      void refreshLanguage();
-    }, INITIAL_SYNC_RECHECK_MS);
-    const refreshInterval = setInterval(() => {
-      void refreshLanguage();
-    }, LANGUAGE_REFRESH_INTERVAL_MS);
-
-    return () => {
-      active = false;
-      clearTimeout(initialSyncRecheck);
-      clearInterval(refreshInterval);
-    };
-  }, [deviceLocale]);
 
   useEffect(
     () => () => {
@@ -240,6 +180,7 @@ export function CalendarRouteScreen() {
     if (authState.status !== 'signed_in') {
       setAllDayMissionsByDate({});
       setTimedMissionsByDate({});
+      setSelectedMissionId(null);
       return;
     }
 
@@ -333,12 +274,22 @@ export function CalendarRouteScreen() {
     return true;
   }, [adjustmentController]);
 
-  const openMissionDetails = useCallback(
+  const selectOrOpenMission = useCallback(
     (mission: Readonly<{ id: string }>) => {
-      router.push({ pathname: '/mission/[id]', params: { id: mission.id } });
+      const resolution = resolveMissionTap(selectedMissionId, mission.id);
+      setSelectedMissionId(resolution.selectedMissionId);
+      setSearchFocusTarget(undefined);
+      if (resolution.openDetails) {
+        router.push({ pathname: '/mission/[id]', params: { id: mission.id } });
+      }
     },
-    [router],
+    [router, selectedMissionId],
   );
+  const clearMissionSelection = useCallback(() => {
+    setSelectedMissionId(null);
+    setSearchFocusTarget(undefined);
+  }, []);
+
   const searchCalendar = useCallback(
     async (query: string): Promise<readonly CalendarSearchResult[]> => {
       const authState = await rootAuthController.restore();
@@ -386,6 +337,7 @@ export function CalendarRouteScreen() {
       setTimedMissionsByDate((current) =>
         replaceMissionMap(current, focusedMaps.timed, mission.occurrence.id),
       );
+      setSelectedMissionId(null);
       searchFocusRequestId.current += 1;
       setSearchFocusTarget({ requestId: searchFocusRequestId.current, ...resolution.target });
       setTimeout(() => {
@@ -404,14 +356,17 @@ export function CalendarRouteScreen() {
       <CalendarDayScreen
         allDayMissionsByDate={allDayMissionsByDate}
         language={language}
-        onAllDayMissionPress={openMissionDetails}
+        onAllDayMissionPress={selectOrOpenMission}
+        onClearMissionSelection={clearMissionSelection}
         onCreateMission={createMission}
         onMissionAdjustment={adjustMission}
         onSearchPress={() => {
+          clearMissionSelection();
           setSearchVisible(true);
         }}
-        onTimedMissionPress={openMissionDetails}
+        onTimedMissionPress={selectOrOpenMission}
         {...(searchFocusTarget === undefined ? {} : { searchFocusTarget })}
+        {...(selectedMissionId === null ? {} : { selectedMissionId })}
         timedMissionsByDate={timedMissionsByDate}
       />
       {adjustmentFeedback === null ? null : (
