@@ -35,7 +35,7 @@ function deviceMetadata() {
     typeof configuredAppVersion === 'string' && configuredAppVersion.length > 0
       ? configuredAppVersion
       : '0.0.0';
-  const localizedTimeZone = getCalendars()[0]?.timeZone;
+  const localizedTimeZone = getCalendars()[0].timeZone;
   const intlTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const timeZone =
     typeof localizedTimeZone === 'string' && localizedTimeZone.length > 0
