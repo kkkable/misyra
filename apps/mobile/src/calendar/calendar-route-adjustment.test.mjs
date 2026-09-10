@@ -42,6 +42,10 @@ vi.mock('../auth/auth-runtime.js', () => ({
   rootAuthStorage: { read: vi.fn(async () => null) },
 }));
 
+vi.mock('../localization/app-time-zone-runtime.js', () => ({
+  useAppTimeZone: () => 'UTC',
+}));
+
 vi.mock('../storage/database.js', () => ({
   openMobileDatabase: state.openDatabase,
 }));

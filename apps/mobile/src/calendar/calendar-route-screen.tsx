@@ -4,6 +4,7 @@ import { StyleSheet, View, useColorScheme } from 'react-native';
 
 import { rootAuthController } from '../auth/auth-runtime.js';
 import type { ColorScheme } from '../design-system/contracts.js';
+import { useAppTimeZone } from '../localization/app-time-zone-runtime.js';
 import { useAppLanguage } from '../localization/use-app-language.js';
 import {
   CalendarSearchScreen,
@@ -32,6 +33,7 @@ import {
   type CalendarMissionCreateInput,
 } from './calendar-mission-create.js';
 import type { MissionCardStatus, TimedMissionSummary } from './calendar-mission-layout.js';
+import { projectMissionOccurrenceForAppTimeZone } from './calendar-travel-projection.js';
 
 const ADJUSTMENT_UNDO_VISIBLE_MS = 5_000;
 const CALENDAR_WINDOW_DAYS = 730;
@@ -131,6 +133,16 @@ function calendarMissionMaps(missions: readonly LocalMission[]): Readonly<{
   return { allDay, timed };
 }
 
+function projectLocalMissionForAppTimeZone(
+  mission: LocalMission,
+  appTimeZone: string,
+): LocalMission {
+  return {
+    ...mission,
+    occurrence: projectMissionOccurrenceForAppTimeZone(mission.occurrence, appTimeZone),
+  };
+}
+
 function replaceMissionMap<T extends { readonly id: string }>(
   current: Readonly<Record<string, readonly T[]>>,
   replacement: Readonly<Record<string, readonly T[]>>,
@@ -150,6 +162,7 @@ function replaceMissionMap<T extends { readonly id: string }>(
 export function CalendarRouteScreen() {
   const router = useRouter();
   const language = useAppLanguage();
+  const appTimeZone = useAppTimeZone();
   const nativeColorScheme = useColorScheme();
   const colorScheme: ColorScheme = nativeColorScheme === 'dark' ? 'dark' : 'light';
   const [allDayMissionsByDate, setAllDayMissionsByDate] = useState<AllDayMissionsByDate>({});
@@ -184,10 +197,13 @@ export function CalendarRouteScreen() {
     const database = await openMobileDatabase();
     const repositories = createLocalRepositories(database, authState.session.accountId);
     const missions = await repositories.calendar.listWindow(calendarWindow(new Date()));
-    const maps = calendarMissionMaps(missions);
+    const projectedMissions = missions.map((mission) =>
+      projectLocalMissionForAppTimeZone(mission, appTimeZone),
+    );
+    const maps = calendarMissionMaps(projectedMissions);
     setAllDayMissionsByDate(maps.allDay);
     setTimedMissionsByDate(maps.timed);
-  }, []);
+  }, [appTimeZone]);
 
   useFocusEffect(
     useCallback(() => {
@@ -292,15 +308,17 @@ export function CalendarRouteScreen() {
             return { ...result, personalNoteExcerpt: null, localDate: null };
           }
           const mission = await repositories.missions.getById(result.occurrenceId);
+          const projectedMission =
+            mission === null ? null : projectLocalMissionForAppTimeZone(mission, appTimeZone);
           return {
             ...result,
             personalNoteExcerpt: visibleCalendarSearchPersonalNoteExcerpt(result, mission),
-            localDate: mission?.occurrence.schedule.localStart.slice(0, 10) ?? null,
+            localDate: projectedMission?.occurrence.schedule.localStart.slice(0, 10) ?? null,
           };
         }),
       );
     },
-    [],
+    [appTimeZone],
   );
 
   const openSearchResult = useCallback(
@@ -312,12 +330,13 @@ export function CalendarRouteScreen() {
       const repositories = createLocalRepositories(database, authState.session.accountId);
       const mission = await repositories.missions.getById(result.occurrenceId);
       if (mission === null) return false;
+      const projectedMission = projectLocalMissionForAppTimeZone(mission, appTimeZone);
       const resolution = await resolveCalendarSearchNavigation(result, () =>
-        Promise.resolve(mission),
+        Promise.resolve(projectedMission),
       );
       if (resolution.kind === 'unavailable') return false;
 
-      const focusedMaps = calendarMissionMaps([mission]);
+      const focusedMaps = calendarMissionMaps([projectedMission]);
       setAllDayMissionsByDate((current) =>
         replaceMissionMap(current, focusedMaps.allDay, mission.occurrence.id),
       );
@@ -334,13 +353,14 @@ export function CalendarRouteScreen() {
       }, 0);
       return true;
     },
-    [router],
+    [appTimeZone, router],
   );
 
   return (
     <View style={styles.container}>
       <CalendarDayScreen
         allDayMissionsByDate={allDayMissionsByDate}
+        appTimeZone={appTimeZone}
         language={language}
         onAllDayMissionPress={openMissionDetails}
         onCreateMission={createMission}

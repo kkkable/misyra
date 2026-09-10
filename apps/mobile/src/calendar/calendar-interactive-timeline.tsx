@@ -32,6 +32,7 @@ type CalendarInteractiveTimelineProps = Readonly<{
   scrollHeader?: ReactNode;
   selectedDate: string;
   today: string;
+  timeZone?: string;
   uses24HourClock?: boolean;
 }>;
 
@@ -87,12 +88,13 @@ export function CalendarInteractiveTimeline({
   scrollHeader,
   selectedDate,
   today,
+  timeZone,
   uses24HourClock = true,
 }: CalendarInteractiveTimelineProps) {
   const colors = themeColors(colorScheme);
   const catalog = localizationCatalogs[language];
   const systemCalendar = getCalendars()[0];
-  const missionTimeZone = systemCalendar.timeZone ?? 'UTC';
+  const missionTimeZone = timeZone ?? systemCalendar.timeZone ?? 'UTC';
   const weekStartsOn = platformFirstWeekdayToDomain(Number(systemCalendar.firstWeekday));
   const [selectedSlotMinute, setSelectedSlotMinute] = useState<number | null>(null);
   const [creationSlotMinute, setCreationSlotMinute] = useState<number | null>(null);

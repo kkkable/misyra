@@ -50,6 +50,7 @@ export const devices = pgTable(
     platform: text('platform').notNull(),
     appVersion: text('app_version').notNull(),
     notificationCapability: text('notification_capability').notNull(),
+    timeZone: text('time_zone'),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },

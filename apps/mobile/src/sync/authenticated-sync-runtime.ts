@@ -8,14 +8,14 @@ import {
   type MissionSeriesInput,
 } from '@misyra/domain';
 
+import type { AuthSession, AuthSessionController } from '../auth/auth-session.js';
+import { createMutationQueue, type MutationQueueDatabase } from '../storage/mutation-queue.js';
 import { createAuthenticatedSyncApi, type AuthenticatedSyncApi } from './authenticated-sync-api.js';
 import {
   createServerSync,
   type ServerAccountChange,
   type ServerSyncDatabase,
 } from './server-sync.js';
-import type { AuthSession, AuthSessionController } from '../auth/auth-session.js';
-import { createMutationQueue, type MutationQueueDatabase } from '../storage/mutation-queue.js';
 
 type InstallationStore = Readonly<{
   getItem(key: string): Promise<string | null>;
@@ -26,6 +26,7 @@ type DeviceMetadata = Readonly<{
   platform: 'ios' | 'android';
   appVersion: string;
   notificationCapability: 'not_determined' | 'denied' | 'authorized' | 'unavailable';
+  timeZone?: string | undefined;
 }>;
 
 type SyncDatabase = MutationQueueDatabase;
@@ -59,6 +60,18 @@ export type AuthenticatedSyncRuntimeOptions = Readonly<{
   generateInstallationId: () => string;
   deviceMetadata: () => Promise<DeviceMetadata>;
   now?: () => Date;
+}>;
+
+export type AuthenticatedSyncTimeZoneNotice = Readonly<{
+  language: AccountSettings['language'];
+  timeZone: string;
+}>;
+
+export type AuthenticatedSyncRunResult = Readonly<{
+  accountId: string;
+  deviceId: string;
+  cursor: number;
+  timeZoneNotice?: AuthenticatedSyncTimeZoneNotice | null;
 }>;
 
 const INSTALLATION_ID_KEY = 'misyra.installation-id.v1';
@@ -100,17 +113,36 @@ async function applyAccountSettings(
   settings: AccountSettings,
   updatedAt: string,
 ) {
+  if (settings.appTimeZone === undefined) {
+    await database.runAsync(
+      `INSERT INTO local_accounts
+         (account_id, created_at, language, trust_mode, settings_updated_at)
+       VALUES (?, CURRENT_TIMESTAMP, ?, ?, ?)
+       ON CONFLICT(account_id) DO UPDATE SET
+         language = excluded.language,
+         trust_mode = excluded.trust_mode,
+         settings_updated_at = excluded.settings_updated_at`,
+      accountId,
+      settings.language,
+      settings.trustMode ? 1 : 0,
+      updatedAt,
+    );
+    return;
+  }
+
   await database.runAsync(
     `INSERT INTO local_accounts
-       (account_id, created_at, language, trust_mode, settings_updated_at)
-     VALUES (?, CURRENT_TIMESTAMP, ?, ?, ?)
+       (account_id, created_at, language, trust_mode, app_time_zone, settings_updated_at)
+     VALUES (?, CURRENT_TIMESTAMP, ?, ?, ?, ?)
      ON CONFLICT(account_id) DO UPDATE SET
        language = excluded.language,
        trust_mode = excluded.trust_mode,
+       app_time_zone = excluded.app_time_zone,
        settings_updated_at = excluded.settings_updated_at`,
     accountId,
     settings.language,
     settings.trustMode ? 1 : 0,
+    settings.appTimeZone,
     updatedAt,
   );
 }
@@ -315,17 +347,34 @@ async function applyAuthoritativeChanges(
   for (const change of changes) {
     const settings = settingsFromChange(change);
     if (settings !== null) {
-      await transaction.runAsync(
-        `UPDATE local_accounts
-            SET language = ?,
-                trust_mode = ?,
-                settings_updated_at = ?
-          WHERE account_id = ?`,
-        settings.language,
-        settings.trustMode ? 1 : 0,
-        new Date().toISOString(),
-        accountId,
-      );
+      const settingsUpdatedAt = new Date().toISOString();
+      if (settings.appTimeZone === undefined) {
+        await transaction.runAsync(
+          `UPDATE local_accounts
+              SET language = ?,
+                  trust_mode = ?,
+                  settings_updated_at = ?
+            WHERE account_id = ?`,
+          settings.language,
+          settings.trustMode ? 1 : 0,
+          settingsUpdatedAt,
+          accountId,
+        );
+      } else {
+        await transaction.runAsync(
+          `UPDATE local_accounts
+              SET language = ?,
+                  trust_mode = ?,
+                  app_time_zone = ?,
+                  settings_updated_at = ?
+            WHERE account_id = ?`,
+          settings.language,
+          settings.trustMode ? 1 : 0,
+          settings.appTimeZone,
+          settingsUpdatedAt,
+          accountId,
+        );
+      }
       continue;
     }
     if (change.entityType === 'mission' && change.operation === 'delete') {
@@ -414,10 +463,9 @@ export function createAuthenticatedSyncRuntime({
   deviceMetadata,
   now = () => new Date(),
 }: AuthenticatedSyncRuntimeOptions) {
-  let runTail: Promise<Readonly<{ accountId: string; deviceId: string; cursor: number }> | null> =
-    Promise.resolve(null);
+  let runTail: Promise<AuthenticatedSyncRunResult | null> = Promise.resolve(null);
 
-  const execute = async () => {
+  const execute = async (): Promise<AuthenticatedSyncRunResult | null> => {
     const session = await sessionProvider();
     if (session === null) return null;
 
@@ -426,6 +474,7 @@ export function createAuthenticatedSyncRuntime({
       generateInstallationId,
     );
     const metadata = await deviceMetadata();
+    const observedTimeZone = metadata.timeZone;
     const api = apiFactory(session);
     const registration = await api.registerDevice({ installationId, ...metadata });
     await rememberDeviceId(installationStore, session.accountId, registration.deviceId);
@@ -433,10 +482,21 @@ export function createAuthenticatedSyncRuntime({
     const [database, settings] = await Promise.all([openDatabase(), api.getAccountSettings()]);
     await applyAccountSettings(database, session.accountId, settings, now().toISOString());
     const result = await runServerSync({ database, accountId: session.accountId, api });
+    const timeZoneNotice =
+      observedTimeZone === undefined
+        ? undefined
+        : registration.timeZoneChanged === true
+          ? {
+              language: settings.language,
+              timeZone: settings.appTimeZone ?? observedTimeZone,
+            }
+          : null;
+
     return {
       accountId: session.accountId,
       deviceId: registration.deviceId,
       cursor: result.cursor,
+      ...(timeZoneNotice === undefined ? {} : { timeZoneNotice }),
     };
   };
 
