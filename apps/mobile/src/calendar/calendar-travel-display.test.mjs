@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises';
+import { URL } from 'node:url';
 
 import { createMissionOccurrence, createZonedTimedSchedule } from '@misyra/domain';
 import { describe, expect, it } from 'vitest';
