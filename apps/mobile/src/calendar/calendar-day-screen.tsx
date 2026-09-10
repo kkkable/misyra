@@ -140,8 +140,7 @@ export function CalendarDayScreen({
   const colors = themeColors(colorScheme);
   const width = useWindowDimensions().width;
   const responsive = resolveResponsiveCalendarLayout(width);
-  const appClock =
-    appTimeZone === undefined ? null : calendarClockForAppTimeZone(now, appTimeZone);
+  const appClock = appTimeZone === undefined ? null : calendarClockForAppTimeZone(now, appTimeZone);
   const today = appClock?.localDate ?? localDateFromNow(now);
   const systemCalendar = getCalendars()[0];
   const regionalFirstWeekday = Number(systemCalendar.firstWeekday);

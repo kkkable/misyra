@@ -5,9 +5,6 @@ const appTimeZoneUpdatedTemplates: Readonly<Record<LocalizationLocale, string>> 
   'zh-HK': '時區已更新為 {timeZone}。',
 };
 
-export function appTimeZoneUpdatedMessage(
-  language: LocalizationLocale,
-  timeZone: string,
-): string {
+export function appTimeZoneUpdatedMessage(language: LocalizationLocale, timeZone: string): string {
   return appTimeZoneUpdatedTemplates[language].replace('{timeZone}', timeZone);
 }

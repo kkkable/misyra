@@ -11,11 +11,7 @@ type AppTimeZoneNoticeProps = Readonly<{
   timeZone: string;
 }>;
 
-export function AppTimeZoneNotice({
-  colorScheme,
-  language,
-  timeZone,
-}: AppTimeZoneNoticeProps) {
+export function AppTimeZoneNotice({ colorScheme, language, timeZone }: AppTimeZoneNoticeProps) {
   const colors = themeColors(colorScheme);
 
   return (
