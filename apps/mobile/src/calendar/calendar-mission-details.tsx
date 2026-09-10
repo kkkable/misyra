@@ -16,12 +16,22 @@ export type MissionDetailsLifecycle = 'future' | 'active' | 'completed' | 'expir
 export type MissionCancellationAttribution = 'organizer' | 'event' | null;
 export type MissionZeroXpReason = 'created_or_moved_into_past' | 'edited_after_start' | null;
 export type MissionDetailsEditableField =
-  'title' | 'schedule' | 'location' | 'notes' | 'personalNote';
+  'title' | 'date' | 'start' | 'end' | 'timeZone' | 'location' | 'notes' | 'personalNote';
+
+export type MissionDetailsStructuredSchedule = Readonly<{
+  date: string;
+  start: string;
+  end: string;
+  timeZone: string;
+  allDay: boolean;
+}>;
 
 export interface MissionDetailsProjection {
   readonly id: string;
   readonly title: string;
   readonly scheduleText: string;
+  readonly structuredSchedule?: MissionDetailsStructuredSchedule | undefined;
+  readonly recurring?: boolean | undefined;
   readonly location: string | null;
   readonly providerDescription: string | null;
   readonly notes: string | null;
@@ -43,6 +53,7 @@ export interface MissionDetailsScreenProps {
   readonly language: LocalizationLocale;
   readonly onFieldChange?:
     ((field: MissionDetailsEditableField, value: string) => void) | undefined;
+  readonly onSave?: (() => void | Promise<void>) | undefined;
   readonly onDuplicate?: ((missionId: string) => void | Promise<void>) | undefined;
   readonly onDelete?: ((missionId: string) => void | Promise<void>) | undefined;
 }
@@ -55,6 +66,7 @@ type FieldProps = {
   readonly value: string;
   readonly editable: boolean;
   readonly multiline?: boolean;
+  readonly placeholder?: string | undefined;
   readonly onChangeText?: ((value: string) => void) | undefined;
   readonly colorScheme: ColorScheme;
 };
@@ -65,6 +77,7 @@ function DetailsField({
   label,
   multiline = false,
   onChangeText,
+  placeholder,
   testID,
   value,
 }: FieldProps) {
@@ -82,10 +95,10 @@ function DetailsField({
         accessibilityLabel={label}
         accessibilityState={{ disabled: !editable }}
         allowFontScaling
-        defaultValue={value}
         editable={editable}
         multiline={multiline}
         {...(onChangeText === undefined ? {} : { onChangeText })}
+        {...(placeholder === undefined ? {} : { placeholder })}
         style={[
           styles.field,
           multiline ? styles.multilineField : null,
@@ -97,6 +110,7 @@ function DetailsField({
           },
         ]}
         testID={testID}
+        value={value}
       />
     </View>
   );
@@ -107,9 +121,7 @@ function isHistorical(lifecycle: MissionDetailsLifecycle): boolean {
 }
 
 function statusText(details: MissionDetailsProjection, catalog: Catalog): string {
-  if (details.lifecycle === 'expired') {
-    return catalog['calendar.details.status.expired'];
-  }
+  if (details.lifecycle === 'expired') return catalog['calendar.details.status.expired'];
   if (details.lifecycle === 'cancelled') {
     return details.cancellationAttribution === 'organizer'
       ? catalog['calendar.details.status.cancelledOrganizer']
@@ -118,9 +130,7 @@ function statusText(details: MissionDetailsProjection, catalog: Catalog): string
   if (details.lifecycle === 'completed' || details.completionState === 'completed') {
     return catalog['calendar.details.status.completed'];
   }
-  if (details.lifecycle === 'active') {
-    return catalog['calendar.details.status.active'];
-  }
+  if (details.lifecycle === 'active') return catalog['calendar.details.status.active'];
   return catalog['calendar.details.status.future'];
 }
 
@@ -157,9 +167,7 @@ function fieldChangeHandler(
   onFieldChange: MissionDetailsScreenProps['onFieldChange'],
   field: MissionDetailsEditableField,
 ): ((value: string) => void) | undefined {
-  if (onFieldChange === undefined) {
-    return undefined;
-  }
+  if (onFieldChange === undefined) return undefined;
   return (value) => {
     onFieldChange(field, value);
   };
@@ -170,6 +178,7 @@ export function MissionDetailsScreen({
   details,
   language,
   onFieldChange,
+  onSave,
   onDuplicate,
   onDelete,
 }: MissionDetailsScreenProps) {
@@ -177,6 +186,8 @@ export function MissionDetailsScreen({
   const colors = themeColors(colorScheme);
   const historical = isHistorical(details.lifecycle) || details.completionState === 'completed';
   const appOwnedEditable = !historical && details.fieldOwnership === 'app_owned';
+  const structuredEditable =
+    appOwnedEditable && details.structuredSchedule !== undefined && details.recurring !== true;
   const personalNoteEditable = !historical && details.fieldOwnership === 'organizer_controlled';
   const writtenStatus = statusText(details, catalog);
   const writtenEvidence = evidenceText(details.evidenceState, catalog);
@@ -193,7 +204,7 @@ export function MissionDetailsScreen({
       <View accessibilityLabel={details.title} accessibilityRole="header">
         <DetailsField
           colorScheme={colorScheme}
-          editable={appOwnedEditable}
+          editable={appOwnedEditable && details.recurring !== true}
           label={catalog['calendar.details.title']}
           onChangeText={fieldChangeHandler(onFieldChange, 'title')}
           testID="mission-details-title"
@@ -203,12 +214,69 @@ export function MissionDetailsScreen({
 
       <DetailsField
         colorScheme={colorScheme}
-        editable={appOwnedEditable}
+        editable={false}
         label={catalog['calendar.details.schedule']}
-        onChangeText={fieldChangeHandler(onFieldChange, 'schedule')}
         testID="mission-details-schedule"
         value={details.scheduleText}
       />
+
+      {structuredEditable ? (
+        <View style={styles.scheduleGrid} testID="mission-details-structured-schedule">
+          <DetailsField
+            colorScheme={colorScheme}
+            editable
+            label={catalog['calendar.create.date']}
+            onChangeText={fieldChangeHandler(onFieldChange, 'date')}
+            placeholder={catalog['calendar.recurrence.localDateInputHint']}
+            testID="mission-details-date"
+            value={details.structuredSchedule.date}
+          />
+          {details.structuredSchedule.allDay ? null : (
+            <View style={styles.scheduleRow}>
+              <View style={styles.flexField}>
+                <DetailsField
+                  colorScheme={colorScheme}
+                  editable
+                  label={catalog['calendar.create.start']}
+                  onChangeText={fieldChangeHandler(onFieldChange, 'start')}
+                  placeholder={catalog['calendar.create.timeInputHint']}
+                  testID="mission-details-start"
+                  value={details.structuredSchedule.start}
+                />
+              </View>
+              <View style={styles.flexField}>
+                <DetailsField
+                  colorScheme={colorScheme}
+                  editable
+                  label={catalog['calendar.create.end']}
+                  onChangeText={fieldChangeHandler(onFieldChange, 'end')}
+                  placeholder={catalog['calendar.create.timeInputHint']}
+                  testID="mission-details-end"
+                  value={details.structuredSchedule.end}
+                />
+              </View>
+            </View>
+          )}
+          <DetailsField
+            colorScheme={colorScheme}
+            editable
+            label={catalog['calendar.create.timeZone']}
+            onChangeText={fieldChangeHandler(onFieldChange, 'timeZone')}
+            testID="mission-details-time-zone"
+            value={details.structuredSchedule.timeZone}
+          />
+        </View>
+      ) : null}
+
+      {details.recurring === true && appOwnedEditable ? (
+        <Text
+          allowFontScaling
+          style={[styles.supportingText, { color: colors.textSecondary }]}
+          testID="mission-details-recurring-scope-pending"
+        >
+          {catalog['calendar.details.recurringEditPending']}
+        </Text>
+      ) : null}
 
       {details.fieldOwnership === 'organizer_controlled' ? (
         <Text
@@ -222,7 +290,7 @@ export function MissionDetailsScreen({
 
       <DetailsField
         colorScheme={colorScheme}
-        editable={appOwnedEditable}
+        editable={appOwnedEditable && details.recurring !== true}
         label={catalog['calendar.details.location']}
         onChangeText={fieldChangeHandler(onFieldChange, 'location')}
         testID="mission-details-location"
@@ -241,7 +309,7 @@ export function MissionDetailsScreen({
       ) : (
         <DetailsField
           colorScheme={colorScheme}
-          editable={appOwnedEditable}
+          editable={appOwnedEditable && details.recurring !== true}
           label={catalog['calendar.details.notes']}
           multiline
           onChangeText={fieldChangeHandler(onFieldChange, 'notes')}
@@ -249,6 +317,22 @@ export function MissionDetailsScreen({
           value={details.notes ?? ''}
         />
       )}
+
+      {structuredEditable && onSave !== undefined ? (
+        <Pressable
+          accessibilityLabel={catalog['calendar.create.save']}
+          accessibilityRole="button"
+          onPress={() => {
+            void Promise.resolve(onSave()).catch(() => undefined);
+          }}
+          style={[styles.primaryAction, { backgroundColor: colors.primary }]}
+          testID="mission-details-save"
+        >
+          <Text allowFontScaling style={[styles.actionText, { color: colors.primaryText }]}>
+            {catalog['calendar.create.save']}
+          </Text>
+        </Pressable>
+      ) : null}
 
       <View style={styles.section}>
         <Text
@@ -350,12 +434,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: layout.screenHorizontalPadding,
     paddingTop: space[4],
   },
-  section: {
-    gap: space[2],
-  },
-  fieldGroup: {
-    gap: space[1],
-  },
+  section: { gap: space[2] },
+  fieldGroup: { gap: space[1] },
   fieldLabel: {
     fontSize: typography.caption1.fontSize,
     fontWeight: typography.caption1.fontWeight,
@@ -367,26 +447,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: space[3],
     paddingVertical: space[2],
   },
-  multilineField: {
-    minHeight: layout.minimumTouchTarget * 2,
-    textAlignVertical: 'top',
-  },
-  statusText: {
-    fontSize: typography.body.fontSize,
-    fontWeight: typography.body.mediumFontWeight,
-  },
+  multilineField: { minHeight: layout.minimumTouchTarget * 2, textAlignVertical: 'top' },
+  scheduleGrid: { gap: space[3] },
+  scheduleRow: { flexDirection: 'row', gap: space[2] },
+  flexField: { flex: 1 },
+  statusText: { fontSize: typography.body.fontSize, fontWeight: typography.body.mediumFontWeight },
   supportingText: {
     fontSize: typography.bodySmall.fontSize,
     fontWeight: typography.bodySmall.fontWeight,
   },
-  xpText: {
-    fontSize: typography.headline.fontSize,
-    fontWeight: typography.headline.fontWeight,
-  },
-  actions: {
-    flexDirection: 'row',
-    gap: space[3],
-  },
+  xpText: { fontSize: typography.headline.fontSize, fontWeight: typography.headline.fontWeight },
+  actions: { flexDirection: 'row', gap: space[3] },
   action: {
     alignItems: 'center',
     borderRadius: radius.md,
@@ -396,8 +467,12 @@ const styles = StyleSheet.create({
     minHeight: layout.minimumTouchTarget,
     paddingHorizontal: space[3],
   },
-  actionText: {
-    fontSize: typography.body.fontSize,
-    fontWeight: typography.body.mediumFontWeight,
+  primaryAction: {
+    alignItems: 'center',
+    borderRadius: radius.md,
+    justifyContent: 'center',
+    minHeight: layout.minimumTouchTarget,
+    paddingHorizontal: space[3],
   },
+  actionText: { fontSize: typography.body.fontSize, fontWeight: typography.body.mediumFontWeight },
 });

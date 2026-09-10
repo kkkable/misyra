@@ -164,7 +164,7 @@ describe('MTS-041 Calendar timeline composition', () => {
 });
 
 describe('MTS-042 Calendar all-day composition', () => {
-  it('swaps the selected date all-day cards inside the Calendar scroll surface', () => {
+  it('selects an all-day mission on first tap, opens it on second tap, and clears selection on day change', () => {
     const onAllDayMissionPress = vi.fn();
     const renderer = renderScreen({
       allDayMissionsByDate: {
@@ -180,7 +180,7 @@ describe('MTS-042 Calendar all-day composition', () => {
     });
 
     const header = renderer.root.findByProps({ testID: 'calendar-scroll-header' });
-    const todayMission = renderer.root.findByProps({
+    let todayMission = renderer.root.findByProps({
       testID: 'calendar-all-day-mission-today-1',
     });
     const more = renderer.root.findByProps({ testID: 'calendar-all-day-more' });
@@ -189,8 +189,15 @@ describe('MTS-042 Calendar all-day composition', () => {
     expect(more.props.accessibilityLabel).toBe('+1 more');
 
     act(() => todayMission.props.onPress());
+    expect(onAllDayMissionPress).not.toHaveBeenCalled();
+    todayMission = renderer.root.findByProps({ testID: 'calendar-all-day-mission-today-1' });
+    expect(todayMission.props.accessibilityState).toEqual({ selected: true });
+
+    act(() => todayMission.props.onPress());
+    expect(onAllDayMissionPress).toHaveBeenCalledTimes(1);
     expect(onAllDayMissionPress).toHaveBeenCalledWith(expect.objectContaining({ id: 'today-1' }));
 
+    onAllDayMissionPress.mockClear();
     const otherDay = renderer.root.findByProps({ testID: 'calendar-day-2026-09-01' });
     act(() => otherDay.props.onPress());
     const oldMission = renderer.root.findAllByProps({
@@ -201,11 +208,14 @@ describe('MTS-042 Calendar all-day composition', () => {
     });
     expect(oldMission).toHaveLength(0);
     expect(otherMission).toBeDefined();
+
+    act(() => otherMission.props.onPress());
+    expect(onAllDayMissionPress).not.toHaveBeenCalled();
   });
 });
 
 describe('MTS-043 Calendar timed-mission composition', () => {
-  it('renders and swaps the selected date overlap group inside the existing timeline', () => {
+  it('requires the same timed mission to be tapped twice and clears selection when scrolling', () => {
     const onTimedMissionPress = vi.fn();
     const renderer = renderScreen({
       timedMissionsByDate: {
@@ -221,7 +231,7 @@ describe('MTS-043 Calendar timed-mission composition', () => {
     });
 
     expect(renderer.root.findByProps({ testID: 'calendar-timed-mission-layer' })).toBeDefined();
-    const todayMission = renderer.root.find(
+    let todayMission = renderer.root.find(
       (node) => node.type === 'Pressable' && node.props.testID === 'calendar-mission-card-today-a',
     );
     expect(
@@ -238,7 +248,27 @@ describe('MTS-043 Calendar timed-mission composition', () => {
     ).toBeDefined();
 
     act(() => todayMission.props.onPress());
+    expect(onTimedMissionPress).not.toHaveBeenCalled();
+    todayMission = renderer.root.find(
+      (node) => node.type === 'Pressable' && node.props.testID === 'calendar-mission-card-today-a',
+    );
+    expect(todayMission.props.style).toEqual(
+      expect.arrayContaining([expect.objectContaining({ borderWidth: 2 })]),
+    );
+
+    act(() => todayMission.props.onPress());
+    expect(onTimedMissionPress).toHaveBeenCalledTimes(1);
     expect(onTimedMissionPress).toHaveBeenCalledWith(expect.objectContaining({ id: 'today-a' }));
+
+    onTimedMissionPress.mockClear();
+    act(() =>
+      renderer.root.findByProps({ testID: 'calendar-timeline-scroll' }).props.onScrollBeginDrag(),
+    );
+    todayMission = renderer.root.find(
+      (node) => node.type === 'Pressable' && node.props.testID === 'calendar-mission-card-today-a',
+    );
+    act(() => todayMission.props.onPress());
+    expect(onTimedMissionPress).not.toHaveBeenCalled();
 
     const otherDay = renderer.root.findByProps({ testID: 'calendar-day-2026-09-01' });
     act(() => otherDay.props.onPress());

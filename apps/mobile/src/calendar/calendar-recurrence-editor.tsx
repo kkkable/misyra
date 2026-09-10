@@ -6,6 +6,7 @@ import type { MissionRecurrence, RecurrenceEnd, RecurrencePattern } from '@misyr
 import { localizationCatalogs, type LocalizationLocale } from '@misyra/localization';
 
 import { themeColors, type ColorScheme } from '../design-system/index.js';
+import { orderWeekdaysFromRegionStart } from './calendar-region-runtime.js';
 
 type Preset = 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly' | 'custom';
 type MonthlyMode = 'date' | 'ordinal';
@@ -21,53 +22,8 @@ interface CalendarRecurrenceEditorProps {
   readonly onCancel: () => void;
   readonly onDone: (recurrence: MissionRecurrence | null) => void;
   readonly selectedDate: string;
+  readonly weekStartsOn?: number | undefined;
 }
-
-type EditorCopy = Readonly<{
-  sameDate: string;
-  ordinalWeekday: string;
-  interval: string;
-  daily: string;
-  weekly: string;
-  monthly: string;
-  yearly: string;
-  first: string;
-  second: string;
-  third: string;
-  fourth: string;
-  last: string;
-}>;
-
-const editorCopy: Readonly<Record<LocalizationLocale, EditorCopy>> = {
-  en: {
-    sameDate: 'Same date',
-    ordinalWeekday: 'Ordinal weekday',
-    interval: 'Interval',
-    daily: 'Daily',
-    weekly: 'Weekly',
-    monthly: 'Monthly',
-    yearly: 'Yearly',
-    first: 'First',
-    second: 'Second',
-    third: 'Third',
-    fourth: 'Fourth',
-    last: 'Last',
-  },
-  'zh-HK': {
-    sameDate: '同一日期',
-    ordinalWeekday: '第幾個星期幾',
-    interval: '間隔',
-    daily: '每日',
-    weekly: '每週',
-    monthly: '每月',
-    yearly: '每年',
-    first: '第一個',
-    second: '第二個',
-    third: '第三個',
-    fourth: '第四個',
-    last: '最後一個',
-  },
-};
 
 function parseSelectedDate(selectedDate: string) {
   const value = new Date(`${selectedDate}T12:00:00.000Z`);
@@ -182,11 +138,9 @@ function initialDay(recurrence: MissionRecurrence | null, fallback: number): str
 function initialEndMode(recurrence: MissionRecurrence | null): EndMode {
   return recurrence?.end.type ?? 'never';
 }
-
 function initialEndDate(recurrence: MissionRecurrence | null): string {
   return recurrence?.end.type === 'date' ? recurrence.end.inclusiveLocalDate : '';
 }
-
 function initialEndCount(recurrence: MissionRecurrence | null): string {
   return recurrence?.end.type === 'count' ? String(recurrence.end.occurrenceCount) : '1';
 }
@@ -198,14 +152,24 @@ export function CalendarRecurrenceEditor({
   onCancel,
   onDone,
   selectedDate,
+  weekStartsOn = 1,
 }: CalendarRecurrenceEditorProps) {
   const colors = themeColors(colorScheme);
   const catalog = localizationCatalogs[language];
-  const copy = editorCopy[language];
   const anchor = parseSelectedDate(selectedDate);
   const anchorWeekday = anchor.getUTCDay();
   const anchorDay = anchor.getUTCDate();
   const anchorMonth = anchor.getUTCMonth() + 1;
+  const orderedWeekdays = orderWeekdaysFromRegionStart(weekStartsOn);
+  const weekdayLabels = [
+    catalog['calendar.recurrence.weekday.sun'],
+    catalog['calendar.recurrence.weekday.mon'],
+    catalog['calendar.recurrence.weekday.tue'],
+    catalog['calendar.recurrence.weekday.wed'],
+    catalog['calendar.recurrence.weekday.thu'],
+    catalog['calendar.recurrence.weekday.fri'],
+    catalog['calendar.recurrence.weekday.sat'],
+  ] as const;
 
   const [preset, setPreset] = useState<Preset>(() => initialPreset(initialRecurrence));
   const [customFrequency, setCustomFrequency] = useState<CustomFrequency>(() =>
@@ -256,35 +220,40 @@ export function CalendarRecurrenceEditor({
   };
 
   const toggleWeekday = (weekday: number) => {
-    setWeekdays((current) => {
-      if (current.includes(weekday)) return current.filter((value) => value !== weekday);
-      return [...current, weekday].sort((left, right) => left - right);
-    });
+    setWeekdays((current) =>
+      current.includes(weekday)
+        ? current.filter((value) => value !== weekday)
+        : [...current, weekday].sort((left, right) => left - right),
+    );
   };
 
   const renderWeekdayButtons = (singleSelection: boolean) => (
     <View style={styles.compactRow}>
-      {[0, 1, 2, 3, 4, 5, 6].map((weekday) => (
-        <Pressable
-          accessibilityRole={singleSelection ? 'radio' : 'checkbox'}
-          accessibilityState={
-            singleSelection
-              ? { checked: ordinalWeekday === weekday }
-              : { checked: weekdays.includes(weekday) }
-          }
-          key={weekday}
-          onPress={() => {
-            if (singleSelection) setOrdinalWeekday(weekday);
-            else toggleWeekday(weekday);
-          }}
-          style={optionStyle}
-          testID={`recurrence-weekday-${String(weekday)}`}
-        >
-          <Text allowFontScaling style={textStyle}>
-            {String(weekday)}
-          </Text>
-        </Pressable>
-      ))}
+      {orderedWeekdays.map((weekday) => {
+        const label = weekdayLabels[weekday];
+        return (
+          <Pressable
+            accessibilityLabel={label}
+            accessibilityRole={singleSelection ? 'radio' : 'checkbox'}
+            accessibilityState={
+              singleSelection
+                ? { checked: ordinalWeekday === weekday }
+                : { checked: weekdays.includes(weekday) }
+            }
+            key={weekday}
+            onPress={() => {
+              if (singleSelection) setOrdinalWeekday(weekday);
+              else toggleWeekday(weekday);
+            }}
+            style={optionStyle}
+            testID={`recurrence-weekday-${String(weekday)}`}
+          >
+            <Text allowFontScaling style={textStyle}>
+              {label}
+            </Text>
+          </Pressable>
+        );
+      })}
     </View>
   );
 
@@ -292,14 +261,15 @@ export function CalendarRecurrenceEditor({
     <View style={styles.compactRow}>
       {(
         [
-          [1, copy.first, 'first'],
-          [2, copy.second, 'second'],
-          [3, copy.third, 'third'],
-          [4, copy.fourth, 'fourth'],
-          [-1, copy.last, 'last'],
+          [1, catalog['calendar.recurrence.ordinal.first'], 'first'],
+          [2, catalog['calendar.recurrence.ordinal.second'], 'second'],
+          [3, catalog['calendar.recurrence.ordinal.third'], 'third'],
+          [4, catalog['calendar.recurrence.ordinal.fourth'], 'fourth'],
+          [-1, catalog['calendar.recurrence.ordinal.last'], 'last'],
         ] as const
       ).map(([value, label, id]) => (
         <Pressable
+          accessibilityLabel={label}
           accessibilityRole="radio"
           accessibilityState={{ checked: ordinal === value }}
           key={id}
@@ -332,30 +302,27 @@ export function CalendarRecurrenceEditor({
     const parsedInterval = positiveInteger(interval);
     if (parsedInterval === null) return null;
     const effectiveFrequency = preset === 'custom' ? customFrequency : preset;
-
     if (effectiveFrequency === 'daily') return { type: 'daily', interval: parsedInterval };
     if (effectiveFrequency === 'weekly') {
       if (weekdays.length === 0) return null;
-      return { type: 'weekly', interval: parsedInterval, weekdays, weekStartsOn: 1 };
+      return { type: 'weekly', interval: parsedInterval, weekdays, weekStartsOn };
     }
     if (effectiveFrequency === 'monthly') {
-      if (monthlyMode === 'ordinal') {
+      if (monthlyMode === 'ordinal')
         return {
           type: 'monthly-ordinal',
           interval: parsedInterval,
           ordinal,
           weekday: ordinalWeekday,
         };
-      }
       const dayOfMonth = boundedInteger(day, 1, 31);
       return dayOfMonth === null
         ? null
         : { type: 'monthly-date', interval: parsedInterval, dayOfMonth };
     }
-
     const parsedMonth = boundedInteger(month, 1, 12);
     if (parsedMonth === null) return null;
-    if (yearlyMode === 'ordinal') {
+    if (yearlyMode === 'ordinal')
       return {
         type: 'yearly-ordinal',
         interval: parsedInterval,
@@ -363,7 +330,6 @@ export function CalendarRecurrenceEditor({
         ordinal,
         weekday: ordinalWeekday,
       };
-    }
     const parsedDay = boundedInteger(day, 1, 31);
     return parsedDay === null
       ? null
@@ -377,8 +343,7 @@ export function CalendarRecurrenceEditor({
     }
     const pattern = buildPattern();
     const end = buildEnd();
-    if (pattern === null || end === null) return;
-    onDone({ pattern, end });
+    if (pattern !== null && end !== null) onDone({ pattern, end });
   };
 
   const effectiveFrequency = preset === 'custom' ? customFrequency : preset;
@@ -404,6 +369,7 @@ export function CalendarRecurrenceEditor({
           ] as const
         ).map(([value, label, testID]) => (
           <Pressable
+            accessibilityLabel={label}
             accessibilityRole="radio"
             accessibilityState={{ checked: preset === value }}
             key={value}
@@ -424,13 +390,14 @@ export function CalendarRecurrenceEditor({
         <View style={styles.wrapRow}>
           {(
             [
-              ['daily', copy.daily, 'recurrence-custom-daily'],
-              ['weekly', copy.weekly, 'recurrence-custom-weekly'],
-              ['monthly', copy.monthly, 'recurrence-custom-monthly'],
-              ['yearly', copy.yearly, 'recurrence-custom-yearly'],
+              ['daily', catalog['calendar.recurrence.daily'], 'recurrence-custom-daily'],
+              ['weekly', catalog['calendar.recurrence.weekly'], 'recurrence-custom-weekly'],
+              ['monthly', catalog['calendar.recurrence.monthly'], 'recurrence-custom-monthly'],
+              ['yearly', catalog['calendar.recurrence.yearly'], 'recurrence-custom-yearly'],
             ] as const
           ).map(([value, label, testID]) => (
             <Pressable
+              accessibilityLabel={label}
               accessibilityRole="radio"
               accessibilityState={{ checked: customFrequency === value }}
               key={value}
@@ -452,7 +419,7 @@ export function CalendarRecurrenceEditor({
 
       {preset === 'none' ? null : (
         <TextInput
-          accessibilityLabel={copy.interval}
+          accessibilityLabel={catalog['calendar.recurrence.interval']}
           keyboardType="number-pad"
           onChangeText={setInterval}
           style={[styles.input, { borderColor: colors.border, color: colors.textPrimary }]}
@@ -460,13 +427,13 @@ export function CalendarRecurrenceEditor({
           value={interval}
         />
       )}
-
       {effectiveFrequency === 'weekly' ? renderWeekdayButtons(false) : null}
 
       {effectiveFrequency === 'monthly' ? (
         <>
           <View style={styles.wrapRow}>
             <Pressable
+              accessibilityLabel={catalog['calendar.recurrence.sameDate']}
               accessibilityRole="radio"
               accessibilityState={{ checked: monthlyMode === 'date' }}
               onPress={() => {
@@ -476,10 +443,11 @@ export function CalendarRecurrenceEditor({
               testID="recurrence-monthly-date"
             >
               <Text allowFontScaling style={textStyle}>
-                {copy.sameDate}
+                {catalog['calendar.recurrence.sameDate']}
               </Text>
             </Pressable>
             <Pressable
+              accessibilityLabel={catalog['calendar.recurrence.ordinalWeekday']}
               accessibilityRole="radio"
               accessibilityState={{ checked: monthlyMode === 'ordinal' }}
               onPress={() => {
@@ -491,12 +459,13 @@ export function CalendarRecurrenceEditor({
               testID="recurrence-monthly-ordinal"
             >
               <Text allowFontScaling style={textStyle}>
-                {copy.ordinalWeekday}
+                {catalog['calendar.recurrence.ordinalWeekday']}
               </Text>
             </Pressable>
           </View>
           {monthlyMode === 'date' ? (
             <TextInput
+              accessibilityLabel={catalog['calendar.recurrence.dayOfMonth']}
               keyboardType="number-pad"
               onChangeText={setDay}
               style={[styles.input, { borderColor: colors.border, color: colors.textPrimary }]}
@@ -516,6 +485,7 @@ export function CalendarRecurrenceEditor({
         <>
           <View style={styles.wrapRow}>
             <Pressable
+              accessibilityLabel={catalog['calendar.recurrence.sameDate']}
               accessibilityRole="radio"
               accessibilityState={{ checked: yearlyMode === 'date' }}
               onPress={() => {
@@ -525,10 +495,11 @@ export function CalendarRecurrenceEditor({
               testID="recurrence-yearly-date"
             >
               <Text allowFontScaling style={textStyle}>
-                {copy.sameDate}
+                {catalog['calendar.recurrence.sameDate']}
               </Text>
             </Pressable>
             <Pressable
+              accessibilityLabel={catalog['calendar.recurrence.ordinalWeekday']}
               accessibilityRole="radio"
               accessibilityState={{ checked: yearlyMode === 'ordinal' }}
               onPress={() => {
@@ -540,11 +511,12 @@ export function CalendarRecurrenceEditor({
               testID="recurrence-yearly-ordinal"
             >
               <Text allowFontScaling style={textStyle}>
-                {copy.ordinalWeekday}
+                {catalog['calendar.recurrence.ordinalWeekday']}
               </Text>
             </Pressable>
           </View>
           <TextInput
+            accessibilityLabel={catalog['calendar.recurrence.month']}
             keyboardType="number-pad"
             onChangeText={setMonth}
             style={[styles.input, { borderColor: colors.border, color: colors.textPrimary }]}
@@ -553,6 +525,7 @@ export function CalendarRecurrenceEditor({
           />
           {yearlyMode === 'date' ? (
             <TextInput
+              accessibilityLabel={catalog['calendar.recurrence.dayOfMonth']}
               keyboardType="number-pad"
               onChangeText={setDay}
               style={[styles.input, { borderColor: colors.border, color: colors.textPrimary }]}
@@ -580,6 +553,7 @@ export function CalendarRecurrenceEditor({
           ] as const
         ).map(([value, label, testID]) => (
           <Pressable
+            accessibilityLabel={label}
             accessibilityRole="radio"
             accessibilityState={{ checked: endMode === value }}
             key={value}
@@ -597,8 +571,9 @@ export function CalendarRecurrenceEditor({
       </View>
       {endMode === 'date' ? (
         <TextInput
+          accessibilityLabel={catalog['calendar.recurrence.onDate']}
           onChangeText={setEndDate}
-          placeholder="YYYY-MM-DD"
+          placeholder={catalog['calendar.recurrence.localDateInputHint']}
           style={[styles.input, { borderColor: colors.border, color: colors.textPrimary }]}
           testID="recurrence-end-date-input"
           value={endDate}
@@ -606,6 +581,7 @@ export function CalendarRecurrenceEditor({
       ) : null}
       {endMode === 'count' ? (
         <TextInput
+          accessibilityLabel={catalog['calendar.recurrence.afterCount']}
           keyboardType="number-pad"
           onChangeText={setEndCount}
           style={[styles.input, { borderColor: colors.border, color: colors.textPrimary }]}
@@ -614,12 +590,18 @@ export function CalendarRecurrenceEditor({
         />
       ) : null}
       <View style={styles.actions}>
-        <Pressable accessibilityRole="button" onPress={onCancel} style={optionStyle}>
+        <Pressable
+          accessibilityLabel={catalog['calendar.create.cancel']}
+          accessibilityRole="button"
+          onPress={onCancel}
+          style={optionStyle}
+        >
           <Text allowFontScaling style={textStyle}>
             {catalog['calendar.create.cancel']}
           </Text>
         </Pressable>
         <Pressable
+          accessibilityLabel={catalog['calendar.recurrence.done']}
           accessibilityRole="button"
           onPress={finish}
           style={optionStyle}
@@ -635,30 +617,14 @@ export function CalendarRecurrenceEditor({
 }
 
 const styles = StyleSheet.create({
-  editor: {
-    borderRadius: radius.md,
-    borderWidth: 1,
-    gap: space[3],
-    padding: space[3],
-  },
-  heading: {
-    fontSize: typography.headline.fontSize,
-    fontWeight: typography.headline.fontWeight,
-  },
+  editor: { borderRadius: radius.md, borderWidth: 1, gap: space[3], padding: space[3] },
+  heading: { fontSize: typography.headline.fontSize, fontWeight: typography.headline.fontWeight },
   sectionHeading: {
     fontSize: typography.body.fontSize,
     fontWeight: typography.body.mediumFontWeight,
   },
-  wrapRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: space[2],
-  },
-  compactRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: space[1],
-  },
+  wrapRow: { flexDirection: 'row', flexWrap: 'wrap', gap: space[2] },
+  compactRow: { flexDirection: 'row', flexWrap: 'wrap', gap: space[1] },
   option: {
     alignItems: 'center',
     borderRadius: radius.md,
@@ -669,9 +635,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: space[3],
     paddingVertical: space[2],
   },
-  optionText: {
-    fontSize: typography.body.fontSize,
-  },
+  optionText: { fontSize: typography.body.fontSize },
   input: {
     borderRadius: radius.md,
     borderWidth: 1,
@@ -680,10 +644,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: space[3],
     paddingVertical: space[2],
   },
-  actions: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: space[2],
-    justifyContent: 'flex-end',
-  },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: space[2], justifyContent: 'flex-end' },
 });

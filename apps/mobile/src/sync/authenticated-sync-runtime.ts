@@ -240,13 +240,13 @@ async function applyMissionProjection(
   );
   await transaction.runAsync(
     `INSERT INTO search_documents
-       (account_id, document_id, occurrence_id, title, location, provider_text, personal_note, updated_at)
-     VALUES (?, ?, ?, ?, ?, NULL, ?, ?)
+       (account_id, document_id, occurrence_id, title, location, provider_text, personal_note, general_note, updated_at)
+     VALUES (?, ?, ?, ?, ?, NULL, NULL, ?, ?)
      ON CONFLICT(account_id, document_id) DO UPDATE SET
        occurrence_id = excluded.occurrence_id,
        title = excluded.title,
        location = excluded.location,
-       personal_note = excluded.personal_note,
+       general_note = excluded.general_note,
        updated_at = excluded.updated_at`,
     accountId,
     mission.occurrence.id,

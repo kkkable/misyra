@@ -266,8 +266,12 @@ describe('Calendar production route', () => {
       }),
     ]);
 
-    state.childProps.onTimedMissionPress({ id: '44444444-4444-4444-8444-444444444444' });
-    state.childProps.onAllDayMissionPress({ id: '55555555-5555-4555-8555-555555555555' });
+    await act(async () => {
+      state.childProps.onTimedMissionPress({ id: '44444444-4444-4444-8444-444444444444' });
+    });
+    await act(async () => {
+      state.childProps.onAllDayMissionPress({ id: '55555555-5555-4555-8555-555555555555' });
+    });
 
     expect(state.routerPush).toHaveBeenNthCalledWith(1, {
       pathname: '/mission/[id]',

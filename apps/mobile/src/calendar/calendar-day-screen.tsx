@@ -33,6 +33,7 @@ import { CalendarInteractiveTimeline } from './calendar-interactive-timeline.js'
 import type { CalendarMissionCreateInput } from './calendar-mission-create.js';
 import type { MissionAdjustmentResult } from './calendar-mission-adjustment.js';
 import { TimedMissionLayer, type TimedMissionSummary } from './calendar-mission-layout.js';
+import { resolveCalendarMissionTap } from './calendar-mission-selection.js';
 
 function parseLocalDateParts(value: string): { year: number; month: number; day: number } {
   const [yearText = '0', monthText = '0', dayText = '0'] = value.split('-');
@@ -91,7 +92,6 @@ export interface CalendarDayScreenProps {
   readonly allDayMissionsByDate?: Readonly<Record<string, readonly AllDayMissionSummary[]>>;
   readonly onAllDayMissionPress?: (mission: AllDayMissionSummary) => void;
   readonly timedMissionsByDate?: Readonly<Record<string, readonly TimedMissionSummary[]>>;
-  readonly selectedMissionId?: string;
   readonly searchFocusTarget?: CalendarSearchFocusTarget;
   readonly onSearchPress?: (() => void) | undefined;
   readonly onHelpFaqPress?: (() => void) | undefined;
@@ -111,7 +111,6 @@ export function CalendarDayScreen({
   allDayMissionsByDate = {},
   onAllDayMissionPress,
   timedMissionsByDate = {},
-  selectedMissionId,
   searchFocusTarget,
   onSearchPress,
   onHelpFaqPress,
@@ -155,9 +154,11 @@ export function CalendarDayScreen({
   const [pickerVisible, setPickerVisible] = useState(false);
   const [pickerMonth, setPickerMonth] = useState(initialDateRef.current);
   const [helpVisible, setHelpVisible] = useState(false);
+  const [selectedMissionId, setSelectedMissionId] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     if (searchFocusTarget === undefined) return;
+    setSelectedMissionId(undefined);
     setSelectedDate(searchFocusTarget.date);
     setPickerMonth(searchFocusTarget.date);
     setPickerVisible(false);
@@ -202,9 +203,26 @@ export function CalendarDayScreen({
       ? searchFocusTarget.missionId
       : selectedMissionId;
 
+  const clearMissionSelection = () => {
+    setSelectedMissionId(undefined);
+  };
+
   const selectDate = (date: string) => {
+    if (date !== selectedDate) clearMissionSelection();
     setSelectedDate(date);
     setPickerMonth(date);
+  };
+
+  const selectTimedMission = (mission: TimedMissionSummary) => {
+    const resolution = resolveCalendarMissionTap(selectedMissionId, mission.id);
+    setSelectedMissionId(resolution.selectedMissionId);
+    if (resolution.openDetails) onTimedMissionPress?.(mission);
+  };
+
+  const selectAllDayMission = (mission: AllDayMissionSummary) => {
+    const resolution = resolveCalendarMissionTap(selectedMissionId, mission.id);
+    setSelectedMissionId(resolution.selectedMissionId);
+    if (resolution.openDetails) onAllDayMissionPress?.(mission);
   };
 
   const openPicker = () => {
@@ -393,7 +411,7 @@ export function CalendarDayScreen({
                 missions={timedMissions}
                 now={now}
                 onMissionAdjustment={onMissionAdjustment}
-                onMissionPress={onTimedMissionPress}
+                onMissionPress={selectTimedMission}
                 selectedDate={selectedDate}
                 {...(focusedMissionId === undefined ? {} : { selectedMissionId: focusedMissionId })}
               />
@@ -401,13 +419,14 @@ export function CalendarDayScreen({
           }
           now={now}
           onCreateMission={onCreateMission}
+          onSelectionClear={clearMissionSelection}
           scrollHeader={
             allDayMissions.length > 0 ? (
               <AllDayMissionList
                 colorScheme={colorScheme}
                 language={language}
                 missions={allDayMissions}
-                onMissionPress={onAllDayMissionPress}
+                onMissionPress={selectAllDayMission}
                 selectedDate={selectedDate}
                 {...(focusedMissionId === undefined ? {} : { selectedMissionId: focusedMissionId })}
               />
