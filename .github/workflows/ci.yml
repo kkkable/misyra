@@ -1,22 +1,31 @@
 name: CI
 
 on:
+  pull_request:
   push:
     branches:
-      - feat/mts-054-historical-state-transitions
+      - main
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  mts054-finalize:
+  quality:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
+    env:
+      MTS004_INTEGRATION: '1'
+      TURBO_TELEMETRY_DISABLED: '1'
+      CI_CONTRACT_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
     steps:
-      - name: Checkout MTS-054 branch
+      - name: Checkout clean repository
         uses: actions/checkout@v4
         with:
-          ref: feat/mts-054-historical-state-transitions
+          persist-credentials: false
           fetch-depth: 0
 
       - name: Install pinned pnpm
@@ -35,304 +44,54 @@ jobs:
       - name: Install from lockfile
         run: pnpm install --frozen-lockfile
 
-      - name: Apply MTS-054 implementation and regressions
-        id: focused
-        continue-on-error: true
-        run: |
-          cat > apps/mobile/src/calendar/calendar-historical-state.ts <<'EOF'
-          import { evaluateCompletionEligibility, type MissionOccurrence } from '@misyra/domain';
+      - name: Install Bicep compiler in runner only
+        run: az bicep install
 
-          export type CalendarHistoricalLifecycle =
-            | 'future'
-            | 'active'
-            | 'completed'
-            | 'expired'
-            | 'cancelled';
+      - name: Start deterministic local dependencies
+        run: docker compose --file compose.yaml up -d --wait postgres azurite
 
-          function completionStateAt(occurrence: MissionOccurrence, now: Date) {
-            return evaluateCompletionEligibility({
-              schedule: occurrence.schedule,
-              actionInstant: now.toISOString(),
-            }).state;
-          }
+      - name: Prove failing-fixture gates reject bad inputs
+        run: pnpm ci:fixtures
 
-          export function historicalLifecycleForMission(
-            occurrence: MissionOccurrence,
-            now: Date,
-          ): CalendarHistoricalLifecycle {
-            if (occurrence.scheduleState === 'cancelled') return 'cancelled';
-            if (occurrence.completionState === 'completed') return 'completed';
+      - name: Check workspace formatting
+        run: pnpm format
 
-            const state = completionStateAt(occurrence, now);
-            if (state === 'not_started') return 'future';
-            if (state === 'expired') return 'expired';
-            return 'active';
-          }
+      - name: Check CI-owned formatting
+        run: pnpm format:ci
 
-          export function assertMissionCompletionWindowOpen(
-            occurrence: MissionOccurrence,
-            now: Date,
-          ): void {
-            if (completionStateAt(occurrence, now) === 'expired') {
-              throw new Error('Mission completion window has expired.');
-            }
-          }
-          EOF
+      - name: Lint workspaces
+        run: pnpm lint
 
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
+      - name: Lint CI-owned scripts and tests
+        run: pnpm lint:ci
 
-          def replace_once(path, old, new):
-              p = Path(path)
-              text = p.read_text()
-              count = text.count(old)
-              if count != 1:
-                  raise SystemExit(f'{path}: expected 1 occurrence, found {count}: {old[:80]!r}')
-              p.write_text(text.replace(old, new, 1))
+      - name: Typecheck
+        run: pnpm typecheck
 
-          route = Path('apps/mobile/src/calendar/calendar-mission-details-route.tsx')
-          text = route.read_text()
-          text = text.replace("const COMPLETION_WINDOW_MILLISECONDS = 30 * 24 * 60 * 60 * 1000;\n", '', 1)
-          text = text.replace("  type MissionDetailsLifecycle,\n", '', 1)
-          anchor = "import { platformFirstWeekdayToDomain } from './calendar-region-runtime.js';\n"
-          if text.count(anchor) != 1:
-              raise SystemExit('route import anchor mismatch')
-          text = text.replace(
-              anchor,
-              "import { historicalLifecycleForMission } from './calendar-historical-state.js';\n" + anchor,
-              1,
-          )
-          pattern = re.compile(
-              r"\nfunction lifecycleForMission\(mission: MissionDetails, now: Date\): MissionDetailsLifecycle \{.*?\n\}\n\nfunction providerDescription",
-              re.S,
-          )
-          text, count = pattern.subn('\nfunction providerDescription', text, count=1)
-          if count != 1:
-              raise SystemExit(f'route lifecycle function replacement count {count}')
-          replace = "  const lifecycle = lifecycleForMission(mission, now);"
-          if text.count(replace) != 1:
-              raise SystemExit('route lifecycle call mismatch')
-          text = text.replace(
-              replace,
-              "  const lifecycle = historicalLifecycleForMission(occurrence, now);",
-              1,
-          )
-          route.write_text(text)
+      - name: Run unit, integration, and mobile component tests
+        run: pnpm test
 
-          replace_once(
-              'apps/mobile/src/calendar/calendar-mission-details-save.ts',
-              "import { createMutationQueue, type MutationQueueDatabase } from '../storage/mutation-queue.js';\n",
-              "import { createMutationQueue, type MutationQueueDatabase } from '../storage/mutation-queue.js';\nimport { assertMissionCompletionWindowOpen } from './calendar-historical-state.js';\n",
-          )
-          replace_once(
-              'apps/mobile/src/calendar/calendar-mission-details-save.ts',
-              "  assertEditable(currentOccurrence);\n",
-              "  assertEditable(currentOccurrence);\n  assertMissionCompletionWindowOpen(currentOccurrence, now);\n",
-          )
+      - name: Build all workspaces
+        run: pnpm build
 
-          replace_once(
-              'apps/mobile/src/calendar/calendar-mission-adjustment-save.ts',
-              "import type { MissionAdjustmentSave } from './calendar-mission-adjustment.js';\n",
-              "import { assertMissionCompletionWindowOpen } from './calendar-historical-state.js';\nimport type { MissionAdjustmentSave } from './calendar-mission-adjustment.js';\n",
-          )
-          replace_once(
-              'apps/mobile/src/calendar/calendar-mission-adjustment-save.ts',
-              "  assertDirectManipulationOccurrence(selectedOccurrence);\n",
-              "  assertDirectManipulationOccurrence(selectedOccurrence);\n  assertMissionCompletionWindowOpen(selectedOccurrence, now);\n",
-          )
+      - name: Reject high and critical dependency findings
+        run: pnpm audit --audit-level high
 
-          adjustment = Path('apps/mobile/src/calendar/calendar-mission-adjustment-save.test.mjs')
-          text = adjustment.read_text()
-          marker = "\n});\n"
-          if not text.endswith(marker):
-              raise SystemExit('unexpected adjustment test ending')
-          addition = r'''
+      - name: Scan tracked implementation and configuration for secrets
+        run: pnpm ci:secrets
 
-            it('rejects direct manipulation at the exact completion-window expiry', async () => {
-              const database = createDatabase();
-              await applyMobileMigrations(database);
-              await setupLocalAccount(database);
-              const ids = [
-                seriesId,
-                occurrenceId,
-                '55555555-5555-4555-8555-555555555555',
-                '66666666-6666-4666-8666-666666666666',
-              ];
-              const generateId = () => ids.shift();
+      - name: Verify localization completeness
+        run: pnpm ci:localization
 
-              await createCalendarMission({
-                database,
-                accountId,
-                deviceId,
-                input: {
-                  selectedDate: '2026-08-01',
-                  title: 'Expired direct manipulation',
-                  startMinute: 9 * 60,
-                  endMinute: 10 * 60,
-                  rewardEligibility: 'eligible',
-                  timeZone: 'UTC',
-                },
-                now: new Date('2026-08-01T08:00:00.000Z'),
-                generateId,
-              });
+      - name: Verify privacy and logging boundaries
+        run: pnpm ci:privacy
 
-              await expect(
-                saveCalendarMissionAdjustment({
-                  database,
-                  accountId,
-                  deviceId,
-                  adjustment: {
-                    missionId: occurrenceId,
-                    startMinute: 11 * 60,
-                    endMinute: 12 * 60,
-                    rewardEligibility: 'ineligible',
-                    source: 'move',
-                  },
-                  now: new Date('2026-08-31T10:00:00.000Z'),
-                  generateId,
-                }),
-              ).rejects.toThrow('Mission completion window has expired.');
+      - name: Compile Bicep and environment parameter shapes
+        run: pnpm validate:infra
 
-              const cached = await database.getFirstAsync(
-                `SELECT scheduled_start, scheduled_end
-                   FROM cached_mission_occurrences
-                  WHERE account_id = ? AND occurrence_id = ?`,
-                accountId,
-                occurrenceId,
-              );
-              expect(cached).toMatchObject({ scheduled_start: '09:00', scheduled_end: '10:00' });
-            });
-          '''
-          adjustment.write_text(text[:-len(marker)] + addition + marker)
+      - name: Verify contract compatibility boundary
+        run: pnpm ci:contracts
 
-          details = Path('apps/mobile/src/calendar/calendar-mission-details.test.mjs')
-          text = details.read_text()
-          import_line = "import { MissionDetailsScreen } from './calendar-mission-details.js';\n"
-          if text.count(import_line) != 1:
-              raise SystemExit('unexpected Mission Details import count')
-          text = text.replace(
-              import_line,
-              import_line + "import { historicalLifecycleForMission } from './calendar-historical-state.js';\n",
-              1,
-          )
-          addition = r'''
-
-          describe('MTS-054 time-travel Mission Details integration', () => {
-            it('materializes exact expiry as read-only while retaining delete and duplicate', () => {
-              const occurrence = {
-                id: baseDetails.id,
-                seriesId: '33333333-3333-4333-8333-333333333333',
-                schedule: {
-                  localStart: '2026-03-08T01:00:00',
-                  localFinish: '2026-03-08T01:30:00',
-                  startInstant: '2026-03-08T06:00:00.000Z',
-                  finishInstant: '2026-03-08T06:30:00.000Z',
-                  timeZone: 'America/New_York',
-                  timeBehavior: 'local_time',
-                  allDay: false,
-                  estimatedEffortMinutes: null,
-                },
-                scheduleState: 'scheduled',
-                completionState: 'incomplete',
-                evidenceState: 'not_submitted',
-                rewardEligibility: 'eligible',
-                rewardIssuance: 'not_issued',
-                calendarSource: 'internal',
-                fieldOwnership: 'app_owned',
-                synchronizationState: 'synced',
-                storyState: 'none',
-                deletionState: 'active',
-              };
-              expect(
-                historicalLifecycleForMission(occurrence, new Date('2026-04-07T05:29:59.999Z')),
-              ).toBe('active');
-              const lifecycle = historicalLifecycleForMission(
-                occurrence,
-                new Date('2026-04-07T05:30:00.000Z'),
-              );
-              expect(lifecycle).toBe('expired');
-
-              const onDelete = vi.fn();
-              const onDuplicate = vi.fn();
-              const onSave = vi.fn();
-              let renderer;
-              act(() => {
-                renderer = create(
-                  createElement(MissionDetailsScreen, {
-                    colorScheme: 'light',
-                    details: {
-                      ...baseDetails,
-                      lifecycle,
-                      structuredSchedule: {
-                        date: '2026-03-08',
-                        start: '01:00',
-                        end: '01:30',
-                        timeZone: 'America/New_York',
-                        allDay: false,
-                      },
-                    },
-                    language: 'en',
-                    onDelete,
-                    onDuplicate,
-                    onSave,
-                  }),
-                );
-              });
-
-              expect(find(renderer, 'mission-details-title').props.editable).toBe(false);
-              expect(findAll(renderer, 'mission-details-save')).toHaveLength(0);
-              expect(
-                findAll(renderer, 'mission-details-delete').filter(
-                  (node) => node.type === 'Pressable',
-                ),
-              ).toHaveLength(1);
-              expect(
-                findAll(renderer, 'mission-details-duplicate').filter(
-                  (node) => node.type === 'Pressable',
-                ),
-              ).toHaveLength(1);
-              expect(textContent(renderer.toJSON())).toContain('Completion window expired');
-            });
-          });
-          '''
-          details.write_text(text + addition)
-          PY
-
-          pnpm exec prettier --write \
-            apps/mobile/src/calendar/calendar-historical-state.ts \
-            apps/mobile/src/calendar/calendar-mission-details-route.tsx \
-            apps/mobile/src/calendar/calendar-mission-details-save.ts \
-            apps/mobile/src/calendar/calendar-mission-adjustment-save.ts \
-            apps/mobile/src/calendar/calendar-historical-state.test.mjs \
-            apps/mobile/src/calendar/calendar-mission-details-save.test.mjs \
-            apps/mobile/src/calendar/calendar-mission-adjustment-save.test.mjs \
-            apps/mobile/src/calendar/calendar-mission-details.test.mjs \
-            --config packages/config/prettier.config.mjs
-
-          pnpm --filter @misyra/mobile exec vitest run \
-            src/calendar/calendar-historical-state.test.mjs \
-            src/calendar/calendar-mission-details-save.test.mjs \
-            src/calendar/calendar-mission-adjustment-save.test.mjs \
-            src/calendar/calendar-mission-details.test.mjs \
-            --config ../../packages/config/vitest.config.mjs
-
-      - name: Restore standard CI and publish result
-        env:
-          FOCUSED_OUTCOME: ${{ steps.focused.outcome }}
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if [ "$FOCUSED_OUTCOME" != "success" ]; then
-            git reset --hard HEAD
-            git checkout origin/main -- .github/workflows/ci.yml
-            git add .github/workflows/ci.yml
-            git commit -m "ci: restore standard workflow after MTS-054 check"
-            git push origin HEAD:feat/mts-054-historical-state-transitions
-            exit 1
-          fi
-          git checkout origin/main -- .github/workflows/ci.yml
-          git add .github/workflows/ci.yml apps/mobile/src/calendar
-          git diff --cached --check
-          git commit -m "feat: enforce MTS-054 historical state transitions"
-          git push origin HEAD:feat/mts-054-historical-state-transitions
+      - name: Stop local dependencies
+        if: always()
+        run: docker compose --file compose.yaml down --volumes

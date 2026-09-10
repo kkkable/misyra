@@ -13,6 +13,7 @@ import {
 } from '@misyra/domain';
 
 import { createMutationQueue, type MutationQueueDatabase } from '../storage/mutation-queue.js';
+import { assertMissionCompletionWindowOpen } from './calendar-historical-state.js';
 import type { MissionAdjustmentSave } from './calendar-mission-adjustment.js';
 
 type CalendarMissionAdjustmentSaveOptions = Readonly<{
@@ -196,6 +197,7 @@ export async function saveCalendarMissionAdjustment({
     JSON.parse(selectedRow.payload_json) as MissionOccurrenceInput,
   );
   assertDirectManipulationOccurrence(selectedOccurrence);
+  assertMissionCompletionWindowOpen(selectedOccurrence, now);
   const sourceSeries = createMissionSeries(
     JSON.parse(selectedRow.series_payload_json) as MissionSeriesInput,
   );

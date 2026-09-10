@@ -25,6 +25,7 @@ vi.mock('react-native', async () => {
 
 import { MissionCard } from './calendar-mission-layout.js';
 import { MissionDetailsScreen } from './calendar-mission-details.js';
+import { historicalLifecycleForMission } from './calendar-historical-state.js';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -251,5 +252,79 @@ describe('MTS-046 Mission Details state matrix', () => {
         expect.objectContaining({ role: 'text', label: '0 XP' }),
       ]),
     );
+  });
+});
+
+describe('MTS-054 time-travel Mission Details integration', () => {
+  it('materializes exact expiry as read-only while retaining delete and duplicate', () => {
+    const occurrence = {
+      id: baseDetails.id,
+      seriesId: '33333333-3333-4333-8333-333333333333',
+      schedule: {
+        localStart: '2026-03-08T01:00:00',
+        localFinish: '2026-03-08T01:30:00',
+        startInstant: '2026-03-08T06:00:00.000Z',
+        finishInstant: '2026-03-08T06:30:00.000Z',
+        timeZone: 'America/New_York',
+        timeBehavior: 'local_time',
+        allDay: false,
+        estimatedEffortMinutes: null,
+      },
+      scheduleState: 'scheduled',
+      completionState: 'incomplete',
+      evidenceState: 'not_submitted',
+      rewardEligibility: 'eligible',
+      rewardIssuance: 'not_issued',
+      calendarSource: 'internal',
+      fieldOwnership: 'app_owned',
+      synchronizationState: 'synced',
+      storyState: 'none',
+      deletionState: 'active',
+    };
+    expect(historicalLifecycleForMission(occurrence, new Date('2026-04-07T05:29:59.999Z'))).toBe(
+      'active',
+    );
+    const lifecycle = historicalLifecycleForMission(
+      occurrence,
+      new Date('2026-04-07T05:30:00.000Z'),
+    );
+    expect(lifecycle).toBe('expired');
+
+    const onDelete = vi.fn();
+    const onDuplicate = vi.fn();
+    const onSave = vi.fn();
+    let renderer;
+    act(() => {
+      renderer = create(
+        createElement(MissionDetailsScreen, {
+          colorScheme: 'light',
+          details: {
+            ...baseDetails,
+            lifecycle,
+            structuredSchedule: {
+              date: '2026-03-08',
+              start: '01:00',
+              end: '01:30',
+              timeZone: 'America/New_York',
+              allDay: false,
+            },
+          },
+          language: 'en',
+          onDelete,
+          onDuplicate,
+          onSave,
+        }),
+      );
+    });
+
+    expect(find(renderer, 'mission-details-title').props.editable).toBe(false);
+    expect(findAll(renderer, 'mission-details-save')).toHaveLength(0);
+    expect(
+      findAll(renderer, 'mission-details-delete').filter((node) => node.type === 'Pressable'),
+    ).toHaveLength(1);
+    expect(
+      findAll(renderer, 'mission-details-duplicate').filter((node) => node.type === 'Pressable'),
+    ).toHaveLength(1);
+    expect(textContent(renderer.toJSON())).toContain('Completion window expired');
   });
 });

@@ -309,4 +309,59 @@ describe('MTS-047 local-first mission adjustment save', () => {
       baseVersion: 1,
     });
   });
+
+  it('rejects direct manipulation at the exact completion-window expiry', async () => {
+    const database = createDatabase();
+    await applyMobileMigrations(database);
+    await setupLocalAccount(database);
+    const ids = [
+      seriesId,
+      occurrenceId,
+      '55555555-5555-4555-8555-555555555555',
+      '66666666-6666-4666-8666-666666666666',
+    ];
+    const generateId = () => ids.shift();
+
+    await createCalendarMission({
+      database,
+      accountId,
+      deviceId,
+      input: {
+        selectedDate: '2026-08-01',
+        title: 'Expired direct manipulation',
+        startMinute: 9 * 60,
+        endMinute: 10 * 60,
+        rewardEligibility: 'eligible',
+        timeZone: 'UTC',
+      },
+      now: new Date('2026-08-01T08:00:00.000Z'),
+      generateId,
+    });
+
+    await expect(
+      saveCalendarMissionAdjustment({
+        database,
+        accountId,
+        deviceId,
+        adjustment: {
+          missionId: occurrenceId,
+          startMinute: 11 * 60,
+          endMinute: 12 * 60,
+          rewardEligibility: 'ineligible',
+          source: 'move',
+        },
+        now: new Date('2026-08-31T10:00:00.000Z'),
+        generateId,
+      }),
+    ).rejects.toThrow('Mission completion window has expired.');
+
+    const cached = await database.getFirstAsync(
+      `SELECT scheduled_start, scheduled_end
+         FROM cached_mission_occurrences
+        WHERE account_id = ? AND occurrence_id = ?`,
+      accountId,
+      occurrenceId,
+    );
+    expect(cached).toMatchObject({ scheduled_start: '09:00', scheduled_end: '10:00' });
+  });
 });

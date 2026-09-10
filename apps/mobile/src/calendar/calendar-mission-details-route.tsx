@@ -22,7 +22,6 @@ import { prepareCalendarMissionDuplicate } from './calendar-mission-duplicate.js
 import {
   MissionDetailsScreen,
   type MissionDetailsEditableField,
-  type MissionDetailsLifecycle,
   type MissionDetailsProjection,
 } from './calendar-mission-details.js';
 import { saveCalendarMissionDetails } from './calendar-mission-details-save.js';
@@ -31,9 +30,9 @@ import {
   type CalendarMissionCreateInput,
 } from './calendar-mission-create.js';
 import { CalendarMissionFormSheet } from './calendar-mission-form-sheet.js';
+import { historicalLifecycleForMission } from './calendar-historical-state.js';
 import { platformFirstWeekdayToDomain } from './calendar-region-runtime.js';
 
-const COMPLETION_WINDOW_MILLISECONDS = 30 * 24 * 60 * 60 * 1000;
 const DELETE_UNDO_VISIBLE_MILLISECONDS = 5_000;
 const MINUTES_PER_DAY = 24 * 60;
 const UUID_HEX = '0123456789abcdef';
@@ -63,19 +62,6 @@ function generateUuid(): string {
 function routeMissionId(value: string | string[] | undefined): string | null {
   const candidate = Array.isArray(value) ? value[0] : value;
   return typeof candidate === 'string' && candidate.trim().length > 0 ? candidate : null;
-}
-
-function lifecycleForMission(mission: MissionDetails, now: Date): MissionDetailsLifecycle {
-  const occurrence = mission.occurrence;
-  if (occurrence.scheduleState === 'cancelled') return 'cancelled';
-  if (occurrence.completionState === 'completed') return 'completed';
-  const start = Date.parse(occurrence.schedule.startInstant);
-  const finish = Date.parse(occurrence.schedule.finishInstant);
-  const current = now.getTime();
-  if (Number.isFinite(start) && current < start) return 'future';
-  if (Number.isFinite(finish) && current >= finish + COMPLETION_WINDOW_MILLISECONDS)
-    return 'expired';
-  return 'active';
 }
 
 function providerDescription(mission: MissionDetails, fallback: string | null): string | null {
@@ -141,7 +127,7 @@ function projectDetails(
 ): MissionDetailsProjection {
   const occurrence = mission.occurrence;
   const organizerControlled = occurrence.fieldOwnership === 'organizer_controlled';
-  const lifecycle = lifecycleForMission(mission, now);
+  const lifecycle = historicalLifecycleForMission(occurrence, now);
   return {
     id: occurrence.id,
     title: mission.series.title,
