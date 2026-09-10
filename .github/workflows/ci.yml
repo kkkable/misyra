@@ -2,19 +2,30 @@ name: CI
 
 on:
   pull_request:
+  push:
+    branches:
+      - main
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  apply-mts052-green:
+  quality:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
+    env:
+      MTS004_INTEGRATION: '1'
+      TURBO_TELEMETRY_DISABLED: '1'
+      CI_CONTRACT_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
     steps:
-      - name: Checkout MTS-052 branch
+      - name: Checkout clean repository
         uses: actions/checkout@v4
         with:
-          ref: feat/mts-052-recurring-scope-flows
+          persist-credentials: false
           fetch-depth: 0
 
       - name: Install pinned pnpm
@@ -23,91 +34,64 @@ jobs:
           version: 10.34.5
           run_install: false
 
-      - name: Set up pinned Node
+      - name: Set up pinned Node with pnpm cache
         uses: actions/setup-node@v4
         with:
           node-version: 24.19.0
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install from lockfile
         run: pnpm install --frozen-lockfile
 
-      - name: Apply guarded GREEN integration and restore CI
-        shell: bash
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          import base64
-          import re
+      - name: Install Bicep compiler in runner only
+        run: az bicep install
 
-          def replace_once(text, old, new, label):
-              count = text.count(old)
-              if count != 1:
-                  raise SystemExit(f'{label}: expected exactly one match, found {count}')
-              return text.replace(old, new, 1)
+      - name: Start deterministic local dependencies
+        run: docker compose --file compose.yaml up -d --wait postgres azurite
 
-          path = Path('packages/localization/src/catalogs.ts')
-          text = path.read_text()
-          text = replace_once(text, "    'calendar.details.delete': 'Delete',\n", "    'calendar.details.delete': 'Delete',\n    'calendar.recurringScope.editTitle': 'Edit repeating mission',\n    'calendar.recurringScope.deleteTitle': 'Delete repeating mission',\n    'calendar.recurringScope.restoreTitle': 'Restore repeating event',\n    'calendar.recurringScope.thisOccurrence': 'This occurrence',\n    'calendar.recurringScope.thisAndFuture': 'This and future occurrences',\n    'calendar.recurringScope.entireSeries': 'Entire series',\n    'calendar.recurringScope.cancel': 'Cancel',\n", 'English scope catalog')
-          text = replace_once(text, "    'calendar.details.delete': '刪除',\n", "    'calendar.details.delete': '刪除',\n    'calendar.recurringScope.editTitle': '編輯重複任務',\n    'calendar.recurringScope.deleteTitle': '刪除重複任務',\n    'calendar.recurringScope.restoreTitle': '還原重複行程',\n    'calendar.recurringScope.thisOccurrence': '只限今次',\n    'calendar.recurringScope.thisAndFuture': '今次及之後',\n    'calendar.recurringScope.entireSeries': '整個系列',\n    'calendar.recurringScope.cancel': '取消',\n", 'zh-HK scope catalog')
-          path.write_text(text)
+      - name: Prove failing-fixture gates reject bad inputs
+        run: pnpm ci:fixtures
 
-          path = Path('apps/mobile/src/calendar/calendar-mission-details.tsx')
-          text = path.read_text()
-          text = replace_once(text, "import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';\n", "import { useState } from 'react';\nimport { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';\n", 'details React state import')
-          text = replace_once(text, "  RewardEligibility,\n} from '@misyra/domain';", "  RewardEligibility,\n  RecurringSeriesScope,\n} from '@misyra/domain';", 'details domain scope type')
-          text = replace_once(text, "import { fieldContract, themeColors, type ColorScheme } from '../design-system/index.js';\n", "import { fieldContract, themeColors, type ColorScheme } from '../design-system/index.js';\nimport {\n  CalendarRecurringScopeChooser,\n  type CalendarRecurringScopeOperation,\n} from './calendar-recurring-scope-chooser.js';\n\nexport { CalendarRecurringScopeChooser } from './calendar-recurring-scope-chooser.js';\n", 'details chooser import')
-          text = replace_once(text, "  readonly onSave?: (() => void | Promise<void>) | undefined;\n  readonly onDuplicate?: ((missionId: string) => void | Promise<void>) | undefined;\n  readonly onDelete?: ((missionId: string) => void | Promise<void>) | undefined;", "  readonly onSave?: ((scope?: RecurringSeriesScope) => void | Promise<void>) | undefined;\n  readonly onDuplicate?: ((missionId: string) => void | Promise<void>) | undefined;\n  readonly onDelete?:\n    | ((missionId: string, scope?: RecurringSeriesScope) => void | Promise<void>)\n    | undefined;", 'details callback types')
-          text = replace_once(text, "  const colors = themeColors(colorScheme);\n  const historical = isHistorical(details.lifecycle) || details.completionState === 'completed';", "  const colors = themeColors(colorScheme);\n  const [scopeOperation, setScopeOperation] = useState<CalendarRecurringScopeOperation | null>(null);\n  const historical = isHistorical(details.lifecycle) || details.completionState === 'completed';", 'details chooser state')
-          text = replace_once(text, "  const structuredEditable =\n    appOwnedEditable && details.structuredSchedule !== undefined && details.recurring !== true;", "  const structuredEditable = appOwnedEditable && details.structuredSchedule !== undefined;", 'details structured editability')
-          count = text.count("editable={appOwnedEditable && details.recurring !== true}")
-          if count != 3:
-              raise SystemExit(f'details recurring editability: expected 3 matches, found {count}')
-          text = text.replace("editable={appOwnedEditable && details.recurring !== true}", "editable={appOwnedEditable}")
-          text = replace_once(text, "          onPress={() => {\n            void Promise.resolve(onSave()).catch(() => undefined);\n          }}", "          onPress={() => {\n            if (details.recurring === true) {\n              setScopeOperation('edit');\n              return;\n            }\n            void Promise.resolve(onSave()).catch(() => undefined);\n          }}", 'details scoped save action')
-          text = replace_once(text, "              onPress={() => {\n                void Promise.resolve(onDelete(details.id)).catch(() => undefined);\n              }}", "              onPress={() => {\n                if (details.recurring === true) {\n                  setScopeOperation('delete');\n                  return;\n                }\n                void Promise.resolve(onDelete(details.id)).catch(() => undefined);\n              }}", 'details scoped delete action')
-          text = replace_once(text, "      )}\n    </ScrollView>", "      )}\n\n      {scopeOperation === null ? null : (\n        <CalendarRecurringScopeChooser\n          colorScheme={colorScheme}\n          language={language}\n          onCancel={() => {\n            setScopeOperation(null);\n          }}\n          onSelect={(scope) => {\n            const operation = scopeOperation;\n            setScopeOperation(null);\n            if (operation === 'edit' && onSave !== undefined) {\n              void Promise.resolve(onSave(scope)).catch(() => undefined);\n            } else if (operation === 'delete' && onDelete !== undefined) {\n              void Promise.resolve(onDelete(details.id, scope)).catch(() => undefined);\n            }\n          }}\n          operation={scopeOperation}\n        />\n      )}\n    </ScrollView>", 'details chooser render')
-          path.write_text(text)
+      - name: Check workspace formatting
+        run: pnpm format
 
-          path = Path('apps/mobile/src/calendar/calendar-mission-details-route.tsx')
-          text = path.read_text()
-          text = replace_once(text, "import { layout, space, typography } from '@misyra/design-tokens';\nimport { localizationCatalogs } from '@misyra/localization';", "import { layout, space, typography } from '@misyra/design-tokens';\nimport type { RecurringSeriesScope } from '@misyra/domain';\nimport { localizationCatalogs } from '@misyra/localization';", 'route scope type import')
-          text = replace_once(text, "  const saveDetails = useCallback(async () => {\n    if (details === null || details.structuredSchedule === undefined || details.recurring === true)\n      return;", "  const saveDetails = useCallback(async (scope?: RecurringSeriesScope) => {\n    if (details === null || details.structuredSchedule === undefined) return;", 'route scoped save signature')
-          text = replace_once(text, "      now: new Date(),\n      generateId: generateUuid,\n    });\n    setLoaded(false);", "      scope,\n      now: new Date(),\n      generateId: generateUuid,\n      generateSeriesId: generateUuid,\n    });\n    setLoaded(false);", 'route scoped save options')
-          text = replace_once(text, "    async (targetMissionId: string) => {", "    async (targetMissionId: string, scope?: RecurringSeriesScope) => {", 'route scoped delete signature')
-          text = replace_once(text, "        occurrenceId: targetMissionId,\n        now: new Date(),\n        generateId: generateUuid,\n      });", "        occurrenceId: targetMissionId,\n        scope,\n        now: new Date(),\n        generateId: generateUuid,\n      });", 'route scoped delete options')
-          path.write_text(text)
+      - name: Check CI-owned formatting
+        run: pnpm format:ci
 
-          path = Path('packages/database/src/sync-store.ts')
-          text = path.read_text()
-          old_types = base64.b64decode('dHlwZSBNaXNzaW9uQWRqdXN0bWVudFVwZGF0ZVBheWxvYWQgPSBSZWFkb25seTx7CiAga2luZDogJ2FkanVzdG1lbnQnOwogIHNjaGVkdWxlOiBNaXNzaW9uU2NoZWR1bGVQYXlsb2FkICYgUmVhZG9ubHk8eyBhbGxEYXk6IGZhbHNlOyBlc3RpbWF0ZWRFZmZvcnRNaW51dGVzOiBudWxsIH0+OwogIHJld2FyZEVsaWdpYmlsaXR5OiAnZWxpZ2libGUnIHwgJ2luZWxpZ2libGUnOwp9PjsKCnR5cGUgTWlzc2lvbkRldGFpbHNVcGRhdGVQYXlsb2FkID0gUmVhZG9ubHk8ewogIGtpbmQ6ICdkZXRhaWxzJzsKICB0aXRsZTogc3RyaW5nOwogIHNjaGVkdWxlOiBNaXNzaW9uU2NoZWR1bGVQYXlsb2FkOwogIHJld2FyZEVsaWdpYmlsaXR5OiAnZWxpZ2libGUnIHwgJ2luZWxpZ2libGUnOwogIGxvY2F0aW9uOiBzdHJpbmcgfCBudWxsOwogIG5vdGVzOiBzdHJpbmcgfCBudWxsOwp9PjsKCnR5cGUgTWlzc2lvblVwZGF0ZVBheWxvYWQgPSBNaXNzaW9uQWRqdXN0bWVudFVwZGF0ZVBheWxvYWQgfCBNaXNzaW9uRGV0YWlsc1VwZGF0ZVBheWxvYWQ7').decode()
-          new_types = base64.b64decode('dHlwZSBNaXNzaW9uVXBkYXRlU2VyaWVzID0gTWlzc2lvbkNyZWF0ZVBheWxvYWRbJ3NlcmllcyddOwoKdHlwZSBNaXNzaW9uU291cmNlU2VyaWVzVXBkYXRlID0gUmVhZG9ubHk8ewogIGlkOiBzdHJpbmc7CiAgcmVjdXJyZW5jZTogUmVjb3JkPHN0cmluZywgdW5rbm93bj4gfCBudWxsOwp9PjsKCnR5cGUgTWlzc2lvblNjb3BlZFVwZGF0ZU1ldGFkYXRhID0gUmVhZG9ubHk8ewogIHNlcmllcz86IE1pc3Npb25VcGRhdGVTZXJpZXMgfCB1bmRlZmluZWQ7CiAgc291cmNlU2VyaWVzPzogTWlzc2lvblNvdXJjZVNlcmllc1VwZGF0ZSB8IHVuZGVmaW5lZDsKfT47Cgp0eXBlIE1pc3Npb25BZGp1c3RtZW50VXBkYXRlUGF5bG9hZCA9IFJlYWRvbmx5PHsKICBraW5kOiAnYWRqdXN0bWVudCc7CiAgc2NoZWR1bGU6IE1pc3Npb25TY2hlZHVsZVBheWxvYWQgJiBSZWFkb25seTx7IGFsbERheTogZmFsc2U7IGVzdGltYXRlZEVmZm9ydE1pbnV0ZXM6IG51bGwgfT47CiAgcmV3YXJkRWxpZ2liaWxpdHk6ICdlbGlnaWJsZScgfCAnaW5lbGlnaWJsZSc7Cn0+ICYKICBNaXNzaW9uU2NvcGVkVXBkYXRlTWV0YWRhdGE7Cgp0eXBlIE1pc3Npb25EZXRhaWxzVXBkYXRlUGF5bG9hZCA9IFJlYWRvbmx5PHsKICBraW5kOiAnZGV0YWlscyc7CiAgdGl0bGU6IHN0cmluZzsKICBzY2hlZHVsZTogTWlzc2lvblNjaGVkdWxlUGF5bG9hZDsKICByZXdhcmRFbGlnaWJpbGl0eTogJ2VsaWdpYmxlJyB8ICdpbmVsaWdpYmxlJzsKICBsb2NhdGlvbjogc3RyaW5nIHwgbnVsbDsKICBub3Rlczogc3RyaW5nIHwgbnVsbDsKfT4gJgogIE1pc3Npb25TY29wZWRVcGRhdGVNZXRhZGF0YTsKCnR5cGUgTWlzc2lvblVwZGF0ZVBheWxvYWQgPSBNaXNzaW9uQWRqdXN0bWVudFVwZGF0ZVBheWxvYWQgfCBNaXNzaW9uRGV0YWlsc1VwZGF0ZVBheWxvYWQ7').decode()
-          text = replace_once(text, old_types, new_types, 'sync update types')
-          parser_pattern = re.compile(r"function parseMissionUpdatePayload\(payload: unknown\): MissionUpdatePayload \{.*?\n\}\n\nfunction enforceMissionCreatePlacement", re.S)
-          if len(parser_pattern.findall(text)) != 1:
-              raise SystemExit('sync parser: expected exactly one function')
-          new_parser = base64.b64decode('ZnVuY3Rpb24gcGFyc2VNaXNzaW9uVXBkYXRlU2VyaWVzKHZhbHVlOiB1bmtub3duKTogTWlzc2lvblVwZGF0ZVNlcmllcyB7CiAgY29uc3Qgc291cmNlID0gYXNSZWNvcmQodmFsdWUsICdNaXNzaW9uIHRhcmdldCBzZXJpZXMnKTsKICBjb25zdCBrZXlzID0gT2JqZWN0LmtleXMoc291cmNlKTsKICBjb25zdCBzdXBwb3J0ZWQgPSBuZXcgU2V0KFsnaWQnLCAndGl0bGUnLCAncmVjdXJyZW5jZSddKTsKICBpZiAoa2V5cy5sZW5ndGggIT09IHN1cHBvcnRlZC5zaXplIHx8IGtleXMuc29tZSgoa2V5KSA9PiAhc3VwcG9ydGVkLmhhcyhrZXkpKSkgewogICAgdGhyb3cgbmV3IFN5bmNNdXRhdGlvblZhbGlkYXRpb25FcnJvcignTWlzc2lvbiB0YXJnZXQgc2VyaWVzIGNvbnRhaW5zIHVuc3VwcG9ydGVkIGZpZWxkcycpOwogIH0KICByZXR1cm4gewogICAgaWQ6IHJlcXVpcmVVdWlkKHNvdXJjZSwgJ2lkJywgJ01pc3Npb24gdGFyZ2V0IHNlcmllcyBpZCcpLAogICAgdGl0bGU6IHJlcXVpcmVTdHJpbmcoc291cmNlLCAndGl0bGUnLCAnTWlzc2lvbiB0YXJnZXQgc2VyaWVzIHRpdGxlJykudHJpbSgpLAogICAgcmVjdXJyZW5jZTogb3B0aW9uYWxPYmplY3Qoc291cmNlLCAncmVjdXJyZW5jZScsICdNaXNzaW9uIHRhcmdldCBzZXJpZXMgcmVjdXJyZW5jZScpLAogIH07Cn0KCmZ1bmN0aW9uIHBhcnNlTWlzc2lvblNvdXJjZVNlcmllcyh2YWx1ZTogdW5rbm93bik6IE1pc3Npb25Tb3VyY2VTZXJpZXNVcGRhdGUgewogIGNvbnN0IHNvdXJjZSA9IGFzUmVjb3JkKHZhbHVlLCAnTWlzc2lvbiBzb3VyY2Ugc2VyaWVzJyk7CiAgY29uc3Qga2V5cyA9IE9iamVjdC5rZXlzKHNvdXJjZSk7CiAgaWYgKGtleXMubGVuZ3RoICE9PSAyIHx8IGtleXMuc29tZSgoa2V5KSA9PiBrZXkgIT09ICdpZCcgJiYga2V5ICE9PSAncmVjdXJyZW5jZScpKSB7CiAgICB0aHJvdyBuZXcgU3luY011dGF0aW9uVmFsaWRhdGlvbkVycm9yKCdNaXNzaW9uIHNvdXJjZSBzZXJpZXMgY29udGFpbnMgdW5zdXBwb3J0ZWQgZmllbGRzJyk7CiAgfQogIHJldHVybiB7CiAgICBpZDogcmVxdWlyZVV1aWQoc291cmNlLCAnaWQnLCAnTWlzc2lvbiBzb3VyY2Ugc2VyaWVzIGlkJyksCiAgICByZWN1cnJlbmNlOiBvcHRpb25hbE9iamVjdChzb3VyY2UsICdyZWN1cnJlbmNlJywgJ01pc3Npb24gc291cmNlIHNlcmllcyByZWN1cnJlbmNlJyksCiAgfTsKfQoKZnVuY3Rpb24gcGFyc2VNaXNzaW9uU2NvcGVkVXBkYXRlTWV0YWRhdGEocm9vdDogUmVjb3JkPHN0cmluZywgdW5rbm93bj4pOiBNaXNzaW9uU2NvcGVkVXBkYXRlTWV0YWRhdGEgewogIGNvbnN0IHNlcmllcyA9IE9iamVjdC5oYXNPd24ocm9vdCwgJ3NlcmllcycpID8gcGFyc2VNaXNzaW9uVXBkYXRlU2VyaWVzKHJvb3Quc2VyaWVzKSA6IHVuZGVmaW5lZDsKICBjb25zdCBzb3VyY2VTZXJpZXMgPSBPYmplY3QuaGFzT3duKHJvb3QsICdzb3VyY2VTZXJpZXMnKQogICAgPyBwYXJzZU1pc3Npb25Tb3VyY2VTZXJpZXMocm9vdC5zb3VyY2VTZXJpZXMpCiAgICA6IHVuZGVmaW5lZDsKICBpZiAoc291cmNlU2VyaWVzICE9PSB1bmRlZmluZWQgJiYgc2VyaWVzID09PSB1bmRlZmluZWQpIHsKICAgIHRocm93IG5ldyBTeW5jTXV0YXRpb25WYWxpZGF0aW9uRXJyb3IoJ01pc3Npb24gc291cmNlIHNlcmllcyB1cGRhdGUgcmVxdWlyZXMgYSB0YXJnZXQgc2VyaWVzJyk7CiAgfQogIHJldHVybiB7CiAgICAuLi4oc2VyaWVzID09PSB1bmRlZmluZWQgPyB7fSA6IHsgc2VyaWVzIH0pLAogICAgLi4uKHNvdXJjZVNlcmllcyA9PT0gdW5kZWZpbmVkID8ge30gOiB7IHNvdXJjZVNlcmllcyB9KSwKICB9Owp9CgpmdW5jdGlvbiBwYXJzZU1pc3Npb25VcGRhdGVQYXlsb2FkKHBheWxvYWQ6IHVua25vd24pOiBNaXNzaW9uVXBkYXRlUGF5bG9hZCB7CiAgY29uc3Qgcm9vdCA9IGFzUmVjb3JkKHBheWxvYWQsICdNaXNzaW9uIHVwZGF0ZSBwYXlsb2FkJyk7CiAgaWYgKHJvb3Qua2luZCA9PT0gJ2RldGFpbHMnKSB7CiAgICBjb25zdCBrZXlzID0gT2JqZWN0LmtleXMocm9vdCk7CiAgICBjb25zdCBzdXBwb3J0ZWQgPSBuZXcgU2V0KFsKICAgICAgJ2tpbmQnLAogICAgICAndGl0bGUnLAogICAgICAnc2NoZWR1bGUnLAogICAgICAncmV3YXJkRWxpZ2liaWxpdHknLAogICAgICAnbG9jYXRpb24nLAogICAgICAnbm90ZXMnLAogICAgICAnc2VyaWVzJywKICAgICAgJ3NvdXJjZVNlcmllcycsCiAgICBdKTsKICAgIGNvbnN0IHJlcXVpcmVkID0gWydraW5kJywgJ3RpdGxlJywgJ3NjaGVkdWxlJywgJ3Jld2FyZEVsaWdpYmlsaXR5JywgJ2xvY2F0aW9uJywgJ25vdGVzJ107CiAgICBpZiAoCiAgICAgIGtleXMuc29tZSgoa2V5KSA9PiAhc3VwcG9ydGVkLmhhcyhrZXkpKSB8fAogICAgICByZXF1aXJlZC5zb21lKChrZXkpID0+ICFPYmplY3QuaGFzT3duKHJvb3QsIGtleSkpCiAgICApIHsKICAgICAgdGhyb3cgbmV3IFN5bmNNdXRhdGlvblZhbGlkYXRpb25FcnJvcignTWlzc2lvbiBEZXRhaWxzIHVwZGF0ZSBjb250YWlucyB1bnN1cHBvcnRlZCBmaWVsZHMnKTsKICAgIH0KICAgIHJldHVybiB7CiAgICAgIGtpbmQ6ICdkZXRhaWxzJywKICAgICAgdGl0bGU6IHJlcXVpcmVTdHJpbmcocm9vdCwgJ3RpdGxlJywgJ01pc3Npb24gdGl0bGUnKS50cmltKCksCiAgICAgIHNjaGVkdWxlOiBwYXJzZU1pc3Npb25TY2hlZHVsZShhc1JlY29yZChyb290LnNjaGVkdWxlLCAnTWlzc2lvbiB1cGRhdGUgc2NoZWR1bGUnKSksCiAgICAgIHJld2FyZEVsaWdpYmlsaXR5OiByZXF1aXJlTGl0ZXJhbCgKICAgICAgICByb290LAogICAgICAgICdyZXdhcmRFbGlnaWJpbGl0eScsCiAgICAgICAgWydlbGlnaWJsZScsICdpbmVsaWdpYmxlJ10gYXMgY29uc3QsCiAgICAgICAgJ01pc3Npb24gcmV3YXJkIGVsaWdpYmlsaXR5JywKICAgICAgKSwKICAgICAgbG9jYXRpb246IG9wdGlvbmFsU3RyaW5nKHJvb3QsICdsb2NhdGlvbicsICdNaXNzaW9uIGxvY2F0aW9uJyksCiAgICAgIG5vdGVzOiBvcHRpb25hbFN0cmluZyhyb290LCAnbm90ZXMnLCAnTWlzc2lvbiBub3RlcycpLAogICAgICAuLi5wYXJzZU1pc3Npb25TY29wZWRVcGRhdGVNZXRhZGF0YShyb290KSwKICAgIH07CiAgfQoKICBjb25zdCBrZXlzID0gT2JqZWN0LmtleXMocm9vdCk7CiAgY29uc3Qgc3VwcG9ydGVkID0gbmV3IFNldChbJ3NjaGVkdWxlJywgJ3Jld2FyZEVsaWdpYmlsaXR5JywgJ3NlcmllcycsICdzb3VyY2VTZXJpZXMnXSk7CiAgaWYgKAogICAga2V5cy5zb21lKChrZXkpID0+ICFzdXBwb3J0ZWQuaGFzKGtleSkpIHx8CiAgICAhT2JqZWN0Lmhhc093bihyb290LCAnc2NoZWR1bGUnKSB8fAogICAgIU9iamVjdC5oYXNPd24ocm9vdCwgJ3Jld2FyZEVsaWdpYmlsaXR5JykKICApIHsKICAgIHRocm93IG5ldyBTeW5jTXV0YXRpb25WYWxpZGF0aW9uRXJyb3IoJ01pc3Npb24gdXBkYXRlIGNvbnRhaW5zIHVuc3VwcG9ydGVkIGZpZWxkcycpOwogIH0KICBjb25zdCBzY2hlZHVsZSA9IHBhcnNlTWlzc2lvblNjaGVkdWxlKGFzUmVjb3JkKHJvb3Quc2NoZWR1bGUsICdNaXNzaW9uIHVwZGF0ZSBzY2hlZHVsZScpKTsKICBpZiAoc2NoZWR1bGUuYWxsRGF5KSB7CiAgICB0aHJvdyBuZXcgU3luY011dGF0aW9uVmFsaWRhdGlvbkVycm9yKAogICAgICAnTVRTLTA0NyBkaXJlY3QgbWFuaXB1bGF0aW9uIHN1cHBvcnRzIHRpbWVkIG1pc3Npb25zIG9ubHknLAogICAgKTsKICB9CiAgcmV0dXJuIHsKICAgIGtpbmQ6ICdhZGp1c3RtZW50JywKICAgIHNjaGVkdWxlLAogICAgcmV3YXJkRWxpZ2liaWxpdHk6IHJlcXVpcmVMaXRlcmFsKAogICAgICByb290LAogICAgICAncmV3YXJkRWxpZ2liaWxpdHknLAogICAgICBbJ2VsaWdpYmxlJywgJ2luZWxpZ2libGUnXSBhcyBjb25zdCwKICAgICAgJ01pc3Npb24gcmV3YXJkIGVsaWdpYmlsaXR5JywKICAgICksCiAgICAuLi5wYXJzZU1pc3Npb25TY29wZWRVcGRhdGVNZXRhZGF0YShyb290KSwKICB9Owp9CgpmdW5jdGlvbiBlbmZvcmNlTWlzc2lvbkNyZWF0ZVBsYWNlbWVudA==').decode()
-          text = parser_pattern.sub(lambda _: new_parser, text, count=1)
-          apply_pattern = re.compile(r"async function applyMissionUpdateMutation\(.*?\n\}\n\nasync function applyMissionDeleteMutation", re.S)
-          if len(apply_pattern.findall(text)) != 1:
-              raise SystemExit('sync projector: expected exactly one function')
-          new_apply = base64.b64decode('YXN5bmMgZnVuY3Rpb24gYXBwbHlNaXNzaW9uVXBkYXRlTXV0YXRpb24oCiAgY2xpZW50OiBQb29sQ2xpZW50LAogIG11dGF0aW9uOiBTdG9yZWRTeW5jTXV0YXRpb24sCiAgZWZmZWN0aXZlVGltZTogRGF0ZSwKKTogUHJvbWlzZTx1bmtub3duPiB7CiAgaWYgKG11dGF0aW9uLmJhc2VWZXJzaW9uID09PSBudWxsKSB7CiAgICB0aHJvdyBuZXcgU3luY011dGF0aW9uVmFsaWRhdGlvbkVycm9yKCdNaXNzaW9uIHVwZGF0ZSByZXF1aXJlcyBhIGJhc2UgdmVyc2lvbicpOwogIH0KICBjb25zdCB1cGRhdGUgPSBwYXJzZU1pc3Npb25VcGRhdGVQYXlsb2FkKG11dGF0aW9uLnBheWxvYWQpOwogIGNvbnN0IGN1cnJlbnRSZXN1bHQgPSBhd2FpdCBjbGllbnQucXVlcnk8TWlzc2lvblVwZGF0ZVJvdz4oCiAgICBgU0VMRUNUIG8uc2VyaWVzX2lkIEFTICJzZXJpZXNJZCIsCiAgICAgICAgICAgIHMudGl0bGUsCiAgICAgICAgICAgIHMucmVjdXJyZW5jZV9ydWxlIEFTIHJlY3VycmVuY2UsCiAgICAgICAgICAgIG8uc2NoZWR1bGVfc3RhdGUgQVMgInNjaGVkdWxlU3RhdGUiLAogICAgICAgICAgICBvLmNvbXBsZXRpb25fc3RhdGUgQVMgImNvbXBsZXRpb25TdGF0ZSIsCiAgICAgICAgICAgIG8uZXZpZGVuY2Vfc3RhdGUgQVMgImV2aWRlbmNlU3RhdGUiLAogICAgICAgICAgICBvLnJld2FyZF9lbGlnaWJpbGl0eSBBUyAicmV3YXJkRWxpZ2liaWxpdHkiLAogICAgICAgICAgICBvLnJld2FyZF9pc3N1YW5jZSBBUyAicmV3YXJkSXNzdWFuY2UiLAogICAgICAgICAgICBvLmNhbGVuZGFyX3NvdXJjZSBBUyAiY2FsZW5kYXJTb3VyY2UiLAogICAgICAgICAgICBvLmZpZWxkX293bmVyc2hpcCBBUyAiZmllbGRPd25lcnNoaXAiLAogICAgICAgICAgICBvLnN0b3J5X3N0YXRlIEFTICJzdG9yeVN0YXRlIiwKICAgICAgICAgICAgby5kZWxldGlvbl9zdGF0ZSBBUyAiZGVsZXRpb25TdGF0ZSIsCiAgICAgICAgICAgIG8uYWxsX2RheSBBUyAiYWxsRGF5IiwKICAgICAgICAgICAgby5zdGFydF9pbnN0YW50IEFTICJzdGFydEluc3RhbnQiLAogICAgICAgICAgICBvLmxvY2F0aW9uLAogICAgICAgICAgICBvLm5vdGVzLAogICAgICAgICAgICBvLnZlcnNpb24KICAgICAgIEZST00gbWlzc2lvbl9vY2N1cnJlbmNlcyBvCiAgICAgICBKT0lOIG1pc3Npb25fc2VyaWVzIHMgT04gcy5pZCA9IG8uc2VyaWVzX2lkIEFORCBzLmFjY291bnRfaWQgPSBvLmFjY291bnRfaWQKICAgICAgV0hFUkUgby5pZCA9ICQxIEFORCBvLmFjY291bnRfaWQgPSAkMgogICAgICBGT1IgVVBEQVRFIE9GIG9gLAogICAgW211dGF0aW9uLmVudGl0eUlkLCBtdXRhdGlvbi5hY2NvdW50SWRdLAogICk7CiAgY29uc3QgY3VycmVudCA9IGN1cnJlbnRSZXN1bHQucm93c1swXTsKICBpZiAoY3VycmVudCA9PT0gdW5kZWZpbmVkKSB7CiAgICB0aHJvdyBuZXcgU3luY011dGF0aW9uVmFsaWRhdGlvbkVycm9yKCdNaXNzaW9uIHVwZGF0ZSB0YXJnZXQgd2FzIG5vdCBmb3VuZCcpOwogIH0KICBpZiAoY3VycmVudC5kZWxldGlvblN0YXRlID09PSAnZGVsZXRlZCcpIHsKICAgIHRocm93IG5ldyBTeW5jTXV0YXRpb25Db25mbGljdEVycm9yKCdNaXNzaW9uIG9jY3VycmVuY2UgaXMgcGVybWFuZW50bHkgZGVsZXRlZCcpOwogIH0KICBpZiAoY3VycmVudC52ZXJzaW9uICE9PSBtdXRhdGlvbi5iYXNlVmVyc2lvbikgewogICAgdGhyb3cgbmV3IFN5bmNNdXRhdGlvbkNvbmZsaWN0RXJyb3IoCiAgICAgICdNaXNzaW9uIG11dGF0aW9uIGJhc2UgdmVyc2lvbiBkb2VzIG5vdCBtYXRjaCBjdXJyZW50IG9jY3VycmVuY2UgdmVyc2lvbicsCiAgICApOwogIH0KICBpZiAoCiAgICBjdXJyZW50LnNjaGVkdWxlU3RhdGUgIT09ICdzY2hlZHVsZWQnIHx8CiAgICBjdXJyZW50LmNvbXBsZXRpb25TdGF0ZSAhPT0gJ2luY29tcGxldGUnIHx8CiAgICBjdXJyZW50LmNhbGVuZGFyU291cmNlICE9PSAnaW50ZXJuYWwnIHx8CiAgICBjdXJyZW50LmZpZWxkT3duZXJzaGlwICE9PSAnYXBwX293bmVkJyB8fAogICAgY3VycmVudC5kZWxldGlvblN0YXRlICE9PSAnYWN0aXZlJwogICkgewogICAgdGhyb3cgbmV3IFN5bmNNdXRhdGlvblZhbGlkYXRpb25FcnJvcigKICAgICAgJ01pc3Npb24gZWRpdHMgcmVxdWlyZSBhbiBhY3RpdmUgdW5maW5pc2hlZCBhcHAtb3duZWQgbWlzc2lvbicsCiAgICApOwogIH0KICBpZiAodXBkYXRlLmtpbmQgPT09ICdhZGp1c3RtZW50JyAmJiBjdXJyZW50LmFsbERheSkgewogICAgdGhyb3cgbmV3IFN5bmNNdXRhdGlvblZhbGlkYXRpb25FcnJvcigKICAgICAgJ01pc3Npb24gZGlyZWN0IG1hbmlwdWxhdGlvbiByZXF1aXJlcyBhbiBhY3RpdmUgdW5maW5pc2hlZCBhcHAtb3duZWQgdGltZWQgbWlzc2lvbicsCiAgICApOwogIH0KICBjb25zdCBzY29wZWQgPSB1cGRhdGUuc2VyaWVzICE9PSB1bmRlZmluZWQ7CiAgaWYgKHVwZGF0ZS5raW5kID09PSAnZGV0YWlscycgJiYgY3VycmVudC5yZWN1cnJlbmNlICE9PSBudWxsICYmICFzY29wZWQpIHsKICAgIHRocm93IG5ldyBTeW5jTXV0YXRpb25WYWxpZGF0aW9uRXJyb3IoCiAgICAgICdSZWN1cnJpbmcgTWlzc2lvbiBEZXRhaWxzIGVkaXRzIHJlcXVpcmUgcmVjdXJyZW5jZSBzY29wZSBzZWxlY3Rpb24nLAogICAgKTsKICB9CiAgaWYgKHVwZGF0ZS5raW5kID09PSAnZGV0YWlscycgJiYgdXBkYXRlLnNjaGVkdWxlLmFsbERheSAhPT0gY3VycmVudC5hbGxEYXkpIHsKICAgIHRocm93IG5ldyBTeW5jTXV0YXRpb25WYWxpZGF0aW9uRXJyb3IoJ01pc3Npb24gRGV0YWlscyBjYW5ub3QgY2hhbmdlIHRoZSBhbGwtZGF5IG1vZGUnKTsKICB9CiAgaWYgKHVwZGF0ZS5zb3VyY2VTZXJpZXMgIT09IHVuZGVmaW5lZCAmJiB1cGRhdGUuc291cmNlU2VyaWVzLmlkICE9PSBjdXJyZW50LnNlcmllc0lkKSB7CiAgICB0aHJvdyBuZXcgU3luY011dGF0aW9uVmFsaWRhdGlvbkVycm9yKCdNaXNzaW9uIHNvdXJjZSBzZXJpZXMgbXVzdCBtYXRjaCB0aGUgY3VycmVudCBzZXJpZXMnKTsKICB9CgogIGNvbnN0IGVkaXRlZEFmdGVyU3RhcnQgPSBEYXRlLnBhcnNlKGN1cnJlbnQuc3RhcnRJbnN0YW50KSA8PSBlZmZlY3RpdmVUaW1lLmdldFRpbWUoKTsKICBjb25zdCBtb3ZlZEludG9QYXN0ID0gRGF0ZS5wYXJzZSh1cGRhdGUuc2NoZWR1bGUuc3RhcnRJbnN0YW50KSA8IGVmZmVjdGl2ZVRpbWUuZ2V0VGltZSgpOwogIGNvbnN0IHJld2FyZEVsaWdpYmlsaXR5ID0KICAgIGN1cnJlbnQucmV3YXJkRWxpZ2liaWxpdHkgPT09ICdpbmVsaWdpYmxlJyB8fAogICAgdXBkYXRlLnJld2FyZEVsaWdpYmlsaXR5ID09PSAnaW5lbGlnaWJsZScgfHwKICAgIGVkaXRlZEFmdGVyU3RhcnQgfHwKICAgIG1vdmVkSW50b1Bhc3QKICAgICAgPyAnaW5lbGlnaWJsZScKICAgICAgOiB1cGRhdGUucmV3YXJkRWxpZ2liaWxpdHk7CiAgY29uc3QgbmV4dFZlcnNpb24gPSBjdXJyZW50LnZlcnNpb24gKyAxOwogIGNvbnN0IHNjaGVkdWxlID0gdXBkYXRlLnNjaGVkdWxlOwogIGNvbnN0IHRpdGxlID0gdXBkYXRlLmtpbmQgPT09ICdkZXRhaWxzJyA/IHVwZGF0ZS50aXRsZSA6IGN1cnJlbnQudGl0bGU7CiAgY29uc3QgbG9jYXRpb24gPSB1cGRhdGUua2luZCA9PT0gJ2RldGFpbHMnID8gdXBkYXRlLmxvY2F0aW9uIDogY3VycmVudC5sb2NhdGlvbjsKICBjb25zdCBub3RlcyA9IHVwZGF0ZS5raW5kID09PSAnZGV0YWlscycgPyB1cGRhdGUubm90ZXMgOiBjdXJyZW50Lm5vdGVzOwogIGNvbnN0IHRhcmdldFNlcmllczogTWlzc2lvblVwZGF0ZVNlcmllcyA9IHVwZGF0ZS5zZXJpZXMgPz8gewogICAgaWQ6IGN1cnJlbnQuc2VyaWVzSWQsCiAgICB0aXRsZSwKICAgIHJlY3VycmVuY2U6IGN1cnJlbnQucmVjdXJyZW5jZSBhcyBSZWNvcmQ8c3RyaW5nLCB1bmtub3duPiB8IG51bGwsCiAgfTsKICBpZiAodXBkYXRlLmtpbmQgPT09ICdkZXRhaWxzJyAmJiB0YXJnZXRTZXJpZXMudGl0bGUgIT09IHRpdGxlKSB7CiAgICB0aHJvdyBuZXcgU3luY011dGF0aW9uVmFsaWRhdGlvbkVycm9yKCdNaXNzaW9uIHRhcmdldCBzZXJpZXMgdGl0bGUgbXVzdCBtYXRjaCB0aGUgZGV0YWlscyB0aXRsZScpOwogIH0KCiAgaWYgKHVwZGF0ZS5zb3VyY2VTZXJpZXMgIT09IHVuZGVmaW5lZCkgewogICAgY29uc3Qgc291cmNlVXBkYXRlZCA9IGF3YWl0IGNsaWVudC5xdWVyeSgKICAgICAgYFVQREFURSBtaXNzaW9uX3NlcmllcwogICAgICAgICAgU0VUIHJlY3VycmVuY2VfcnVsZSA9ICQzOjpqc29uYiwKICAgICAgICAgICAgICB1cGRhdGVkX2F0ID0gbm93KCkKICAgICAgICBXSEVSRSBpZCA9ICQxIEFORCBhY2NvdW50X2lkID0gJDJgLAogICAgICBbCiAgICAgICAgdXBkYXRlLnNvdXJjZVNlcmllcy5pZCwKICAgICAgICBtdXRhdGlvbi5hY2NvdW50SWQsCiAgICAgICAgdXBkYXRlLnNvdXJjZVNlcmllcy5yZWN1cnJlbmNlID09PSBudWxsCiAgICAgICAgICA/IG51bGwKICAgICAgICAgIDogSlNPTi5zdHJpbmdpZnkodXBkYXRlLnNvdXJjZVNlcmllcy5yZWN1cnJlbmNlKSwKICAgICAgXSwKICAgICk7CiAgICBpZiAoc291cmNlVXBkYXRlZC5yb3dDb3VudCAhPT0gMSkgewogICAgICB0aHJvdyBuZXcgU3luY011dGF0aW9uQ29uZmxpY3RFcnJvcignTWlzc2lvbiBzb3VyY2Ugc2VyaWVzIGNoYW5nZWQgd2hpbGUgc2NvcGUgd2FzIHNhdmVkJyk7CiAgICB9CiAgfQoKICBpZiAodGFyZ2V0U2VyaWVzLmlkICE9PSBjdXJyZW50LnNlcmllc0lkKSB7CiAgICBhd2FpdCB1cHNlcnRNaXNzaW9uU2VyaWVzKGNsaWVudCwgbXV0YXRpb24uYWNjb3VudElkLCB0YXJnZXRTZXJpZXMpOwogIH0gZWxzZSBpZiAoc2NvcGVkKSB7CiAgICBjb25zdCByZWN1cnJlbmNlQ2hlY2sgPSBhd2FpdCBjbGllbnQucXVlcnk8eyBtYXRjaGVzOiBib29sZWFuIH0+KAogICAgICBgU0VMRUNUIHJlY3VycmVuY2VfcnVsZSBJUyBOT1QgRElTVElOQ1QgRlJPTSAkMzo6anNvbmIgQVMgbWF0Y2hlcwogICAgICAgICBGUk9NIG1pc3Npb25fc2VyaWVzCiAgICAgICAgV0hFUkUgaWQgPSAkMSBBTkQgYWNjb3VudF9pZCA9ICQyYCwKICAgICAgWwogICAgICAgIHRhcmdldFNlcmllcy5pZCwKICAgICAgICBtdXRhdGlvbi5hY2NvdW50SWQsCiAgICAgICAgdGFyZ2V0U2VyaWVzLnJlY3VycmVuY2UgPT09IG51bGwgPyBudWxsIDogSlNPTi5zdHJpbmdpZnkodGFyZ2V0U2VyaWVzLnJlY3VycmVuY2UpLAogICAgICBdLAogICAgKTsKICAgIGlmIChyZWN1cnJlbmNlQ2hlY2sucm93c1swXT8ubWF0Y2hlcyAhPT0gdHJ1ZSkgewogICAgICB0aHJvdyBuZXcgU3luY011dGF0aW9uQ29uZmxpY3RFcnJvcignTWlzc2lvbiB0YXJnZXQgc2VyaWVzIHJlY3VycmVuY2UgZG9lcyBub3QgbWF0Y2gnKTsKICAgIH0KICB9CgogIGlmICh1cGRhdGUua2luZCA9PT0gJ2RldGFpbHMnICYmIHRhcmdldFNlcmllcy5pZCA9PT0gY3VycmVudC5zZXJpZXNJZCkgewogICAgY29uc3Qgc2VyaWVzVXBkYXRlZCA9IGF3YWl0IGNsaWVudC5xdWVyeSgKICAgICAgYFVQREFURSBtaXNzaW9uX3NlcmllcwogICAgICAgICAgU0VUIHRpdGxlID0gJDMsCiAgICAgICAgICAgICAgdXBkYXRlZF9hdCA9IG5vdygpCiAgICAgICAgV0hFUkUgaWQgPSAkMSBBTkQgYWNjb3VudF9pZCA9ICQyYCwKICAgICAgW2N1cnJlbnQuc2VyaWVzSWQsIG11dGF0aW9uLmFjY291bnRJZCwgdGl0bGVdLAogICAgKTsKICAgIGlmIChzZXJpZXNVcGRhdGVkLnJvd0NvdW50ICE9PSAxKSB7CiAgICAgIHRocm93IG5ldyBTeW5jTXV0YXRpb25Db25mbGljdEVycm9yKCdNaXNzaW9uIHNlcmllcyBjaGFuZ2VkIHdoaWxlIGRldGFpbHMgd2VyZSBzYXZlZCcpOwogICAgfQogIH0KCiAgY29uc3QgdXBkYXRlZCA9IGF3YWl0IGNsaWVudC5xdWVyeSgKICAgIGBVUERBVEUgbWlzc2lvbl9vY2N1cnJlbmNlcwogICAgICAgIFNFVCBzZXJpZXNfaWQgPSAkMywKICAgICAgICAgICAgbG9jYWxfZGF0ZSA9ICQ0LAogICAgICAgICAgICBsb2NhbF9zdGFydCA9ICQ1LAogICAgICAgICAgICBsb2NhbF9maW5pc2ggPSAkNiwKICAgICAgICAgICAgc3RhcnRfaW5zdGFudCA9ICQ3LAogICAgICAgICAgICBmaW5pc2hfaW5zdGFudCA9ICQ4LAogICAgICAgICAgICB0aW1lX3pvbmUgPSAkOSwKICAgICAgICAgICAgdGltZV9iZWhhdmlvciA9ICQxMCwKICAgICAgICAgICAgYWxsX2RheSA9ICQxMSwKICAgICAgICAgICAgZXN0aW1hdGVkX2VmZm9ydF9taW51dGVzID0gJDEyLAogICAgICAgICAgICByZXdhcmRfZWxpZ2liaWxpdHkgPSAkMTMsCiAgICAgICAgICAgIGxvY2F0aW9uID0gJDE0LAogICAgICAgICAgICBub3RlcyA9ICQxNSwKICAgICAgICAgICAgc3luY2hyb25pemF0aW9uX3N0YXRlID0gJ3N5bmNlZCcsCiAgICAgICAgICAgIHZlcnNpb24gPSAkMTYsCiAgICAgICAgICAgIHVwZGF0ZWRfYXQgPSBub3coKQogICAgICBXSEVSRSBpZCA9ICQxIEFORCBhY2NvdW50X2lkID0gJDIgQU5EIHZlcnNpb24gPSAkMTdgLAogICAgWwogICAgICBtdXRhdGlvbi5lbnRpdHlJZCwKICAgICAgbXV0YXRpb24uYWNjb3VudElkLAogICAgICB0YXJnZXRTZXJpZXMuaWQsCiAgICAgIHNjaGVkdWxlLmxvY2FsU3RhcnQuc2xpY2UoMCwgMTApLAogICAgICBzY2hlZHVsZS5sb2NhbFN0YXJ0LAogICAgICBzY2hlZHVsZS5sb2NhbEZpbmlzaCwKICAgICAgc2NoZWR1bGUuc3RhcnRJbnN0YW50LAogICAgICBzY2hlZHVsZS5maW5pc2hJbnN0YW50LAogICAgICBzY2hlZHVsZS50aW1lWm9uZSwKICAgICAgc2NoZWR1bGUudGltZUJlaGF2aW9yLAogICAgICBzY2hlZHVsZS5hbGxEYXksCiAgICAgIHNjaGVkdWxlLmVzdGltYXRlZEVmZm9ydE1pbnV0ZXMsCiAgICAgIHJld2FyZEVsaWdpYmlsaXR5LAogICAgICBsb2NhdGlvbiwKICAgICAgbm90ZXMsCiAgICAgIG5leHRWZXJzaW9uLAogICAgICBjdXJyZW50LnZlcnNpb24sCiAgICBdLAogICk7CiAgaWYgKHVwZGF0ZWQucm93Q291bnQgIT09IDEpIHsKICAgIHRocm93IG5ldyBTeW5jTXV0YXRpb25Db25mbGljdEVycm9yKAogICAgICAnTWlzc2lvbiBtdXRhdGlvbiBiYXNlIHZlcnNpb24gZG9lcyBub3QgbWF0Y2ggY3VycmVudCBvY2N1cnJlbmNlIHZlcnNpb24nLAogICAgKTsKICB9CgogIHJldHVybiB7CiAgICB2ZXJzaW9uOiBuZXh0VmVyc2lvbiwKICAgIHNlcmllczogdGFyZ2V0U2VyaWVzLAogICAgb2NjdXJyZW5jZTogewogICAgICBpZDogbXV0YXRpb24uZW50aXR5SWQsCiAgICAgIHNlcmllc0lkOiB0YXJnZXRTZXJpZXMuaWQsCiAgICAgIHNjaGVkdWxlLAogICAgICBzY2hlZHVsZVN0YXRlOiBjdXJyZW50LnNjaGVkdWxlU3RhdGUsCiAgICAgIGNvbXBsZXRpb25TdGF0ZTogY3VycmVudC5jb21wbGV0aW9uU3RhdGUsCiAgICAgIGV2aWRlbmNlU3RhdGU6IGN1cnJlbnQuZXZpZGVuY2VTdGF0ZSwKICAgICAgcmV3YXJkRWxpZ2liaWxpdHksCiAgICAgIHJld2FyZElzc3VhbmNlOiBjdXJyZW50LnJld2FyZElzc3VhbmNlLAogICAgICBjYWxlbmRhclNvdXJjZTogY3VycmVudC5jYWxlbmRhclNvdXJjZSwKICAgICAgZmllbGRPd25lcnNoaXA6IGN1cnJlbnQuZmllbGRPd25lcnNoaXAsCiAgICAgIHN5bmNocm9uaXphdGlvblN0YXRlOiAnc3luY2VkJywKICAgICAgc3RvcnlTdGF0ZTogY3VycmVudC5zdG9yeVN0YXRlLAogICAgICBkZWxldGlvblN0YXRlOiBjdXJyZW50LmRlbGV0aW9uU3RhdGUsCiAgICB9LAogICAgbG9jYXRpb24sCiAgICBub3RlcywKICB9Owp9Cgphc3luYyBmdW5jdGlvbiBhcHBseU1pc3Npb25EZWxldGVNdXRhdGlvbg==').decode()
-          text = apply_pattern.sub(lambda _: new_apply, text, count=1)
-          path.write_text(text)
+      - name: Lint workspaces
+        run: pnpm lint
 
-          for filename in ['apps/mobile/src/calendar/calendar-mission-adjustment-save.ts', 'apps/mobile/src/calendar/calendar-mission-details-save.ts']:
-              path = Path(filename)
-              text = path.read_text()
-              text = text.replace("...(targetSeries.id === sourceSeries.id ? {} : { series: targetSeries }),", "...(recurring ? { series: targetSeries } : {}),")
-              text = text.replace("...(targetSeries.id === currentSeries.id ? {} : { series: targetSeries }),", "...(recurring ? { series: targetSeries } : {}),")
-              path.write_text(text)
-          PY
+      - name: Lint CI-owned scripts and tests
+        run: pnpm lint:ci
 
-          pnpm exec prettier --write packages/localization/src/catalogs.ts packages/database/src/sync-store.ts apps/mobile/src/calendar/calendar-recurring-scope-chooser.tsx apps/mobile/src/calendar/calendar-mission-details.tsx apps/mobile/src/calendar/calendar-mission-details-route.tsx apps/mobile/src/calendar/calendar-mission-details-save.ts apps/mobile/src/calendar/calendar-mission-adjustment-save.ts apps/mobile/src/calendar/calendar-mission-delete.ts --config packages/config/prettier.config.mjs
-          git show origin/main:.github/workflows/ci.yml > /tmp/ci-main.yml
-          cp /tmp/ci-main.yml .github/workflows/ci.yml
-          cmp -s .github/workflows/ci.yml /tmp/ci-main.yml
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add packages/localization/src/catalogs.ts packages/database/src/sync-store.ts apps/mobile/src/calendar/calendar-recurring-scope-chooser.tsx apps/mobile/src/calendar/calendar-mission-details.tsx apps/mobile/src/calendar/calendar-mission-details-route.tsx apps/mobile/src/calendar/calendar-mission-details-save.ts apps/mobile/src/calendar/calendar-mission-adjustment-save.ts apps/mobile/src/calendar/calendar-mission-delete.ts .github/workflows/ci.yml
-          git commit -m 'feat: wire recurring scope flows end to end'
-          git push origin HEAD:feat/mts-052-recurring-scope-flows
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Run unit, integration, and mobile component tests
+        run: pnpm test
+
+      - name: Build all workspaces
+        run: pnpm build
+
+      - name: Reject high and critical dependency findings
+        run: pnpm audit --audit-level high
+
+      - name: Scan tracked implementation and configuration for secrets
+        run: pnpm ci:secrets
+
+      - name: Verify localization completeness
+        run: pnpm ci:localization
+
+      - name: Verify privacy and logging boundaries
+        run: pnpm ci:privacy
+
+      - name: Compile Bicep and environment parameter shapes
+        run: pnpm validate:infra
+
+      - name: Verify contract compatibility boundary
+        run: pnpm ci:contracts
+
+      - name: Stop local dependencies
+        if: always()
+        run: docker compose --file compose.yaml down --volumes

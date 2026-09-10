@@ -144,7 +144,10 @@ function adjustedEligibility(
   return placement.rewardEligibility;
 }
 
-function splitSourceSeries(series: ReturnType<typeof createMissionSeries>, selectedLocalDate: string) {
+function splitSourceSeries(
+  series: ReturnType<typeof createMissionSeries>,
+  selectedLocalDate: string,
+) {
   if (series.recurrence === null) {
     throw new Error('Recurring scope split requires a recurring series.');
   }
@@ -309,7 +312,7 @@ export async function saveCalendarMissionAdjustment({
         payload: {
           schedule,
           rewardEligibility,
-          ...(targetSeries.id === sourceSeries.id ? {} : { series: targetSeries }),
+          ...(recurring ? { series: targetSeries } : {}),
           ...(sourceSeriesPayload === undefined ? {} : { sourceSeries: sourceSeriesPayload }),
         },
       },

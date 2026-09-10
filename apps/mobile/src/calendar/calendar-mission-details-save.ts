@@ -67,7 +67,8 @@ function optionalText(value: string | null): string | null {
 }
 
 function dateWithOffset(date: string, offset: number): string {
-  if (!LOCAL_DATE_PATTERN.test(date)) throw new TypeError('Mission date must use YYYY-MM-DD format.');
+  if (!LOCAL_DATE_PATTERN.test(date))
+    throw new TypeError('Mission date must use YYYY-MM-DD format.');
   const instant = new Date(`${date}T12:00:00.000Z`);
   if (Number.isNaN(instant.getTime())) throw new TypeError('Mission date must be valid.');
   instant.setUTCDate(instant.getUTCDate() + offset);
@@ -143,8 +144,12 @@ function assertEditable(occurrence: MissionOccurrence): void {
   }
 }
 
-function splitSourceSeries(series: ReturnType<typeof createMissionSeries>, selectedLocalDate: string) {
-  if (series.recurrence === null) throw new Error('Recurring scope split requires a recurring series.');
+function splitSourceSeries(
+  series: ReturnType<typeof createMissionSeries>,
+  selectedLocalDate: string,
+) {
+  if (series.recurrence === null)
+    throw new Error('Recurring scope split requires a recurring series.');
   return createMissionSeries({
     ...series,
     recurrence: {
@@ -302,7 +307,8 @@ export async function saveCalendarMissionDetails({
 
   const affectedSet = new Set(affectedIds);
   const affectedRows = cachedRows.filter((cached) => affectedSet.has(cached.occurrence_id));
-  if (affectedRows.length === 0) throw new Error('Recurring mission scope contains no editable occurrence.');
+  if (affectedRows.length === 0)
+    throw new Error('Recurring mission scope contains no editable occurrence.');
 
   const originalSelectedDate = currentOccurrence.schedule.localStart.slice(0, 10);
   const dateDelta = dayDifference(originalSelectedDate, edit.selectedDate);
@@ -360,18 +366,8 @@ export async function saveCalendarMissionDetails({
       nextStart = originalStart + timeDelta;
       nextEnd = targetDuration === null ? null : nextStart + targetDuration;
     }
-    const schedule = scheduleForEdit(
-      occurrence,
-      nextDate,
-      nextStart,
-      nextEnd,
-      targetTimeZone,
-    );
-    const rewardEligibility = eligibilityForEdit(
-      occurrence,
-      schedule.startInstant,
-      actionInstant,
-    );
+    const schedule = scheduleForEdit(occurrence, nextDate, nextStart, nextEnd, targetTimeZone);
+    const rewardEligibility = eligibilityForEdit(occurrence, schedule.startInstant, actionInstant);
     const nextOccurrence = createMissionOccurrence({
       ...occurrence,
       seriesId: targetSeries.id,
@@ -412,7 +408,7 @@ export async function saveCalendarMissionDetails({
           rewardEligibility,
           location,
           notes,
-          ...(targetSeries.id === currentSeries.id ? {} : { series: targetSeries }),
+          ...(recurring ? { series: targetSeries } : {}),
           ...(sourceSeriesPayload === undefined ? {} : { sourceSeries: sourceSeriesPayload }),
         },
       },
@@ -488,7 +484,8 @@ export async function saveCalendarMissionDetails({
 
   const selectedOccurrence =
     savedOccurrences.find((occurrence) => occurrence.id === edit.missionId) ?? savedOccurrences[0];
-  if (selectedOccurrence === undefined) throw new Error('Mission Details save produced no occurrence.');
+  if (selectedOccurrence === undefined)
+    throw new Error('Mission Details save produced no occurrence.');
   return Object.freeze({
     series: targetSeries,
     occurrence: selectedOccurrence,

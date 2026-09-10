@@ -215,7 +215,9 @@ export async function deleteCalendarMission({
   const selectedOccurrence = createMissionOccurrence(
     JSON.parse(selected.payload_json) as MissionOccurrenceInput,
   );
-  const series = createMissionSeries(JSON.parse(selected.series_payload_json) as MissionSeriesInput);
+  const series = createMissionSeries(
+    JSON.parse(selected.series_payload_json) as MissionSeriesInput,
+  );
   if (series.recurrence === null) {
     if (scope !== undefined && scope !== 'this_occurrence') {
       throw new Error('Series scope requires a recurring mission.');
