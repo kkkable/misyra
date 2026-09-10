@@ -100,7 +100,8 @@ function parseClockInput(
   if (match === null) return null;
   const hour = Number(match[1]);
   const minute = Number(match[2]);
-  if (!Number.isInteger(hour) || !Number.isInteger(minute) || minute < 0 || minute > 59) return null;
+  if (!Number.isInteger(hour) || !Number.isInteger(minute) || minute < 0 || minute > 59)
+    return null;
   const total = hour * 60 + minute;
   return total >= 0 && total <= maximum ? total : null;
 }
@@ -183,9 +184,7 @@ export function CalendarMissionFormSheet({
   const [startText, setStartText] = useState(
     clockInput(initialStartMinute, language, uses24HourClock),
   );
-  const [endText, setEndText] = useState(
-    clockInput(defaultEndMinute, language, uses24HourClock),
-  );
+  const [endText, setEndText] = useState(clockInput(defaultEndMinute, language, uses24HourClock));
   const [moreOptionsVisible, setMoreOptionsVisible] = useState(initialInput !== undefined);
   const [allDay, setAllDay] = useState(initialInput?.allDay ?? false);
   const [effort, setEffort] = useState(String(initialInput?.estimatedEffortMinutes ?? 30));
@@ -288,8 +287,15 @@ export function CalendarMissionFormSheet({
           style={[styles.sheet, { backgroundColor: colors.surfaceRaised }]}
           testID="calendar-create-sheet"
         >
-          <ScrollView contentContainerStyle={styles.formContent} keyboardShouldPersistTaps="handled">
-            <Text accessibilityRole="header" allowFontScaling style={[styles.heading, { color: colors.textPrimary }]}> 
+          <ScrollView
+            contentContainerStyle={styles.formContent}
+            keyboardShouldPersistTaps="handled"
+          >
+            <Text
+              accessibilityRole="header"
+              allowFontScaling
+              style={[styles.heading, { color: colors.textPrimary }]}
+            >
               {catalog['calendar.create.title']}
             </Text>
             <TextInput
@@ -342,10 +348,10 @@ export function CalendarMissionFormSheet({
                   style={[styles.toggleRow, { borderColor: colors.border }]}
                   testID="calendar-create-recurrence"
                 >
-                  <Text allowFontScaling style={[styles.bodyText, { color: colors.textPrimary }]}> 
+                  <Text allowFontScaling style={[styles.bodyText, { color: colors.textPrimary }]}>
                     {catalog['calendar.create.recurrence']}
                   </Text>
-                  <Text allowFontScaling style={[styles.bodyText, { color: colors.textSecondary }]}> 
+                  <Text allowFontScaling style={[styles.bodyText, { color: colors.textSecondary }]}>
                     {recurrence === null
                       ? catalog['calendar.create.doesNotRepeat']
                       : catalog['calendar.recurrence.title']}
@@ -379,10 +385,10 @@ export function CalendarMissionFormSheet({
                   style={[styles.toggleRow, { borderColor: colors.border }]}
                   testID="calendar-create-all-day"
                 >
-                  <Text allowFontScaling style={[styles.bodyText, { color: colors.textPrimary }]}> 
+                  <Text allowFontScaling style={[styles.bodyText, { color: colors.textPrimary }]}>
                     {catalog['calendar.create.allDay']}
                   </Text>
-                  <Text allowFontScaling style={[styles.bodyText, { color: colors.textSecondary }]}> 
+                  <Text allowFontScaling style={[styles.bodyText, { color: colors.textSecondary }]}>
                     {allDay ? catalog['calendar.create.on'] : catalog['calendar.create.off']}
                   </Text>
                 </Pressable>
@@ -392,7 +398,10 @@ export function CalendarMissionFormSheet({
                     keyboardType="number-pad"
                     onChangeText={setEffort}
                     placeholder={catalog['calendar.create.estimatedEffort']}
-                    style={[styles.input, { borderColor: colors.border, color: colors.textPrimary }]}
+                    style={[
+                      styles.input,
+                      { borderColor: colors.border, color: colors.textPrimary },
+                    ]}
                     testID="calendar-create-effort"
                     value={effort}
                   />
@@ -415,10 +424,10 @@ export function CalendarMissionFormSheet({
                   style={[styles.toggleRow, { borderColor: colors.border }]}
                   testID="calendar-create-travel-behavior"
                 >
-                  <Text allowFontScaling style={[styles.bodyText, { color: colors.textPrimary }]}> 
+                  <Text allowFontScaling style={[styles.bodyText, { color: colors.textPrimary }]}>
                     {catalog['calendar.create.travelBehavior']}
                   </Text>
-                  <Text allowFontScaling style={[styles.bodyText, { color: colors.textSecondary }]}> 
+                  <Text allowFontScaling style={[styles.bodyText, { color: colors.textSecondary }]}>
                     {timeBehavior === 'local_time'
                       ? catalog['calendar.create.keepLocalTime']
                       : catalog['calendar.create.fixedInstant']}
@@ -434,10 +443,10 @@ export function CalendarMissionFormSheet({
                   style={[styles.toggleRow, { borderColor: colors.border }]}
                   testID="calendar-create-private"
                 >
-                  <Text allowFontScaling style={[styles.bodyText, { color: colors.textPrimary }]}> 
+                  <Text allowFontScaling style={[styles.bodyText, { color: colors.textPrimary }]}>
                     {catalog['calendar.create.private']}
                   </Text>
-                  <Text allowFontScaling style={[styles.bodyText, { color: colors.textSecondary }]}> 
+                  <Text allowFontScaling style={[styles.bodyText, { color: colors.textSecondary }]}>
                     {isPrivate ? catalog['calendar.create.on'] : catalog['calendar.create.off']}
                   </Text>
                 </Pressable>
@@ -473,7 +482,7 @@ export function CalendarMissionFormSheet({
                 style={styles.moreOptions}
                 testID="calendar-create-more-options"
               >
-                <Text allowFontScaling style={[styles.actionText, { color: colors.primary }]}> 
+                <Text allowFontScaling style={[styles.actionText, { color: colors.primary }]}>
                   {catalog['calendar.create.moreOptions']}
                 </Text>
               </Pressable>
@@ -506,7 +515,7 @@ export function CalendarMissionFormSheet({
                   style={styles.action}
                   testID="calendar-create-confirm-zero-xp"
                 >
-                  <Text allowFontScaling style={[styles.actionText, { color: colors.primary }]}> 
+                  <Text allowFontScaling style={[styles.actionText, { color: colors.primary }]}>
                     {catalog['calendar.create.confirmZeroXp']}
                   </Text>
                 </Pressable>
@@ -520,7 +529,7 @@ export function CalendarMissionFormSheet({
                 style={styles.action}
                 testID="calendar-create-cancel"
               >
-                <Text allowFontScaling style={[styles.actionText, { color: colors.textSecondary }]}> 
+                <Text allowFontScaling style={[styles.actionText, { color: colors.textSecondary }]}>
                   {catalog['calendar.create.cancel']}
                 </Text>
               </Pressable>
@@ -533,7 +542,7 @@ export function CalendarMissionFormSheet({
                 style={styles.action}
                 testID="calendar-create-save"
               >
-                <Text allowFontScaling style={[styles.actionText, { color: colors.primary }]}> 
+                <Text allowFontScaling style={[styles.actionText, { color: colors.primary }]}>
                   {catalog['calendar.create.save']}
                 </Text>
               </Pressable>
