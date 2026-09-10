@@ -92,7 +92,6 @@ export interface CalendarDayScreenProps {
   readonly allDayMissionsByDate?: Readonly<Record<string, readonly AllDayMissionSummary[]>>;
   readonly onAllDayMissionPress?: (mission: AllDayMissionSummary) => void;
   readonly timedMissionsByDate?: Readonly<Record<string, readonly TimedMissionSummary[]>>;
-  readonly selectedMissionId?: string;
   readonly searchFocusTarget?: CalendarSearchFocusTarget;
   readonly onSearchPress?: (() => void) | undefined;
   readonly onHelpFaqPress?: (() => void) | undefined;
@@ -112,7 +111,6 @@ export function CalendarDayScreen({
   allDayMissionsByDate = {},
   onAllDayMissionPress,
   timedMissionsByDate = {},
-  selectedMissionId,
   searchFocusTarget,
   onSearchPress,
   onHelpFaqPress,
@@ -156,11 +154,11 @@ export function CalendarDayScreen({
   const [pickerVisible, setPickerVisible] = useState(false);
   const [pickerMonth, setPickerMonth] = useState(initialDateRef.current);
   const [helpVisible, setHelpVisible] = useState(false);
-  const [userSelectedMissionId, setUserSelectedMissionId] = useState<string | undefined>(undefined);
+  const [selectedMissionId, setSelectedMissionId] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     if (searchFocusTarget === undefined) return;
-    setUserSelectedMissionId(undefined);
+    setSelectedMissionId(undefined);
     setSelectedDate(searchFocusTarget.date);
     setPickerMonth(searchFocusTarget.date);
     setPickerVisible(false);
@@ -203,10 +201,10 @@ export function CalendarDayScreen({
   const focusedMissionId =
     searchFocusTarget !== undefined && searchFocusTarget.date === selectedDate
       ? searchFocusTarget.missionId
-      : (userSelectedMissionId ?? selectedMissionId);
+      : selectedMissionId;
 
   const clearMissionSelection = () => {
-    setUserSelectedMissionId(undefined);
+    setSelectedMissionId(undefined);
   };
 
   const selectDate = (date: string) => {
@@ -216,20 +214,14 @@ export function CalendarDayScreen({
   };
 
   const selectTimedMission = (mission: TimedMissionSummary) => {
-    const resolution = resolveCalendarMissionTap(
-      userSelectedMissionId ?? selectedMissionId,
-      mission.id,
-    );
-    setUserSelectedMissionId(resolution.selectedMissionId);
+    const resolution = resolveCalendarMissionTap(selectedMissionId, mission.id);
+    setSelectedMissionId(resolution.selectedMissionId);
     if (resolution.openDetails) onTimedMissionPress?.(mission);
   };
 
   const selectAllDayMission = (mission: AllDayMissionSummary) => {
-    const resolution = resolveCalendarMissionTap(
-      userSelectedMissionId ?? selectedMissionId,
-      mission.id,
-    );
-    setUserSelectedMissionId(resolution.selectedMissionId);
+    const resolution = resolveCalendarMissionTap(selectedMissionId, mission.id);
+    setSelectedMissionId(resolution.selectedMissionId);
     if (resolution.openDetails) onAllDayMissionPress?.(mission);
   };
 

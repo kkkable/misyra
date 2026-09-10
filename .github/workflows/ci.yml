@@ -2,21 +2,30 @@ name: CI
 
 on:
   pull_request:
+  push:
+    branches:
+      - main
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  apply-calendar-selection-finalization:
-    if: github.head_ref == 'fix/mts-044-051-cross-ticket-corrections'
+  quality:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 30
+    env:
+      MTS004_INTEGRATION: '1'
+      TURBO_TELEMETRY_DISABLED: '1'
+      CI_CONTRACT_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
     steps:
-      - name: Checkout feature branch
+      - name: Checkout clean repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.ref }}
-          persist-credentials: true
+          persist-credentials: false
           fetch-depth: 0
 
       - name: Install pinned pnpm
@@ -35,76 +44,54 @@ jobs:
       - name: Install from lockfile
         run: pnpm install --frozen-lockfile
 
-      - name: Finalize Calendar-owned mission selection
-        run: |
-          python - <<'PY'
-          from pathlib import Path
+      - name: Install Bicep compiler in runner only
+        run: az bicep install
 
-          day_path = Path('apps/mobile/src/calendar/calendar-day-screen.tsx')
-          day = day_path.read_text()
+      - name: Start deterministic local dependencies
+        run: docker compose --file compose.yaml up -d --wait postgres azurite
 
-          required_once = [
-              "  readonly selectedMissionId?: string;\n",
-              "  selectedMissionId,\n  searchFocusTarget,",
-              "      : (userSelectedMissionId ?? selectedMissionId);",
-          ]
-          for pattern in required_once:
-              if day.count(pattern) != 1:
-                  raise SystemExit(f'unexpected CalendarDayScreen pattern count for {pattern!r}: {day.count(pattern)}')
+      - name: Prove failing-fixture gates reject bad inputs
+        run: pnpm ci:fixtures
 
-          day = day.replace("  readonly selectedMissionId?: string;\n", "", 1)
-          day = day.replace("  selectedMissionId,\n  searchFocusTarget,", "  searchFocusTarget,", 1)
-          day = day.replace(
-              "      : (userSelectedMissionId ?? selectedMissionId);",
-              "      : userSelectedMissionId;",
-              1,
-          )
+      - name: Check workspace formatting
+        run: pnpm format
 
-          resolution_pattern = "userSelectedMissionId ?? selectedMissionId"
-          if day.count(resolution_pattern) != 2:
-              raise SystemExit(
-                  f'unexpected mission-tap resolution count: {day.count(resolution_pattern)}'
-              )
-          day = day.replace(resolution_pattern, "userSelectedMissionId")
+      - name: Check CI-owned formatting
+        run: pnpm format:ci
 
-          if day.count('setUserSelectedMissionId') < 1 or day.count('userSelectedMissionId') < 1:
-              raise SystemExit('expected Calendar-owned temporary selection state was not found')
-          day = day.replace('setUserSelectedMissionId', 'setSelectedMissionId')
-          day = day.replace('userSelectedMissionId', 'selectedMissionId')
+      - name: Lint workspaces
+        run: pnpm lint
 
-          if 'readonly selectedMissionId?: string' in day:
-              raise SystemExit('legacy external selectedMissionId prop remained')
-          if 'userSelectedMissionId' in day or 'setUserSelectedMissionId' in day:
-              raise SystemExit('temporary selection state name remained')
+      - name: Lint CI-owned scripts and tests
+        run: pnpm lint:ci
 
-          day_path.write_text(day)
+      - name: Typecheck
+        run: pnpm typecheck
 
-          route_path = Path('apps/mobile/src/calendar/calendar-route-adjustment.test.mjs')
-          route = route_path.read_text()
+      - name: Run unit, integration, and mobile component tests
+        run: pnpm test
 
-          timed = """    await act(async () => {\n      state.childProps.onTimedMissionPress({ id: '44444444-4444-4444-8444-444444444444' });\n    });\n    await act(async () => {\n      state.childProps.onTimedMissionPress({ id: '44444444-4444-4444-8444-444444444444' });\n    });\n"""
-          timed_once = """    await act(async () => {\n      state.childProps.onTimedMissionPress({ id: '44444444-4444-4444-8444-444444444444' });\n    });\n"""
-          all_day = """    await act(async () => {\n      state.childProps.onAllDayMissionPress({ id: '55555555-5555-4555-8555-555555555555' });\n    });\n    await act(async () => {\n      state.childProps.onAllDayMissionPress({ id: '55555555-5555-4555-8555-555555555555' });\n    });\n"""
-          all_day_once = """    await act(async () => {\n      state.childProps.onAllDayMissionPress({ id: '55555555-5555-4555-8555-555555555555' });\n    });\n"""
+      - name: Build all workspaces
+        run: pnpm build
 
-          if route.count(timed) != 1 or route.count(all_day) != 1:
-              raise SystemExit(
-                  f'unexpected stale route callback blocks: timed={route.count(timed)} all_day={route.count(all_day)}'
-              )
-          route = route.replace(timed, timed_once, 1).replace(all_day, all_day_once, 1)
-          route_path.write_text(route)
-          PY
+      - name: Reject high and critical dependency findings
+        run: pnpm audit --audit-level high
 
-          pnpm exec prettier --write \
-            apps/mobile/src/calendar/calendar-day-screen.tsx \
-            apps/mobile/src/calendar/calendar-route-adjustment.test.mjs \
-            --config packages/config/prettier.config.mjs
+      - name: Scan tracked implementation and configuration for secrets
+        run: pnpm ci:secrets
 
-          git checkout origin/${{ github.event.pull_request.base.ref }} -- .github/workflows/ci.yml
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .github/workflows/ci.yml \
-            apps/mobile/src/calendar/calendar-day-screen.tsx \
-            apps/mobile/src/calendar/calendar-route-adjustment.test.mjs
-          git commit -m "fix: finalize Calendar-owned mission selection"
-          git push origin HEAD:${{ github.event.pull_request.head.ref }}
+      - name: Verify localization completeness
+        run: pnpm ci:localization
+
+      - name: Verify privacy and logging boundaries
+        run: pnpm ci:privacy
+
+      - name: Compile Bicep and environment parameter shapes
+        run: pnpm validate:infra
+
+      - name: Verify contract compatibility boundary
+        run: pnpm ci:contracts
+
+      - name: Stop local dependencies
+        if: always()
+        run: docker compose --file compose.yaml down --volumes
