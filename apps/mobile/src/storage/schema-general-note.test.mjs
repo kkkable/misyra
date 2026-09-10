@@ -61,9 +61,9 @@ describe('MTS-046 general mission note migration', () => {
     await applyMobileMigrations(database);
 
     expect(MOBILE_SCHEMA_VERSION).toBe(6);
-    expect(database.all('PRAGMA table_info(search_documents)').map((column) => column.name)).toContain(
-      'general_note',
-    );
+    expect(
+      database.all('PRAGMA table_info(search_documents)').map((column) => column.name),
+    ).toContain('general_note');
 
     await database.runAsync(
       'INSERT INTO local_accounts (account_id, created_at) VALUES (?, ?)',
