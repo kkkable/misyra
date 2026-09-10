@@ -51,7 +51,11 @@ export function createDeviceSettingsService(store: DeviceRegistrationStore) {
         store.registerDeviceWithTimeZoneState !== undefined
       ) {
         return deviceRegistrationResponseSchema.parse(
-          await store.registerDeviceWithTimeZoneState({ accountId, ...registration }),
+          await store.registerDeviceWithTimeZoneState({
+            accountId,
+            ...registration,
+            timeZone: registration.timeZone,
+          }),
         );
       }
       const deviceId = await store.registerDevice({ accountId, ...registration });
