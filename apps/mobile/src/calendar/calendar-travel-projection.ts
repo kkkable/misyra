@@ -1,8 +1,4 @@
-import {
-  createMissionOccurrence,
-  projectScheduleToTimeZone,
-  type MissionOccurrence,
-} from '@misyra/domain';
+import { projectScheduleToTimeZone, type MissionOccurrence } from '@misyra/domain';
 
 export function projectMissionOccurrenceForAppTimeZone(
   occurrence: MissionOccurrence,
@@ -10,7 +6,7 @@ export function projectMissionOccurrenceForAppTimeZone(
 ): MissionOccurrence {
   if (occurrence.completionState === 'completed') return occurrence;
 
-  return createMissionOccurrence({
+  return Object.freeze({
     ...occurrence,
     schedule: projectScheduleToTimeZone({
       schedule: occurrence.schedule,
