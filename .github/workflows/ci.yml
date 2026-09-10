@@ -39,11 +39,11 @@ jobs:
           import re
 
           def replace_once(text, old, new, label):
-              if text.count(old) != 1:
-                  raise SystemExit(f'{label}: expected exactly one match, found {text.count(old)}')
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected exactly one match, found {count}')
               return text.replace(old, new, 1)
 
-          # Localization: all user-visible scope copy belongs in the shared catalogs.
           path = Path('packages/localization/src/catalogs.ts')
           text = path.read_text()
           text = replace_once(
@@ -74,7 +74,6 @@ jobs:
           )
           path.write_text(text)
 
-          # Mission Details: recurring fields remain editable; Save/Delete require explicit scope.
           path = Path('apps/mobile/src/calendar/calendar-mission-details.tsx')
           text = path.read_text()
           text = replace_once(
@@ -113,6 +112,9 @@ jobs:
               "  const structuredEditable = appOwnedEditable && details.structuredSchedule !== undefined;",
               'details structured editability',
           )
+          count = text.count("editable={appOwnedEditable && details.recurring !== true}")
+          if count != 3:
+              raise SystemExit(f'details recurring editability: expected 3 matches, found {count}')
           text = text.replace("editable={appOwnedEditable && details.recurring !== true}", "editable={appOwnedEditable}")
           text = replace_once(
               text,
@@ -134,7 +136,6 @@ jobs:
           )
           path.write_text(text)
 
-          # Mission Details route forwards the explicit scope into local-first persistence.
           path = Path('apps/mobile/src/calendar/calendar-mission-details-route.tsx')
           text = path.read_text()
           text = replace_once(
@@ -161,36 +162,397 @@ jobs:
               "    async (targetMissionId: string, scope?: RecurringSeriesScope) => {",
               'route scoped delete signature',
           )
-          delete_anchor = "        occurrenceId: targetMissionId,\n        now: new Date(),\n        generateId: generateUuid,\n      });"
           text = replace_once(
               text,
-              delete_anchor,
+              "        occurrenceId: targetMissionId,\n        now: new Date(),\n        generateId: generateUuid,\n      });",
               "        occurrenceId: targetMissionId,\n        scope,\n        now: new Date(),\n        generateId: generateUuid,\n      });",
               'route scoped delete options',
           )
           path.write_text(text)
 
-          # Server sync: parse scoped series metadata and project split/reparent updates.
           path = Path('packages/database/src/sync-store.ts')
           text = path.read_text()
-          old_types = """type MissionAdjustmentUpdatePayload = Readonly<{\n  kind: 'adjustment';\n  schedule: MissionSchedulePayload & Readonly<{ allDay: false; estimatedEffortMinutes: null }>;\n  rewardEligibility: 'eligible' | 'ineligible';\n}>;\n\ntype MissionDetailsUpdatePayload = Readonly<{\n  kind: 'details';\n  title: string;\n  schedule: MissionSchedulePayload;\n  rewardEligibility: 'eligible' | 'ineligible';\n  location: string | null;\n  notes: string | null;\n}>;\n\ntype MissionUpdatePayload = MissionAdjustmentUpdatePayload | MissionDetailsUpdatePayload;"""
-          new_types = """type MissionUpdateSeries = MissionCreatePayload['series'];\n\ntype MissionSourceSeriesUpdate = Readonly<{\n  id: string;\n  recurrence: Record<string, unknown> | null;\n}>;\n\ntype MissionScopedUpdateMetadata = Readonly<{\n  series?: MissionUpdateSeries | undefined;\n  sourceSeries?: MissionSourceSeriesUpdate | undefined;\n}>;\n\ntype MissionAdjustmentUpdatePayload = Readonly<{\n  kind: 'adjustment';\n  schedule: MissionSchedulePayload & Readonly<{ allDay: false; estimatedEffortMinutes: null }>;\n  rewardEligibility: 'eligible' | 'ineligible';\n}> &\n  MissionScopedUpdateMetadata;\n\ntype MissionDetailsUpdatePayload = Readonly<{\n  kind: 'details';\n  title: string;\n  schedule: MissionSchedulePayload;\n  rewardEligibility: 'eligible' | 'ineligible';\n  location: string | null;\n  notes: string | null;\n}> &\n  MissionScopedUpdateMetadata;\n\ntype MissionUpdatePayload = MissionAdjustmentUpdatePayload | MissionDetailsUpdatePayload;"""
+          old_types = """type MissionAdjustmentUpdatePayload = Readonly<{
+  kind: 'adjustment';
+  schedule: MissionSchedulePayload & Readonly<{ allDay: false; estimatedEffortMinutes: null }>;
+  rewardEligibility: 'eligible' | 'ineligible';
+}>;
+
+type MissionDetailsUpdatePayload = Readonly<{
+  kind: 'details';
+  title: string;
+  schedule: MissionSchedulePayload;
+  rewardEligibility: 'eligible' | 'ineligible';
+  location: string | null;
+  notes: string | null;
+}>;
+
+type MissionUpdatePayload = MissionAdjustmentUpdatePayload | MissionDetailsUpdatePayload;"""
+          new_types = """type MissionUpdateSeries = MissionCreatePayload['series'];
+
+type MissionSourceSeriesUpdate = Readonly<{
+  id: string;
+  recurrence: Record<string, unknown> | null;
+}>;
+
+type MissionScopedUpdateMetadata = Readonly<{
+  series?: MissionUpdateSeries | undefined;
+  sourceSeries?: MissionSourceSeriesUpdate | undefined;
+}>;
+
+type MissionAdjustmentUpdatePayload = Readonly<{
+  kind: 'adjustment';
+  schedule: MissionSchedulePayload & Readonly<{ allDay: false; estimatedEffortMinutes: null }>;
+  rewardEligibility: 'eligible' | 'ineligible';
+}> &
+  MissionScopedUpdateMetadata;
+
+type MissionDetailsUpdatePayload = Readonly<{
+  kind: 'details';
+  title: string;
+  schedule: MissionSchedulePayload;
+  rewardEligibility: 'eligible' | 'ineligible';
+  location: string | null;
+  notes: string | null;
+}> &
+  MissionScopedUpdateMetadata;
+
+type MissionUpdatePayload = MissionAdjustmentUpdatePayload | MissionDetailsUpdatePayload;"""
           text = replace_once(text, old_types, new_types, 'sync update types')
 
-          old_parser_pattern = re.compile(r"function parseMissionUpdatePayload\(payload: unknown\): MissionUpdatePayload \{.*?\n\}\n\nfunction enforceMissionCreatePlacement", re.S)
-          if len(old_parser_pattern.findall(text)) != 1:
+          parser_pattern = re.compile(r"function parseMissionUpdatePayload\(payload: unknown\): MissionUpdatePayload \{.*?\n\}\n\nfunction enforceMissionCreatePlacement", re.S)
+          if len(parser_pattern.findall(text)) != 1:
               raise SystemExit('sync parser: expected exactly one function')
-          new_parser = r"""function parseMissionUpdateSeries(value: unknown): MissionUpdateSeries {\n  const source = asRecord(value, 'Mission target series');\n  const keys = Object.keys(source);\n  const supported = new Set(['id', 'title', 'recurrence']);\n  if (keys.length !== supported.size || keys.some((key) => !supported.has(key))) {\n    throw new SyncMutationValidationError('Mission target series contains unsupported fields');\n  }\n  return {\n    id: requireUuid(source, 'id', 'Mission target series id'),\n    title: requireString(source, 'title', 'Mission target series title').trim(),\n    recurrence: optionalObject(source, 'recurrence', 'Mission target series recurrence'),\n  };\n}\n\nfunction parseMissionSourceSeries(value: unknown): MissionSourceSeriesUpdate {\n  const source = asRecord(value, 'Mission source series');\n  const keys = Object.keys(source);\n  if (keys.length !== 2 || keys.some((key) => key !== 'id' && key !== 'recurrence')) {\n    throw new SyncMutationValidationError('Mission source series contains unsupported fields');\n  }\n  return {\n    id: requireUuid(source, 'id', 'Mission source series id'),\n    recurrence: optionalObject(source, 'recurrence', 'Mission source series recurrence'),\n  };\n}\n\nfunction parseMissionScopedUpdateMetadata(root: Record<string, unknown>): MissionScopedUpdateMetadata {\n  const series = Object.hasOwn(root, 'series') ? parseMissionUpdateSeries(root.series) : undefined;\n  const sourceSeries = Object.hasOwn(root, 'sourceSeries')\n    ? parseMissionSourceSeries(root.sourceSeries)\n    : undefined;\n  if (sourceSeries !== undefined && series === undefined) {\n    throw new SyncMutationValidationError('Mission source series update requires a target series');\n  }\n  return {\n    ...(series === undefined ? {} : { series }),\n    ...(sourceSeries === undefined ? {} : { sourceSeries }),\n  };\n}\n\nfunction parseMissionUpdatePayload(payload: unknown): MissionUpdatePayload {\n  const root = asRecord(payload, 'Mission update payload');\n  if (root.kind === 'details') {\n    const keys = Object.keys(root);\n    const supported = new Set([\n      'kind',\n      'title',\n      'schedule',\n      'rewardEligibility',\n      'location',\n      'notes',\n      'series',\n      'sourceSeries',\n    ]);\n    const required = ['kind', 'title', 'schedule', 'rewardEligibility', 'location', 'notes'];\n    if (\n      keys.some((key) => !supported.has(key)) ||\n      required.some((key) => !Object.hasOwn(root, key))\n    ) {\n      throw new SyncMutationValidationError('Mission Details update contains unsupported fields');\n    }\n    return {\n      kind: 'details',\n      title: requireString(root, 'title', 'Mission title').trim(),\n      schedule: parseMissionSchedule(asRecord(root.schedule, 'Mission update schedule')),\n      rewardEligibility: requireLiteral(\n        root,\n        'rewardEligibility',\n        ['eligible', 'ineligible'] as const,\n        'Mission reward eligibility',\n      ),\n      location: optionalString(root, 'location', 'Mission location'),\n      notes: optionalString(root, 'notes', 'Mission notes'),\n      ...parseMissionScopedUpdateMetadata(root),\n    };\n  }\n\n  const keys = Object.keys(root);\n  const supported = new Set(['schedule', 'rewardEligibility', 'series', 'sourceSeries']);\n  if (\n    keys.some((key) => !supported.has(key)) ||\n    !Object.hasOwn(root, 'schedule') ||\n    !Object.hasOwn(root, 'rewardEligibility')\n  ) {\n    throw new SyncMutationValidationError('Mission update contains unsupported fields');\n  }\n  const schedule = parseMissionSchedule(asRecord(root.schedule, 'Mission update schedule'));\n  if (schedule.allDay) {\n    throw new SyncMutationValidationError(\n      'MTS-047 direct manipulation supports timed missions only',\n    );\n  }\n  return {\n    kind: 'adjustment',\n    schedule,\n    rewardEligibility: requireLiteral(\n      root,\n      'rewardEligibility',\n      ['eligible', 'ineligible'] as const,\n      'Mission reward eligibility',\n    ),\n    ...parseMissionScopedUpdateMetadata(root),\n  };\n}\n\nfunction enforceMissionCreatePlacement"""
-          text = old_parser_pattern.sub(lambda _: new_parser, text, count=1)
+          new_parser = """function parseMissionUpdateSeries(value: unknown): MissionUpdateSeries {
+  const source = asRecord(value, 'Mission target series');
+  const keys = Object.keys(source);
+  const supported = new Set(['id', 'title', 'recurrence']);
+  if (keys.length !== supported.size || keys.some((key) => !supported.has(key))) {
+    throw new SyncMutationValidationError('Mission target series contains unsupported fields');
+  }
+  return {
+    id: requireUuid(source, 'id', 'Mission target series id'),
+    title: requireString(source, 'title', 'Mission target series title').trim(),
+    recurrence: optionalObject(source, 'recurrence', 'Mission target series recurrence'),
+  };
+}
+
+function parseMissionSourceSeries(value: unknown): MissionSourceSeriesUpdate {
+  const source = asRecord(value, 'Mission source series');
+  const keys = Object.keys(source);
+  if (keys.length !== 2 || keys.some((key) => key !== 'id' && key !== 'recurrence')) {
+    throw new SyncMutationValidationError('Mission source series contains unsupported fields');
+  }
+  return {
+    id: requireUuid(source, 'id', 'Mission source series id'),
+    recurrence: optionalObject(source, 'recurrence', 'Mission source series recurrence'),
+  };
+}
+
+function parseMissionScopedUpdateMetadata(root: Record<string, unknown>): MissionScopedUpdateMetadata {
+  const series = Object.hasOwn(root, 'series') ? parseMissionUpdateSeries(root.series) : undefined;
+  const sourceSeries = Object.hasOwn(root, 'sourceSeries')
+    ? parseMissionSourceSeries(root.sourceSeries)
+    : undefined;
+  if (sourceSeries !== undefined && series === undefined) {
+    throw new SyncMutationValidationError('Mission source series update requires a target series');
+  }
+  return {
+    ...(series === undefined ? {} : { series }),
+    ...(sourceSeries === undefined ? {} : { sourceSeries }),
+  };
+}
+
+function parseMissionUpdatePayload(payload: unknown): MissionUpdatePayload {
+  const root = asRecord(payload, 'Mission update payload');
+  if (root.kind === 'details') {
+    const keys = Object.keys(root);
+    const supported = new Set([
+      'kind',
+      'title',
+      'schedule',
+      'rewardEligibility',
+      'location',
+      'notes',
+      'series',
+      'sourceSeries',
+    ]);
+    const required = ['kind', 'title', 'schedule', 'rewardEligibility', 'location', 'notes'];
+    if (
+      keys.some((key) => !supported.has(key)) ||
+      required.some((key) => !Object.hasOwn(root, key))
+    ) {
+      throw new SyncMutationValidationError('Mission Details update contains unsupported fields');
+    }
+    return {
+      kind: 'details',
+      title: requireString(root, 'title', 'Mission title').trim(),
+      schedule: parseMissionSchedule(asRecord(root.schedule, 'Mission update schedule')),
+      rewardEligibility: requireLiteral(
+        root,
+        'rewardEligibility',
+        ['eligible', 'ineligible'] as const,
+        'Mission reward eligibility',
+      ),
+      location: optionalString(root, 'location', 'Mission location'),
+      notes: optionalString(root, 'notes', 'Mission notes'),
+      ...parseMissionScopedUpdateMetadata(root),
+    };
+  }
+
+  const keys = Object.keys(root);
+  const supported = new Set(['schedule', 'rewardEligibility', 'series', 'sourceSeries']);
+  if (
+    keys.some((key) => !supported.has(key)) ||
+    !Object.hasOwn(root, 'schedule') ||
+    !Object.hasOwn(root, 'rewardEligibility')
+  ) {
+    throw new SyncMutationValidationError('Mission update contains unsupported fields');
+  }
+  const schedule = parseMissionSchedule(asRecord(root.schedule, 'Mission update schedule'));
+  if (schedule.allDay) {
+    throw new SyncMutationValidationError(
+      'MTS-047 direct manipulation supports timed missions only',
+    );
+  }
+  return {
+    kind: 'adjustment',
+    schedule,
+    rewardEligibility: requireLiteral(
+      root,
+      'rewardEligibility',
+      ['eligible', 'ineligible'] as const,
+      'Mission reward eligibility',
+    ),
+    ...parseMissionScopedUpdateMetadata(root),
+  };
+}
+
+function enforceMissionCreatePlacement"""
+          text = parser_pattern.sub(lambda _: new_parser, text, count=1)
 
           apply_pattern = re.compile(r"async function applyMissionUpdateMutation\(.*?\n\}\n\nasync function applyMissionDeleteMutation", re.S)
           if len(apply_pattern.findall(text)) != 1:
               raise SystemExit('sync projector: expected exactly one function')
-          new_apply = r"""async function applyMissionUpdateMutation(\n  client: PoolClient,\n  mutation: StoredSyncMutation,\n  effectiveTime: Date,\n): Promise<unknown> {\n  if (mutation.baseVersion === null) {\n    throw new SyncMutationValidationError('Mission update requires a base version');\n  }\n  const update = parseMissionUpdatePayload(mutation.payload);\n  const currentResult = await client.query<MissionUpdateRow>(\n    `SELECT o.series_id AS \"seriesId\",\n            s.title,\n            s.recurrence_rule AS recurrence,\n            o.schedule_state AS \"scheduleState\",\n            o.completion_state AS \"completionState\",\n            o.evidence_state AS \"evidenceState\",\n            o.reward_eligibility AS \"rewardEligibility\",\n            o.reward_issuance AS \"rewardIssuance\",\n            o.calendar_source AS \"calendarSource\",\n            o.field_ownership AS \"fieldOwnership\",\n            o.story_state AS \"storyState\",\n            o.deletion_state AS \"deletionState\",\n            o.all_day AS \"allDay\",\n            o.start_instant AS \"startInstant\",\n            o.location,\n            o.notes,\n            o.version\n       FROM mission_occurrences o\n       JOIN mission_series s ON s.id = o.series_id AND s.account_id = o.account_id\n      WHERE o.id = $1 AND o.account_id = $2\n      FOR UPDATE OF o`,\n    [mutation.entityId, mutation.accountId],\n  );\n  const current = currentResult.rows[0];\n  if (current === undefined) {\n    throw new SyncMutationValidationError('Mission update target was not found');\n  }\n  if (current.deletionState === 'deleted') {\n    throw new SyncMutationConflictError('Mission occurrence is permanently deleted');\n  }\n  if (current.version !== mutation.baseVersion) {\n    throw new SyncMutationConflictError(\n      'Mission mutation base version does not match current occurrence version',\n    );\n  }\n  if (\n    current.scheduleState !== 'scheduled' ||\n    current.completionState !== 'incomplete' ||\n    current.calendarSource !== 'internal' ||\n    current.fieldOwnership !== 'app_owned' ||\n    current.deletionState !== 'active'\n  ) {\n    throw new SyncMutationValidationError(\n      'Mission edits require an active unfinished app-owned mission',\n    );\n  }\n  if (update.kind === 'adjustment' && current.allDay) {\n    throw new SyncMutationValidationError(\n      'Mission direct manipulation requires an active unfinished app-owned timed mission',\n    );\n  }\n  const scoped = update.series !== undefined;\n  if (update.kind === 'details' && current.recurrence !== null && !scoped) {\n    throw new SyncMutationValidationError(\n      'Recurring Mission Details edits require recurrence scope selection',\n    );\n  }\n  if (update.kind === 'details' && update.schedule.allDay !== current.allDay) {\n    throw new SyncMutationValidationError('Mission Details cannot change the all-day mode');\n  }\n  if (update.sourceSeries !== undefined && update.sourceSeries.id !== current.seriesId) {\n    throw new SyncMutationValidationError('Mission source series must match the current series');\n  }\n\n  const editedAfterStart = Date.parse(current.startInstant) <= effectiveTime.getTime();\n  const movedIntoPast = Date.parse(update.schedule.startInstant) < effectiveTime.getTime();\n  const rewardEligibility =\n    current.rewardEligibility === 'ineligible' ||\n    update.rewardEligibility === 'ineligible' ||\n    editedAfterStart ||\n    movedIntoPast\n      ? 'ineligible'\n      : update.rewardEligibility;\n  const nextVersion = current.version + 1;\n  const schedule = update.schedule;\n  const title = update.kind === 'details' ? update.title : current.title;\n  const location = update.kind === 'details' ? update.location : current.location;\n  const notes = update.kind === 'details' ? update.notes : current.notes;\n  const targetSeries: MissionUpdateSeries = update.series ?? {\n    id: current.seriesId,\n    title,\n    recurrence: current.recurrence as Record<string, unknown> | null,\n  };\n  if (update.kind === 'details' && targetSeries.title !== title) {\n    throw new SyncMutationValidationError('Mission target series title must match the details title');\n  }\n\n  if (update.sourceSeries !== undefined) {\n    const sourceUpdated = await client.query(\n      `UPDATE mission_series\n          SET recurrence_rule = $3::jsonb,\n              updated_at = now()\n        WHERE id = $1 AND account_id = $2`,\n      [\n        update.sourceSeries.id,\n        mutation.accountId,\n        update.sourceSeries.recurrence === null\n          ? null\n          : JSON.stringify(update.sourceSeries.recurrence),\n      ],\n    );\n    if (sourceUpdated.rowCount !== 1) {\n      throw new SyncMutationConflictError('Mission source series changed while scope was saved');\n    }\n  }\n\n  if (targetSeries.id !== current.seriesId) {\n    await upsertMissionSeries(client, mutation.accountId, targetSeries);\n  } else if (scoped) {\n    const recurrenceCheck = await client.query<{ matches: boolean }>(\n      `SELECT recurrence_rule IS NOT DISTINCT FROM $3::jsonb AS matches\n         FROM mission_series\n        WHERE id = $1 AND account_id = $2`,\n      [\n        targetSeries.id,\n        mutation.accountId,\n        targetSeries.recurrence === null ? null : JSON.stringify(targetSeries.recurrence),\n      ],\n    );\n    if (recurrenceCheck.rows[0]?.matches !== true) {\n      throw new SyncMutationConflictError('Mission target series recurrence does not match');\n    }\n  }\n\n  if (update.kind === 'details' && targetSeries.id === current.seriesId) {\n    const seriesUpdated = await client.query(\n      `UPDATE mission_series\n          SET title = $3,\n              updated_at = now()\n        WHERE id = $1 AND account_id = $2`,\n      [current.seriesId, mutation.accountId, title],\n    );\n    if (seriesUpdated.rowCount !== 1) {\n      throw new SyncMutationConflictError('Mission series changed while details were saved');\n    }\n  }\n\n  const updated = await client.query(\n    `UPDATE mission_occurrences\n        SET series_id = $3,\n            local_date = $4,\n            local_start = $5,\n            local_finish = $6,\n            start_instant = $7,\n            finish_instant = $8,\n            time_zone = $9,\n            time_behavior = $10,\n            all_day = $11,\n            estimated_effort_minutes = $12,\n            reward_eligibility = $13,\n            location = $14,\n            notes = $15,\n            synchronization_state = 'synced',\n            version = $16,\n            updated_at = now()\n      WHERE id = $1 AND account_id = $2 AND version = $17`,\n    [\n      mutation.entityId,\n      mutation.accountId,\n      targetSeries.id,\n      schedule.localStart.slice(0, 10),\n      schedule.localStart,\n      schedule.localFinish,\n      schedule.startInstant,\n      schedule.finishInstant,\n      schedule.timeZone,\n      schedule.timeBehavior,\n      schedule.allDay,\n      schedule.estimatedEffortMinutes,\n      rewardEligibility,\n      location,\n      notes,\n      nextVersion,\n      current.version,\n    ],\n  );\n  if (updated.rowCount !== 1) {\n    throw new SyncMutationConflictError(\n      'Mission mutation base version does not match current occurrence version',\n    );\n  }\n\n  return {\n    version: nextVersion,\n    series: targetSeries,\n    occurrence: {\n      id: mutation.entityId,\n      seriesId: targetSeries.id,\n      schedule,\n      scheduleState: current.scheduleState,\n      completionState: current.completionState,\n      evidenceState: current.evidenceState,\n      rewardEligibility,\n      rewardIssuance: current.rewardIssuance,\n      calendarSource: current.calendarSource,\n      fieldOwnership: current.fieldOwnership,\n      synchronizationState: 'synced',\n      storyState: current.storyState,\n      deletionState: current.deletionState,\n    },\n    location,\n    notes,\n  };\n}\n\nasync function applyMissionDeleteMutation"""
+          new_apply = """async function applyMissionUpdateMutation(
+  client: PoolClient,
+  mutation: StoredSyncMutation,
+  effectiveTime: Date,
+): Promise<unknown> {
+  if (mutation.baseVersion === null) {
+    throw new SyncMutationValidationError('Mission update requires a base version');
+  }
+  const update = parseMissionUpdatePayload(mutation.payload);
+  const currentResult = await client.query<MissionUpdateRow>(
+    `SELECT o.series_id AS "seriesId",
+            s.title,
+            s.recurrence_rule AS recurrence,
+            o.schedule_state AS "scheduleState",
+            o.completion_state AS "completionState",
+            o.evidence_state AS "evidenceState",
+            o.reward_eligibility AS "rewardEligibility",
+            o.reward_issuance AS "rewardIssuance",
+            o.calendar_source AS "calendarSource",
+            o.field_ownership AS "fieldOwnership",
+            o.story_state AS "storyState",
+            o.deletion_state AS "deletionState",
+            o.all_day AS "allDay",
+            o.start_instant AS "startInstant",
+            o.location,
+            o.notes,
+            o.version
+       FROM mission_occurrences o
+       JOIN mission_series s ON s.id = o.series_id AND s.account_id = o.account_id
+      WHERE o.id = $1 AND o.account_id = $2
+      FOR UPDATE OF o`,
+    [mutation.entityId, mutation.accountId],
+  );
+  const current = currentResult.rows[0];
+  if (current === undefined) {
+    throw new SyncMutationValidationError('Mission update target was not found');
+  }
+  if (current.deletionState === 'deleted') {
+    throw new SyncMutationConflictError('Mission occurrence is permanently deleted');
+  }
+  if (current.version !== mutation.baseVersion) {
+    throw new SyncMutationConflictError(
+      'Mission mutation base version does not match current occurrence version',
+    );
+  }
+  if (
+    current.scheduleState !== 'scheduled' ||
+    current.completionState !== 'incomplete' ||
+    current.calendarSource !== 'internal' ||
+    current.fieldOwnership !== 'app_owned' ||
+    current.deletionState !== 'active'
+  ) {
+    throw new SyncMutationValidationError(
+      'Mission edits require an active unfinished app-owned mission',
+    );
+  }
+  if (update.kind === 'adjustment' && current.allDay) {
+    throw new SyncMutationValidationError(
+      'Mission direct manipulation requires an active unfinished app-owned timed mission',
+    );
+  }
+  const scoped = update.series !== undefined;
+  if (update.kind === 'details' && current.recurrence !== null && !scoped) {
+    throw new SyncMutationValidationError(
+      'Recurring Mission Details edits require recurrence scope selection',
+    );
+  }
+  if (update.kind === 'details' && update.schedule.allDay !== current.allDay) {
+    throw new SyncMutationValidationError('Mission Details cannot change the all-day mode');
+  }
+  if (update.sourceSeries !== undefined && update.sourceSeries.id !== current.seriesId) {
+    throw new SyncMutationValidationError('Mission source series must match the current series');
+  }
+
+  const editedAfterStart = Date.parse(current.startInstant) <= effectiveTime.getTime();
+  const movedIntoPast = Date.parse(update.schedule.startInstant) < effectiveTime.getTime();
+  const rewardEligibility =
+    current.rewardEligibility === 'ineligible' ||
+    update.rewardEligibility === 'ineligible' ||
+    editedAfterStart ||
+    movedIntoPast
+      ? 'ineligible'
+      : update.rewardEligibility;
+  const nextVersion = current.version + 1;
+  const schedule = update.schedule;
+  const title = update.kind === 'details' ? update.title : current.title;
+  const location = update.kind === 'details' ? update.location : current.location;
+  const notes = update.kind === 'details' ? update.notes : current.notes;
+  const targetSeries: MissionUpdateSeries = update.series ?? {
+    id: current.seriesId,
+    title,
+    recurrence: current.recurrence as Record<string, unknown> | null,
+  };
+  if (update.kind === 'details' && targetSeries.title !== title) {
+    throw new SyncMutationValidationError('Mission target series title must match the details title');
+  }
+
+  if (update.sourceSeries !== undefined) {
+    const sourceUpdated = await client.query(
+      `UPDATE mission_series
+          SET recurrence_rule = $3::jsonb,
+              updated_at = now()
+        WHERE id = $1 AND account_id = $2`,
+      [
+        update.sourceSeries.id,
+        mutation.accountId,
+        update.sourceSeries.recurrence === null
+          ? null
+          : JSON.stringify(update.sourceSeries.recurrence),
+      ],
+    );
+    if (sourceUpdated.rowCount !== 1) {
+      throw new SyncMutationConflictError('Mission source series changed while scope was saved');
+    }
+  }
+
+  if (targetSeries.id !== current.seriesId) {
+    await upsertMissionSeries(client, mutation.accountId, targetSeries);
+  } else if (scoped) {
+    const recurrenceCheck = await client.query<{ matches: boolean }>(
+      `SELECT recurrence_rule IS NOT DISTINCT FROM $3::jsonb AS matches
+         FROM mission_series
+        WHERE id = $1 AND account_id = $2`,
+      [
+        targetSeries.id,
+        mutation.accountId,
+        targetSeries.recurrence === null ? null : JSON.stringify(targetSeries.recurrence),
+      ],
+    );
+    if (recurrenceCheck.rows[0]?.matches !== true) {
+      throw new SyncMutationConflictError('Mission target series recurrence does not match');
+    }
+  }
+
+  if (update.kind === 'details' && targetSeries.id === current.seriesId) {
+    const seriesUpdated = await client.query(
+      `UPDATE mission_series
+          SET title = $3,
+              updated_at = now()
+        WHERE id = $1 AND account_id = $2`,
+      [current.seriesId, mutation.accountId, title],
+    );
+    if (seriesUpdated.rowCount !== 1) {
+      throw new SyncMutationConflictError('Mission series changed while details were saved');
+    }
+  }
+
+  const updated = await client.query(
+    `UPDATE mission_occurrences
+        SET series_id = $3,
+            local_date = $4,
+            local_start = $5,
+            local_finish = $6,
+            start_instant = $7,
+            finish_instant = $8,
+            time_zone = $9,
+            time_behavior = $10,
+            all_day = $11,
+            estimated_effort_minutes = $12,
+            reward_eligibility = $13,
+            location = $14,
+            notes = $15,
+            synchronization_state = 'synced',
+            version = $16,
+            updated_at = now()
+      WHERE id = $1 AND account_id = $2 AND version = $17`,
+    [
+      mutation.entityId,
+      mutation.accountId,
+      targetSeries.id,
+      schedule.localStart.slice(0, 10),
+      schedule.localStart,
+      schedule.localFinish,
+      schedule.startInstant,
+      schedule.finishInstant,
+      schedule.timeZone,
+      schedule.timeBehavior,
+      schedule.allDay,
+      schedule.estimatedEffortMinutes,
+      rewardEligibility,
+      location,
+      notes,
+      nextVersion,
+      current.version,
+    ],
+  );
+  if (updated.rowCount !== 1) {
+    throw new SyncMutationConflictError(
+      'Mission mutation base version does not match current occurrence version',
+    );
+  }
+
+  return {
+    version: nextVersion,
+    series: targetSeries,
+    occurrence: {
+      id: mutation.entityId,
+      seriesId: targetSeries.id,
+      schedule,
+      scheduleState: current.scheduleState,
+      completionState: current.completionState,
+      evidenceState: current.evidenceState,
+      rewardEligibility,
+      rewardIssuance: current.rewardIssuance,
+      calendarSource: current.calendarSource,
+      fieldOwnership: current.fieldOwnership,
+      synchronizationState: 'synced',
+      storyState: current.storyState,
+      deletionState: current.deletionState,
+    },
+    location,
+    notes,
+  };
+}
+
+async function applyMissionDeleteMutation"""
           text = apply_pattern.sub(lambda _: new_apply, text, count=1)
           path.write_text(text)
 
-          # Recurring scoped saves must carry target-series metadata even for Entire series.
           for filename in [
               'apps/mobile/src/calendar/calendar-mission-adjustment-save.ts',
               'apps/mobile/src/calendar/calendar-mission-details-save.ts',
@@ -219,8 +581,9 @@ jobs:
             apps/mobile/src/calendar/calendar-mission-delete.ts \
             --config packages/config/prettier.config.mjs
 
-          git show origin/main:.github/workflows/ci.yml > .github/workflows/ci.yml
-          git diff --exit-code -- .github/workflows/ci.yml
+          git show origin/main:.github/workflows/ci.yml > /tmp/ci-main.yml
+          cp /tmp/ci-main.yml .github/workflows/ci.yml
+          cmp -s .github/workflows/ci.yml /tmp/ci-main.yml
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add \
