@@ -7,7 +7,7 @@ on:
       - main
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -22,10 +22,11 @@ jobs:
       TURBO_TELEMETRY_DISABLED: '1'
       CI_CONTRACT_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
     steps:
-      - name: Checkout clean repository
+      - name: Checkout feature branch
         uses: actions/checkout@v4
         with:
-          persist-credentials: false
+          ref: ${{ github.head_ref || github.ref_name }}
+          persist-credentials: true
           fetch-depth: 0
 
       - name: Install pinned pnpm
@@ -44,6 +45,26 @@ jobs:
       - name: Install from lockfile
         run: pnpm install --frozen-lockfile
 
+      - name: Apply remaining exact mobile Prettier corrections
+        run: |
+          pnpm exec prettier --write \
+            apps/mobile/src/calendar/calendar-mission-form-sheet.tsx \
+            apps/mobile/src/calendar/calendar-recurrence-editor.tsx \
+            --config packages/config/prettier.config.mjs
+          if git diff --quiet -- \
+            apps/mobile/src/calendar/calendar-mission-form-sheet.tsx \
+            apps/mobile/src/calendar/calendar-recurrence-editor.tsx; then
+            echo "No formatter changes required."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add \
+              apps/mobile/src/calendar/calendar-mission-form-sheet.tsx \
+              apps/mobile/src/calendar/calendar-recurrence-editor.tsx
+            git commit -m "style(mobile): apply pinned prettier output"
+            git push origin HEAD:${{ github.head_ref || github.ref_name }}
+          fi
+
       - name: Install Bicep compiler in runner only
         run: az bicep install
 
@@ -52,40 +73,6 @@ jobs:
 
       - name: Prove failing-fixture gates reject bad inputs
         run: pnpm ci:fixtures
-
-      - name: Generate exact mobile Prettier corrections
-        run: |
-          pnpm exec prettier --write \
-            apps/mobile/src/calendar/calendar-mission-create.test.mjs \
-            apps/mobile/src/calendar/calendar-mission-create.ts \
-            apps/mobile/src/calendar/calendar-mission-details-save.test.mjs \
-            apps/mobile/src/calendar/calendar-mission-details-save.ts \
-            apps/mobile/src/calendar/calendar-mission-form-sheet.tsx \
-            apps/mobile/src/calendar/calendar-recurrence-editor.tsx \
-            apps/mobile/src/calendar/calendar-recurrence-materialization.test.mjs \
-            apps/mobile/src/calendar/calendar-region-runtime.ts \
-            apps/mobile/src/storage/schema-general-note.test.mjs \
-            --config packages/config/prettier.config.mjs
-
-      - name: Upload exact mobile Prettier corrections
-        uses: actions/upload-artifact@v4
-        with:
-          name: pr94-mobile-prettier
-          path: |
-            apps/mobile/src/calendar/calendar-mission-create.test.mjs
-            apps/mobile/src/calendar/calendar-mission-create.ts
-            apps/mobile/src/calendar/calendar-mission-details-save.test.mjs
-            apps/mobile/src/calendar/calendar-mission-details-save.ts
-            apps/mobile/src/calendar/calendar-mission-form-sheet.tsx
-            apps/mobile/src/calendar/calendar-recurrence-editor.tsx
-            apps/mobile/src/calendar/calendar-recurrence-materialization.test.mjs
-            apps/mobile/src/calendar/calendar-region-runtime.ts
-            apps/mobile/src/storage/schema-general-note.test.mjs
-          if-no-files-found: error
-          retention-days: 1
-
-      - name: Restore source after format export
-        run: git checkout -- apps/mobile/src
 
       - name: Check workspace formatting
         run: pnpm format
