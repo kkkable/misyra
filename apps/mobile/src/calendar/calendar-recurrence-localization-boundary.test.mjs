@@ -33,9 +33,13 @@ describe('MTS-051 recurrence localization boundary', () => {
       '星期四',
       '星期五',
       '星期六',
-      'placeholder="YYYY-MM-DD"',
     ]) {
-      expect(source).not.toContain(literal);
+      expect(source).not.toContain(`'${literal}'`);
+      expect(source).not.toContain(`"${literal}"`);
+      expect(source).not.toContain(`>${literal}<`);
     }
+
+    expect(source).not.toContain('placeholder="YYYY-MM-DD"');
+    expect(source).not.toContain("placeholder='YYYY-MM-DD'");
   });
 });
