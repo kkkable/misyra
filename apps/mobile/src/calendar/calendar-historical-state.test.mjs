@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  createZonedAllDaySchedule,
-  createZonedTimedSchedule,
-} from '@misyra/domain';
+import { createZonedAllDaySchedule, createZonedTimedSchedule } from '@misyra/domain';
 
 import { historicalLifecycleForMission } from './calendar-historical-state.js';
 
