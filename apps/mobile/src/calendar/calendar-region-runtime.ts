@@ -1,7 +1,12 @@
 const DOMAIN_WEEKDAYS = [0, 1, 2, 3, 4, 5, 6] as const;
 
 export function platformFirstWeekdayToDomain(firstWeekday: number | undefined): number {
-  if (!Number.isInteger(firstWeekday) || firstWeekday === undefined || firstWeekday < 1 || firstWeekday > 7) {
+  if (
+    !Number.isInteger(firstWeekday) ||
+    firstWeekday === undefined ||
+    firstWeekday < 1 ||
+    firstWeekday > 7
+  ) {
     return 1;
   }
   return firstWeekday - 1;
