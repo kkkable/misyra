@@ -34,6 +34,7 @@ import type { CalendarMissionCreateInput } from './calendar-mission-create.js';
 import type { MissionAdjustmentResult } from './calendar-mission-adjustment.js';
 import { TimedMissionLayer, type TimedMissionSummary } from './calendar-mission-layout.js';
 import { resolveCalendarMissionTap } from './calendar-mission-selection.js';
+import { calendarClockForAppTimeZone } from './calendar-travel-projection.js';
 
 function parseLocalDateParts(value: string): { year: number; month: number; day: number } {
   const [yearText = '0', monthText = '0', dayText = '0'] = value.split('-');
@@ -86,6 +87,7 @@ export interface CalendarSearchFocusTarget {
 export interface CalendarDayScreenProps {
   readonly now?: Date;
   readonly language?: LocalizationLocale;
+  readonly appTimeZone?: string;
   readonly firstTimedMissionMinute?: number;
   readonly preservedMinute?: number;
   readonly returningFromBackground?: boolean;
@@ -105,6 +107,7 @@ export interface CalendarDayScreenProps {
 export function CalendarDayScreen({
   now = new Date(),
   language = 'en',
+  appTimeZone,
   firstTimedMissionMinute,
   preservedMinute,
   returningFromBackground = false,
@@ -137,7 +140,9 @@ export function CalendarDayScreen({
   const colors = themeColors(colorScheme);
   const width = useWindowDimensions().width;
   const responsive = resolveResponsiveCalendarLayout(width);
-  const today = localDateFromNow(now);
+  const appClock =
+    appTimeZone === undefined ? null : calendarClockForAppTimeZone(now, appTimeZone);
+  const today = appClock?.localDate ?? localDateFromNow(now);
   const systemCalendar = getCalendars()[0];
   const regionalFirstWeekday = Number(systemCalendar.firstWeekday);
   const firstWeekday =
@@ -164,7 +169,7 @@ export function CalendarDayScreen({
     setPickerVisible(false);
   }, [searchFocusTarget]);
 
-  const currentMinute = minuteOfDay(now);
+  const currentMinute = appClock?.minute ?? minuteOfDay(now);
   const launch = useMemo(() => {
     if (searchFocusTarget !== undefined && searchFocusTarget.date === selectedDate) {
       const minute = Math.min(Math.max(Math.floor(searchFocusTarget.minute), 0), 24 * 60 - 1);
@@ -434,6 +439,7 @@ export function CalendarDayScreen({
           }
           selectedDate={selectedDate}
           today={today}
+          {...(appTimeZone === undefined ? {} : { timeZone: appTimeZone })}
           uses24HourClock={uses24HourClock}
         />
       </View>
