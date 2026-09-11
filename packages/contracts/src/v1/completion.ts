@@ -2,12 +2,7 @@ import { z } from 'zod';
 
 import { instantSchema, uuidSchema } from './shared.js';
 
-export const completeMissionModeSchema = z.enum([
-  'verified',
-  'self_confirmed',
-  'private',
-  'trust',
-]);
+export const completeMissionModeSchema = z.enum(['verified', 'self_confirmed', 'private', 'trust']);
 
 export const completeMissionCommandSchema = z
   .object({
@@ -20,7 +15,9 @@ export const completeMissionCommandSchema = z
   })
   .strict();
 
-export const completeMissionRequestSchema = completeMissionCommandSchema.omit({ occurrenceId: true });
+export const completeMissionRequestSchema = completeMissionCommandSchema.omit({
+  occurrenceId: true,
+});
 
 export const authoritativeCompletionTypeSchema = z.enum([
   'verified_on_time',
@@ -50,7 +47,5 @@ export const completeMissionResultSchema = z
 export type CompleteMissionMode = z.infer<typeof completeMissionModeSchema>;
 export type CompleteMissionCommand = z.infer<typeof completeMissionCommandSchema>;
 export type CompleteMissionRequest = z.infer<typeof completeMissionRequestSchema>;
-export type AuthoritativeCompletionTypeContract = z.infer<
-  typeof authoritativeCompletionTypeSchema
->;
+export type AuthoritativeCompletionTypeContract = z.infer<typeof authoritativeCompletionTypeSchema>;
 export type CompleteMissionResult = z.infer<typeof completeMissionResultSchema>;
