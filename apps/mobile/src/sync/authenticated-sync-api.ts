@@ -1,6 +1,7 @@
 import {
   accountSettingsSchema,
   accountSettingsUpdateSchema,
+  apiResponseEnvelopeSchema,
   completeMissionRequestSchema,
   completeMissionResultSchema,
   deviceRegistrationRequestSchema,
@@ -12,6 +13,7 @@ import {
   uuidSchema,
   type AccountSettings,
   type AccountSettingsUpdate,
+  type ClientActionError,
   type CompleteMissionRequest,
   type CompleteMissionResult,
   type DeviceRegistrationRequest,
@@ -64,21 +66,31 @@ type AuthenticatedSyncApiOptions = Readonly<{
   fetcher?: Fetcher;
 }>;
 
+class AuthenticatedSyncRequestError extends Error {
+  readonly code: ClientActionError['code'];
+  readonly retryable: boolean;
+
+  constructor(error: ClientActionError) {
+    super(error.code);
+    this.name = 'AuthenticatedSyncRequestError';
+    this.code = error.code;
+    this.retryable = error.retryable;
+  }
+}
+
 function normalizedBaseUrl(baseUrl: string) {
   return baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
 function payloadFromEnvelope(value: unknown): unknown {
-  if (
-    typeof value !== 'object' ||
-    value === null ||
-    Array.isArray(value) ||
-    (value as Record<string, unknown>).ok !== true ||
-    !Object.hasOwn(value, 'payload')
-  ) {
+  if (!isRecord(value) || value.ok !== true || !Object.hasOwn(value, 'payload')) {
     throw new Error('sync_request_failed');
   }
-  return (value as Record<string, unknown>).payload;
+  return value.payload;
 }
 
 function completionRequestFromMutation(
@@ -86,7 +98,17 @@ function completionRequestFromMutation(
 ): CompleteMissionRequest | null {
   if (mutation.entityType !== 'completion' || mutation.operation !== 'complete') return null;
   const occurrenceId = uuidSchema.safeParse(mutation.entityId);
-  const request = completeMissionRequestSchema.safeParse(mutation.payload);
+  if (!isRecord(mutation.payload)) throw new Error('completion_mutation_invalid');
+  const payload = mutation.payload;
+  const request = completeMissionRequestSchema.safeParse({
+    completionMode: payload.completionMode,
+    effectiveActionAt: payload.effectiveActionAt,
+    ...(payload.evidenceAttemptId === undefined
+      ? {}
+      : { evidenceAttemptId: payload.evidenceAttemptId }),
+    deviceId: payload.deviceId,
+    idempotencyKey: payload.idempotencyKey,
+  });
   if (!occurrenceId.success || !request.success) throw new Error('completion_mutation_invalid');
   if (request.data.completionMode !== 'private' && request.data.completionMode !== 'trust') {
     throw new Error('completion_mutation_invalid');
@@ -101,6 +123,35 @@ function completionRequestFromMutation(
   return request.data;
 }
 
+function permanentCompletionConflict(
+  error: unknown,
+  mutation: SyncMutationContract,
+): SyncConflictOutcomeContract | null {
+  if (!(error instanceof AuthenticatedSyncRequestError) || error.retryable) return null;
+  if (error.code === 'already_completed') {
+    return {
+      kind: 'mission_completed_elsewhere',
+      mutationId: mutation.mutationId,
+      missionId: mutation.entityId,
+    };
+  }
+  if (error.code === 'not_found') {
+    return {
+      kind: 'mission_deleted',
+      mutationId: mutation.mutationId,
+      missionId: mutation.entityId,
+    };
+  }
+  if (error.code === 'conflict' || error.code === 'completion_window_expired') {
+    return {
+      kind: 'mission_updated',
+      mutationId: mutation.mutationId,
+      missionId: mutation.entityId,
+    };
+  }
+  return null;
+}
+
 export async function pushQueuedMutationsWithCompletions(
   api: CompletionPushApi,
   mutations: readonly SyncMutationContract[],
@@ -113,16 +164,22 @@ export async function pushQueuedMutationsWithCompletions(
   for (const mutation of mutations) {
     const completion = completionRequestFromMutation(mutation);
     if (completion !== null) {
-      const result = await api.completeMission(mutation.entityId, completion);
-      if (result.status === 'completed') {
-        acceptedMutationIds.push(mutation.mutationId);
-        continue;
+      try {
+        const result = await api.completeMission(mutation.entityId, completion);
+        if (result.status === 'completed') {
+          acceptedMutationIds.push(mutation.mutationId);
+          continue;
+        }
+        conflicts.push({
+          kind: 'mission_completed_elsewhere',
+          mutationId: mutation.mutationId,
+          missionId: mutation.entityId,
+        });
+      } catch (error) {
+        const conflict = permanentCompletionConflict(error, mutation);
+        if (conflict === null) throw error;
+        conflicts.push(conflict);
       }
-      conflicts.push({
-        kind: 'mission_completed_elsewhere',
-        mutationId: mutation.mutationId,
-        missionId: mutation.entityId,
-      });
       break;
     }
 
@@ -160,7 +217,13 @@ export function createAuthenticatedSyncApi({
       ...(hasBody ? { body: JSON.stringify(body) } : {}),
     });
     const responseBody = await response.json();
-    if (!response.ok) throw new Error('sync_request_failed');
+    if (!response.ok) {
+      const envelope = apiResponseEnvelopeSchema.safeParse(responseBody);
+      if (envelope.success && envelope.data.ok === false && envelope.data.error !== undefined) {
+        throw new AuthenticatedSyncRequestError(envelope.data.error);
+      }
+      throw new Error('sync_request_failed');
+    }
     return payloadFromEnvelope(responseBody);
   }
 
