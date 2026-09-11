@@ -90,15 +90,8 @@ function matchesExistingCompletion(
 export async function queueNoEvidenceCompletion(
   input: QueueNoEvidenceCompletionInput,
 ): Promise<void> {
-  const {
-    database,
-    accountId,
-    deviceId,
-    occurrenceId,
-    mode,
-    effectiveActionAt,
-    idempotencyKey,
-  } = input;
+  const { database, accountId, deviceId, occurrenceId, mode, effectiveActionAt, idempotencyKey } =
+    input;
   const request = completeMissionRequestSchema.parse({
     completionMode: mode,
     effectiveActionAt,
