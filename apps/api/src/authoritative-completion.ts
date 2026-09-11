@@ -31,7 +31,12 @@ export type AuthoritativeCompletionResult = Readonly<{
 }>;
 
 export type CompletionRejectionReason =
-  'not_found' | 'deleted' | 'cancelled' | 'not_started' | 'expired';
+  | 'not_found'
+  | 'deleted'
+  | 'cancelled'
+  | 'not_started'
+  | 'expired'
+  | 'completion_mode_not_allowed';
 
 export class CompletionRejectedError extends Error {
   readonly reason: CompletionRejectionReason;
@@ -97,6 +102,14 @@ interface InsertedCompletionRow extends QueryResultRow {
   id: string;
   completionType: AuthoritativeCompletionType;
   actionTime: Date;
+}
+
+interface EvidenceAttemptStateRow extends QueryResultRow {
+  hasEvidenceAttempt: boolean;
+}
+
+interface TrustModeRow extends QueryResultRow {
+  trustMode: boolean;
 }
 
 function requestHash(input: AuthoritativeCompletionInput): string {
@@ -217,6 +230,46 @@ async function findStoredCompletion(
   return result.rows[0] ?? null;
 }
 
+async function assertCompletionModeAllowed(
+  client: PoolClient,
+  input: AuthoritativeCompletionInput,
+  occurrence: LockedOccurrenceRow,
+): Promise<void> {
+  if (input.completionType === 'private') {
+    if (occurrence.evidenceState !== 'not_submitted' && occurrence.evidenceState !== 'not_required') {
+      throw new CompletionRejectedError('completion_mode_not_allowed');
+    }
+    const attempts = await client.query<EvidenceAttemptStateRow>(
+      `SELECT EXISTS (
+         SELECT 1
+         FROM evidence_attempts
+         WHERE account_id = $1 AND occurrence_id = $2
+       ) AS "hasEvidenceAttempt"`,
+      [input.accountId, input.occurrenceId],
+    );
+    if (attempts.rows[0]?.hasEvidenceAttempt === true) {
+      throw new CompletionRejectedError('completion_mode_not_allowed');
+    }
+    return;
+  }
+
+  if (input.completionType === 'trust_mode') {
+    const settings = await client.query<TrustModeRow>(
+      `SELECT trust_mode AS "trustMode"
+       FROM user_settings
+       WHERE account_id = $1
+       FOR SHARE`,
+      [input.accountId],
+    );
+    if (settings.rows[0]?.trustMode !== true) {
+      throw new CompletionRejectedError('completion_mode_not_allowed');
+    }
+    if (occurrence.evidenceState === 'pending' || occurrence.evidenceState === 'accepted') {
+      throw new CompletionRejectedError('completion_mode_not_allowed');
+    }
+  }
+}
+
 function resultFromStored(
   occurrenceId: string,
   row: StoredCompletionRow,
@@ -323,6 +376,8 @@ export async function completeMissionAuthoritatively(
       if (existing !== null) {
         return resultFromStored(input.occurrenceId, existing, 'already_completed');
       }
+
+      await assertCompletionModeAllowed(context.client, input, occurrence);
 
       const baseXp = await resolveBaseXp(
         context.client,
