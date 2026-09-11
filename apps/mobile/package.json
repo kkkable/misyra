@@ -6,7 +6,7 @@
   "main": "expo-router/entry",
   "scripts": {
     "build": "tsc --project ./tsconfig.json --noEmit",
-    "format": "prettier --write src/calendar/no-evidence-completion-queue.ts --config ../../packages/config/prettier.config.mjs && git diff -- src/calendar/no-evidence-completion-queue.ts && exit 1",
+    "format": "prettier --check . --config ../../packages/config/prettier.config.mjs",
     "lint": "eslint . --config ../../packages/config/eslint.config.mjs",
     "start": "expo start --dev-client",
     "typecheck": "tsc --project ./tsconfig.json --noEmit",
