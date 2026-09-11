@@ -119,3 +119,118 @@ export function resolveAuthStartupConfiguration(env: NodeJS.ProcessEnv) {
     ),
   };
 }
+
+function databaseUrl(env: NodeJS.ProcessEnv) {
+  if (env.DATABASE_URL) return env.DATABASE_URL;
+  const user = encodeURIComponent(env.POSTGRES_USER ?? 'misyra');
+  const password = encodeURIComponent(env.POSTGRES_PASSWORD ?? 'misyra-local-only');
+  const port = env.POSTGRES_PORT ?? '5432';
+  const database = encodeURIComponent(env.POSTGRES_DB ?? 'misyra');
+  return `postgresql://${user}:${password}@127.0.0.1:${port}/${database}`;
+}
+
+export function createHmacAccessTokenIssuer(secret: string) {
+  if (secret.length < 32)
+    throw new Error('AUTH_ACCESS_TOKEN_SECRET must be at least 32 characters');
+  return (input: AccessTokenInput) => {
+    const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
+    const payload = Buffer.from(
+      JSON.stringify({
+        sub: input.accountId,
+        sid: input.sessionId,
+        exp: Math.floor(input.expiresAt.getTime() / 1_000),
+      }),
+    ).toString('base64url');
+    const signature = createHmac('sha256', secret)
+      .update(`${header}.${payload}`)
+      .digest('base64url');
+    return `${header}.${payload}.${signature}`;
+  };
+}
+
+function hmacSignatureMatches(secret: string, signedValue: string, suppliedSignature: string) {
+  const expected = Buffer.from(
+    createHmac('sha256', secret).update(signedValue).digest('base64url'),
+  );
+  const supplied = Buffer.from(suppliedSignature);
+  return expected.length === supplied.length && timingSafeEqual(expected, supplied);
+}
+
+export function createHmacAccessTokenAuthenticator(
+  secret: string,
+  isSessionActive: SessionActiveCheck,
+  now: () => Date = () => new Date(),
+): AuthenticateRequest {
+  if (secret.length < 32)
+    throw new Error('AUTH_ACCESS_TOKEN_SECRET must be at least 32 characters');
+
+  return async (request) => {
+    const authorization = request.headers.authorization;
+    if (!authorization?.startsWith('Bearer ')) return null;
+
+    const token = authorization.slice('Bearer '.length);
+    const [headerSegment, payloadSegment, signatureSegment, ...extra] = token.split('.');
+    if (!headerSegment || !payloadSegment || !signatureSegment || extra.length > 0) return null;
+    if (!hmacSignatureMatches(secret, `${headerSegment}.${payloadSegment}`, signatureSegment)) {
+      return null;
+    }
+
+    try {
+      const header = JSON.parse(Buffer.from(headerSegment, 'base64url').toString('utf8')) as {
+        alg?: unknown;
+        typ?: unknown;
+      };
+      const payload = JSON.parse(Buffer.from(payloadSegment, 'base64url').toString('utf8')) as {
+        sub?: unknown;
+        sid?: unknown;
+        exp?: unknown;
+      };
+      if (
+        header.alg !== 'HS256' ||
+        header.typ !== 'JWT' ||
+        typeof payload.sub !== 'string' ||
+        !UUID_PATTERN.test(payload.sub) ||
+        typeof payload.sid !== 'string' ||
+        !UUID_PATTERN.test(payload.sid) ||
+        typeof payload.exp !== 'number' ||
+        !Number.isFinite(payload.exp)
+      ) {
+        return null;
+      }
+
+      const currentTime = now();
+      if (payload.exp * 1_000 <= currentTime.getTime()) return null;
+      if (!(await isSessionActive(payload.sub, payload.sid, currentTime))) return null;
+      return { accountId: payload.sub };
+    } catch {
+      return null;
+    }
+  };
+}
+
+export async function startApiApplication(env: NodeJS.ProcessEnv = process.env) {
+  const pool = new Pool({ connectionString: databaseUrl(env) });
+  const authConfiguration = resolveAuthStartupConfiguration(env);
+  const authStore = createPostgresAuthStore(pool);
+  const server = createApiApplication({
+    pool,
+    expectedAudience: authConfiguration.expectedAudience,
+    issueAccessToken: createHmacAccessTokenIssuer(authConfiguration.accessTokenSecret),
+    reauthenticationProofSecret: authConfiguration.accessTokenSecret,
+    authenticate: createHmacAccessTokenAuthenticator(
+      authConfiguration.accessTokenSecret,
+      (accountId, sessionId, currentTime) =>
+        authStore.isSessionActive(accountId, sessionId, currentTime),
+    ),
+  });
+  server.addHook('onClose', async () => {
+    await pool.end();
+  });
+  try {
+    await server.listen({ host: '127.0.0.1', port: 3000 });
+  } catch (error) {
+    await pool.end();
+    throw error;
+  }
+  return server;
+}
