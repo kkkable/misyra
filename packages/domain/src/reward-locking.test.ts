@@ -53,6 +53,17 @@ describe('MTS-057 reward locking domain rules', () => {
     expect(
       resolveRewardBasisAfterSave({
         currentRewardEligibility: 'eligible',
+        currentBasis: null,
+        scheduledStartInstant: '2026-09-12T09:00:00.000Z',
+        targetStartInstant: '2026-09-12T09:00:00.000Z',
+        savedAtInstant: '2026-09-11T09:00:00.000Z',
+        changedFields: ['title'],
+      }),
+    ).toEqual({ action: 'recalculate' });
+
+    expect(
+      resolveRewardBasisAfterSave({
+        currentRewardEligibility: 'eligible',
         currentBasis,
         scheduledStartInstant: '2026-09-12T09:00:00.000Z',
         targetStartInstant: '2026-09-12T10:00:00.000Z',
