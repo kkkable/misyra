@@ -553,23 +553,18 @@ async function applyAuthenticatedConflicts(
 
   for (const conflict of conflicts) {
     if (conflict.kind === 'mission_deleted') continue;
+    if (conflict.kind !== 'mission_completed_elsewhere' && conflict.kind !== 'mission_updated') {
+      throw new Error(CONFLICT_APPLICATION_HANDLER_REQUIRED);
+    }
 
     const pending = pendingById.get(conflict.mutationId);
     const mutation = pending?.mutation;
-    const missionId: unknown = conflict.missionId;
-    if (typeof missionId !== 'string') {
-      throw new Error(CONFLICT_APPLICATION_HANDLER_REQUIRED);
-    }
-    if (!matchingNoEvidenceCompletion(mutation, pending?.destination.kind, missionId)) {
+    if (!matchingNoEvidenceCompletion(mutation, pending?.destination.kind, conflict.missionId)) {
       throw new Error(CONFLICT_APPLICATION_HANDLER_REQUIRED);
     }
 
     if (conflict.kind === 'mission_completed_elsewhere') continue;
-    if (conflict.kind === 'mission_updated') {
-      await reconcileRejectedCompletion(database, accountId, mutation);
-      continue;
-    }
-    throw new Error(CONFLICT_APPLICATION_HANDLER_REQUIRED);
+    await reconcileRejectedCompletion(database, accountId, mutation);
   }
 }
 
