@@ -16,12 +16,7 @@ describe('MTS-056 AI difficulty classification gateway', () => {
     const classifyDifficulty = vi.fn(async (request) => {
       expect(request).toEqual({
         ...task,
-        classificationDimensions: [
-          'physical_effort',
-          'mental_effort',
-          'complexity',
-          'preparation',
-        ],
+        classificationDimensions: ['physical_effort', 'mental_effort', 'complexity', 'preparation'],
       });
       expect('userHistory' in request).toBe(false);
       return {

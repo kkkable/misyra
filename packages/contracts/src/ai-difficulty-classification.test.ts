@@ -8,35 +8,27 @@ import {
 } from './v1/ai-difficulty-classification.js';
 
 describe('MTS-056 AI difficulty classification contracts', () => {
-  it(
-    'accepts only mission task details, duration, and the approved classification dimensions',
-    () => {
-      const parsed = difficultyClassificationGatewayRequestSchema.parse({
-        title: 'Prepare quarterly presentation',
-        description: 'Review metrics, build slides, rehearse delivery',
-        estimatedDurationMinutes: 90,
-        classificationDimensions: [
-          'physical_effort',
-          'mental_effort',
-          'complexity',
-          'preparation',
-        ],
-      });
+  it('accepts only mission task details, duration, and the approved classification dimensions', () => {
+    const parsed = difficultyClassificationGatewayRequestSchema.parse({
+      title: 'Prepare quarterly presentation',
+      description: 'Review metrics, build slides, rehearse delivery',
+      estimatedDurationMinutes: 90,
+      classificationDimensions: ['physical_effort', 'mental_effort', 'complexity', 'preparation'],
+    });
 
-      expect(parsed.classificationDimensions).toEqual([
-        'physical_effort',
-        'mental_effort',
-        'complexity',
-        'preparation',
-      ]);
-      expect(
-        difficultyClassificationGatewayRequestSchema.safeParse({
-          ...parsed,
-          userHistory: [{ completedMissionCount: 42 }],
-        }).success,
-      ).toBe(false);
-    },
-  );
+    expect(parsed.classificationDimensions).toEqual([
+      'physical_effort',
+      'mental_effort',
+      'complexity',
+      'preparation',
+    ]);
+    expect(
+      difficultyClassificationGatewayRequestSchema.safeParse({
+        ...parsed,
+        userHistory: [{ completedMissionCount: 42 }],
+      }).success,
+    ).toBe(false);
+  });
 
   it('validates hidden difficulty metadata and rejects AI-owned XP fields', () => {
     expect(
