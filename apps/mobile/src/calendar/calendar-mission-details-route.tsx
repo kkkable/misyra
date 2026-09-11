@@ -7,7 +7,7 @@ import { layout, space, typography } from '@misyra/design-tokens';
 import type { RecurringSeriesScope } from '@misyra/domain';
 import { localizationCatalogs } from '@misyra/localization';
 
-import { getAuthApiBaseUrl, rootAuthController } from '../auth/auth-runtime.js';
+import { rootAuthController } from '../auth/auth-runtime.js';
 import { themeColors, type ColorScheme } from '../design-system/index.js';
 import { useAppLanguage } from '../localization/app-language-runtime.js';
 import { openMobileDatabase } from '../storage/database.js';
@@ -32,7 +32,7 @@ import {
 import { CalendarMissionFormSheet } from './calendar-mission-form-sheet.js';
 import { historicalLifecycleForMission } from './calendar-historical-state.js';
 import { platformFirstWeekdayToDomain } from './calendar-region-runtime.js';
-import { completeMissionWithoutEvidence } from './no-evidence-completion-api.js';
+import { queueNoEvidenceCompletion } from './no-evidence-completion-queue.js';
 import type { NoEvidenceCompletionMode } from './private-trust-completion.js';
 
 const DELETE_UNDO_VISIBLE_MILLISECONDS = 5_000;
@@ -315,18 +315,23 @@ export function CalendarMissionDetailsRouteScreen() {
       const authState = await rootAuthController.restore();
       if (authState.status !== 'signed_in') throw new Error('calendar_completion_requires_sign_in');
       const deviceId = await requireRegisteredDeviceId(authState.session.accountId);
-      await completeMissionWithoutEvidence({
-        baseUrl: getAuthApiBaseUrl(),
-        accessToken: authState.session.accessToken,
+      const database = await openMobileDatabase();
+      const effectiveActionAt = new Date().toISOString();
+      await queueNoEvidenceCompletion({
+        database,
+        accountId: authState.session.accountId,
+        deviceId,
         occurrenceId: details.id,
         mode,
-        effectiveActionAt: new Date().toISOString(),
-        deviceId,
+        effectiveActionAt,
         idempotencyKey: generateUuid(),
       });
-      await rootSyncRuntime.run();
       setLoaded(false);
       await loadDetails();
+      void rootSyncRuntime
+        .run()
+        .then(() => loadDetails())
+        .catch(() => undefined);
     },
     [details, loadDetails],
   );
