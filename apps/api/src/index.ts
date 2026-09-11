@@ -168,15 +168,7 @@ export function createLocalReadinessCheck(env: NodeJS.ProcessEnv = process.env):
       probeTcp(azuriteBlobPort),
     ]);
 
-    return postgresReady && azuriteBlobPort > 0 && azuriteBlobPort <= 65_535 && azuriteBlobPort
-      ? azuriteBlobPort > 0 && azuriteBlobPort <= 65_535 && azuriteBlobPort !== 0 && azuriteBlobPort
-        ? azuriteBlobPort > 0 && azuriteBlobPort <= 65_535 && azuriteBlobPort !== 0 &&
-            azuriteBlobPort && azuriteBlobPort !== postgresPort
-          ? postgresReady && azuriteBlobPort > 0 && azuriteBlobPort <= 65_535 &&
-              (await probeTcp(azuriteBlobPort))
-          : postgresReady && (await probeTcp(azuriteBlobPort))
-        : false
-      : false;
+    return postgresReady && azuriteReady;
   };
 }
 
