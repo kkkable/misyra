@@ -118,6 +118,31 @@ describe('MTS-059 authenticated sync completion replay', () => {
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
 
+  it('keeps retryable authoritative completion failures retryable instead of settling them', async () => {
+    const fetcher = vi.fn(async () => ({
+      ok: false,
+      json: async () => ({
+        version: 1,
+        requestId: '77777777-7777-4777-8777-777777777777',
+        ok: false,
+        error: {
+          version: 1,
+          code: 'temporarily_unavailable',
+          retryable: true,
+          messageKey: 'error.temporarily_unavailable',
+        },
+      }),
+    }));
+    const api = createAuthenticatedSyncApi({
+      baseUrl: 'https://api.example.test',
+      accessToken: 'fixture-access-token',
+      fetcher,
+    });
+
+    await expect(api.push([completionMutation()])).rejects.toThrow('temporarily_unavailable');
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
   it('rejects mismatched replay identity instead of changing the original command', async () => {
     const api = apiWithCompletionResult({
       status: 'completed',
