@@ -287,3 +287,5 @@ export async function startApiServer(env: NodeJS.ProcessEnv = process.env) {
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   await startApiServer();
 }
+
+export * from './authoritative-completion.js';
