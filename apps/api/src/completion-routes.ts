@@ -1,3 +1,9 @@
+import {
+  completeMissionRequestSchema,
+  completeMissionResultSchema,
+  uuidSchema,
+  type CompleteMissionRequest,
+} from '@misyra/contracts';
 import type { Pool } from 'pg';
 
 import {
@@ -6,48 +12,27 @@ import {
 } from './authoritative-completion.js';
 import { ApiError, type ApiRouteDefinition } from './index.js';
 
-type NoEvidenceCompletionMode = 'private' | 'trust';
-
-type CompletionRequestBody = Readonly<{
-  completionMode: NoEvidenceCompletionMode;
-  effectiveActionAt: string;
-  deviceId: string;
-  idempotencyKey: string;
-}>;
+type NoEvidenceCompletionRequest = CompleteMissionRequest &
+  Readonly<{ completionMode: 'private' | 'trust' }>;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function nonEmptyString(value: unknown): value is string {
-  return typeof value === 'string' && value.length > 0;
-}
-
-function parseCompletionBody(value: unknown): CompletionRequestBody {
-  if (!isRecord(value)) throw new ApiError('validation_failed');
-  const completionMode = value.completionMode;
-  const effectiveActionAt = value.effectiveActionAt;
-  const deviceId = value.deviceId;
-  const idempotencyKey = value.idempotencyKey;
-
-  if (
-    (completionMode !== 'private' && completionMode !== 'trust') ||
-    !nonEmptyString(effectiveActionAt) ||
-    Number.isNaN(Date.parse(effectiveActionAt)) ||
-    !nonEmptyString(deviceId) ||
-    !nonEmptyString(idempotencyKey)
-  ) {
+function parseCompletionBody(value: unknown): NoEvidenceCompletionRequest {
+  const parsed = completeMissionRequestSchema.safeParse(value);
+  if (!parsed.success) throw new ApiError('validation_failed');
+  if (parsed.data.completionMode !== 'private' && parsed.data.completionMode !== 'trust') {
     throw new ApiError('validation_failed');
   }
-
-  return { completionMode, effectiveActionAt, deviceId, idempotencyKey };
+  return parsed.data as NoEvidenceCompletionRequest;
 }
 
 function occurrenceIdFrom(value: unknown): string {
-  if (!isRecord(value) || !nonEmptyString(value.occurrenceId)) {
-    throw new ApiError('validation_failed');
-  }
-  return value.occurrenceId;
+  if (!isRecord(value)) throw new ApiError('validation_failed');
+  const parsed = uuidSchema.safeParse(value.occurrenceId);
+  if (!parsed.success) throw new ApiError('validation_failed');
+  return parsed.data;
 }
 
 function mapCompletionError(error: unknown): never {
@@ -74,7 +59,7 @@ export function createCompletionRoutes(pool: Pool): ApiRouteDefinition[] {
         const occurrenceId = occurrenceIdFrom(request.params);
         const body = parseCompletionBody(request.body);
         try {
-          return await completeMissionAuthoritatively(pool, {
+          const result = await completeMissionAuthoritatively(pool, {
             accountId: auth.accountId,
             occurrenceId,
             completionType: body.completionMode === 'private' ? 'private' : 'trust_mode',
@@ -82,6 +67,7 @@ export function createCompletionRoutes(pool: Pool): ApiRouteDefinition[] {
             deviceId: body.deviceId,
             idempotencyKey: body.idempotencyKey,
           });
+          return completeMissionResultSchema.parse(result);
         } catch (error) {
           return mapCompletionError(error);
         }
