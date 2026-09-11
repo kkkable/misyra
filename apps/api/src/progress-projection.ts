@@ -11,18 +11,26 @@ type StreakStateRow = QueryResultRow &
     state: 'paused' | 'continued' | 'broken' | 'pending';
   }>;
 
+type RecentCompletionRow = QueryResultRow &
+  Readonly<{
+    occurrenceId: string;
+    title: string;
+    completedAt: Date;
+    awardedXp: number;
+  }>;
+
 export type AuthoritativeProgressProjection = Readonly<{
   totalXp: number;
   totalCompleted: number;
   currentStreak: number;
   longestStreak: number;
   updatedAt: string;
-  completion: Readonly<{
+  recent: readonly Readonly<{
     occurrenceId: string;
     title: string;
     completedAt: string;
     awardedXp: number;
-  }>;
+  }>[];
 }>;
 
 function streakTotals(rows: readonly StreakStateRow[]): Readonly<{
@@ -54,7 +62,7 @@ export async function buildAuthoritativeProgressProjection(
     awardedXp: number;
   }>,
 ): Promise<AuthoritativeProgressProjection> {
-  const [aggregateResult, streakResult] = await Promise.all([
+  const [aggregateResult, streakResult, recentResult] = await Promise.all([
     client.query<ProgressAggregateRow>(
       `SELECT
          COALESCE(sum(awarded_xp), 0)::int AS "totalXp",
@@ -70,6 +78,28 @@ export async function buildAuthoritativeProgressProjection(
        ORDER BY local_date`,
       [input.accountId],
     ),
+    client.query<RecentCompletionRow>(
+      `SELECT
+         c.occurrence_id AS "occurrenceId",
+         s.title,
+         c.action_time AS "completedAt",
+         r.awarded_xp AS "awardedXp"
+       FROM mission_completions c
+       JOIN reward_ledger r
+         ON r.account_id = c.account_id
+        AND r.occurrence_id = c.occurrence_id
+       JOIN mission_occurrences o
+         ON o.account_id = c.account_id
+        AND o.id = c.occurrence_id
+       JOIN mission_series s
+         ON s.account_id = o.account_id
+        AND s.id = o.series_id
+       WHERE c.account_id = $1
+         AND o.deletion_state <> 'deleted'
+       ORDER BY c.action_time DESC, c.occurrence_id
+       LIMIT 20`,
+      [input.accountId],
+    ),
   ]);
   const aggregate = aggregateResult.rows[0] ?? { totalXp: 0, totalCompleted: 0 };
   const streak = streakTotals(streakResult.rows);
@@ -80,11 +110,15 @@ export async function buildAuthoritativeProgressProjection(
     currentStreak: streak.currentStreak,
     longestStreak: streak.longestStreak,
     updatedAt: input.completedAt,
-    completion: Object.freeze({
-      occurrenceId: input.occurrenceId,
-      title: input.title,
-      completedAt: input.completedAt,
-      awardedXp: input.awardedXp,
-    }),
+    recent: Object.freeze(
+      recentResult.rows.map((row) =>
+        Object.freeze({
+          occurrenceId: row.occurrenceId,
+          title: row.title,
+          completedAt: row.completedAt.toISOString(),
+          awardedXp: row.awardedXp,
+        }),
+      ),
+    ),
   });
 }
