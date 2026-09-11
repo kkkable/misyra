@@ -3,14 +3,11 @@ import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { applyMigrations } from './migrations.js';
-
-type UnknownRecord = Record<string, unknown>;
-type AsyncFunction = (...args: unknown[]) => Promise<unknown>;
-type RepositorySet = Record<string, UnknownRecord>;
-type TransactionWork = (repositories: RepositorySet) => Promise<unknown>;
-type RunInTransaction = (pool: Pool, accountId: string, work: TransactionWork) => Promise<unknown>;
-type CreateAccountRepositories = (pool: Pool, accountId: string) => RepositorySet;
+import {
+  applyMigrations,
+  createRewardBasisStore,
+  runRewardBasisTransaction,
+} from './index.js';
 
 const postgresUser = process.env.POSTGRES_USER ?? 'misyra';
 const postgresPassword = process.env.POSTGRES_PASSWORD ?? 'misyra-local-only';
@@ -22,41 +19,6 @@ const adminUrl = `postgresql://${postgresUser}:${postgresPassword}@127.0.0.1:${p
 let pool: Pool;
 let accountId: string;
 let occurrenceId: string;
-
-function requireRecord(value: unknown, label: string): UnknownRecord {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    throw new TypeError(`Missing required database record: ${label}`);
-  }
-  return value as UnknownRecord;
-}
-
-function requireAsyncFunction(value: unknown, label: string): AsyncFunction {
-  if (typeof value !== 'function') {
-    throw new TypeError(`Missing required database function: ${label}`);
-  }
-  return value as AsyncFunction;
-}
-
-async function loadRepositoryContract(): Promise<{
-  createAccountRepositories: CreateAccountRepositories;
-  runInTransaction: RunInTransaction;
-}> {
-  const module = (await import('./index.js')) as UnknownRecord;
-  const createAccountRepositories = module.createAccountRepositories;
-  const runInTransaction = module.runInTransaction;
-
-  if (typeof createAccountRepositories !== 'function') {
-    throw new TypeError('Missing required database function: createAccountRepositories');
-  }
-  if (typeof runInTransaction !== 'function') {
-    throw new TypeError('Missing required database function: runInTransaction');
-  }
-
-  return {
-    createAccountRepositories: createAccountRepositories as CreateAccountRepositories,
-    runInTransaction: runInTransaction as RunInTransaction,
-  };
-}
 
 beforeAll(async () => {
   const admin = new Pool({ connectionString: adminUrl });
@@ -97,22 +59,15 @@ afterAll(async () => {
 
 describe('MTS-057 reward basis persistence', () => {
   it('persists one account-scoped difficulty/base-XP basis transactionally', async () => {
-    const { createAccountRepositories, runInTransaction } = await loadRepositoryContract();
-    const outsideRewards = requireRecord(
-      createAccountRepositories(pool, accountId).rewards,
-      'rewards',
-    );
-    const outsideUpsert = requireAsyncFunction(outsideRewards.upsertBasis, 'rewards.upsertBasis');
+    const outsideStore = createRewardBasisStore(pool, accountId);
 
     await expect(
-      outsideUpsert(occurrenceId, { difficulty: 'hard', baseXp: 170 }),
+      outsideStore.upsertBasis(occurrenceId, { difficulty: 'hard', baseXp: 170 }),
     ).rejects.toMatchObject({ name: 'TransactionRequiredError' });
 
-    await runInTransaction(pool, accountId, async (repositories) => {
-      const rewards = requireRecord(repositories.rewards, 'rewards');
-      const upsertBasis = requireAsyncFunction(rewards.upsertBasis, 'rewards.upsertBasis');
+    await runRewardBasisTransaction(pool, accountId, async (store) => {
       await expect(
-        upsertBasis(occurrenceId, { difficulty: 'hard', baseXp: 170 }),
+        store.upsertBasis(occurrenceId, { difficulty: 'hard', baseXp: 170 }),
       ).resolves.toMatchObject({
         occurrenceId,
         accountId,
@@ -122,33 +77,28 @@ describe('MTS-057 reward basis persistence', () => {
       });
     });
 
-    const repositories = createAccountRepositories(pool, accountId);
-    const rewards = requireRecord(repositories.rewards, 'rewards');
-    const findBasisByOccurrenceId = requireAsyncFunction(
-      rewards.findBasisByOccurrenceId,
-      'rewards.findBasisByOccurrenceId',
-    );
-    await expect(findBasisByOccurrenceId(occurrenceId)).resolves.toMatchObject({
+    await expect(outsideStore.findBasisByOccurrenceId(occurrenceId)).resolves.toMatchObject({
       difficulty: 'hard',
       baseXp: 170,
       revokedAt: null,
     });
+
+    await expect(
+      createRewardBasisStore(pool, randomUUID()).findBasisByOccurrenceId(occurrenceId),
+    ).resolves.toBeNull();
   });
 
   it('revokes to zero idempotently and never allows an eligible basis to be restored', async () => {
-    const { createAccountRepositories, runInTransaction } = await loadRepositoryContract();
     const revokedAt = new Date('2026-09-12T09:01:00.000Z');
 
-    await runInTransaction(pool, accountId, async (repositories) => {
-      const rewards = requireRecord(repositories.rewards, 'rewards');
-      const revokeBasis = requireAsyncFunction(rewards.revokeBasis, 'rewards.revokeBasis');
-      await expect(revokeBasis(occurrenceId, revokedAt)).resolves.toMatchObject({
+    await runRewardBasisTransaction(pool, accountId, async (store) => {
+      await expect(store.revokeBasis(occurrenceId, revokedAt)).resolves.toMatchObject({
         difficulty: 'hard',
         baseXp: 0,
         revokedAt,
       });
       await expect(
-        revokeBasis(occurrenceId, new Date('2026-09-12T09:02:00.000Z')),
+        store.revokeBasis(occurrenceId, new Date('2026-09-12T09:02:00.000Z')),
       ).resolves.toMatchObject({
         baseXp: 0,
         revokedAt,
@@ -156,19 +106,14 @@ describe('MTS-057 reward basis persistence', () => {
     });
 
     await expect(
-      runInTransaction(pool, accountId, async (repositories) => {
-        const rewards = requireRecord(repositories.rewards, 'rewards');
-        const upsertBasis = requireAsyncFunction(rewards.upsertBasis, 'rewards.upsertBasis');
-        await upsertBasis(occurrenceId, { difficulty: 'easy', baseXp: 50 });
+      runRewardBasisTransaction(pool, accountId, async (store) => {
+        await store.upsertBasis(occurrenceId, { difficulty: 'easy', baseXp: 50 });
       }),
     ).rejects.toMatchObject({ name: 'RewardBasisRevokedError' });
 
-    const rewards = requireRecord(createAccountRepositories(pool, accountId).rewards, 'rewards');
-    const findBasisByOccurrenceId = requireAsyncFunction(
-      rewards.findBasisByOccurrenceId,
-      'rewards.findBasisByOccurrenceId',
-    );
-    await expect(findBasisByOccurrenceId(occurrenceId)).resolves.toMatchObject({
+    await expect(
+      createRewardBasisStore(pool, accountId).findBasisByOccurrenceId(occurrenceId),
+    ).resolves.toMatchObject({
       difficulty: 'hard',
       baseXp: 0,
       revokedAt,
