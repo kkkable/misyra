@@ -44,6 +44,12 @@ jobs:
       - name: Install from lockfile
         run: pnpm install --frozen-lockfile
 
+      - name: Inspect formatted MTS-057 RED test
+        run: |
+          pnpm exec prettier packages/database/src/reward-basis-repository.test.ts --write --config packages/config/prettier.config.mjs
+          cat packages/database/src/reward-basis-repository.test.ts
+          exit 1
+
       - name: Install Bicep compiler in runner only
         run: az bicep install
 
