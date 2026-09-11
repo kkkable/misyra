@@ -1,6 +1,8 @@
 export const databaseWorkspace = '@misyra/database' as const;
 
 export * from './schema.js';
+export * from './reward-basis-schema.js';
+export * from './reward-basis-repository.js';
 export * from './migrations.js';
 export * from './repositories.js';
 export * from './idempotency-outbox.js';
