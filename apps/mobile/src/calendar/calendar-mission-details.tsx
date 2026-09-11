@@ -455,7 +455,7 @@ export function MissionDetailsScreen({
                   setScopeOperation('delete');
                   return;
                 }
-                void Promise.resolve(onDelete(details.id, scope)).catch(() => undefined);
+                void Promise.resolve(onDelete(details.id)).catch(() => undefined);
               }}
               style={[styles.action, { borderColor: colors.late }]}
               testID="mission-details-delete"
