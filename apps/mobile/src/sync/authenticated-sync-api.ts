@@ -81,7 +81,9 @@ function payloadFromEnvelope(value: unknown): unknown {
   return (value as Record<string, unknown>).payload;
 }
 
-function completionRequestFromMutation(mutation: SyncMutationContract): CompleteMissionRequest | null {
+function completionRequestFromMutation(
+  mutation: SyncMutationContract,
+): CompleteMissionRequest | null {
   if (mutation.entityType !== 'completion' || mutation.operation !== 'complete') return null;
   const occurrenceId = uuidSchema.safeParse(mutation.entityId);
   const request = completeMissionRequestSchema.safeParse(mutation.payload);
