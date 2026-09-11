@@ -116,27 +116,24 @@ describe('MTS-056 AI difficulty classification contracts', () => {
     ).toBe(false);
   });
 
-  it(
-    'defines relevant before-start Save inputs without exposing difficulty to the user',
-    () => {
-      const request = difficultyClassificationSaveRequestSchema.parse({
-        scheduledStartInstant: '2026-09-12T09:00:00.000Z',
-        savedAtInstant: '2026-09-11T09:00:00.000Z',
-        changedFields: ['title', 'estimated_duration'],
-        task: {
-          title: 'Prepare quarterly presentation',
-          description: 'Updated task details',
-          estimatedDurationMinutes: 120,
-        },
-      });
+  it('defines relevant before-start Save inputs without exposing difficulty to the user', () => {
+    const request = difficultyClassificationSaveRequestSchema.parse({
+      scheduledStartInstant: '2026-09-12T09:00:00.000Z',
+      savedAtInstant: '2026-09-11T09:00:00.000Z',
+      changedFields: ['title', 'estimated_duration'],
+      task: {
+        title: 'Prepare quarterly presentation',
+        description: 'Updated task details',
+        estimatedDurationMinutes: 120,
+      },
+    });
 
-      expect(request.changedFields).toEqual(['title', 'estimated_duration']);
-      expect(
-        difficultyClassificationSaveRequestSchema.safeParse({
-          ...request,
-          difficulty: 'hard',
-        }).success,
-      ).toBe(false);
-    },
-  );
+    expect(request.changedFields).toEqual(['title', 'estimated_duration']);
+    expect(
+      difficultyClassificationSaveRequestSchema.safeParse({
+        ...request,
+        difficulty: 'hard',
+      }).success,
+    ).toBe(false);
+  });
 });
