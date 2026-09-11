@@ -96,7 +96,16 @@ async function createOccurrence(input?: Readonly<{ expired?: boolean; tombstoned
        id, account_id, series_id, local_date, local_start, local_finish,
        start_instant, finish_instant, time_zone, time_behavior, all_day, reward_eligibility
      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'UTC', 'local_time', false, 'eligible')`,
-    [occurrenceId, accountId, seriesId, localDate, localStart, localFinish, startInstant, finishInstant],
+    [
+      occurrenceId,
+      accountId,
+      seriesId,
+      localDate,
+      localStart,
+      localFinish,
+      startInstant,
+      finishInstant,
+    ],
   );
   await pool.query(
     `INSERT INTO mission_reward_basis (occurrence_id, account_id, difficulty, base_xp)
