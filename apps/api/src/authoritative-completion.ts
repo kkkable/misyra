@@ -4,6 +4,8 @@ import { appendAccountChange, executeIdempotentCommand } from '@misyra/database'
 import { calculateAwardedXp, evaluateCompletionEligibility } from '@misyra/domain';
 import type { Pool, PoolClient, QueryResultRow } from 'pg';
 
+import { buildAuthoritativeProgressProjection } from './progress-projection.js';
+
 export type AuthoritativeCompletionType =
   'verified_on_time' | 'verified_late' | 'self_confirmed' | 'private' | 'trust_mode';
 
@@ -436,6 +438,21 @@ export async function completeMissionAuthoritatively(
         entityId: input.occurrenceId,
         operation: 'upsert',
         payload: authoritativeMissionPayload(occurrence, evidenceState),
+      });
+
+      const progressProjection = await buildAuthoritativeProgressProjection(context.client, {
+        accountId: input.accountId,
+        occurrenceId: input.occurrenceId,
+        title: occurrence.seriesTitle,
+        completedAt: completion.actionTime.toISOString(),
+        awardedXp,
+      });
+      await appendAccountChange(context.client, {
+        accountId: input.accountId,
+        entityType: 'progress',
+        entityId: input.accountId,
+        operation: 'upsert',
+        payload: progressProjection,
       });
 
       await context.enqueueOutbox({
