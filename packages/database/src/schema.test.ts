@@ -203,9 +203,7 @@ describe('MTS-022 PostgreSQL schema contract', () => {
       .split('\n')
       .filter(Boolean);
 
-    expect(actualTables).toEqual(
-      [...coreTableNames, ...TICKET_OWNED_AUXILIARY_TABLES].sort(),
-    );
+    expect(actualTables).toEqual([...coreTableNames, ...TICKET_OWNED_AUXILIARY_TABLES].sort());
   });
 
   it('persists the canonical mission time model and separate state dimensions', async () => {
