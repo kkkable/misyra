@@ -21,6 +21,7 @@ export const accountDataTables = [
   'cached_mission_occurrences',
   'mission_occurrence_tombstones',
   'completion_summaries',
+  'progress_snapshots',
   'personal_notes',
   'external_links',
   'hidden_event_summaries',
@@ -254,6 +255,21 @@ export const mobileMigrations: readonly MobileMigration[] = [
       `DROP TRIGGER IF EXISTS search_documents_fts_delete`,
       `DROP TRIGGER IF EXISTS search_documents_fts_update`,
       `DROP TABLE IF EXISTS search_documents_fts`,
+    ],
+  },
+  {
+    version: 7,
+    name: 'progress-snapshot',
+    statements: [
+      `CREATE TABLE progress_snapshots (
+        account_id TEXT PRIMARY KEY NOT NULL,
+        total_xp INTEGER NOT NULL CHECK (total_xp >= 0),
+        total_completed INTEGER NOT NULL CHECK (total_completed >= 0),
+        current_streak INTEGER NOT NULL CHECK (current_streak >= 0),
+        longest_streak INTEGER NOT NULL CHECK (longest_streak >= current_streak),
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (account_id) REFERENCES local_accounts (account_id) ON DELETE CASCADE
+      )`,
     ],
   },
 ];
