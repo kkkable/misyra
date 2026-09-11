@@ -1,72 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 
-type RewardBasis = Readonly<{
-  difficulty: 'easy' | 'normal' | 'hard' | null;
-  baseXp: number;
-  revokedAt: string | null;
-}>;
-
-type SaveInput = Readonly<{
-  accountId: string;
-  occurrenceId: string;
-  currentRewardEligibility: 'undetermined' | 'eligible' | 'ineligible';
-  scheduledStartInstant: string;
-  targetStartInstant: string;
-  savedAtInstant: string;
-  changedFields: readonly ('title' | 'description' | 'estimated_duration' | 'schedule')[];
-  task: Readonly<{
-    title: string;
-    description: string | null;
-    estimatedDurationMinutes: number;
-  }>;
-}>;
-
-type RewardBasisStore = Readonly<{
-  find(accountId: string, occurrenceId: string): Promise<RewardBasis | null>;
-  upsert(
-    accountId: string,
-    occurrenceId: string,
-    basis: Readonly<{ difficulty: 'easy' | 'normal' | 'hard'; baseXp: number }>,
-  ): Promise<RewardBasis>;
-  revoke(accountId: string, occurrenceId: string, revokedAt: string): Promise<RewardBasis>;
-}>;
-
-type DifficultyClassifier = Readonly<{
-  classifyBeforeStartSave(input: unknown): Promise<
-    | Readonly<{ recalculated: false; result: null }>
-    | Readonly<{
-        recalculated: true;
-        result: Readonly<{
-          difficulty: 'easy' | 'normal' | 'hard';
-          internalMissionType: string | null;
-          explanation: string | null;
-          confidence: number;
-          modelVersion: string;
-          classificationSource: 'ai' | 'fallback';
-        }>;
-      }>
-  >;
-}>;
-
-type RewardLockingService = Readonly<{
-  save(input: SaveInput): Promise<Readonly<{ action: string; basis: RewardBasis | null }>>;
-}>;
-
-type CreateRewardLockingService = (input: {
-  classifier: DifficultyClassifier;
-  store: RewardBasisStore;
-}) => RewardLockingService;
-
-type ApiModule = Record<string, unknown>;
-
-async function loadServiceFactory(): Promise<CreateRewardLockingService> {
-  const module = (await import('./index.js')) as ApiModule;
-  const factory = module.createRewardLockingService;
-  if (typeof factory !== 'function') {
-    throw new TypeError('Missing required API function: createRewardLockingService');
-  }
-  return factory as CreateRewardLockingService;
-}
+import {
+  createRewardLockingService,
+  type RewardBasisStore,
+  type StoredRewardBasis,
+} from './reward-locking.js';
 
 const task = {
   title: 'Prepare quarterly presentation',
@@ -74,18 +12,18 @@ const task = {
   estimatedDurationMinutes: 90,
 };
 
-const baseInput: SaveInput = {
+const baseInput = {
   accountId: '11111111-1111-4111-8111-111111111111',
   occurrenceId: '22222222-2222-4222-8222-222222222222',
-  currentRewardEligibility: 'eligible',
+  currentRewardEligibility: 'eligible' as const,
   scheduledStartInstant: '2026-09-12T09:00:00.000Z',
   targetStartInstant: '2026-09-12T09:00:00.000Z',
   savedAtInstant: '2026-09-11T09:00:00.000Z',
-  changedFields: ['description'],
+  changedFields: ['description'] as const,
   task,
 };
 
-function createStore(initial: RewardBasis | null = null) {
+function createStore(initial: StoredRewardBasis | null = null) {
   let basis = initial;
   const find = vi.fn(() => Promise.resolve(basis));
   const upsert = vi.fn(
@@ -111,7 +49,6 @@ function createStore(initial: RewardBasis | null = null) {
 
 describe('MTS-057 reward locking service', () => {
   it('reclassifies a relevant before-start save and persists deterministic base XP', async () => {
-    const createRewardLockingService = await loadServiceFactory();
     const classifier = {
       classifyBeforeStartSave: vi.fn(() =>
         Promise.resolve({
@@ -147,8 +84,7 @@ describe('MTS-057 reward locking service', () => {
   });
 
   it('does not call AI for a schedule-only edit saved before start', async () => {
-    const createRewardLockingService = await loadServiceFactory();
-    const classifier = { classifyBeforeStartSave: vi.fn() } as unknown as DifficultyClassifier;
+    const classifier = { classifyBeforeStartSave: vi.fn() };
     const existing = { difficulty: 'normal' as const, baseXp: 125, revokedAt: null };
     const { store, upsert, revoke } = createStore(existing);
     const service = createRewardLockingService({ classifier, store });
@@ -166,8 +102,7 @@ describe('MTS-057 reward locking service', () => {
   });
 
   it('revokes after-start edits without AI and never restores a revoked basis', async () => {
-    const createRewardLockingService = await loadServiceFactory();
-    const classifier = { classifyBeforeStartSave: vi.fn() } as unknown as DifficultyClassifier;
+    const classifier = { classifyBeforeStartSave: vi.fn() };
     const { store, upsert, revoke } = createStore({
       difficulty: 'hard',
       baseXp: 170,
