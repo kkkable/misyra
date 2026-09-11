@@ -1,3 +1,9 @@
+import {
+  apiResponseEnvelopeSchema,
+  completeMissionRequestSchema,
+  completeMissionResultSchema,
+} from '@misyra/contracts';
+
 import type { NoEvidenceCompletionMode } from './private-trust-completion.js';
 
 type FetchResponse = Readonly<{
@@ -31,15 +37,6 @@ function normalizedBaseUrl(baseUrl: string): string {
   return baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
 }
 
-function successfulEnvelope(value: unknown): boolean {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    !Array.isArray(value) &&
-    (value as Record<string, unknown>).ok === true
-  );
-}
-
 export async function completeMissionWithoutEvidence({
   baseUrl,
   accessToken,
@@ -50,6 +47,12 @@ export async function completeMissionWithoutEvidence({
   idempotencyKey,
   fetcher = fetch,
 }: CompleteMissionWithoutEvidenceInput): Promise<void> {
+  const requestBody = completeMissionRequestSchema.parse({
+    completionMode: mode,
+    effectiveActionAt,
+    deviceId,
+    idempotencyKey,
+  });
   const response = await fetcher(
     `${normalizedBaseUrl(baseUrl)}/v1/missions/${encodeURIComponent(occurrenceId)}/complete`,
     {
@@ -58,16 +61,14 @@ export async function completeMissionWithoutEvidence({
         authorization: `Bearer ${accessToken}`,
         'content-type': 'application/json',
       },
-      body: JSON.stringify({
-        completionMode: mode,
-        effectiveActionAt,
-        deviceId,
-        idempotencyKey,
-      }),
+      body: JSON.stringify(requestBody),
     },
   );
   const body = await response.json();
-  if (!response.ok || !successfulEnvelope(body)) {
+  const envelope = apiResponseEnvelopeSchema.safeParse(body);
+  if (!response.ok || !envelope.success || !envelope.data.ok) {
     throw new Error('completion_request_failed');
   }
+  const result = completeMissionResultSchema.safeParse(envelope.data.payload);
+  if (!result.success) throw new Error('completion_request_failed');
 }
