@@ -17,6 +17,11 @@ import {
   CalendarRecurringScopeChooser,
   type CalendarRecurringScopeOperation,
 } from './calendar-recurring-scope-chooser.js';
+import {
+  PrivateTrustCompletionPanel,
+  resolveNoEvidenceCompletionMode,
+  type NoEvidenceCompletionMode,
+} from './private-trust-completion.js';
 
 export { CalendarRecurringScopeChooser } from './calendar-recurring-scope-chooser.js';
 
@@ -59,6 +64,10 @@ export interface MissionDetailsScreenProps {
   readonly colorScheme: ColorScheme;
   readonly details: MissionDetailsProjection;
   readonly language: LocalizationLocale;
+  readonly trustMode?: boolean | undefined;
+  readonly onNoEvidenceComplete?:
+    | ((mode: NoEvidenceCompletionMode) => void | Promise<void>)
+    | undefined;
   readonly onFieldChange?:
     ((field: MissionDetailsEditableField, value: string) => void) | undefined;
   readonly onSave?: ((scope?: RecurringSeriesScope) => void | Promise<void>) | undefined;
@@ -186,6 +195,8 @@ export function MissionDetailsScreen({
   colorScheme,
   details,
   language,
+  trustMode = false,
+  onNoEvidenceComplete,
   onFieldChange,
   onSave,
   onDuplicate,
@@ -202,6 +213,12 @@ export function MissionDetailsScreen({
   const personalNoteEditable = !historical && details.fieldOwnership === 'organizer_controlled';
   const writtenStatus = statusText(details, catalog);
   const writtenEvidence = evidenceText(details.evidenceState, catalog);
+  const noEvidenceCompletionMode = resolveNoEvidenceCompletionMode({
+    lifecycle: details.lifecycle,
+    completionState: details.completionState,
+    evidenceState: details.evidenceState,
+    trustMode,
+  });
   const zeroReason =
     details.rewardEligibility === 'ineligible'
       ? zeroXpReasonText(details.zeroXpReason, catalog)
@@ -369,6 +386,15 @@ export function MissionDetailsScreen({
           {writtenEvidence}
         </Text>
       </View>
+
+      {noEvidenceCompletionMode === null || onNoEvidenceComplete === undefined ? null : (
+        <PrivateTrustCompletionPanel
+          colorScheme={colorScheme}
+          language={language}
+          mode={noEvidenceCompletionMode}
+          onConfirm={onNoEvidenceComplete}
+        />
+      )}
 
       {details.fieldOwnership === 'organizer_controlled' ? (
         <DetailsField
