@@ -99,9 +99,7 @@ describe('MTS-056 AI difficulty classification gateway', () => {
       confidence: 0.75,
       modelVersion: 'fake-v1',
     }));
-    const service = createDifficultyClassificationService({
-      gateway: { classifyDifficulty },
-    });
+    const service = createDifficultyClassificationService({ gateway: { classifyDifficulty } });
 
     await expect(
       service.classifyBeforeStartSave({
@@ -110,10 +108,7 @@ describe('MTS-056 AI difficulty classification gateway', () => {
         changedFields: ['description'],
         task,
       }),
-    ).resolves.toMatchObject({
-      recalculated: true,
-      result: { classificationSource: 'ai' },
-    });
+    ).resolves.toMatchObject({ recalculated: true, result: { classificationSource: 'ai' } });
 
     await expect(
       service.classifyBeforeStartSave({
