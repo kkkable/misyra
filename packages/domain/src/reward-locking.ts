@@ -44,7 +44,7 @@ function parseInstant(value: string, field: string): number {
 export function resolveRewardBasisAfterSave(
   input: RewardBasisSaveInput,
 ): RewardBasisSaveDecision {
-  if (input.currentRewardEligibility === 'ineligible' || input.currentBasis?.revokedAt !== null) {
+  if (input.currentRewardEligibility === 'ineligible' || input.currentBasis?.revokedAt != null) {
     return { action: 'revoke' };
   }
 
