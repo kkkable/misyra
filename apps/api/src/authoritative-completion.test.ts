@@ -120,7 +120,12 @@ async function createOccurrence(input?: Readonly<{ expired?: boolean; tombstoned
       [occurrenceId, accountId],
     );
     await pool.query(
-      `UPDATE mission_occurrences SET deletion_state = 'deleted' WHERE id = $1 AND account_id = $2`,
+      `UPDATE mission_occurrences
+       SET deletion_state = 'deleted',
+           synchronization_state = 'synced',
+           version = version + 1,
+           updated_at = now()
+       WHERE id = $1 AND account_id = $2`,
       [occurrenceId, accountId],
     );
   }
