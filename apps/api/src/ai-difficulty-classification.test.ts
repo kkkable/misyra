@@ -14,19 +14,19 @@ const task = {
 
 describe('MTS-056 AI difficulty classification gateway', () => {
   it('uses a deterministic fake gateway and sends no user history', async () => {
-    const classifyDifficulty = vi.fn(async (request: DifficultyClassificationGatewayRequest) => {
+    const classifyDifficulty = vi.fn((request: DifficultyClassificationGatewayRequest) => {
       expect(request).toEqual({
         ...task,
         classificationDimensions: ['physical_effort', 'mental_effort', 'complexity', 'preparation'],
       });
       expect('userHistory' in request).toBe(false);
-      return {
+      return Promise.resolve({
         difficulty: 'hard',
         internalMissionType: 'presentation',
         explanation: 'High preparation and mental complexity.',
         confidence: 0.87,
         modelVersion: 'fake-v1',
-      };
+      });
     });
     const gateway: AiGateway = { classifyDifficulty };
     const service = createDifficultyClassificationService({ gateway });
@@ -45,15 +45,15 @@ describe('MTS-056 AI difficulty classification gateway', () => {
   it('rejects invalid AI output and returns the deterministic safe fallback', async () => {
     const service = createDifficultyClassificationService({
       gateway: {
-        async classifyDifficulty() {
-          return {
+        classifyDifficulty() {
+          return Promise.resolve({
             difficulty: 'hard',
             internalMissionType: 'presentation',
             explanation: 'Provider attempted to control reward.',
             confidence: 0.9,
             modelVersion: 'fake-v1',
             baseXp: 250,
-          };
+          });
         },
       },
     });
@@ -71,8 +71,8 @@ describe('MTS-056 AI difficulty classification gateway', () => {
   it('falls back deterministically when the AI gateway fails', async () => {
     const service = createDifficultyClassificationService({
       gateway: {
-        async classifyDifficulty() {
-          throw new Error('provider unavailable');
+        classifyDifficulty() {
+          return Promise.reject(new Error('provider unavailable'));
         },
       },
     });
@@ -88,13 +88,15 @@ describe('MTS-056 AI difficulty classification gateway', () => {
   });
 
   it('recalculates only relevant edits saved before start', async () => {
-    const classifyDifficulty = vi.fn(async () => ({
-      difficulty: 'normal',
-      internalMissionType: 'presentation',
-      explanation: 'Moderate complexity.',
-      confidence: 0.75,
-      modelVersion: 'fake-v1',
-    }));
+    const classifyDifficulty = vi.fn(() =>
+      Promise.resolve({
+        difficulty: 'normal',
+        internalMissionType: 'presentation',
+        explanation: 'Moderate complexity.',
+        confidence: 0.75,
+        modelVersion: 'fake-v1',
+      }),
+    );
     const service = createDifficultyClassificationService({ gateway: { classifyDifficulty } });
 
     await expect(
