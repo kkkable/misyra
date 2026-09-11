@@ -112,7 +112,9 @@ function nextLocalDate(localDate: string): string {
 
 function fullLocalSchedule(row: LockedOccurrenceRow) {
   const finishDate =
-    row.localFinish > row.localStart ? row.localDate : nextLocalDate(row.localDate);
+    row.localFinish > row.localStart
+      ? row.localDate
+      : nextLocalDate(row.localDate);
   return {
     localStart: `${row.localDate}T${row.localStart}`,
     localFinish: `${finishDate}T${row.localFinish}`,
