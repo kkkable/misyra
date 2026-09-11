@@ -81,6 +81,8 @@ async function createOccurrence(input?: Readonly<{ expired?: boolean; tombstoned
   const occurrenceId = randomUUID();
   const expired = input?.expired ?? false;
   const localDate = expired ? '2026-08-01' : '2026-09-12';
+  const localStart = expired ? '2026-08-01T09:00:00' : '2026-09-12T09:00:00';
+  const localFinish = expired ? '2026-08-01T10:00:00' : '2026-09-12T10:00:00';
   const startInstant = expired ? '2026-08-01T09:00:00Z' : '2026-09-12T09:00:00Z';
   const finishInstant = expired ? '2026-08-01T10:00:00Z' : '2026-09-12T10:00:00Z';
 
@@ -93,8 +95,8 @@ async function createOccurrence(input?: Readonly<{ expired?: boolean; tombstoned
     `INSERT INTO mission_occurrences (
        id, account_id, series_id, local_date, local_start, local_finish,
        start_instant, finish_instant, time_zone, time_behavior, all_day, reward_eligibility
-     ) VALUES ($1, $2, $3, $4, '09:00', '10:00', $5, $6, 'UTC', 'local_time', false, 'eligible')`,
-    [occurrenceId, accountId, seriesId, localDate, startInstant, finishInstant],
+     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'UTC', 'local_time', false, 'eligible')`,
+    [occurrenceId, accountId, seriesId, localDate, localStart, localFinish, startInstant, finishInstant],
   );
   await pool.query(
     `INSERT INTO mission_reward_basis (occurrence_id, account_id, difficulty, base_xp)
@@ -114,7 +116,7 @@ async function createOccurrence(input?: Readonly<{ expired?: boolean; tombstoned
     );
   }
 
-  return occurrenceId;
+  return { seriesId, occurrenceId } as const;
 }
 
 async function countsFor(occurrenceId: string) {
@@ -144,10 +146,22 @@ async function countsFor(occurrenceId: string) {
   };
 }
 
+async function latestChangeFor(occurrenceId: string) {
+  const result = await pool.query<{ entityType: string; operation: string; payload: unknown }>(
+    `SELECT entity_type AS "entityType", operation, payload
+       FROM account_change_log
+      WHERE account_id = $1 AND entity_id = $2
+      ORDER BY sequence DESC
+      LIMIT 1`,
+    [accountId, occurrenceId],
+  );
+  return result.rows[0] ?? null;
+}
+
 describe('MTS-058 authoritative completion transaction', () => {
   it('serializes concurrent completions so the first accepted completion wins exactly once', async () => {
     const completeMission = await loadCompletionTransaction();
-    const occurrenceId = await createOccurrence();
+    const { occurrenceId } = await createOccurrence();
 
     const results = await Promise.all([
       completeMission(pool, {
@@ -183,7 +197,7 @@ describe('MTS-058 authoritative completion transaction', () => {
 
   it('replays the same idempotency key and returns a stable already-completed result for a new key', async () => {
     const completeMission = await loadCompletionTransaction();
-    const occurrenceId = await createOccurrence();
+    const { occurrenceId } = await createOccurrence();
     const idempotencyKey = randomUUID();
     const input = {
       accountId,
@@ -211,10 +225,63 @@ describe('MTS-058 authoritative completion transaction', () => {
     });
   });
 
+  it('appends a mobile-consumable authoritative mission projection after completion', async () => {
+    const completeMission = await loadCompletionTransaction();
+    const { occurrenceId, seriesId } = await createOccurrence();
+
+    await completeMission(pool, {
+      accountId,
+      occurrenceId,
+      completionType: 'verified_on_time',
+      effectiveActionAt: '2026-09-12T09:05:00.000Z',
+      deviceId,
+      idempotencyKey: randomUUID(),
+    });
+
+    await expect(latestChangeFor(occurrenceId)).resolves.toEqual({
+      entityType: 'mission',
+      operation: 'upsert',
+      payload: {
+        version: 2,
+        series: {
+          id: seriesId,
+          title: 'Completion transaction mission',
+          recurrence: null,
+        },
+        occurrence: {
+          id: occurrenceId,
+          seriesId,
+          schedule: {
+            localStart: '2026-09-12T09:00:00',
+            localFinish: '2026-09-12T10:00:00',
+            startInstant: '2026-09-12T09:00:00.000Z',
+            finishInstant: '2026-09-12T10:00:00.000Z',
+            timeZone: 'UTC',
+            timeBehavior: 'local_time',
+            allDay: false,
+            estimatedEffortMinutes: null,
+          },
+          scheduleState: 'scheduled',
+          completionState: 'completed',
+          evidenceState: 'accepted',
+          rewardEligibility: 'eligible',
+          rewardIssuance: 'issued',
+          calendarSource: 'internal',
+          fieldOwnership: 'app_owned',
+          synchronizationState: 'synced',
+          storyState: 'none',
+          deletionState: 'active',
+        },
+        location: null,
+        notes: null,
+      },
+    });
+  });
+
   it('rejects tombstoned and expired occurrences without issuing completion or reward state', async () => {
     const completeMission = await loadCompletionTransaction();
-    const tombstonedId = await createOccurrence({ tombstoned: true });
-    const expiredId = await createOccurrence({ expired: true });
+    const { occurrenceId: tombstonedId } = await createOccurrence({ tombstoned: true });
+    const { occurrenceId: expiredId } = await createOccurrence({ expired: true });
 
     await expect(
       completeMission(pool, {
