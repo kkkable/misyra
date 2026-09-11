@@ -5,11 +5,7 @@ import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 type CompletionType =
-  | 'verified_on_time'
-  | 'verified_late'
-  | 'self_confirmed'
-  | 'private'
-  | 'trust_mode';
+  'verified_on_time' | 'verified_late' | 'self_confirmed' | 'private' | 'trust_mode';
 
 type CompletionResult = Readonly<{
   status: 'completed' | 'already_completed';
