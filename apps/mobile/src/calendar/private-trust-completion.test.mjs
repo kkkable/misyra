@@ -33,7 +33,14 @@ describe('MTS-059 no-evidence completion mode matrix', () => {
     ['Private locked after rejected evidence', 'active', 'incomplete', 'rejected', false, null],
     ['Trust Mode on new mission', 'active', 'incomplete', 'not_submitted', true, 'trust'],
     ['Trust Mode after rejected evidence', 'active', 'incomplete', 'rejected', true, 'trust'],
-    ['Trust Mode does not interrupt active evidence', 'active', 'incomplete', 'pending', true, null],
+    [
+      'Trust Mode does not interrupt active evidence',
+      'active',
+      'incomplete',
+      'pending',
+      true,
+      null,
+    ],
     ['completed mission never changes', 'completed', 'completed', 'not_required', true, null],
     ['expired mission cannot complete', 'expired', 'incomplete', 'not_submitted', true, null],
     ['cancelled mission cannot complete', 'cancelled', 'incomplete', 'not_submitted', true, null],
@@ -65,11 +72,17 @@ describe('MTS-059 completion confirmation', () => {
     });
 
     expect(onConfirm).not.toHaveBeenCalled();
-    act(() => renderer.root.findByProps({ testID: 'private-trust-completion-action' }).props.onPress());
+    act(() =>
+      renderer.root.findByProps({ testID: 'private-trust-completion-action' }).props.onPress(),
+    );
     expect(onConfirm).not.toHaveBeenCalled();
-    expect(renderer.root.findAllByProps({ testID: 'private-trust-completion-confirm' })).toHaveLength(1);
+    expect(
+      renderer.root.findAllByProps({ testID: 'private-trust-completion-confirm' }),
+    ).toHaveLength(1);
 
-    act(() => renderer.root.findByProps({ testID: 'private-trust-completion-confirm' }).props.onPress());
+    act(() =>
+      renderer.root.findByProps({ testID: 'private-trust-completion-confirm' }).props.onPress(),
+    );
     expect(onConfirm).toHaveBeenCalledTimes(1);
     expect(onConfirm).toHaveBeenCalledWith('private');
   });
@@ -89,6 +102,8 @@ describe('MTS-059 completion confirmation', () => {
     });
 
     expect(renderer.root.findAllByProps({ testID: 'private-trust-mode-toggle' })).toHaveLength(0);
-    expect(renderer.root.findAllByProps({ testID: 'private-trust-completion-action' })).toHaveLength(1);
+    expect(
+      renderer.root.findAllByProps({ testID: 'private-trust-completion-action' }),
+    ).toHaveLength(1);
   });
 });
