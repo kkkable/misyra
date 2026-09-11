@@ -46,18 +46,21 @@ describe('MTS-059 completion contracts', () => {
     ).toThrow();
   });
 
-  it.each(['private', 'trust_mode'])('accepts an authoritative %s completion result', (completionType) => {
-    expect(
-      completeMissionResultSchema.parse({
-        status: 'completed',
-        occurrenceId,
-        completionId,
-        completionType,
-        actionTime,
-        reward: { baseXp: 100, proofBonusXp: 0, awardedXp: 100 },
-      }),
-    ).toMatchObject({ completionType, reward: { proofBonusXp: 0, awardedXp: 100 } });
-  });
+  it.each(['private', 'trust_mode'])(
+    'accepts an authoritative %s completion result',
+    (completionType) => {
+      expect(
+        completeMissionResultSchema.parse({
+          status: 'completed',
+          occurrenceId,
+          completionId,
+          completionType,
+          actionTime,
+          reward: { baseXp: 100, proofBonusXp: 0, awardedXp: 100 },
+        }),
+      ).toMatchObject({ completionType, reward: { proofBonusXp: 0, awardedXp: 100 } });
+    },
+  );
 
   it('rejects malformed completion identities and reward values', () => {
     expect(() =>
