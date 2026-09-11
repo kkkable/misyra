@@ -4,10 +4,7 @@ import { applyMigrations } from '@misyra/database';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import {
-  CompletionRejectedError,
-  completeMissionAuthoritatively,
-} from './authoritative-completion.js';
+import { completeMissionAuthoritatively } from './authoritative-completion.js';
 
 const postgresUser = process.env.POSTGRES_USER ?? 'misyra';
 const postgresPassword = process.env.POSTGRES_PASSWORD ?? 'misyra-local-only';
@@ -46,9 +43,10 @@ afterAll(async () => {
   await admin.end();
 });
 
-async function createOccurrence(evidenceState = 'not_submitted') {
+async function createOccurrence(day: number, evidenceState = 'not_submitted') {
   const seriesId = randomUUID();
   const occurrenceId = randomUUID();
+  const date = `2026-09-${String(day).padStart(2, '0')}`;
   await pool.query(`INSERT INTO mission_series (id, account_id, title) VALUES ($1, $2, 'No evidence')`, [
     seriesId,
     accountId,
@@ -59,32 +57,45 @@ async function createOccurrence(evidenceState = 'not_submitted') {
        start_instant, finish_instant, time_zone, time_behavior, all_day,
        reward_eligibility, evidence_state
      ) VALUES (
-       $1, $2, $3, '2026-09-12', '2026-09-12T09:00:00', '2026-09-12T10:00:00',
-       '2026-09-12T09:00:00Z', '2026-09-12T10:00:00Z', 'UTC', 'local_time', false,
-       'eligible', $4
+       $1, $2, $3, $4, $5, $6, $7, $8, 'UTC', 'local_time', false,
+       'eligible', $9
      )`,
-    [occurrenceId, accountId, seriesId, evidenceState],
+    [
+      occurrenceId,
+      accountId,
+      seriesId,
+      date,
+      `${date}T09:00:00`,
+      `${date}T10:00:00`,
+      `${date}T09:00:00Z`,
+      `${date}T10:00:00Z`,
+      evidenceState,
+    ],
   );
   await pool.query(
     `INSERT INTO mission_reward_basis (occurrence_id, account_id, difficulty, base_xp)
      VALUES ($1, $2, 'normal', 100)`,
     [occurrenceId, accountId],
   );
-  return occurrenceId;
+  return { occurrenceId, date, actionAt: `${date}T09:05:00.000Z` } as const;
 }
 
-async function complete(occurrenceId: string, completionType: 'private' | 'trust_mode') {
+async function complete(
+  occurrenceId: string,
+  completionType: 'private' | 'trust_mode',
+  effectiveActionAt: string,
+) {
   return completeMissionAuthoritatively(pool, {
     accountId,
     occurrenceId,
     completionType,
-    effectiveActionAt: '2026-09-12T09:05:00.000Z',
+    effectiveActionAt,
     deviceId,
     idempotencyKey: randomUUID(),
   });
 }
 
-async function stateFor(occurrenceId: string) {
+async function occurrenceAndReward(occurrenceId: string) {
   const occurrence = await pool.query<{
     completionState: string;
     evidenceState: string;
@@ -103,84 +114,91 @@ async function stateFor(occurrenceId: string) {
       WHERE occurrence_id = $1 AND account_id = $2`,
     [occurrenceId, accountId],
   );
-  const streak = await pool.query<{ state: string }>(
-    `SELECT state FROM streak_days WHERE account_id = $1 AND local_date = '2026-09-12'`,
-    [accountId],
-  );
   return {
     occurrence: occurrence.rows[0] ?? null,
     reward: reward.rows[0] ?? null,
-    streak: streak.rows[0]?.state ?? null,
   };
+}
+
+async function streakFor(localDate: string) {
+  const streak = await pool.query<{ state: string }>(
+    `SELECT state FROM streak_days WHERE account_id = $1 AND local_date = $2::date`,
+    [accountId, localDate],
+  );
+  return streak.rows[0]?.state ?? null;
 }
 
 describe('MTS-059 Private and Trust Mode authoritative completion', () => {
   it('allows Private before the first evidence submission and awards base XP with streak credit', async () => {
-    const occurrenceId = await createOccurrence();
+    const mission = await createOccurrence(12);
 
-    await expect(complete(occurrenceId, 'private')).resolves.toMatchObject({
+    await expect(complete(mission.occurrenceId, 'private', mission.actionAt)).resolves.toMatchObject({
       status: 'completed',
       completionType: 'private',
       reward: { baseXp: 100, proofBonusXp: 0, awardedXp: 100 },
     });
-    await expect(stateFor(occurrenceId)).resolves.toEqual({
+    await expect(occurrenceAndReward(mission.occurrenceId)).resolves.toEqual({
       occurrence: {
         completionState: 'completed',
         evidenceState: 'not_required',
         rewardIssuance: 'issued',
       },
       reward: { baseXp: 100, proofBonusXp: 0, awardedXp: 100 },
-      streak: 'continued',
     });
+    await expect(streakFor(mission.date)).resolves.toBe('continued');
   });
 
   it('locks Private after the first evidence submission', async () => {
-    const occurrenceId = await createOccurrence('rejected');
+    const mission = await createOccurrence(13, 'rejected');
     await pool.query(
       `INSERT INTO evidence_attempts
         (account_id, occurrence_id, attempt_number, status, submitted_at)
-       VALUES ($1, $2, 1, 'rejected', '2026-09-12T09:03:00Z')`,
-      [accountId, occurrenceId],
+       VALUES ($1, $2, 1, 'rejected', $3)`,
+      [accountId, mission.occurrenceId, `${mission.date}T09:03:00Z`],
     );
 
-    await expect(complete(occurrenceId, 'private')).rejects.toMatchObject({
+    await expect(complete(mission.occurrenceId, 'private', mission.actionAt)).rejects.toMatchObject({
       name: 'CompletionRejectedError',
       reason: 'completion_mode_not_allowed',
-    } satisfies Partial<CompletionRejectedError>);
-    await expect(stateFor(occurrenceId)).resolves.toEqual({
+    });
+    await expect(occurrenceAndReward(mission.occurrenceId)).resolves.toEqual({
       occurrence: {
         completionState: 'incomplete',
         evidenceState: 'rejected',
         rewardIssuance: 'not_issued',
       },
       reward: null,
-      streak: 'continued',
     });
+    await expect(streakFor(mission.date)).resolves.toBeNull();
   });
 
   it('requires global Trust Mode and refuses an active evidence flow', async () => {
-    const disabledId = await createOccurrence();
-    await expect(complete(disabledId, 'trust_mode')).rejects.toMatchObject({
-      name: 'CompletionRejectedError',
-      reason: 'completion_mode_not_allowed',
-    } satisfies Partial<CompletionRejectedError>);
+    const disabled = await createOccurrence(14);
+    await expect(complete(disabled.occurrenceId, 'trust_mode', disabled.actionAt)).rejects.toMatchObject(
+      {
+        name: 'CompletionRejectedError',
+        reason: 'completion_mode_not_allowed',
+      },
+    );
+    await expect(streakFor(disabled.date)).resolves.toBeNull();
 
     await pool.query(`UPDATE user_settings SET trust_mode = true WHERE account_id = $1`, [accountId]);
-    const pendingId = await createOccurrence('pending');
-    await expect(complete(pendingId, 'trust_mode')).rejects.toMatchObject({
+    const pending = await createOccurrence(15, 'pending');
+    await expect(complete(pending.occurrenceId, 'trust_mode', pending.actionAt)).rejects.toMatchObject({
       name: 'CompletionRejectedError',
       reason: 'completion_mode_not_allowed',
-    } satisfies Partial<CompletionRejectedError>);
+    });
+    await expect(streakFor(pending.date)).resolves.toBeNull();
 
-    const trustId = await createOccurrence('rejected');
-    await expect(complete(trustId, 'trust_mode')).resolves.toMatchObject({
+    const trust = await createOccurrence(16, 'rejected');
+    await expect(complete(trust.occurrenceId, 'trust_mode', trust.actionAt)).resolves.toMatchObject({
       completionType: 'trust_mode',
       reward: { baseXp: 100, proofBonusXp: 0, awardedXp: 100 },
     });
-    await expect(stateFor(trustId)).resolves.toMatchObject({
+    await expect(occurrenceAndReward(trust.occurrenceId)).resolves.toMatchObject({
       occurrence: { completionState: 'completed', evidenceState: 'not_required' },
       reward: { baseXp: 100, proofBonusXp: 0, awardedXp: 100 },
-      streak: 'continued',
     });
+    await expect(streakFor(trust.date)).resolves.toBe('continued');
   });
 });
