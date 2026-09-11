@@ -47,10 +47,10 @@ async function createOccurrence(day: number, evidenceState = 'not_submitted') {
   const seriesId = randomUUID();
   const occurrenceId = randomUUID();
   const date = `2026-09-${String(day).padStart(2, '0')}`;
-  await pool.query(`INSERT INTO mission_series (id, account_id, title) VALUES ($1, $2, 'No evidence')`, [
-    seriesId,
-    accountId,
-  ]);
+  await pool.query(
+    `INSERT INTO mission_series (id, account_id, title) VALUES ($1, $2, 'No evidence')`,
+    [seriesId, accountId],
+  );
   await pool.query(
     `INSERT INTO mission_occurrences (
        id, account_id, series_id, local_date, local_start, local_finish,
@@ -132,7 +132,9 @@ describe('MTS-059 Private and Trust Mode authoritative completion', () => {
   it('allows Private before the first evidence submission and awards base XP with streak credit', async () => {
     const mission = await createOccurrence(12);
 
-    await expect(complete(mission.occurrenceId, 'private', mission.actionAt)).resolves.toMatchObject({
+    await expect(
+      complete(mission.occurrenceId, 'private', mission.actionAt),
+    ).resolves.toMatchObject({
       status: 'completed',
       completionType: 'private',
       reward: { baseXp: 100, proofBonusXp: 0, awardedXp: 100 },
@@ -174,24 +176,28 @@ describe('MTS-059 Private and Trust Mode authoritative completion', () => {
 
   it('requires global Trust Mode and refuses an active evidence flow', async () => {
     const disabled = await createOccurrence(14);
-    await expect(complete(disabled.occurrenceId, 'trust_mode', disabled.actionAt)).rejects.toMatchObject(
-      {
-        name: 'CompletionRejectedError',
-        reason: 'completion_mode_not_allowed',
-      },
-    );
+    await expect(
+      complete(disabled.occurrenceId, 'trust_mode', disabled.actionAt),
+    ).rejects.toMatchObject({
+      name: 'CompletionRejectedError',
+      reason: 'completion_mode_not_allowed',
+    });
     await expect(streakFor(disabled.date)).resolves.toBeNull();
 
     await pool.query(`UPDATE user_settings SET trust_mode = true WHERE account_id = $1`, [accountId]);
     const pending = await createOccurrence(15, 'pending');
-    await expect(complete(pending.occurrenceId, 'trust_mode', pending.actionAt)).rejects.toMatchObject({
+    await expect(
+      complete(pending.occurrenceId, 'trust_mode', pending.actionAt),
+    ).rejects.toMatchObject({
       name: 'CompletionRejectedError',
       reason: 'completion_mode_not_allowed',
     });
     await expect(streakFor(pending.date)).resolves.toBeNull();
 
     const trust = await createOccurrence(16, 'rejected');
-    await expect(complete(trust.occurrenceId, 'trust_mode', trust.actionAt)).resolves.toMatchObject({
+    await expect(
+      complete(trust.occurrenceId, 'trust_mode', trust.actionAt),
+    ).resolves.toMatchObject({
       completionType: 'trust_mode',
       reward: { baseXp: 100, proofBonusXp: 0, awardedXp: 100 },
     });
