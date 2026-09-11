@@ -66,8 +66,7 @@ export interface MissionDetailsScreenProps {
   readonly language: LocalizationLocale;
   readonly trustMode?: boolean | undefined;
   readonly onNoEvidenceComplete?:
-    | ((mode: NoEvidenceCompletionMode) => void | Promise<void>)
-    | undefined;
+    ((mode: NoEvidenceCompletionMode) => void | Promise<void>) | undefined;
   readonly onFieldChange?:
     ((field: MissionDetailsEditableField, value: string) => void) | undefined;
   readonly onSave?: ((scope?: RecurringSeriesScope) => void | Promise<void>) | undefined;
@@ -456,7 +455,7 @@ export function MissionDetailsScreen({
                   setScopeOperation('delete');
                   return;
                 }
-                void Promise.resolve(onDelete(details.id)).catch(() => undefined);
+                void Promise.resolve(onDelete(details.id, scope)).catch(() => undefined);
               }}
               style={[styles.action, { borderColor: colors.late }]}
               testID="mission-details-delete"
