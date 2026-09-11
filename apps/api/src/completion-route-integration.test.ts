@@ -119,7 +119,9 @@ describe('MTS-059 completion HTTP integration', () => {
   });
 
   it('maps the global Trust completion command to the authoritative trust-mode transaction', async () => {
-    await pool.query(`UPDATE user_settings SET trust_mode = true WHERE account_id = $1`, [accountId]);
+    await pool.query(`UPDATE user_settings SET trust_mode = true WHERE account_id = $1`, [
+      accountId,
+    ]);
     const mission = await createOccurrence(18);
     const server = createServer();
 
