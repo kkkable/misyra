@@ -556,7 +556,11 @@ async function applyAuthenticatedConflicts(
 
     const pending = pendingById.get(conflict.mutationId);
     const mutation = pending?.mutation;
-    if (!matchingNoEvidenceCompletion(mutation, pending?.destination.kind, conflict.missionId)) {
+    const missionId: unknown = conflict.missionId;
+    if (typeof missionId !== 'string') {
+      throw new Error(CONFLICT_APPLICATION_HANDLER_REQUIRED);
+    }
+    if (!matchingNoEvidenceCompletion(mutation, pending?.destination.kind, missionId)) {
       throw new Error(CONFLICT_APPLICATION_HANDLER_REQUIRED);
     }
 
