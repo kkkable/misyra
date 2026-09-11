@@ -105,6 +105,8 @@ export async function pushQueuedMutationsWithCompletions(
   api: CompletionPushApi,
   mutations: readonly SyncMutationContract[],
 ): Promise<SyncPushResponse> {
+  if (mutations.length === 0) return api.push(mutations);
+
   const acceptedMutationIds: string[] = [];
   const conflicts: SyncConflictOutcomeContract[] = [];
 
