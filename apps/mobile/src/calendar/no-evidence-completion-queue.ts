@@ -147,7 +147,10 @@ export async function queueNoEvidenceCompletion(
         occurrenceId,
       );
       if (row === null) throw new Error('completion_occurrence_not_found');
-      if (row.payload_json !== cached.payload_json || row.server_version !== cached.server_version) {
+      if (
+        row.payload_json !== cached.payload_json ||
+        row.server_version !== cached.server_version
+      ) {
         throw new Error('completion_occurrence_changed');
       }
       const result = (await transaction.runAsync(
