@@ -3,11 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import {
-  applyMigrations,
-  createRewardBasisStore,
-  runRewardBasisTransaction,
-} from './index.js';
+import { applyMigrations, createRewardBasisStore, runRewardBasisTransaction } from './index.js';
 
 const postgresUser = process.env.POSTGRES_USER ?? 'misyra';
 const postgresPassword = process.env.POSTGRES_PASSWORD ?? 'misyra-local-only';

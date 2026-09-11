@@ -6,11 +6,7 @@ export type RewardBasis = Readonly<{
   revokedAt: string | null;
 }>;
 
-export type RewardBasisSaveField =
-  | 'title'
-  | 'description'
-  | 'estimated_duration'
-  | 'schedule';
+export type RewardBasisSaveField = 'title' | 'description' | 'estimated_duration' | 'schedule';
 
 export type RewardBasisSaveAction = 'recalculate' | 'locked' | 'revoke' | 'unchanged';
 
@@ -41,9 +37,7 @@ function parseInstant(value: string, field: string): number {
   return instant;
 }
 
-export function resolveRewardBasisAfterSave(
-  input: RewardBasisSaveInput,
-): RewardBasisSaveDecision {
+export function resolveRewardBasisAfterSave(input: RewardBasisSaveInput): RewardBasisSaveDecision {
   if (input.currentRewardEligibility === 'ineligible' || input.currentBasis?.revokedAt != null) {
     return { action: 'revoke' };
   }

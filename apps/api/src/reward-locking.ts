@@ -45,9 +45,7 @@ export type RewardLockingSaveInput = Readonly<{
 }>;
 
 export interface RewardLockingService {
-  save(
-    input: RewardLockingSaveInput,
-  ): Promise<
+  save(input: RewardLockingSaveInput): Promise<
     Readonly<{
       action: 'recalculate' | 'locked' | 'revoke' | 'unchanged';
       basis: StoredRewardBasis | null;
@@ -66,7 +64,9 @@ function mapDatabaseBasis(row: RewardBasisRow): StoredRewardBasis {
 export function createPostgresRewardBasisStore(pool: Pool): RewardBasisStore {
   return Object.freeze({
     async find(accountId, occurrenceId) {
-      const row = await createRewardBasisStore(pool, accountId).findBasisByOccurrenceId(occurrenceId);
+      const row = await createRewardBasisStore(pool, accountId).findBasisByOccurrenceId(
+        occurrenceId,
+      );
       return row === null ? null : mapDatabaseBasis(row);
     },
 
