@@ -9,12 +9,18 @@ import {
 } from '@misyra/domain';
 
 import type { AuthSession, AuthSessionController } from '../auth/auth-session.js';
-import { createMutationQueue, type MutationQueueDatabase } from '../storage/mutation-queue.js';
+import {
+  createMutationQueue,
+  type MutationQueue,
+  type MutationQueueDatabase,
+  type SyncMutation,
+} from '../storage/mutation-queue.js';
 import { createAuthenticatedSyncApi, type AuthenticatedSyncApi } from './authenticated-sync-api.js';
 import {
   createServerSync,
   type ServerAccountChange,
   type ServerSyncDatabase,
+  type SyncConflictResult,
 } from './server-sync.js';
 
 type InstallationStore = Readonly<{
@@ -51,6 +57,11 @@ type MissionProjection = Readonly<{
   version: number;
 }>;
 
+type CachedCompletionConflictRow = Readonly<{
+  payload_json: string;
+  server_version: number | null;
+}>;
+
 export type AuthenticatedSyncRuntimeOptions = Readonly<{
   sessionProvider: () => Promise<AuthSession | null>;
   installationStore: InstallationStore;
@@ -75,6 +86,8 @@ export type AuthenticatedSyncRunResult = Readonly<{
 }>;
 
 const INSTALLATION_ID_KEY = 'misyra.installation-id.v1';
+const CONFLICT_APPLICATION_HANDLER_REQUIRED =
+  'Conflict outcomes require an application handler before settlement.';
 
 export function createSyncSessionProvider(
   controller: Pick<AuthSessionController, 'restore'>,
@@ -426,6 +439,135 @@ async function snapshotWithRequiredPayload(api: AuthenticatedSyncApi) {
   };
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function matchingNoEvidenceCompletion(
+  mutation: SyncMutation | undefined,
+  destinationKind: string | undefined,
+  missionId: string,
+): mutation is SyncMutation {
+  if (mutation === undefined || destinationKind !== 'server') return false;
+  const payload = mutation.payload;
+  const completionMode = isRecord(payload) ? payload.completionMode : undefined;
+  return (
+    mutation.entityType === 'completion' &&
+    mutation.operation === 'complete' &&
+    mutation.entityId === missionId &&
+    (completionMode === 'private' || completionMode === 'trust')
+  );
+}
+
+function validServerVersion(value: number | null): boolean {
+  return value === null || (Number.isSafeInteger(value) && value > 0);
+}
+
+async function reconcileRejectedCompletion(
+  database: SyncDatabase,
+  accountId: string,
+  mutation: SyncMutation,
+): Promise<void> {
+  const payload = mutation.payload;
+  if (!isRecord(payload) || !isRecord(payload.localBefore)) {
+    throw new Error(CONFLICT_APPLICATION_HANDLER_REQUIRED);
+  }
+  const localBefore = payload.localBefore;
+  if (localBefore.completionState !== 'incomplete') {
+    throw new Error(CONFLICT_APPLICATION_HANDLER_REQUIRED);
+  }
+  const baseVersion = mutation.baseVersion;
+  if (!validServerVersion(baseVersion)) {
+    throw new Error(CONFLICT_APPLICATION_HANDLER_REQUIRED);
+  }
+
+  await database.withExclusiveTransactionAsync(async (transaction) => {
+    const row = await transaction.getFirstAsync<CachedCompletionConflictRow>(
+      `SELECT payload_json, server_version
+         FROM cached_mission_occurrences
+        WHERE account_id = ? AND occurrence_id = ?`,
+      accountId,
+      mutation.entityId,
+    );
+    if (row === null) return;
+    if (!validServerVersion(row.server_version)) {
+      throw new Error(CONFLICT_APPLICATION_HANDLER_REQUIRED);
+    }
+
+    if (baseVersion === null) {
+      if (row.server_version !== null) return;
+    } else {
+      if (row.server_version === null || row.server_version < baseVersion) {
+        throw new Error(CONFLICT_APPLICATION_HANDLER_REQUIRED);
+      }
+      if (row.server_version > baseVersion) return;
+    }
+
+    const current = createMissionOccurrence(JSON.parse(row.payload_json) as MissionOccurrenceInput);
+    if (current.id !== mutation.entityId) {
+      throw new Error(CONFLICT_APPLICATION_HANDLER_REQUIRED);
+    }
+    const restored = createMissionOccurrence({
+      ...current,
+      completionState: localBefore.completionState,
+      evidenceState: localBefore.evidenceState,
+      synchronizationState: localBefore.synchronizationState,
+    } as MissionOccurrenceInput);
+    const alreadyRestored =
+      current.completionState === restored.completionState &&
+      current.evidenceState === restored.evidenceState &&
+      current.synchronizationState === restored.synchronizationState;
+    if (alreadyRestored) return;
+    const optimisticCompletion =
+      current.completionState === 'completed' &&
+      current.evidenceState === 'not_required' &&
+      current.synchronizationState === 'pending';
+    if (!optimisticCompletion) {
+      throw new Error(CONFLICT_APPLICATION_HANDLER_REQUIRED);
+    }
+
+    const result = (await transaction.runAsync(
+      `UPDATE cached_mission_occurrences
+          SET payload_json = ?, updated_at = ?
+        WHERE account_id = ? AND occurrence_id = ?`,
+      JSON.stringify(restored),
+      new Date().toISOString(),
+      accountId,
+      mutation.entityId,
+    )) as { changes?: number };
+    if (result.changes !== 1) {
+      throw new Error(CONFLICT_APPLICATION_HANDLER_REQUIRED);
+    }
+  });
+}
+
+async function applyAuthenticatedConflicts(
+  database: SyncDatabase,
+  accountId: string,
+  mutationQueue: MutationQueue,
+  conflicts: readonly SyncConflictResult[],
+): Promise<void> {
+  const pendingById = new Map(
+    (await mutationQueue.listPending()).map((pending) => [pending.mutation.mutationId, pending]),
+  );
+
+  for (const conflict of conflicts) {
+    if (conflict.kind === 'mission_deleted') continue;
+    if (conflict.kind !== 'mission_completed_elsewhere' && conflict.kind !== 'mission_updated') {
+      throw new Error(CONFLICT_APPLICATION_HANDLER_REQUIRED);
+    }
+
+    const pending = pendingById.get(conflict.mutationId);
+    const mutation = pending?.mutation;
+    if (!matchingNoEvidenceCompletion(mutation, pending?.destination.kind, conflict.missionId)) {
+      throw new Error(CONFLICT_APPLICATION_HANDLER_REQUIRED);
+    }
+
+    if (conflict.kind === 'mission_completed_elsewhere') continue;
+    await reconcileRejectedCompletion(database, accountId, mutation);
+  }
+}
+
 export async function runAuthenticatedServerSync({
   database,
   accountId,
@@ -449,6 +591,8 @@ export async function runAuthenticatedServerSync({
       applyAuthoritativeChanges(transaction, accountId, changes),
     applySnapshot: (transaction, entries) =>
       applyAuthoritativeSnapshot(transaction, accountId, entries),
+    applyConflicts: (conflicts) =>
+      applyAuthenticatedConflicts(database, accountId, mutationQueue, conflicts),
   });
   return sync.run();
 }

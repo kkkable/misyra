@@ -12,7 +12,7 @@ import { themeColors, type ColorScheme } from '../design-system/index.js';
 import { useAppLanguage } from '../localization/app-language-runtime.js';
 import { openMobileDatabase } from '../storage/database.js';
 import { createLocalRepositories, type MissionDetails } from '../storage/local-repositories.js';
-import { requireRegisteredDeviceId } from '../sync/root-sync-runtime.js';
+import { requireRegisteredDeviceId, rootSyncRuntime } from '../sync/root-sync-runtime.js';
 import {
   deleteCalendarMission,
   undoCalendarMissionDeletion,
@@ -32,6 +32,8 @@ import {
 import { CalendarMissionFormSheet } from './calendar-mission-form-sheet.js';
 import { historicalLifecycleForMission } from './calendar-historical-state.js';
 import { platformFirstWeekdayToDomain } from './calendar-region-runtime.js';
+import { queueNoEvidenceCompletion } from './no-evidence-completion-queue.js';
+import type { NoEvidenceCompletionMode } from './private-trust-completion.js';
 
 const DELETE_UNDO_VISIBLE_MILLISECONDS = 5_000;
 const MINUTES_PER_DAY = 24 * 60;
@@ -178,6 +180,7 @@ export function CalendarMissionDetailsRouteScreen() {
   const uses24HourClock = systemCalendar?.uses24hourClock !== false;
   const weekStartsOn = platformFirstWeekdayToDomain(Number(systemCalendar?.firstWeekday));
   const [details, setDetails] = useState<MissionDetailsProjection | null>(null);
+  const [trustMode, setTrustMode] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [duplicateDraft, setDuplicateDraft] = useState<CalendarMissionCreateInput | null>(null);
   const [pendingDeletion, setPendingDeletion] = useState<PendingDeletion | null>(null);
@@ -186,18 +189,24 @@ export function CalendarMissionDetailsRouteScreen() {
   const loadDetails = useCallback(async () => {
     if (missionId === null) {
       setDetails(null);
+      setTrustMode(false);
       setLoaded(true);
       return;
     }
     const authState = await rootAuthController.restore();
     if (authState.status !== 'signed_in') {
       setDetails(null);
+      setTrustMode(false);
       setLoaded(true);
       return;
     }
     const database = await openMobileDatabase();
     const repositories = createLocalRepositories(database, authState.session.accountId);
-    const mission = await repositories.missions.getById(missionId);
+    const [mission, settings] = await Promise.all([
+      repositories.missions.getById(missionId),
+      repositories.settings.get(),
+    ]);
+    setTrustMode(settings?.trustMode ?? false);
     if (mission === null) {
       setDetails(null);
       setLoaded(true);
@@ -226,6 +235,7 @@ export function CalendarMissionDetailsRouteScreen() {
     void loadDetails().catch(() => {
       if (active) {
         setDetails(null);
+        setTrustMode(false);
         setLoaded(true);
       }
     });
@@ -295,6 +305,33 @@ export function CalendarMissionDetailsRouteScreen() {
       });
       setLoaded(false);
       await loadDetails();
+    },
+    [details, loadDetails],
+  );
+
+  const completeWithoutEvidence = useCallback(
+    async (mode: NoEvidenceCompletionMode) => {
+      if (details === null) return;
+      const authState = await rootAuthController.restore();
+      if (authState.status !== 'signed_in') throw new Error('calendar_completion_requires_sign_in');
+      const deviceId = await requireRegisteredDeviceId(authState.session.accountId);
+      const database = await openMobileDatabase();
+      const effectiveActionAt = new Date().toISOString();
+      await queueNoEvidenceCompletion({
+        database,
+        accountId: authState.session.accountId,
+        deviceId,
+        occurrenceId: details.id,
+        mode,
+        effectiveActionAt,
+        idempotencyKey: generateUuid(),
+      });
+      setLoaded(false);
+      await loadDetails();
+      void rootSyncRuntime
+        .run()
+        .then(() => loadDetails())
+        .catch(() => undefined);
     },
     [details, loadDetails],
   );
@@ -447,7 +484,9 @@ export function CalendarMissionDetailsRouteScreen() {
         onDelete={deleteMission}
         onDuplicate={duplicateMission}
         onFieldChange={changeField}
+        onNoEvidenceComplete={completeWithoutEvidence}
         onSave={saveDetails}
+        trustMode={trustMode}
       />
       {duplicateDraft === null ? null : (
         <CalendarMissionFormSheet

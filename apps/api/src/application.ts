@@ -15,6 +15,7 @@ import {
 import { createAccountLifecycleRoutes } from './account-lifecycle-routes.js';
 import { createAuthRoutes } from './auth-routes.js';
 import { createAuthService, type AccessTokenInput, type ProviderProofVerifier } from './auth.js';
+import { createCompletionRoutes } from './completion-routes.js';
 import { createDeviceSettingsRoutes } from './device-settings-routes.js';
 import { createDeviceSettingsService } from './device-settings.js';
 import {
@@ -83,6 +84,7 @@ export function createApiApplication(options: AuthApplicationOptions) {
       ...createAuthRoutes(authService),
       ...createAccountLifecycleRoutes(accountLifecycleService),
       ...createDeviceSettingsRoutes(deviceSettingsService),
+      ...createCompletionRoutes(options.pool),
       ...createSyncRoutes(syncService),
     ],
     ...(options.readiness === undefined ? {} : { readiness: options.readiness }),
