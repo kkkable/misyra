@@ -20,6 +20,8 @@ export const completeMissionCommandSchema = z
   })
   .strict();
 
+export const completeMissionRequestSchema = completeMissionCommandSchema.omit({ occurrenceId: true });
+
 export const authoritativeCompletionTypeSchema = z.enum([
   'verified_on_time',
   'verified_late',
@@ -47,6 +49,7 @@ export const completeMissionResultSchema = z
 
 export type CompleteMissionMode = z.infer<typeof completeMissionModeSchema>;
 export type CompleteMissionCommand = z.infer<typeof completeMissionCommandSchema>;
+export type CompleteMissionRequest = z.infer<typeof completeMissionRequestSchema>;
 export type AuthoritativeCompletionTypeContract = z.infer<
   typeof authoritativeCompletionTypeSchema
 >;
