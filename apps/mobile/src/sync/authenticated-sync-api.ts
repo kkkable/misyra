@@ -219,7 +219,7 @@ export function createAuthenticatedSyncApi({
     const responseBody = await response.json();
     if (!response.ok) {
       const envelope = apiResponseEnvelopeSchema.safeParse(responseBody);
-      if (envelope.success && envelope.data.ok === false && envelope.data.error !== undefined) {
+      if (envelope.success && !envelope.data.ok && envelope.data.error !== undefined) {
         throw new AuthenticatedSyncRequestError(envelope.data.error);
       }
       throw new Error('sync_request_failed');
