@@ -55,6 +55,7 @@ const deviceId = '22222222-2222-4222-8222-222222222222';
 const seriesId = '33333333-3333-4333-8333-333333333333';
 const occurrenceId = '44444444-4444-4444-8444-444444444444';
 const mutationId = '55555555-5555-4555-8555-555555555555';
+const unrelatedMissionId = '66666666-6666-4666-8666-666666666666';
 const actionAt = '2026-09-11T09:05:00.000Z';
 
 function createDatabase() {
@@ -207,7 +208,7 @@ describe('MTS-059 authenticated completion conflict settlement', () => {
     expect(cached.server_version).toBe(5);
   });
 
-  it('still fails closed for unrelated mission-update conflicts', async () => {
+  it('settles a rejected offline completion after pull and restores the optimistic local projection', async () => {
     const database = createDatabase();
     await setup(database);
     const api = {
@@ -224,14 +225,58 @@ describe('MTS-059 authenticated completion conflict settlement', () => {
         }),
       ),
       pull: vi.fn(() =>
+        Promise.resolve({ kind: 'incremental', changes: [], nextCursor: 0, hasMore: false }),
+      ),
+      snapshot: vi.fn(() => Promise.resolve({ entries: [], nextCursor: 0 })),
+    };
+
+    await expect(runAuthenticatedServerSync({ database, accountId, api })).resolves.toEqual({
+      settledMutations: 1,
+      cursor: 0,
+    });
+    expect(
+      await database.getFirstAsync(
+        'SELECT mutation_id FROM mutation_queue WHERE account_id = ?',
+        accountId,
+      ),
+    ).toBeNull();
+
+    const cached = await database.getFirstAsync(
+      `SELECT payload_json, server_version
+         FROM cached_mission_occurrences
+        WHERE account_id = ? AND occurrence_id = ?`,
+      accountId,
+      occurrenceId,
+    );
+    expect(JSON.parse(cached.payload_json)).toMatchObject({
+      completionState: 'incomplete',
+      evidenceState: 'not_submitted',
+      rewardIssuance: 'not_issued',
+      synchronizationState: 'synced',
+    });
+    expect(cached.server_version).toBe(4);
+  });
+
+  it('still fails closed for a mission-update conflict that does not match the queued completion', async () => {
+    const database = createDatabase();
+    await setup(database);
+    const api = {
+      push: vi.fn(() =>
         Promise.resolve({
-          kind: 'incremental',
-          changes: [completedMissionChange()],
-          nextCursor: 1,
-          hasMore: false,
+          acceptedMutationIds: [],
+          conflicts: [
+            {
+              kind: 'mission_updated',
+              mutationId,
+              missionId: unrelatedMissionId,
+            },
+          ],
         }),
       ),
-      snapshot: vi.fn(() => Promise.resolve({ entries: [], nextCursor: 1 })),
+      pull: vi.fn(() =>
+        Promise.resolve({ kind: 'incremental', changes: [], nextCursor: 0, hasMore: false }),
+      ),
+      snapshot: vi.fn(() => Promise.resolve({ entries: [], nextCursor: 0 })),
     };
 
     await expect(runAuthenticatedServerSync({ database, accountId, api })).rejects.toThrow(
