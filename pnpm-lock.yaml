@@ -49,6 +49,9 @@ importers:
       '@misyra/database':
         specifier: workspace:*
         version: link:../../packages/database
+      '@misyra/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
       fastify:
         specifier: 5.8.5
         version: 5.8.5
