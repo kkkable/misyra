@@ -5,11 +5,7 @@ import { calculateAwardedXp, evaluateCompletionEligibility } from '@misyra/domai
 import type { Pool, PoolClient, QueryResultRow } from 'pg';
 
 export type AuthoritativeCompletionType =
-  | 'verified_on_time'
-  | 'verified_late'
-  | 'self_confirmed'
-  | 'private'
-  | 'trust_mode';
+  'verified_on_time' | 'verified_late' | 'self_confirmed' | 'private' | 'trust_mode';
 
 export type AuthoritativeCompletionInput = Readonly<{
   accountId: string;
@@ -35,11 +31,7 @@ export type AuthoritativeCompletionResult = Readonly<{
 }>;
 
 export type CompletionRejectionReason =
-  | 'not_found'
-  | 'deleted'
-  | 'cancelled'
-  | 'not_started'
-  | 'expired';
+  'not_found' | 'deleted' | 'cancelled' | 'not_started' | 'expired';
 
 export class CompletionRejectedError extends Error {
   readonly reason: CompletionRejectionReason;
@@ -119,7 +111,8 @@ function nextLocalDate(localDate: string): string {
 }
 
 function fullLocalSchedule(row: LockedOccurrenceRow) {
-  const finishDate = row.localFinish > row.localStart ? row.localDate : nextLocalDate(row.localDate);
+  const finishDate =
+    row.localFinish > row.localStart ? row.localDate : nextLocalDate(row.localDate);
   return {
     localStart: `${row.localDate}T${row.localStart}`,
     localFinish: `${finishDate}T${row.localFinish}`,
@@ -258,7 +251,9 @@ async function resolveBaseXp(
   return basis.revokedAt === null ? basis.baseXp : 0;
 }
 
-function evidenceStateFor(completionType: AuthoritativeCompletionType): 'accepted' | 'not_required' {
+function evidenceStateFor(
+  completionType: AuthoritativeCompletionType,
+): 'accepted' | 'not_required' {
   return completionType === 'private' || completionType === 'trust_mode'
     ? 'not_required'
     : 'accepted';
