@@ -102,10 +102,7 @@ describe('MTS-057 reward basis persistence', () => {
       createAccountRepositories(pool, accountId).rewards,
       'rewards',
     );
-    const outsideUpsert = requireAsyncFunction(
-      outsideRewards.upsertBasis,
-      'rewards.upsertBasis',
-    );
+    const outsideUpsert = requireAsyncFunction(outsideRewards.upsertBasis, 'rewards.upsertBasis');
 
     await expect(
       outsideUpsert(occurrenceId, { difficulty: 'hard', baseXp: 170 }),
