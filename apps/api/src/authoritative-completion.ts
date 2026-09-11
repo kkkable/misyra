@@ -332,6 +332,19 @@ export async function completeMissionAuthoritatively(
       );
       const awardedXp = calculateAwardedXp(baseXp, input.completionType);
       const proofBonusXp = Math.max(0, awardedXp - baseXp);
+      const evidenceState = evidenceStateFor(input.completionType);
+
+      await context.client.query(
+        `UPDATE mission_occurrences
+         SET completion_state = 'completed',
+             evidence_state = $3,
+             reward_issuance = 'issued',
+             synchronization_state = 'synced',
+             version = version + 1,
+             updated_at = now()
+         WHERE id = $1 AND account_id = $2`,
+        [input.occurrenceId, input.accountId, evidenceState],
+      );
 
       const completionResult = await context.client.query<InsertedCompletionRow>(
         `INSERT INTO mission_completions (
@@ -353,19 +366,6 @@ export async function completeMissionAuthoritatively(
            account_id, occurrence_id, base_xp, proof_bonus_xp, awarded_xp
          ) VALUES ($1, $2, $3, $4, $5)`,
         [input.accountId, input.occurrenceId, baseXp, proofBonusXp, awardedXp],
-      );
-
-      const evidenceState = evidenceStateFor(input.completionType);
-      await context.client.query(
-        `UPDATE mission_occurrences
-         SET completion_state = 'completed',
-             evidence_state = $3,
-             reward_issuance = 'issued',
-             synchronization_state = 'synced',
-             version = version + 1,
-             updated_at = now()
-         WHERE id = $1 AND account_id = $2`,
-        [input.occurrenceId, input.accountId, evidenceState],
       );
 
       await context.client.query(
