@@ -2,7 +2,10 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { layout, radius, space, typography } from '@misyra/design-tokens';
 import { calculateLevelProgress } from '@misyra/domain';
-import { localizationCatalogs, type LocalizationLocale } from '@misyra/localization';
+import {
+  progressLocalizationCatalogs,
+  type LocalizationLocale,
+} from '@misyra/localization';
 
 import { themeColors, type ColorScheme } from '../design-system/contracts.js';
 import type { ProgressSnapshot } from '../storage/local-repositories.js';
@@ -42,7 +45,7 @@ export function ProgressScreen({
   recent,
 }: ProgressScreenProps) {
   const colors = themeColors(colorScheme);
-  const catalog = localizationCatalogs[language];
+  const catalog = progressLocalizationCatalogs[language];
   const formatNumber = numberFormatter(numberLocale, language).format;
   const level = calculateLevelProgress(snapshot.totalXp);
 
@@ -61,11 +64,11 @@ export function ProgressScreen({
             },
           ]}
         >
-          {catalog['progress.title']}
+          {catalog.title}
         </Text>
 
         <View
-          accessibilityLabel={catalog['progress.title']}
+          accessibilityLabel={catalog.title}
           style={[
             styles.progressCard,
             {
@@ -86,7 +89,7 @@ export function ProgressScreen({
               },
             ]}
           >
-            {formatMessage(catalog['progress.level'], formatNumber(level.level))}
+            {formatMessage(catalog.level, formatNumber(level.level))}
           </Text>
           <Text
             allowFontScaling
@@ -99,7 +102,7 @@ export function ProgressScreen({
               },
             ]}
           >
-            {catalog['progress.xpTowardNext']}
+            {catalog.xpTowardNext}
           </Text>
           <Text
             allowFontScaling
@@ -117,17 +120,17 @@ export function ProgressScreen({
 
           <View style={styles.metrics}>
             <ProgressMetric
-              label={catalog['progress.currentStreak']}
+              label={catalog.currentStreak}
               value={formatNumber(snapshot.currentStreak)}
               colorScheme={colorScheme}
             />
             <ProgressMetric
-              label={catalog['progress.longestStreak']}
+              label={catalog.longestStreak}
               value={formatNumber(snapshot.longestStreak)}
               colorScheme={colorScheme}
             />
             <ProgressMetric
-              label={catalog['progress.totalCompleted']}
+              label={catalog.totalCompleted}
               value={formatNumber(snapshot.totalCompleted)}
               colorScheme={colorScheme}
             />
@@ -146,7 +149,7 @@ export function ProgressScreen({
             },
           ]}
         >
-          {catalog['progress.recentCompleted']}
+          {catalog.recentCompleted}
         </Text>
 
         {recent.length === 0 ? (
@@ -159,7 +162,7 @@ export function ProgressScreen({
             }}
             testID="progress-empty-recent"
           >
-            {catalog['progress.emptyRecent']}
+            {catalog.emptyRecent}
           </Text>
         ) : (
           <View style={styles.recentList} testID="progress-recent-list">
