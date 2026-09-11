@@ -46,6 +46,14 @@ export interface CompletionSummary {
   readonly updatedAt: string;
 }
 
+export interface ProgressSnapshot {
+  readonly totalXp: number;
+  readonly totalCompleted: number;
+  readonly currentStreak: number;
+  readonly longestStreak: number;
+  readonly updatedAt: string | null;
+}
+
 export interface LocalSettings {
   readonly language: 'en' | 'zh-HK';
   readonly trustMode: boolean;
@@ -94,6 +102,7 @@ type QueryDependency =
   | 'cached_mission_series'
   | 'cached_mission_occurrences'
   | 'completion_summaries'
+  | 'progress_snapshots'
   | 'personal_notes'
   | 'external_links'
   | 'hidden_event_summaries'
@@ -130,6 +139,14 @@ interface CompletionRow {
   readonly payload_json: string;
   readonly updated_at: string;
   readonly occurrence_payload_json: string;
+}
+
+interface ProgressSnapshotRow {
+  readonly total_xp: number;
+  readonly total_completed: number;
+  readonly current_streak: number;
+  readonly longest_streak: number;
+  readonly updated_at: string;
 }
 
 interface SettingsRow {
@@ -349,6 +366,31 @@ export function createLocalRepositories(database: LocalRepositoryDatabase, accou
     }));
   };
 
+  const getProgressSnapshot = async (): Promise<ProgressSnapshot> => {
+    const row = await database.getFirstAsync<ProgressSnapshotRow>(
+      `SELECT total_xp, total_completed, current_streak, longest_streak, updated_at
+         FROM progress_snapshots
+        WHERE account_id = ?`,
+      accountId,
+    );
+    if (row === null) {
+      return {
+        totalXp: 0,
+        totalCompleted: 0,
+        currentStreak: 0,
+        longestStreak: 0,
+        updatedAt: null,
+      };
+    }
+    return {
+      totalXp: row.total_xp,
+      totalCompleted: row.total_completed,
+      currentStreak: row.current_streak,
+      longestStreak: row.longest_streak,
+      updatedAt: row.updated_at,
+    };
+  };
+
   const getSettings = async (): Promise<LocalSettings | null> => {
     const row = await database.getFirstAsync<SettingsRow>(
       `SELECT language, trust_mode, app_time_zone, settings_updated_at
@@ -494,6 +536,8 @@ export function createLocalRepositories(database: LocalRepositoryDatabase, accou
         ),
     },
     progress: {
+      getSnapshot: getProgressSnapshot,
+      observeSnapshot: () => observe(getProgressSnapshot, ['progress_snapshots']),
       listRecent: listRecentProgress,
       observeRecent: (limit: number) => {
         boundedLimit(limit);
