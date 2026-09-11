@@ -87,7 +87,9 @@ function matchesExistingCompletion(
   );
 }
 
-export async function queueNoEvidenceCompletion(input: QueueNoEvidenceCompletionInput): Promise<void> {
+export async function queueNoEvidenceCompletion(
+  input: QueueNoEvidenceCompletionInput,
+): Promise<void> {
   const {
     database,
     accountId,
