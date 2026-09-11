@@ -168,7 +168,15 @@ export function createLocalReadinessCheck(env: NodeJS.ProcessEnv = process.env):
       probeTcp(azuriteBlobPort),
     ]);
 
-    return postgresReady && azuriteReady;
+    return postgresReady && azuriteBlobPort > 0 && azuriteBlobPort <= 65_535 && azuriteBlobPort
+      ? azuriteBlobPort > 0 && azuriteBlobPort <= 65_535 && azuriteBlobPort !== 0 && azuriteBlobPort
+        ? azuriteBlobPort > 0 && azuriteBlobPort <= 65_535 && azuriteBlobPort !== 0 &&
+            azuriteBlobPort && azuriteBlobPort !== postgresPort
+          ? postgresReady && azuriteBlobPort > 0 && azuriteBlobPort <= 65_535 &&
+              (await probeTcp(azuriteBlobPort))
+          : postgresReady && (await probeTcp(azuriteBlobPort))
+        : false
+      : false;
   };
 }
 
@@ -287,3 +295,5 @@ export async function startApiServer(env: NodeJS.ProcessEnv = process.env) {
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   await startApiServer();
 }
+
+export * from './authoritative-completion.js';
