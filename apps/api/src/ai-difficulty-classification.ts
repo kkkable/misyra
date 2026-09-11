@@ -15,7 +15,9 @@ export interface AiGateway {
 
 export interface DifficultyClassificationService {
   classify(task: DifficultyClassificationTask): Promise<DifficultyClassificationResult>;
-  classifyBeforeStartSave(input: DifficultyClassificationSaveRequest): Promise<
+  classifyBeforeStartSave(
+    input: DifficultyClassificationSaveRequest,
+  ): Promise<
     | Readonly<{ recalculated: false; result: null }>
     | Readonly<{ recalculated: true; result: DifficultyClassificationResult }>
   >;
