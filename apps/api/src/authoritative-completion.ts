@@ -112,9 +112,7 @@ function nextLocalDate(localDate: string): string {
 
 function fullLocalSchedule(row: LockedOccurrenceRow) {
   const finishDate =
-    row.localFinish > row.localStart
-      ? row.localDate
-      : nextLocalDate(row.localDate);
+    row.localFinish > row.localStart ? row.localDate : nextLocalDate(row.localDate);
   return {
     localStart: `${row.localDate}T${row.localStart}`,
     localFinish: `${finishDate}T${row.localFinish}`,
@@ -170,10 +168,7 @@ async function lockOccurrence(
   return occurrence;
 }
 
-function assertCompletionWindow(
-  occurrence: LockedOccurrenceRow,
-  effectiveActionAt: string,
-): void {
+function assertCompletionWindow(occurrence: LockedOccurrenceRow, effectiveActionAt: string): void {
   const eligibility = evaluateCompletionEligibility({
     schedule: fullLocalSchedule(occurrence),
     actionInstant: effectiveActionAt,
