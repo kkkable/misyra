@@ -236,7 +236,10 @@ async function assertCompletionModeAllowed(
   occurrence: LockedOccurrenceRow,
 ): Promise<void> {
   if (input.completionType === 'private') {
-    if (occurrence.evidenceState !== 'not_submitted' && occurrence.evidenceState !== 'not_required') {
+    if (
+      occurrence.evidenceState !== 'not_submitted' &&
+      occurrence.evidenceState !== 'not_required'
+    ) {
       throw new CompletionRejectedError('completion_mode_not_allowed');
     }
     const attempts = await client.query<EvidenceAttemptStateRow>(
