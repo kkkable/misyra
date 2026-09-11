@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { pushQueuedMutationsWithCompletions } from './authenticated-sync-api.js';
+import {
+  createAuthenticatedSyncApi,
+  pushQueuedMutationsWithCompletions,
+} from './authenticated-sync-api.js';
 
 const accountId = '11111111-1111-4111-8111-111111111111';
 const deviceId = '22222222-2222-4222-8222-222222222222';
@@ -79,6 +82,40 @@ describe('MTS-059 authenticated sync completion replay', () => {
         },
       ],
     });
+  });
+
+  it('turns a permanent authoritative completion rejection into a reconcilable mission conflict', async () => {
+    const fetcher = vi.fn(async () => ({
+      ok: false,
+      json: async () => ({
+        version: 1,
+        requestId: '66666666-6666-4666-8666-666666666666',
+        ok: false,
+        error: {
+          version: 1,
+          code: 'conflict',
+          retryable: false,
+          messageKey: 'error.conflict',
+        },
+      }),
+    }));
+    const api = createAuthenticatedSyncApi({
+      baseUrl: 'https://api.example.test',
+      accessToken: 'fixture-access-token',
+      fetcher,
+    });
+
+    await expect(api.push([completionMutation()])).resolves.toEqual({
+      acceptedMutationIds: [],
+      conflicts: [
+        {
+          kind: 'mission_updated',
+          mutationId,
+          missionId: occurrenceId,
+        },
+      ],
+    });
+    expect(fetcher).toHaveBeenCalledTimes(1);
   });
 
   it('rejects mismatched replay identity instead of changing the original command', async () => {
