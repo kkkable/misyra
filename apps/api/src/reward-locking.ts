@@ -62,7 +62,7 @@ function mapDatabaseBasis(row: RewardBasisRow): StoredRewardBasis {
 }
 
 export function createPostgresRewardBasisStore(pool: Pool): RewardBasisStore {
-  return Object.freeze({
+  const store: RewardBasisStore = {
     async find(accountId, occurrenceId) {
       const row = await createRewardBasisStore(pool, accountId).findBasisByOccurrenceId(
         occurrenceId,
@@ -71,26 +71,27 @@ export function createPostgresRewardBasisStore(pool: Pool): RewardBasisStore {
     },
 
     async upsert(accountId, occurrenceId, basis) {
-      const row = await runRewardBasisTransaction(pool, accountId, (store) =>
-        store.upsertBasis(occurrenceId, basis),
+      const row = await runRewardBasisTransaction(pool, accountId, (repository) =>
+        repository.upsertBasis(occurrenceId, basis),
       );
       return mapDatabaseBasis(row);
     },
 
     async revoke(accountId, occurrenceId, revokedAt) {
-      const row = await runRewardBasisTransaction(pool, accountId, (store) =>
-        store.revokeBasis(occurrenceId, new Date(revokedAt)),
+      const row = await runRewardBasisTransaction(pool, accountId, (repository) =>
+        repository.revokeBasis(occurrenceId, new Date(revokedAt)),
       );
       return mapDatabaseBasis(row);
     },
-  });
+  };
+  return Object.freeze(store);
 }
 
 export function createRewardLockingService(input: {
   readonly classifier: Pick<DifficultyClassificationService, 'classifyBeforeStartSave'>;
   readonly store: RewardBasisStore;
 }): RewardLockingService {
-  return Object.freeze({
+  const service: RewardLockingService = {
     async save(saveInput) {
       const currentBasis = await input.store.find(saveInput.accountId, saveInput.occurrenceId);
       const decision = resolveRewardBasisAfterSave({
@@ -132,5 +133,6 @@ export function createRewardLockingService(input: {
       });
       return { action: 'recalculate' as const, basis };
     },
-  });
+  };
+  return Object.freeze(service);
 }
