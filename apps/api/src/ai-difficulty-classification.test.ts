@@ -1,3 +1,4 @@
+import type { DifficultyClassificationGatewayRequest } from '@misyra/contracts';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
@@ -13,7 +14,7 @@ const task = {
 
 describe('MTS-056 AI difficulty classification gateway', () => {
   it('uses a deterministic fake gateway and sends no user history', async () => {
-    const classifyDifficulty = vi.fn(async (request) => {
+    const classifyDifficulty = vi.fn(async (request: DifficultyClassificationGatewayRequest) => {
       expect(request).toEqual({
         ...task,
         classificationDimensions: ['physical_effort', 'mental_effort', 'complexity', 'preparation'],
