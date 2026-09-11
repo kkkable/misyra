@@ -81,7 +81,9 @@ describe('MTS-059 Mission Details completion integration', () => {
     act(() =>
       renderer.root.findByProps({ testID: 'private-trust-completion-action' }).props.onPress(),
     );
-    act(() => renderer.root.findByProps({ testID: 'private-trust-completion-confirm' }).props.onPress());
+    act(() =>
+      renderer.root.findByProps({ testID: 'private-trust-completion-confirm' }).props.onPress(),
+    );
 
     expect(onComplete).toHaveBeenCalledTimes(1);
     expect(onComplete).toHaveBeenCalledWith('private');
@@ -96,7 +98,9 @@ describe('MTS-059 Mission Details completion integration', () => {
     act(() =>
       renderer.root.findByProps({ testID: 'private-trust-completion-action' }).props.onPress(),
     );
-    act(() => renderer.root.findByProps({ testID: 'private-trust-completion-confirm' }).props.onPress());
+    act(() =>
+      renderer.root.findByProps({ testID: 'private-trust-completion-confirm' }).props.onPress(),
+    );
 
     expect(onComplete).toHaveBeenCalledWith('trust');
   });
@@ -107,7 +111,9 @@ describe('MTS-059 Mission Details completion integration', () => {
       trustMode: true,
     });
 
-    expect(renderer.root.findAllByProps({ testID: 'private-trust-completion-action' })).toHaveLength(0);
+    expect(
+      renderer.root.findAllByProps({ testID: 'private-trust-completion-action' }),
+    ).toHaveLength(0);
     expect(renderer.root.findAllByProps({ testID: 'private-trust-mode-toggle' })).toHaveLength(0);
   });
 });
