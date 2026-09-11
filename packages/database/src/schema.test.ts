@@ -41,6 +41,8 @@ const EXPECTED_TABLES = [
   'idempotency_keys',
 ] as const;
 
+const TICKET_OWNED_AUXILIARY_TABLES = ['mission_reward_basis'] as const;
+
 const postgresUser = process.env.POSTGRES_USER ?? 'misyra';
 const postgresPassword = process.env.POSTGRES_PASSWORD ?? 'misyra-local-only';
 const postgresPort = process.env.POSTGRES_PORT ?? '5432';
@@ -201,7 +203,9 @@ describe('MTS-022 PostgreSQL schema contract', () => {
       .split('\n')
       .filter(Boolean);
 
-    expect(actualTables).toEqual([...coreTableNames].sort());
+    expect(actualTables).toEqual(
+      [...coreTableNames, ...TICKET_OWNED_AUXILIARY_TABLES].sort(),
+    );
   });
 
   it('persists the canonical mission time model and separate state dimensions', async () => {
