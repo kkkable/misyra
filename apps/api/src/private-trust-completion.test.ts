@@ -159,10 +159,12 @@ describe('MTS-059 Private and Trust Mode authoritative completion', () => {
       [accountId, mission.occurrenceId, `${mission.date}T09:03:00Z`],
     );
 
-    await expect(complete(mission.occurrenceId, 'private', mission.actionAt)).rejects.toMatchObject({
-      name: 'CompletionRejectedError',
-      reason: 'completion_mode_not_allowed',
-    });
+    await expect(complete(mission.occurrenceId, 'private', mission.actionAt)).rejects.toMatchObject(
+      {
+        name: 'CompletionRejectedError',
+        reason: 'completion_mode_not_allowed',
+      },
+    );
     await expect(occurrenceAndReward(mission.occurrenceId)).resolves.toEqual({
       occurrence: {
         completionState: 'incomplete',
@@ -184,7 +186,9 @@ describe('MTS-059 Private and Trust Mode authoritative completion', () => {
     });
     await expect(streakFor(disabled.date)).resolves.toBeNull();
 
-    await pool.query(`UPDATE user_settings SET trust_mode = true WHERE account_id = $1`, [accountId]);
+    await pool.query(`UPDATE user_settings SET trust_mode = true WHERE account_id = $1`, [
+      accountId,
+    ]);
     const pending = await createOccurrence(15, 'pending');
     await expect(
       complete(pending.occurrenceId, 'trust_mode', pending.actionAt),
@@ -195,12 +199,12 @@ describe('MTS-059 Private and Trust Mode authoritative completion', () => {
     await expect(streakFor(pending.date)).resolves.toBeNull();
 
     const trust = await createOccurrence(16, 'rejected');
-    await expect(
-      complete(trust.occurrenceId, 'trust_mode', trust.actionAt),
-    ).resolves.toMatchObject({
-      completionType: 'trust_mode',
-      reward: { baseXp: 100, proofBonusXp: 0, awardedXp: 100 },
-    });
+    await expect(complete(trust.occurrenceId, 'trust_mode', trust.actionAt)).resolves.toMatchObject(
+      {
+        completionType: 'trust_mode',
+        reward: { baseXp: 100, proofBonusXp: 0, awardedXp: 100 },
+      },
+    );
     await expect(occurrenceAndReward(trust.occurrenceId)).resolves.toMatchObject({
       occurrence: { completionState: 'completed', evidenceState: 'not_required' },
       reward: { baseXp: 100, proofBonusXp: 0, awardedXp: 100 },
