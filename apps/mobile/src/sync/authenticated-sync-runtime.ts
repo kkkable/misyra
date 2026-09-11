@@ -16,6 +16,7 @@ import {
   type SyncMutation,
 } from '../storage/mutation-queue.js';
 import { createAuthenticatedSyncApi, type AuthenticatedSyncApi } from './authenticated-sync-api.js';
+import { applyProgressProjectionChange } from './progress-projection.js';
 import {
   createServerSync,
   type ServerAccountChange,
@@ -390,6 +391,7 @@ async function applyAuthoritativeChanges(
       }
       continue;
     }
+    if (await applyProgressProjectionChange(transaction, accountId, change)) continue;
     if (change.entityType === 'mission' && change.operation === 'delete') {
       if (change.payload !== null) {
         throw new Error('Mission delete change payload must be null.');
@@ -416,7 +418,11 @@ async function applyAuthoritativeSnapshot(
   accountId: string,
   entries: readonly ServerAccountChange[],
 ) {
-  await applyAuthoritativeChanges(transaction, accountId, entries);
+  const ordered = [
+    ...entries.filter((entry) => entry.entityType !== 'progress'),
+    ...entries.filter((entry) => entry.entityType === 'progress'),
+  ];
+  await applyAuthoritativeChanges(transaction, accountId, ordered);
 }
 
 async function pullWithRequiredPayload(
