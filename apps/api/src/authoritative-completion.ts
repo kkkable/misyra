@@ -52,6 +52,9 @@ export class CompletionInvariantError extends Error {
 
 interface LockedOccurrenceRow extends QueryResultRow {
   id: string;
+  seriesId: string;
+  seriesTitle: string;
+  recurrence: unknown;
   localDate: string;
   localStart: string;
   localFinish: string;
@@ -62,8 +65,17 @@ interface LockedOccurrenceRow extends QueryResultRow {
   allDay: boolean;
   estimatedEffortMinutes: number | null;
   scheduleState: string;
+  completionState: string;
+  evidenceState: string;
   rewardEligibility: 'undetermined' | 'eligible' | 'ineligible';
+  rewardIssuance: string;
+  calendarSource: string;
+  fieldOwnership: string;
+  storyState: string;
   deletionState: string;
+  location: string | null;
+  notes: string | null;
+  version: number;
   tombstoned: boolean;
 }
 
@@ -101,21 +113,10 @@ function requestHash(input: AuthoritativeCompletionInput): string {
     .digest('hex');
 }
 
-function nextLocalDate(localDate: string): string {
-  const date = new Date(`${localDate}T00:00:00.000Z`);
-  if (!Number.isFinite(date.getTime())) {
-    throw new CompletionInvariantError('Occurrence local date is invalid');
-  }
-  date.setUTCDate(date.getUTCDate() + 1);
-  return date.toISOString().slice(0, 10);
-}
-
 function fullLocalSchedule(row: LockedOccurrenceRow) {
-  const finishDate =
-    row.localFinish > row.localStart ? row.localDate : nextLocalDate(row.localDate);
   return {
-    localStart: `${row.localDate}T${row.localStart}`,
-    localFinish: `${finishDate}T${row.localFinish}`,
+    localStart: row.localStart,
+    localFinish: row.localFinish,
     startInstant: row.startInstant.toISOString(),
     finishInstant: row.finishInstant.toISOString(),
     timeZone: row.timeZone,
@@ -133,6 +134,9 @@ async function lockOccurrence(
   const result = await client.query<LockedOccurrenceRow>(
     `SELECT
        o.id,
+       o.series_id AS "seriesId",
+       s.title AS "seriesTitle",
+       s.recurrence_rule AS recurrence,
        o.local_date::text AS "localDate",
        o.local_start AS "localStart",
        o.local_finish AS "localFinish",
@@ -143,14 +147,24 @@ async function lockOccurrence(
        o.all_day AS "allDay",
        o.estimated_effort_minutes AS "estimatedEffortMinutes",
        o.schedule_state AS "scheduleState",
+       o.completion_state AS "completionState",
+       o.evidence_state AS "evidenceState",
        o.reward_eligibility AS "rewardEligibility",
+       o.reward_issuance AS "rewardIssuance",
+       o.calendar_source AS "calendarSource",
+       o.field_ownership AS "fieldOwnership",
+       o.story_state AS "storyState",
        o.deletion_state AS "deletionState",
+       o.location,
+       o.notes,
+       o.version,
        EXISTS (
          SELECT 1
          FROM mission_occurrence_tombstones t
          WHERE t.occurrence_id = o.id AND t.account_id = o.account_id
        ) AS tombstoned
      FROM mission_occurrences o
+     JOIN mission_series s ON s.id = o.series_id AND s.account_id = o.account_id
      WHERE o.id = $1 AND o.account_id = $2
      FOR UPDATE OF o`,
     [occurrenceId, accountId],
@@ -256,6 +270,37 @@ function evidenceStateFor(
     : 'accepted';
 }
 
+function authoritativeMissionPayload(
+  occurrence: LockedOccurrenceRow,
+  evidenceState: 'accepted' | 'not_required',
+) {
+  return {
+    version: occurrence.version + 1,
+    series: {
+      id: occurrence.seriesId,
+      title: occurrence.seriesTitle,
+      recurrence: occurrence.recurrence,
+    },
+    occurrence: {
+      id: occurrence.id,
+      seriesId: occurrence.seriesId,
+      schedule: fullLocalSchedule(occurrence),
+      scheduleState: occurrence.scheduleState,
+      completionState: 'completed',
+      evidenceState,
+      rewardEligibility: occurrence.rewardEligibility,
+      rewardIssuance: 'issued',
+      calendarSource: occurrence.calendarSource,
+      fieldOwnership: occurrence.fieldOwnership,
+      synchronizationState: 'synced',
+      storyState: occurrence.storyState,
+      deletionState: occurrence.deletionState,
+    },
+    location: occurrence.location,
+    notes: occurrence.notes,
+  } as const;
+}
+
 export async function completeMissionAuthoritatively(
   pool: Pool,
   input: AuthoritativeCompletionInput,
@@ -310,15 +355,17 @@ export async function completeMissionAuthoritatively(
         [input.accountId, input.occurrenceId, baseXp, proofBonusXp, awardedXp],
       );
 
+      const evidenceState = evidenceStateFor(input.completionType);
       await context.client.query(
         `UPDATE mission_occurrences
          SET completion_state = 'completed',
              evidence_state = $3,
              reward_issuance = 'issued',
+             synchronization_state = 'synced',
              version = version + 1,
              updated_at = now()
          WHERE id = $1 AND account_id = $2`,
-        [input.occurrenceId, input.accountId, evidenceStateFor(input.completionType)],
+        [input.occurrenceId, input.accountId, evidenceState],
       );
 
       await context.client.query(
@@ -332,15 +379,10 @@ export async function completeMissionAuthoritatively(
 
       await appendAccountChange(context.client, {
         accountId: input.accountId,
-        entityType: 'mission_occurrence',
+        entityType: 'mission',
         entityId: input.occurrenceId,
         operation: 'upsert',
-        payload: {
-          completionState: 'completed',
-          rewardIssuance: 'issued',
-          completionType: input.completionType,
-          awardedXp,
-        },
+        payload: authoritativeMissionPayload(occurrence, evidenceState),
       });
 
       await context.enqueueOutbox({
