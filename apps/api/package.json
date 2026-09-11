@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc --project ./tsconfig.json --noEmit",
-    "format": "prettier --write src/completion-route-integration.test.ts --config ../../packages/config/prettier.config.mjs && git diff -- src/completion-route-integration.test.ts && exit 1",
+    "format": "prettier --check . --config ../../packages/config/prettier.config.mjs",
     "lint": "eslint . --config ../../packages/config/eslint.config.mjs",
     "start": "tsx --env-file-if-exists=../../.env src/index.ts",
     "typecheck": "tsc --project ./tsconfig.json --noEmit",
