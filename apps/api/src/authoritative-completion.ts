@@ -31,12 +31,7 @@ export type AuthoritativeCompletionResult = Readonly<{
 }>;
 
 export type CompletionRejectionReason =
-  | 'not_found'
-  | 'deleted'
-  | 'cancelled'
-  | 'not_started'
-  | 'expired'
-  | 'completion_mode_not_allowed';
+  'not_found' | 'deleted' | 'cancelled' | 'not_started' | 'expired' | 'completion_mode_not_allowed';
 
 export class CompletionRejectedError extends Error {
   readonly reason: CompletionRejectionReason;
