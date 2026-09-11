@@ -119,7 +119,7 @@ export function createRewardLockingService(input: {
       const classification = await input.classifier.classifyBeforeStartSave({
         scheduledStartInstant: saveInput.scheduledStartInstant,
         savedAtInstant: saveInput.savedAtInstant,
-        changedFields: saveInput.changedFields,
+        changedFields: [...saveInput.changedFields],
         task: saveInput.task,
       });
       if (!classification.recalculated) {
