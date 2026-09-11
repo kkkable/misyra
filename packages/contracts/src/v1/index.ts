@@ -5,3 +5,4 @@ export * from './sync.js';
 export * from './auth.js';
 export * from './device-settings.js';
 export * from './imported-all-day-effort.js';
+export * from './ai-difficulty-classification.js';
