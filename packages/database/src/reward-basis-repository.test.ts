@@ -9,7 +9,11 @@ type UnknownRecord = Record<string, unknown>;
 type AsyncFunction = (...args: unknown[]) => Promise<unknown>;
 type RepositorySet = Record<string, UnknownRecord>;
 type TransactionWork = (repositories: RepositorySet) => Promise<unknown>;
-type RunInTransaction = (pool: Pool, accountId: string, work: TransactionWork) => Promise<unknown>;
+type RunInTransaction = (
+  pool: Pool,
+  accountId: string,
+  work: TransactionWork,
+) => Promise<unknown>;
 type CreateAccountRepositories = (pool: Pool, accountId: string) => RepositorySet;
 
 const postgresUser = process.env.POSTGRES_USER ?? 'misyra';
@@ -150,7 +154,9 @@ describe('MTS-057 reward basis persistence', () => {
         baseXp: 0,
         revokedAt,
       });
-      await expect(revokeBasis(occurrenceId, new Date('2026-09-12T09:02:00.000Z'))).resolves.toMatchObject({
+      await expect(
+        revokeBasis(occurrenceId, new Date('2026-09-12T09:02:00.000Z')),
+      ).resolves.toMatchObject({
         baseXp: 0,
         revokedAt,
       });
