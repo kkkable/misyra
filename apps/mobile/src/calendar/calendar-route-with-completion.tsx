@@ -3,11 +3,9 @@ import { getLocales } from 'expo-localization';
 import { useRouter } from 'expo-router';
 import { StyleSheet, View, useColorScheme } from 'react-native';
 
-import { rootAuthController } from '../auth/auth-runtime.js';
 import type { ColorScheme } from '../design-system/contracts.js';
 import { useAppLanguage } from '../localization/use-app-language.js';
-import { openMobileDatabase } from '../storage/database.js';
-import { createLocalRepositories } from '../storage/local-repositories.js';
+import { completionSettlementChannel } from '../sync/completion-settlement-runtime.js';
 import { rootSyncRuntime } from '../sync/root-sync-runtime.js';
 import {
   completionConfirmationChannel,
@@ -15,34 +13,16 @@ import {
   type ForegroundCompletionConfirmationEvent,
   type ForegroundCompletionRequest,
 } from './completion-confirmation-runtime.js';
+import { settleForegroundCompletionRequest } from './completion-confirmation-settlement.js';
 import { CompletionConfirmation } from './completion-confirmation-view.js';
 import { CalendarRouteScreen } from './calendar-route-screen.js';
 
-type CompletionRow = Readonly<{ awarded_xp: number }>;
-
 async function settleForegroundCompletion(request: ForegroundCompletionRequest): Promise<void> {
-  await rootSyncRuntime.run();
-  const authState = await rootAuthController.restore();
-  if (authState.status !== 'signed_in') return;
-
-  const database = await openMobileDatabase();
-  const repositories = createLocalRepositories(database, authState.session.accountId);
-  const [completion, progress] = await Promise.all([
-    database.getFirstAsync<CompletionRow>(
-      `SELECT awarded_xp
-         FROM completion_summaries
-        WHERE account_id = ? AND occurrence_id = ?`,
-      authState.session.accountId,
-      request.occurrenceId,
-    ),
-    repositories.progress.getSnapshot(),
-  ]);
-  if (completion === null) return;
-
-  completionConfirmationChannel.publish({
-    occurrenceId: request.occurrenceId,
-    awardedXp: completion.awarded_xp,
-    totalXp: progress.totalXp,
+  await settleForegroundCompletionRequest({
+    request,
+    runSync: () => rootSyncRuntime.run(),
+    subscribeSettlement: (listener) => completionSettlementChannel.subscribe(listener),
+    publishConfirmation: (event) => completionConfirmationChannel.publish(event),
   });
 }
 
