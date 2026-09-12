@@ -1,0 +1,110 @@
+import { describe, expect, it, vi } from 'vitest';
+
+import {
+  calendarConnectionMessagesForLocale,
+  createCalendarConnectionFlowController,
+} from './calendar-connection-flow.js';
+
+function createHarness({ activeConnection = false } = {}) {
+  const confirmed = [];
+  const gateway = {
+    hasActiveConnection: vi.fn(async () => activeConnection),
+    onConfirmed: vi.fn(async (intent) => {
+      confirmed.push(intent);
+    }),
+  };
+
+  return {
+    confirmed,
+    controller: createCalendarConnectionFlowController({ gateway }),
+    gateway,
+  };
+}
+
+describe('MTS-068 calendar connection direction flow', () => {
+  it('requires two confirmations and emits a future-only external-source intent', async () => {
+    const harness = createHarness();
+
+    expect(await harness.controller.start('google')).toEqual({
+      step: 'direction',
+      provider: 'google',
+    });
+    expect(harness.controller.chooseDirection('external_to_misyra')).toEqual({
+      step: 'confirm_initial',
+      provider: 'google',
+      initialSyncDirection: 'external_to_misyra',
+    });
+    expect(await harness.controller.confirm()).toEqual({
+      step: 'confirm_final',
+      provider: 'google',
+      initialSyncDirection: 'external_to_misyra',
+    });
+
+    expect(harness.gateway.onConfirmed).not.toHaveBeenCalled();
+
+    expect(await harness.controller.confirm()).toEqual({ step: 'complete' });
+    expect(harness.confirmed).toEqual([
+      {
+        provider: 'google',
+        initialSyncDirection: 'external_to_misyra',
+        initialMigrationWindow: 'future_only',
+        pastDataPolicy: 'unchanged',
+      },
+    ]);
+  });
+
+  it('uses the same double-confirmation path for Misyra as initial source', async () => {
+    const harness = createHarness();
+
+    await harness.controller.start('apple');
+    expect(harness.controller.chooseDirection('misyra_to_external')).toMatchObject({
+      step: 'confirm_initial',
+      provider: 'apple',
+      initialSyncDirection: 'misyra_to_external',
+    });
+    await harness.controller.confirm();
+    await harness.controller.confirm();
+
+    expect(harness.confirmed).toEqual([
+      {
+        provider: 'apple',
+        initialSyncDirection: 'misyra_to_external',
+        initialMigrationWindow: 'future_only',
+        pastDataPolicy: 'unchanged',
+      },
+    ]);
+  });
+
+  it('blocks a second connection before direction selection', async () => {
+    const harness = createHarness({ activeConnection: true });
+
+    expect(await harness.controller.start('google')).toEqual({
+      step: 'blocked',
+      reason: 'connection_exists',
+    });
+    expect(harness.gateway.hasActiveConnection).toHaveBeenCalledOnce();
+    expect(() => harness.controller.chooseDirection('external_to_misyra')).toThrow(
+      /direction cannot be chosen/i,
+    );
+    expect(harness.gateway.onConfirmed).not.toHaveBeenCalled();
+  });
+
+  it('provides confirmation copy that states future impact, unchanged past data, and later bidirectional sync', () => {
+    expect(calendarConnectionMessagesForLocale('en')).toMatchObject({
+      directionTitle: 'Choose initial sync',
+      externalDirection: 'Sync with external calendar',
+      misyraDirection: 'Sync with Misyra',
+      initialConfirmation:
+        'This can migrate or replace future schedule data. Past data will not be changed.',
+      finalConfirmation:
+        'Confirm this initial direction. After the initial migration, eligible changes sync both ways.',
+    });
+    expect(calendarConnectionMessagesForLocale('zh-HK')).toMatchObject({
+      directionTitle: '選擇初始同步方向',
+      externalDirection: '與外部日曆同步',
+      misyraDirection: '與 Misyra 同步',
+      initialConfirmation: '這可能會遷移或取代未來的行程資料。過去的資料不會更改。',
+      finalConfirmation: '確認這個初始方向。初始遷移完成後，符合條件的變更會雙向同步。',
+    });
+  });
+});
