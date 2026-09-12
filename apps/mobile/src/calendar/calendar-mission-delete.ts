@@ -286,7 +286,7 @@ export async function undoCalendarMissionDeletion({
 }>): Promise<boolean> {
   assertNonEmpty(accountId, 'Account ID');
   const deletions = deletion.scopedDeletions ?? [deletion];
-  let restored = false;
+  const commitState = { restored: false };
 
   await database.withExclusiveTransactionAsync(async (transaction) => {
     for (const item of deletions) {
@@ -347,9 +347,9 @@ export async function undoCalendarMissionDeletion({
         item.mutationId,
       );
     }
-    restored = true;
+    commitState.restored = true;
   });
 
-  if (restored) publishLocalMutationApplied({ entityType: 'mission' });
-  return restored;
+  if (commitState.restored) publishLocalMutationApplied({ entityType: 'mission' });
+  return commitState.restored;
 }
