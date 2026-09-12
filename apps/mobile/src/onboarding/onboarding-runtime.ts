@@ -1,7 +1,7 @@
 import { getLocales } from 'expo-localization';
 import * as SecureStore from 'expo-secure-store';
 
-import { localizationCatalogs } from '@misyra/localization';
+import { localizationCatalogs, notificationSettingsCatalogs } from '@misyra/localization';
 
 import { resolveAuthLocale } from '../auth/auth-messages.js';
 import {
@@ -91,6 +91,9 @@ export function onboardingMessagesForLocale(locale: 'en' | 'zh-HK'): OnboardingM
   };
 }
 
-export const rootOnboardingMessages = onboardingMessagesForLocale(
-  resolveAuthLocale(getLocales()[0]),
-);
+const rootOnboardingLocale = resolveAuthLocale(getLocales()[0]);
+
+export const rootOnboardingNotificationChannelName =
+  notificationSettingsCatalogs[rootOnboardingLocale].notifications;
+
+export const rootOnboardingMessages = onboardingMessagesForLocale(rootOnboardingLocale);
