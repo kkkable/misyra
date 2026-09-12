@@ -50,7 +50,9 @@ describe('MTS-069 concrete Google OAuth gateway', () => {
     expect(url.searchParams.get('scope')).toBe(
       'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.app.created',
     );
-    expect(url.searchParams.get('scope')).not.toContain('https://www.googleapis.com/auth/calendar ');
+    expect(url.searchParams.get('scope')).not.toContain(
+      'https://www.googleapis.com/auth/calendar ',
+    );
     expect(url.searchParams.get('state')).toBe('opaque-state');
   });
 
