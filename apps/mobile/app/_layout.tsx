@@ -4,17 +4,22 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AuthGate } from '../src/auth/auth-gate.js';
 import { rootAuthController, rootAuthMessages } from '../src/auth/auth-runtime.js';
 import { SystemMotionPreferenceProvider } from '../src/experience/system-reduce-motion.js';
-import { rootNotificationPermissionService } from '../src/notifications/expo-notification-permission.js';
+import { createExpoNotificationPermissionService } from '../src/notifications/expo-notification-permission.js';
 import { OnboardingGate } from '../src/onboarding/onboarding-gate.js';
 import {
   configureOnboardingNotificationPermissionRequest,
   rootOnboardingController,
   rootOnboardingMessages,
+  rootOnboardingNotificationChannelName,
 } from '../src/onboarding/onboarding-runtime.js';
 import { SyncRuntimeGate } from '../src/sync/sync-runtime-gate.js';
 
+const rootOnboardingNotificationPermissionService = createExpoNotificationPermissionService({
+  androidChannelName: rootOnboardingNotificationChannelName,
+});
+
 configureOnboardingNotificationPermissionRequest(async () => {
-  const permission = await rootNotificationPermissionService.request();
+  const permission = await rootOnboardingNotificationPermissionService.request();
   if (permission.status === 'enabled') return 'granted';
   if (permission.status === 'denied') return 'denied';
   return 'unavailable';
