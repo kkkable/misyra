@@ -9,12 +9,14 @@ import type {
 
 type SettlementSubscription = (listener: CompletionSettlementListener) => () => void;
 
-export async function settleForegroundCompletionRequest(input: Readonly<{
-  request: ForegroundCompletionRequest;
-  runSync: () => Promise<unknown>;
-  subscribeSettlement: SettlementSubscription;
-  publishConfirmation: (event: ForegroundCompletionConfirmationEvent) => void;
-}>): Promise<void> {
+export async function settleForegroundCompletionRequest(
+  input: Readonly<{
+    request: ForegroundCompletionRequest;
+    runSync: () => Promise<unknown>;
+    subscribeSettlement: SettlementSubscription;
+    publishConfirmation: (event: ForegroundCompletionConfirmationEvent) => void;
+  }>,
+): Promise<void> {
   let exactSettlement: CompletionMutationSettlement | null = null;
   const unsubscribe = input.subscribeSettlement((settlement) => {
     if (
