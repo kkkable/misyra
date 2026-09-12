@@ -9,14 +9,36 @@ const accountId = '00000000-0000-4000-8000-000000000069';
 const connectionId = '00000000-0000-4000-8000-000000000169';
 const now = new Date('2026-09-12T13:40:00.000Z');
 
+type Direction = 'external_to_misyra' | 'misyra_to_external';
+
+type OAuthStateRecord = {
+  accountId: string;
+  stateHash: string;
+  expiresAt: Date;
+  consumedAt: Date | null;
+  initialSyncDirection: Direction;
+  selectedCalendarId: string | null;
+};
+
+type ConnectionRecord = {
+  id: string;
+  accountId: string;
+  provider: 'google';
+  providerCalendarId: string;
+  initialSyncDirection: Direction;
+  encryptedRefreshToken: string;
+  state: 'connected' | 'disconnected';
+};
+
+// prettier-ignore
 function createHarness() {
-  const states = new Map();
-  const connections = new Map();
+  const states = new Map<string, OAuthStateRecord>();
+  const connections = new Map<string, ConnectionRecord>();
   const store = {
-    saveOAuthState: vi.fn(async (record) => {
+    saveOAuthState: vi.fn(async (record: OAuthStateRecord) => {
       states.set(record.stateHash, record);
     }),
-    consumeOAuthState: vi.fn(async (stateHash, currentTime) => {
+    consumeOAuthState: vi.fn(async (stateHash: string, currentTime: Date) => {
       const record = states.get(stateHash);
       if (!record || record.consumedAt || record.expiresAt.getTime() <= currentTime.getTime()) {
         return null;
@@ -24,15 +46,15 @@ function createHarness() {
       record.consumedAt = currentTime;
       return record;
     }),
-    createConnection: vi.fn(async (record) => {
+    createConnection: vi.fn(async (record: Omit<ConnectionRecord, 'id'>) => {
       if ([...connections.values()].some((item) => item.accountId === record.accountId)) {
         throw new Error('connection_exists');
       }
-      const saved = { ...record, id: connectionId };
+      const saved: ConnectionRecord = { ...record, id: connectionId };
       connections.set(connectionId, saved);
       return saved;
     }),
-    disconnectConnection: vi.fn(async (requestedAccountId, requestedConnectionId) => {
+    disconnectConnection: vi.fn(async (requestedAccountId: string, requestedConnectionId: string) => {
       const record = connections.get(requestedConnectionId);
       if (!record || record.accountId !== requestedAccountId || record.state === 'disconnected') {
         return null;
@@ -45,14 +67,16 @@ function createHarness() {
     }),
   };
   const provider = {
-    buildAuthorizationUrl: vi.fn(({ state }) => `https://accounts.google.test/oauth?state=${state}`),
-    exchangeCode: vi.fn(async () => ({ refreshToken: 'google-refresh-secret' })),
-    createDedicatedCalendar: vi.fn(async () => 'misyra-calendar-id'),
-    revokeRefreshToken: vi.fn(async () => undefined),
+    buildAuthorizationUrl: vi.fn(
+      ({ state }: { state: string }) => `https://accounts.google.test/oauth?state=${state}`,
+    ),
+    exchangeCode: vi.fn(async (_code: string) => ({ refreshToken: 'google-refresh-secret' })),
+    createDedicatedCalendar: vi.fn(async (_refreshToken: string) => 'misyra-calendar-id'),
+    revokeRefreshToken: vi.fn(async (_refreshToken: string) => undefined),
   };
   const cipher = {
-    encrypt: vi.fn(async (plaintext) => `encrypted:${plaintext.length}`),
-    decrypt: vi.fn(async () => 'google-refresh-secret'),
+    encrypt: vi.fn(async (plaintext: string) => `encrypted:${plaintext.length}`),
+    decrypt: vi.fn(async (_ciphertext: string) => 'google-refresh-secret'),
   };
   const service = createGoogleCalendarConnectionService({
     store,
@@ -66,6 +90,7 @@ function createHarness() {
   return { cipher, connections, provider, service, states, store };
 }
 
+// prettier-ignore
 describe('MTS-069 Google OAuth and connection storage', () => {
   it('creates a bounded OAuth state without persisting the raw state value', async () => {
     const { provider, service, states, store } = createHarness();
@@ -80,13 +105,14 @@ describe('MTS-069 Google OAuth and connection storage', () => {
       state: 'opaque-oauth-state-value',
     });
     expect(store.saveOAuthState).toHaveBeenCalledOnce();
-    const saved = store.saveOAuthState.mock.calls[0][0];
-    expect(saved.accountId).toBe(accountId);
-    expect(saved.stateHash).toMatch(/^[0-9a-f]{64}$/);
-    expect(saved.stateHash).not.toContain('opaque-oauth-state-value');
-    expect(saved.expiresAt.toISOString()).toBe('2026-09-12T13:50:00.000Z');
-    expect(saved.initialSyncDirection).toBe('external_to_misyra');
-    expect(saved.selectedCalendarId).toBe('primary');
+    const saved = store.saveOAuthState.mock.calls[0]?.[0];
+    expect(saved).toBeDefined();
+    expect(saved?.accountId).toBe(accountId);
+    expect(saved?.stateHash).toMatch(/^[0-9a-f]{64}$/);
+    expect(saved?.stateHash).not.toContain('opaque-oauth-state-value');
+    expect(saved?.expiresAt.toISOString()).toBe('2026-09-12T13:50:00.000Z');
+    expect(saved?.initialSyncDirection).toBe('external_to_misyra');
+    expect(saved?.selectedCalendarId).toBe('primary');
     expect(JSON.stringify([...states.values()])).not.toContain('opaque-oauth-state-value');
   });
 
@@ -112,7 +138,7 @@ describe('MTS-069 Google OAuth and connection storage', () => {
       encryptedRefreshToken: 'encrypted:21',
       state: 'connected',
     });
-    expect(JSON.stringify(store.createConnection.mock.calls[0][0])).not.toContain(
+    expect(JSON.stringify(store.createConnection.mock.calls[0]?.[0])).not.toContain(
       'google-refresh-secret',
     );
     expect(connection).toMatchObject({
@@ -135,6 +161,8 @@ describe('MTS-069 Google OAuth and connection storage', () => {
       selectedCalendarId: 'primary',
     });
     const stored = harness.states.values().next().value;
+    expect(stored).toBeDefined();
+    if (!stored) throw new Error('missing OAuth state fixture');
     stored.expiresAt = new Date('2026-09-12T13:39:59.999Z');
 
     await expect(
@@ -155,7 +183,9 @@ describe('MTS-069 Google OAuth and connection storage', () => {
     });
 
     expect(provider.createDedicatedCalendar).toHaveBeenCalledWith('google-refresh-secret');
-    expect(store.createConnection.mock.calls[0][0].providerCalendarId).toBe('misyra-calendar-id');
+    expect(store.createConnection.mock.calls[0]?.[0]?.providerCalendarId).toBe(
+      'misyra-calendar-id',
+    );
     expect(connection.providerCalendarId).toBe('misyra-calendar-id');
   });
 
@@ -167,7 +197,7 @@ describe('MTS-069 Google OAuth and connection storage', () => {
     });
     await service.completeOAuth({ state: 'opaque-oauth-state-value', code: 'authorization-code' });
 
-    const callOrder = [];
+    const callOrder: string[] = [];
     store.disconnectConnection.mockImplementation(async (requestedAccountId, requestedConnectionId) => {
       callOrder.push('disconnect');
       const record = connections.get(requestedConnectionId);
@@ -182,7 +212,7 @@ describe('MTS-069 Google OAuth and connection storage', () => {
     await service.disconnect(accountId, connectionId);
 
     expect(callOrder).toEqual(['disconnect', 'revoke']);
-    expect(connections.get(connectionId).state).toBe('disconnected');
+    expect(connections.get(connectionId)?.state).toBe('disconnected');
     expect(cipher.decrypt).toHaveBeenCalledWith('encrypted:21');
     expect(provider.revokeRefreshToken).toHaveBeenCalledWith('google-refresh-secret');
   });
@@ -197,7 +227,7 @@ describe('MTS-069 Google OAuth and connection storage', () => {
       new Error('provider failed with google-refresh-secret in diagnostic text'),
     );
 
-    let error;
+    let error: unknown;
     try {
       await service.completeOAuth({ state: 'opaque-oauth-state-value', code: 'bad-code' });
     } catch (caught) {
