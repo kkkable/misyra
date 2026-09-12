@@ -1,7 +1,6 @@
 import type { Pool } from 'pg';
 
-export type GoogleCalendarInitialSyncDirection =
-  'external_to_misyra' | 'misyra_to_external';
+export type GoogleCalendarInitialSyncDirection = 'external_to_misyra' | 'misyra_to_external';
 
 export type GoogleCalendarOAuthStateRecord = Readonly<{
   accountId: string;
