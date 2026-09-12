@@ -12,14 +12,20 @@ const MISSION_REMINDER_CHANNEL_ID = 'mission-reminders';
 function snapshot(
   permission: Notifications.NotificationPermissionsStatus,
 ): NativeNotificationPermissionSnapshot {
-  const status = permission.granted
-    ? 'granted'
-    : permission.status === 'undetermined'
-      ? 'undetermined'
-      : 'denied';
+  const iosStatus = permission.ios?.status;
+  const granted =
+    permission.granted ||
+    iosStatus === Notifications.IosAuthorizationStatus.AUTHORIZED ||
+    iosStatus === Notifications.IosAuthorizationStatus.PROVISIONAL ||
+    iosStatus === Notifications.IosAuthorizationStatus.EPHEMERAL;
+  const undetermined =
+    permission.status === 'undetermined' ||
+    iosStatus === Notifications.IosAuthorizationStatus.NOT_DETERMINED;
+  const status = granted ? 'granted' : undetermined ? 'undetermined' : 'denied';
+
   return Object.freeze({
     status,
-    granted: permission.granted,
+    granted,
     canAskAgain: permission.canAskAgain,
   });
 }
