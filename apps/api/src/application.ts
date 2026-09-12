@@ -154,6 +154,21 @@ export function resolveAuthStartupConfiguration(env: NodeJS.ProcessEnv) {
 }
 
 export function resolveGoogleCalendarStartupConfiguration(env: NodeJS.ProcessEnv) {
+  const clientId = localOrRequiredEnv(
+    env,
+    'GOOGLE_CALENDAR_CLIENT_ID',
+    LOCAL_GOOGLE_CALENDAR_DEFAULTS.clientId,
+  );
+  const clientSecret = localOrRequiredEnv(
+    env,
+    'GOOGLE_CALENDAR_CLIENT_SECRET',
+    LOCAL_GOOGLE_CALENDAR_DEFAULTS.clientSecret,
+  );
+  const redirectUri = localOrRequiredEnv(
+    env,
+    'GOOGLE_CALENDAR_REDIRECT_URI',
+    LOCAL_GOOGLE_CALENDAR_DEFAULTS.redirectUri,
+  );
   const encodedEncryptionKey = localOrRequiredEnv(
     env,
     'GOOGLE_CALENDAR_TOKEN_ENCRYPTION_KEY',
@@ -169,21 +184,9 @@ export function resolveGoogleCalendarStartupConfiguration(env: NodeJS.ProcessEnv
   }
 
   return {
-    clientId: localOrRequiredEnv(
-      env,
-      'GOOGLE_CALENDAR_CLIENT_ID',
-      LOCAL_GOOGLE_CALENDAR_DEFAULTS.clientId,
-    ),
-    clientSecret: localOrRequiredEnv(
-      env,
-      'GOOGLE_CALENDAR_CLIENT_SECRET',
-      LOCAL_GOOGLE_CALENDAR_DEFAULTS.clientSecret,
-    ),
-    redirectUri: localOrRequiredEnv(
-      env,
-      'GOOGLE_CALENDAR_REDIRECT_URI',
-      LOCAL_GOOGLE_CALENDAR_DEFAULTS.redirectUri,
-    ),
+    clientId,
+    clientSecret,
+    redirectUri,
     encryptionKey,
   };
 }
