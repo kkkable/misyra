@@ -9,7 +9,10 @@ export const rootMissionNotificationScheduler: MissionNotificationScheduler = Ob
         body: request.body,
         data: { occurrenceId: request.occurrenceId },
       },
-      trigger: new Date(request.scheduledAt),
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: new Date(request.scheduledAt),
+      },
     });
   },
   async cancel(notificationId) {
