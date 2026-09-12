@@ -41,6 +41,7 @@ export const completeMissionResultSchema = z
         awardedXp: z.number().int().nonnegative(),
       })
       .strict(),
+    totalXp: z.number().int().nonnegative().optional(),
   })
   .strict();
 

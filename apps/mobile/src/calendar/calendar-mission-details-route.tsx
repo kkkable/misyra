@@ -12,13 +12,14 @@ import { themeColors, type ColorScheme } from '../design-system/index.js';
 import { useAppLanguage } from '../localization/app-language-runtime.js';
 import { openMobileDatabase } from '../storage/database.js';
 import { createLocalRepositories, type MissionDetails } from '../storage/local-repositories.js';
-import { requireRegisteredDeviceId, rootSyncRuntime } from '../sync/root-sync-runtime.js';
+import { requireRegisteredDeviceId } from '../sync/root-sync-runtime.js';
 import {
   deleteCalendarMission,
   undoCalendarMissionDeletion,
   type CalendarMissionDeletion,
 } from './calendar-mission-delete.js';
 import { prepareCalendarMissionDuplicate } from './calendar-mission-duplicate.js';
+import { completionConfirmationRequestChannel } from './completion-confirmation-runtime.js';
 import {
   MissionDetailsScreen,
   type MissionDetailsEditableField,
@@ -312,28 +313,26 @@ export function CalendarMissionDetailsRouteScreen() {
   const completeWithoutEvidence = useCallback(
     async (mode: NoEvidenceCompletionMode) => {
       if (details === null) return;
+      const occurrenceId = details.id;
       const authState = await rootAuthController.restore();
       if (authState.status !== 'signed_in') throw new Error('calendar_completion_requires_sign_in');
       const deviceId = await requireRegisteredDeviceId(authState.session.accountId);
       const database = await openMobileDatabase();
       const effectiveActionAt = new Date().toISOString();
+      const mutationId = generateUuid();
       await queueNoEvidenceCompletion({
         database,
         accountId: authState.session.accountId,
         deviceId,
-        occurrenceId: details.id,
+        occurrenceId,
         mode,
         effectiveActionAt,
-        idempotencyKey: generateUuid(),
+        idempotencyKey: mutationId,
       });
-      setLoaded(false);
-      await loadDetails();
-      void rootSyncRuntime
-        .run()
-        .then(() => loadDetails())
-        .catch(() => undefined);
+      completionConfirmationRequestChannel.publish({ occurrenceId, mutationId });
+      router.back();
     },
-    [details, loadDetails],
+    [details, router],
   );
 
   const deleteMission = useCallback(

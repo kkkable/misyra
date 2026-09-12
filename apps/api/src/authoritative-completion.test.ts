@@ -18,6 +18,7 @@ type CompletionResult = Readonly<{
     proofBonusXp: number;
     awardedXp: number;
   }>;
+  totalXp?: number;
 }>;
 
 type CompleteMissionAuthoritatively = (
@@ -230,7 +231,14 @@ describe('MTS-058 authoritative completion transaction', () => {
       idempotencyKey: randomUUID(),
       deviceId: randomUUID(),
     });
-    expect(duplicate).toEqual({ ...accepted, status: 'already_completed' });
+    expect(duplicate).toEqual({
+      status: 'already_completed',
+      occurrenceId: accepted.occurrenceId,
+      completionId: accepted.completionId,
+      completionType: accepted.completionType,
+      actionTime: accepted.actionTime,
+      reward: accepted.reward,
+    });
     await expect(countsFor(occurrenceId)).resolves.toEqual({
       completion: 1,
       reward: 1,

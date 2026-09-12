@@ -62,6 +62,20 @@ describe('MTS-059 completion contracts', () => {
     },
   );
 
+  it('accepts the authoritative account total used by foreground completion confirmation', () => {
+    expect(
+      completeMissionResultSchema.parse({
+        status: 'completed',
+        occurrenceId,
+        completionId,
+        completionType: 'private',
+        actionTime,
+        reward: { baseXp: 100, proofBonusXp: 0, awardedXp: 100 },
+        totalXp: 250,
+      }),
+    ).toMatchObject({ totalXp: 250 });
+  });
+
   it('rejects malformed completion identities and reward values', () => {
     expect(() =>
       completeMissionResultSchema.parse({

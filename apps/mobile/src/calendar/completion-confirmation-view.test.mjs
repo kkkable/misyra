@@ -1,0 +1,138 @@
+import { createElement } from 'react';
+import { act, create } from 'react-test-renderer';
+import { describe, expect, it, vi } from 'vitest';
+
+vi.mock('react-native', async () => {
+  const { createElement: createReactElement } = await import('react');
+  const host = (name) => {
+    const Host = ({ children, ...props }) => createReactElement(name, props, children);
+    return Host;
+  };
+  const Pressable = ({ children, ...props }) => {
+    const content = typeof children === 'function' ? children({ pressed: false }) : children;
+    return createReactElement('Pressable', props, content);
+  };
+
+  class AnimatedValue {
+    constructor(value) {
+      this.value = value;
+    }
+
+    setValue(value) {
+      this.value = value;
+    }
+
+    interpolate() {
+      return this.value;
+    }
+  }
+
+  return {
+    Animated: {
+      Value: AnimatedValue,
+      View: host('AnimatedView'),
+      timing: () => ({ start: vi.fn(), stop: vi.fn() }),
+    },
+    Easing: { bezier: () => (value) => value },
+    Modal: host('Modal'),
+    Platform: { OS: 'ios' },
+    Pressable,
+    ScrollView: host('ScrollView'),
+    StyleSheet: { create: (styles) => styles },
+    Switch: host('Switch'),
+    Text: host('Text'),
+    TextInput: host('TextInput'),
+    View: host('View'),
+  };
+});
+
+vi.mock('../experience/native-haptics.js', () => ({
+  haptics: { triggerNonBlocking: vi.fn() },
+}));
+
+import { MotionPreferenceProvider } from '../experience/reduce-motion.js';
+import { CompletionConfirmation } from './completion-confirmation-view.js';
+
+globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+
+function render(element) {
+  let renderer;
+  act(() => {
+    renderer = create(element);
+  });
+  return renderer;
+}
+
+function findByTestId(renderer, testID) {
+  return renderer.root.findByProps({ testID });
+}
+
+const event = Object.freeze({
+  occurrenceId: '11111111-1111-4111-8111-111111111111',
+  awardedXp: 86,
+  totalXp: 250,
+});
+
+describe('MTS-061 compact completion confirmation', () => {
+  it('renders in place with Done and Create Story actions and one completion haptic', () => {
+    const onDone = vi.fn();
+    const onCreateStory = vi.fn();
+    const onCompletionHaptic = vi.fn();
+    const renderer = render(
+      createElement(
+        MotionPreferenceProvider,
+        { reduceMotion: true },
+        createElement(CompletionConfirmation, {
+          colorScheme: 'light',
+          language: 'en',
+          event,
+          onDone,
+          onCreateStory,
+          onCompletionHaptic,
+        }),
+      ),
+    );
+
+    const confirmation = findByTestId(renderer, 'completion-confirmation');
+    const message = findByTestId(renderer, 'completion-confirmation-message');
+    const doneButton = findByTestId(renderer, 'completion-confirmation-done');
+    const storyButton = findByTestId(renderer, 'completion-confirmation-create-story');
+
+    expect(confirmation).toBeDefined();
+    expect(message.props.children).toBe('Mission complete · +86 XP · Level 3');
+    expect(onCompletionHaptic).toHaveBeenCalledTimes(1);
+
+    act(() => doneButton.props.onPress());
+    act(() => storyButton.props.onPress());
+
+    expect(onDone).toHaveBeenCalledTimes(1);
+    expect(onCreateStory).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses localized compact action labels and static Reduce Motion presentation', () => {
+    const renderer = render(
+      createElement(
+        MotionPreferenceProvider,
+        { reduceMotion: true },
+        createElement(CompletionConfirmation, {
+          colorScheme: 'dark',
+          language: 'zh-HK',
+          event: { ...event, awardedXp: 0, totalXp: 164 },
+          onDone: vi.fn(),
+          onCreateStory: vi.fn(),
+          onCompletionHaptic: vi.fn(),
+        }),
+      ),
+    );
+
+    const message = findByTestId(renderer, 'completion-confirmation-message');
+    const doneButton = findByTestId(renderer, 'completion-confirmation-done');
+    const storyButton = findByTestId(renderer, 'completion-confirmation-create-story');
+    const confetti = renderer.root.findAllByProps({ testID: 'completion-confirmation-confetti' });
+
+    expect(message.props.children).toBe('任務完成 · 0 XP');
+    expect(doneButton.props.accessibilityLabel).toBe('完成');
+    expect(storyButton.props.accessibilityLabel).toBe('建立 Story');
+    expect(confetti).toHaveLength(0);
+  });
+});

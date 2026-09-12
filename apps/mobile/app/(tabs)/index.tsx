@@ -1,5 +1,5 @@
-import { CalendarRouteScreen } from '../../src/calendar/calendar-route-screen.js';
+import { CalendarRouteWithCompletion } from '../../src/calendar/calendar-route-with-completion.js';
 
 export default function CalendarRoute() {
-  return <CalendarRouteScreen />;
+  return <CalendarRouteWithCompletion />;
 }
