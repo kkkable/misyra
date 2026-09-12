@@ -21,6 +21,16 @@ describe('MTS-064 notification response routing', () => {
     });
   });
 
+  it('keeps already-scheduled MTS-063 single-notification taps working after upgrade', () => {
+    const navigate = vi.fn();
+
+    expect(handleMissionNotificationData({ occurrenceId: FIRST_ID }, navigate)).toBe(true);
+    expect(navigate).toHaveBeenCalledWith({
+      pathname: '/mission/[id]',
+      params: { id: FIRST_ID },
+    });
+  });
+
   it('routes a combined notification to its selected Calendar date with all highlights', () => {
     const navigate = vi.fn();
 
