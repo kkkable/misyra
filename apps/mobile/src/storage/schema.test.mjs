@@ -119,6 +119,17 @@ async function seedAccount(database, accountId) {
     now,
   );
   await database.runAsync(
+    `INSERT INTO progress_snapshots
+      (account_id, total_xp, total_completed, current_streak, longest_streak, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    accountId,
+    10,
+    1,
+    1,
+    1,
+    now,
+  );
+  await database.runAsync(
     `INSERT INTO personal_notes (account_id, occurrence_id, note, updated_at)
      VALUES (?, ?, ?, ?)`,
     accountId,
@@ -235,6 +246,7 @@ describe('MTS-028 mobile SQLite migrations', () => {
         'notification_registry',
         'personal_notes',
         'planner_drafts',
+        'progress_snapshots',
         'search_documents',
         'story_drafts',
         'sync_cursors',
