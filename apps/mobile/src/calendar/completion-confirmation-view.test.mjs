@@ -46,6 +46,10 @@ vi.mock('react-native', async () => {
   };
 });
 
+vi.mock('../experience/native-haptics.js', () => ({
+  haptics: { triggerNonBlocking: vi.fn() },
+}));
+
 import { MotionPreferenceProvider } from '../experience/reduce-motion.js';
 import { CompletionConfirmation } from './completion-confirmation-view.js';
 
