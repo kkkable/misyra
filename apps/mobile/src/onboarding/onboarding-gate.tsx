@@ -3,9 +3,7 @@ import { useColorScheme } from 'react-native';
 
 import type { CalendarConnectionCatalog } from '@misyra/localization';
 
-import {
-  CalendarConnectionScreen,
-} from './calendar-connection-screen.js';
+import { CalendarConnectionScreen } from './calendar-connection-screen.js';
 import type {
   CalendarConnectionFlowController,
   CalendarConnectionFlowState,
