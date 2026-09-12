@@ -30,7 +30,9 @@ export function SettingsRouteScreen() {
   useEffect(() => {
     void refresh();
     const subscription = AppState.addEventListener('change', (state) => {
-      if (state === 'active') void refresh();
+      if (state === 'active') {
+        void refresh();
+      }
     });
     return () => subscription.remove();
   }, [refresh]);
