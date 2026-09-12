@@ -1,6 +1,6 @@
 import { createElement } from 'react';
 import { act, create } from 'react-test-renderer';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('react-native', async () => {
   const { createElement: createReactElement } = await import('react');
