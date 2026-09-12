@@ -1,10 +1,7 @@
 import type { Pool } from 'pg';
 import { describe, expect, it, vi } from 'vitest';
 
-import {
-  createApiApplication,
-  resolveGoogleCalendarStartupConfiguration,
-} from './application.js';
+import { createApiApplication, resolveGoogleCalendarStartupConfiguration } from './application.js';
 import type {
   GoogleCalendarOAuthGateway,
   GoogleCalendarTokenCipher,
