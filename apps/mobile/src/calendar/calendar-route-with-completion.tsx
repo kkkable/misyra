@@ -22,7 +22,9 @@ async function settleForegroundCompletion(request: ForegroundCompletionRequest):
     request,
     runSync: () => rootSyncRuntime.run(),
     subscribeSettlement: (listener) => completionSettlementChannel.subscribe(listener),
-    publishConfirmation: (event) => completionConfirmationChannel.publish(event),
+    publishConfirmation: (event) => {
+      completionConfirmationChannel.publish(event);
+    },
   });
 }
 
