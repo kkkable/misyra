@@ -2,10 +2,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
 
 import { easing, layout, radius, space, typography } from '@misyra/design-tokens';
-import {
-  completionConfirmationCatalogs,
-  type LocalizationLocale,
-} from '@misyra/localization';
+import { completionConfirmationCatalogs, type LocalizationLocale } from '@misyra/localization';
 
 import {
   PrimaryButton,
