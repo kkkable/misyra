@@ -151,6 +151,7 @@ async function deleteFixtureMission(database) {
   });
 }
 
+// prettier-ignore
 describe('MTS-065 deletion notification rebuild integration', () => {
   it(
     'keeps the native registry identity until reconciliation cancels the obsolete reminder',
