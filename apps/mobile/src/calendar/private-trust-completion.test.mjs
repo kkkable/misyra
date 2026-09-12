@@ -1,10 +1,17 @@
 import { createElement } from 'react';
 import { act, create } from 'react-test-renderer';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const routerBack = vi.hoisted(() => vi.fn());
+const publishCompletionRequest = vi.hoisted(() => vi.fn());
 
 vi.mock('expo-router', () => ({
-  router: { back: vi.fn() },
+  router: { back: routerBack },
   useLocalSearchParams: () => ({ id: '11111111-1111-4111-8111-111111111111' }),
+}));
+
+vi.mock('./completion-confirmation-runtime.js', () => ({
+  completionConfirmationRequestChannel: { publish: publishCompletionRequest },
 }));
 
 vi.mock('react-native', async () => {
@@ -29,6 +36,11 @@ import {
 } from './private-trust-completion.js';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+
+beforeEach(() => {
+  routerBack.mockReset();
+  publishCompletionRequest.mockReset();
+});
 
 describe('MTS-059 no-evidence completion mode matrix', () => {
   it.each([
@@ -110,5 +122,33 @@ describe('MTS-059 completion confirmation', () => {
     expect(
       renderer.root.findAllByProps({ testID: 'private-trust-completion-action' }).length,
     ).toBeGreaterThan(0);
+  });
+
+  it('leaves Calendar navigation and completion signaling to the owning route', async () => {
+    const onConfirm = vi.fn().mockResolvedValue(undefined);
+    let renderer;
+    act(() => {
+      renderer = create(
+        createElement(PrivateTrustCompletionPanel, {
+          colorScheme: 'light',
+          language: 'en',
+          mode: 'private',
+          onConfirm,
+        }),
+      );
+    });
+
+    act(() =>
+      renderer.root.findByProps({ testID: 'private-trust-completion-action' }).props.onPress(),
+    );
+    await act(async () => {
+      renderer.root.findByProps({ testID: 'private-trust-completion-confirm' }).props.onPress();
+      await Promise.resolve();
+    });
+
+    expect(onConfirm).toHaveBeenCalledTimes(1);
+    expect(onConfirm).toHaveBeenCalledWith('private');
+    expect(routerBack).not.toHaveBeenCalled();
+    expect(publishCompletionRequest).not.toHaveBeenCalled();
   });
 });
