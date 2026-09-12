@@ -1,5 +1,6 @@
 import {
   createMissionOccurrence,
+  projectScheduleToTimeZone,
   resolveLocalDateTimeInstant,
   type MissionOccurrenceInput,
 } from '@misyra/domain';
@@ -94,6 +95,17 @@ function reminderInstant(payload: ReturnType<typeof createMissionOccurrence>): s
   return resolveLocalDateTimeInstant(`${localDate}T09:00:00`, payload.schedule.timeZone);
 }
 
+function notificationCalendarDate(
+  payload: ReturnType<typeof createMissionOccurrence>,
+  appTimeZone: string | null,
+): string {
+  if (appTimeZone === null) return payload.schedule.localStart.slice(0, 10);
+  return projectScheduleToTimeZone({
+    schedule: payload.schedule,
+    destinationTimeZone: appTimeZone,
+  }).localStart.slice(0, 10);
+}
+
 function isEligibleForReminder(payload: ReturnType<typeof createMissionOccurrence>): boolean {
   return (
     payload.scheduleState === 'scheduled' &&
@@ -148,11 +160,12 @@ async function loadDesiredNotifications(
   accountId: string,
   window: Readonly<{ nowMs: number; horizonEndMs: number }>,
 ): Promise<DesiredNotification[]> {
-  const account = await database.getFirstAsync<{ language: string | null }>(
-    `SELECT language FROM local_accounts WHERE account_id = ?`,
-    accountId,
-  );
+  const account = await database.getFirstAsync<{
+    language: string | null;
+    app_time_zone: string | null;
+  }>(`SELECT language, app_time_zone FROM local_accounts WHERE account_id = ?`, accountId);
   const locale = resolveLocale(account?.language ?? null);
+  const appTimeZone = account?.app_time_zone ?? null;
   const rows = await database.getAllAsync<CandidateRow>(
     `SELECT o.payload_json, s.title
        FROM cached_mission_occurrences AS o
@@ -177,7 +190,7 @@ async function loadDesiredNotifications(
       Object.freeze({
         occurrenceId: occurrence.id,
         scheduledAt,
-        localDate: occurrence.schedule.localStart.slice(0, 10),
+        localDate: notificationCalendarDate(occurrence, appTimeZone),
         title: row.title,
       }),
     );
