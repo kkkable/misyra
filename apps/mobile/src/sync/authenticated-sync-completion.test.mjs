@@ -62,6 +62,29 @@ describe('MTS-059 authenticated sync completion replay', () => {
     expect(api.push).not.toHaveBeenCalled();
   });
 
+  it('reports the exact accepted completion settlement for foreground confirmation', async () => {
+    const onSettlement = vi.fn();
+    const api = apiWithCompletionResult({
+      status: 'completed',
+      occurrenceId,
+      completionId: '55555555-5555-4555-8555-555555555555',
+      completionType: 'private',
+      actionTime: actionAt,
+      reward: { baseXp: 100, proofBonusXp: 0, awardedXp: 100 },
+      totalXp: 250,
+    });
+
+    await pushQueuedMutationsWithCompletions(api, [completionMutation()], onSettlement);
+
+    expect(onSettlement).toHaveBeenCalledWith({
+      mutationId,
+      occurrenceId,
+      status: 'completed',
+      awardedXp: 100,
+      totalXp: 250,
+    });
+  });
+
   it('maps a different already-completed command to the existing completion conflict', async () => {
     const api = apiWithCompletionResult({
       status: 'already_completed',
@@ -81,6 +104,26 @@ describe('MTS-059 authenticated sync completion replay', () => {
           missionId: occurrenceId,
         },
       ],
+    });
+  });
+
+  it('reports an already-completed settlement so another device stays silent', async () => {
+    const onSettlement = vi.fn();
+    const api = apiWithCompletionResult({
+      status: 'already_completed',
+      occurrenceId,
+      completionId: '55555555-5555-4555-8555-555555555555',
+      completionType: 'trust_mode',
+      actionTime: '2026-09-11T09:02:00.000Z',
+      reward: { baseXp: 100, proofBonusXp: 0, awardedXp: 100 },
+    });
+
+    await pushQueuedMutationsWithCompletions(api, [completionMutation()], onSettlement);
+
+    expect(onSettlement).toHaveBeenCalledWith({
+      mutationId,
+      occurrenceId,
+      status: 'already_completed',
     });
   });
 
