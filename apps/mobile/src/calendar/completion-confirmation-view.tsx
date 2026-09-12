@@ -69,7 +69,7 @@ export function CompletionConfirmation({
         totalXp: event.totalXp,
         language,
         reduceMotion,
-        numberLocale,
+        ...(numberLocale === undefined ? {} : { numberLocale }),
       }),
     [event.awardedXp, event.totalXp, language, numberLocale, reduceMotion],
   );
