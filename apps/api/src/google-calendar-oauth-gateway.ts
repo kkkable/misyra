@@ -4,7 +4,10 @@ const AUTHORIZATION_ENDPOINT = 'https://accounts.google.com/o/oauth2/v2/auth';
 const TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
 const REVOCATION_ENDPOINT = 'https://oauth2.googleapis.com/revoke';
 const CALENDARS_ENDPOINT = 'https://www.googleapis.com/calendar/v3/calendars';
-const CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar';
+const CALENDAR_SCOPE = [
+  'https://www.googleapis.com/auth/calendar.events',
+  'https://www.googleapis.com/auth/calendar.app.created',
+].join(' ');
 const REQUEST_TIMEOUT_MS = 10_000;
 
 type GoogleCalendarOAuthGatewayOptions = Readonly<{
