@@ -75,7 +75,7 @@ export function subscribeLocalMutationApplied(listener: LocalMutationAppliedList
   };
 }
 
-function publishLocalMutationApplied(event: LocalMutationAppliedEvent): void {
+export function publishLocalMutationApplied(event: LocalMutationAppliedEvent): void {
   for (const listener of localMutationAppliedListeners) {
     try {
       listener(event);
