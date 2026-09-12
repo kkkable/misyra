@@ -17,14 +17,13 @@ export async function settleForegroundCompletionRequest(
     publishConfirmation: (event: ForegroundCompletionConfirmationEvent) => void;
   }>,
 ): Promise<void> {
-  let exactSettlement: CompletionMutationSettlement | null = null;
+  const matchingSettlements: CompletionMutationSettlement[] = [];
   const unsubscribe = input.subscribeSettlement((settlement) => {
     if (
-      exactSettlement === null &&
       settlement.mutationId === input.request.mutationId &&
       settlement.occurrenceId === input.request.occurrenceId
     ) {
-      exactSettlement = settlement;
+      matchingSettlements.push(settlement);
     }
   });
 
@@ -39,7 +38,8 @@ export async function settleForegroundCompletionRequest(
     unsubscribe();
   }
 
-  if (exactSettlement !== null) {
+  const exactSettlement = matchingSettlements[0];
+  if (exactSettlement !== undefined) {
     if (exactSettlement.status === 'completed') {
       input.publishConfirmation({
         occurrenceId: exactSettlement.occurrenceId,
