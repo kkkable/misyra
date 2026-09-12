@@ -82,11 +82,25 @@ describe('MTS-066 Android exact-notification release path', () => {
       device: 'Pixel test device',
       androidApi: 36,
       exactAccess: 'denied',
+      deliveryPath: 'best-supported-fallback',
       scheduledAt: '2026-09-14T01:00:00.000Z',
       observedAt: '2026-09-14T01:00:04.250Z',
       deliveryDeltaMs: 4250,
       notes: 'best-supported fallback path',
     });
     expect(record.recordedAt).toEqual(expect.any(String));
+  });
+
+  it('records pre-special-access Android delivery as exact-capable when exact access is not required', async () => {
+    const module = await import(deviceScriptUrl.href);
+    const record = module.buildAndroidNotificationDeliveryRecord({
+      device: 'Android 11 test device',
+      androidApi: 30,
+      exactAccess: 'not-required',
+      scheduledAt: '2026-09-14T01:00:00.000Z',
+      observedAt: '2026-09-14T01:00:00.500Z',
+    });
+
+    expect(record.deliveryPath).toBe('exact-when-available');
   });
 });
