@@ -5,7 +5,9 @@ import { externalCalendarConnections } from './schema.js';
 
 describe('MTS-069 Google calendar schema parity', () => {
   it('models every connection and OAuth-state column added by migration 0010', () => {
-    const columns = getTableConfig(externalCalendarConnections).columns.map((column) => column.name);
+    const columns = getTableConfig(externalCalendarConnections).columns.map(
+      (column) => column.name,
+    );
 
     expect(columns).toEqual(
       expect.arrayContaining([

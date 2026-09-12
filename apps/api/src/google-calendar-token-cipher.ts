@@ -69,7 +69,9 @@ export function createGoogleCalendarTokenCipher(key: Uint8Array): GoogleCalendar
         );
         return Promise.resolve(plaintext);
       } catch (error) {
-        return Promise.reject(new Error('Google calendar token decryption failed', { cause: error }));
+        return Promise.reject(
+          new Error('Google calendar token decryption failed', { cause: error }),
+        );
       }
     },
   };
