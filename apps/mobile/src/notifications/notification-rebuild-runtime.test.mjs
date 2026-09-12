@@ -14,7 +14,7 @@ function deferred() {
 }
 
 describe('MTS-065 notification rebuild runtime', () => {
-  it('batches same-turn lifecycle triggers into one rebuild without losing reasons', async () => {
+  it('batches same-turn rebuild triggers', async () => {
     const rebuild = vi.fn(async () => undefined);
     const runtime = createNotificationRebuildCoordinator({ rebuild });
 
@@ -32,7 +32,7 @@ describe('MTS-065 notification rebuild runtime', () => {
     ]);
   });
 
-  it('runs at most one follow-up batch when changes arrive during an active rebuild', async () => {
+  it('queues one follow-up batch during an active rebuild', async () => {
     const firstRun = deferred();
     const rebuild = vi.fn(async () => undefined);
     rebuild.mockImplementationOnce(async () => firstRun.promise);
@@ -91,7 +91,7 @@ describe('MTS-065 notification rebuild runtime', () => {
     expect(mutationListener).toBeNull();
   });
 
-  it('keeps rebuild batches independent across device-local runtime instances', async () => {
+  it('keeps device-local coordinators independent', async () => {
     const deviceARebuild = vi.fn(async () => undefined);
     const deviceBRebuild = vi.fn(async () => undefined);
     const deviceA = createNotificationRebuildCoordinator({ rebuild: deviceARebuild });
