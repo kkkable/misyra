@@ -13,10 +13,10 @@ const MAX_NOTIFICATION_HORIZON_MS = 30 * 24 * 60 * 60 * 1000;
 const COMBINED_REGISTRY_PREFIX = 'misyra-combined:';
 
 export type MissionNotificationRequest = Readonly<{
-  occurrenceIds: readonly string[];
+  occurrenceIds?: readonly string[];
   occurrenceId?: string;
   scheduledAt: string;
-  localDate: string;
+  localDate?: string;
   body: string;
 }>;
 
@@ -60,7 +60,11 @@ type StoredNotificationIdentity = Readonly<{
   occurrenceIds: readonly string[] | null;
 }>;
 
-type DesiredNotification = MissionNotificationRequest;
+type DesiredNotification = MissionNotificationRequest &
+  Readonly<{
+    occurrenceIds: readonly string[];
+    localDate: string;
+  }>;
 
 function parseInstant(value: string, label: string): number {
   const parsed = Date.parse(value);
