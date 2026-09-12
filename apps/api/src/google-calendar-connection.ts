@@ -70,7 +70,9 @@ export type GoogleCalendarConnectionService = Readonly<{
       selectedCalendarId?: string;
     }>,
   ): Promise<{ authorizationUrl: string }>;
-  completeOAuth(input: Readonly<{ state: string; code: string }>): Promise<GoogleCalendarConnectionRecord>;
+  completeOAuth(
+    input: Readonly<{ state: string; code: string }>,
+  ): Promise<GoogleCalendarConnectionRecord>;
   disconnect(accountId: string, connectionId: string): Promise<void>;
 }>;
 
