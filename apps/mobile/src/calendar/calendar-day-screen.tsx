@@ -77,6 +77,23 @@ function monthLabel(value: string, locale: LocalizationLocale): string {
   }).format(dateForFormatting(value));
 }
 
+function firstRouteParam(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function parseNotificationMissionIds(value: string | string[] | undefined): readonly string[] {
+  const text = firstRouteParam(value);
+  if (text === undefined) return [];
+  return [
+    ...new Set(
+      text
+        .split(',')
+        .map((item) => item.trim())
+        .filter((item) => item.length > 0),
+    ),
+  ].sort((left, right) => left.localeCompare(right));
+}
+
 export interface CalendarSearchFocusTarget {
   readonly requestId: number;
   readonly date: string;
@@ -121,7 +138,10 @@ export function CalendarDayScreen({
   onMissionAdjustment,
   onCreateMission,
 }: CalendarDayScreenProps) {
-  const params = useLocalSearchParams<{ date?: string | string[] }>();
+  const params = useLocalSearchParams<{
+    date?: string | string[];
+    notificationMissionIds?: string | string[];
+  }>();
   const catalog = localizationCatalogs[language];
   const copy = {
     calendar: catalog['calendar.shell.title'],
@@ -206,6 +226,14 @@ export function CalendarDayScreen({
     searchFocusTarget !== undefined && searchFocusTarget.date === selectedDate
       ? searchFocusTarget.missionId
       : selectedMissionId;
+  const notificationDate = firstRouteParam(params.date);
+  const highlightedMissionIds = useMemo(
+    () =>
+      notificationDate === selectedDate
+        ? parseNotificationMissionIds(params.notificationMissionIds)
+        : [],
+    [notificationDate, params.notificationMissionIds, selectedDate],
+  );
 
   const clearMissionSelection = () => {
     setSelectedMissionId(undefined);
@@ -411,6 +439,7 @@ export function CalendarDayScreen({
             timedMissions.length > 0 ? (
               <TimedMissionLayer
                 colorScheme={colorScheme}
+                {...(highlightedMissionIds.length === 0 ? {} : { highlightedMissionIds })}
                 language={language}
                 missions={timedMissions}
                 now={now}
@@ -428,6 +457,7 @@ export function CalendarDayScreen({
             allDayMissions.length > 0 ? (
               <AllDayMissionList
                 colorScheme={colorScheme}
+                {...(highlightedMissionIds.length === 0 ? {} : { highlightedMissionIds })}
                 language={language}
                 missions={allDayMissions}
                 onMissionPress={selectAllDayMission}

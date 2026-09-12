@@ -274,6 +274,7 @@ export function MissionCard({
 
 interface TimedMissionLayerProps {
   readonly colorScheme: ColorScheme;
+  readonly highlightedMissionIds?: readonly string[];
   readonly language: LocalizationLocale;
   readonly missions: readonly TimedMissionSummary[];
   readonly now: Date;
@@ -292,6 +293,7 @@ function formatMore(language: LocalizationLocale, count: number): string {
 function groupList(
   group: MissionOverlapGroup,
   colorScheme: ColorScheme,
+  highlightedMissionIds: ReadonlySet<string>,
   language: LocalizationLocale,
   selectedMissionId: string | undefined,
   onMissionPress: ((mission: TimedMissionSummary) => void) | undefined,
@@ -316,7 +318,7 @@ function groupList(
           language={language}
           mission={mission}
           onPress={onMissionPress}
-          selected={selectedMissionId === mission.id}
+          selected={selectedMissionId === mission.id || highlightedMissionIds.has(mission.id)}
           style={styles.overflowListCard}
           testID={`calendar-overlap-list-mission-${mission.id}`}
         />
@@ -353,6 +355,7 @@ interface AdjustableMissionCardProps {
   readonly card: MissionCardLayout;
   readonly colorScheme: ColorScheme;
   readonly getNow: () => Date;
+  readonly highlighted: boolean;
   readonly language: LocalizationLocale;
   readonly selected: boolean;
   readonly selectedDate: string;
@@ -365,6 +368,7 @@ function AdjustableMissionCard({
   card,
   colorScheme,
   getNow,
+  highlighted,
   language,
   selected,
   selectedDate,
@@ -496,7 +500,7 @@ function AdjustableMissionCard({
           language={language}
           mission={mission}
           onPress={onMissionPress}
-          selected={selected}
+          selected={selected || highlighted}
           style={styles.gestureCard}
         />
         {selected ? (
@@ -519,6 +523,7 @@ function AdjustableMissionCard({
 export function TimedMissionLayer({
   colorScheme,
   getNow = () => new Date(),
+  highlightedMissionIds = [],
   language,
   missions,
   selectedDate,
@@ -528,7 +533,13 @@ export function TimedMissionLayer({
 }: TimedMissionLayerProps) {
   const colors = themeColors(colorScheme);
   const groups = buildMissionOverlapGroups(missions);
+  const highlightedMissionIdSet = new Set(highlightedMissionIds);
+  const notificationExpandedGroupId =
+    groups.find((group) =>
+      group.hiddenMissions.some((mission) => highlightedMissionIdSet.has(mission.id)),
+    )?.id ?? null;
   const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
+  const effectiveExpandedGroupId = expandedGroupId ?? notificationExpandedGroupId;
 
   return (
     <View pointerEvents="box-none" style={styles.layer} testID="calendar-timed-mission-layer">
@@ -540,6 +551,7 @@ export function TimedMissionLayer({
                 card={card}
                 colorScheme={colorScheme}
                 getNow={getNow}
+                highlighted={highlightedMissionIdSet.has(card.mission.id)}
                 key={card.mission.id}
                 language={language}
                 onMissionAdjustment={onMissionAdjustment}
@@ -554,7 +566,10 @@ export function TimedMissionLayer({
                 language={language}
                 mission={card.mission}
                 onPress={onMissionPress}
-                selected={selectedMissionId === card.mission.id}
+                selected={
+                  selectedMissionId === card.mission.id ||
+                  highlightedMissionIdSet.has(card.mission.id)
+                }
                 style={missionPositionStyle(card)}
               />
             ),
@@ -581,8 +596,15 @@ export function TimedMissionLayer({
               </Text>
             </Pressable>
           ) : null}
-          {expandedGroupId === group.id
-            ? groupList(group, colorScheme, language, selectedMissionId, onMissionPress)
+          {effectiveExpandedGroupId === group.id
+            ? groupList(
+                group,
+                colorScheme,
+                highlightedMissionIdSet,
+                language,
+                selectedMissionId,
+                onMissionPress,
+              )
             : null}
         </View>
       ))}

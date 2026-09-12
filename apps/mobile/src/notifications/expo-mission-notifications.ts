@@ -4,10 +4,19 @@ import type { MissionNotificationScheduler } from './notification-reconciler.js'
 
 export const rootMissionNotificationScheduler: MissionNotificationScheduler = Object.freeze({
   async schedule(request) {
+    const occurrenceIds = request.occurrenceIds ?? [];
+    const data =
+      occurrenceIds.length > 0 && typeof request.localDate === 'string'
+        ? {
+            localDate: request.localDate,
+            occurrenceIds: Array.from(occurrenceIds),
+          }
+        : { occurrenceId: request.occurrenceId };
+
     return Notifications.scheduleNotificationAsync({
       content: {
         body: request.body,
-        data: { occurrenceId: request.occurrenceId },
+        data,
       },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DATE,

@@ -5,6 +5,7 @@ export { completionConfirmationCatalogs } from './completion-confirmation-catalo
 export type { CompletionConfirmationCatalog } from './completion-confirmation-catalogs.js';
 export { importedEventDisplayTitle } from './imported-event-title.js';
 export {
+  formatMissionCountStartsNow,
   formatMissionStartsNow,
   missionNotificationCatalogs,
 } from './mission-notification-catalogs.js';
