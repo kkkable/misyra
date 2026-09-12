@@ -13,6 +13,7 @@ function deferred() {
   return { promise, resolve };
 }
 
+// prettier-ignore
 describe('MTS-065 notification rebuild runtime', () => {
   it('batches same-turn rebuild triggers', async () => {
     const rebuild = vi.fn(async () => undefined);
