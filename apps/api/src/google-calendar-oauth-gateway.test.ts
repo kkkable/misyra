@@ -8,6 +8,16 @@ const configuration = {
   redirectUri: 'https://api.example.test/v1/calendars/google/callback',
 };
 
+type FetchInput = Parameters<typeof fetch>[0];
+type FetchInit = Parameters<typeof fetch>[1];
+type CapturedRequest = Readonly<{ input: FetchInput; init: FetchInit }>;
+
+function requestAt(requests: readonly CapturedRequest[], index: number): CapturedRequest {
+  const request = requests[index];
+  if (!request) throw new Error(`Missing captured request at index ${index}`);
+  return request;
+}
+
 describe('MTS-069 concrete Google OAuth gateway', () => {
   it('builds offline consent authorization with only the calendar scope and opaque state', () => {
     const gateway = createGoogleCalendarOAuthGateway({
@@ -28,14 +38,16 @@ describe('MTS-069 concrete Google OAuth gateway', () => {
   });
 
   it('exchanges an authorization code without putting credentials in the URL', async () => {
-    const fetchImpl = vi.fn(() =>
-      Promise.resolve(
+    const requests: CapturedRequest[] = [];
+    const fetchImpl = vi.fn((input: FetchInput, init?: FetchInit) => {
+      requests.push({ input, init });
+      return Promise.resolve(
         new Response(
           JSON.stringify({ access_token: 'access-secret', refresh_token: 'refresh-secret' }),
           { status: 200, headers: { 'content-type': 'application/json' } },
         ),
-      ),
-    );
+      );
+    });
     const gateway = createGoogleCalendarOAuthGateway({ ...configuration, fetchImpl });
 
     await expect(gateway.exchangeCode('provider-code')).resolves.toEqual({
@@ -43,29 +55,33 @@ describe('MTS-069 concrete Google OAuth gateway', () => {
     });
 
     expect(fetchImpl).toHaveBeenCalledOnce();
-    const [url, init] = fetchImpl.mock.calls[0] ?? [];
-    expect(String(url)).toBe('https://oauth2.googleapis.com/token');
-    expect(init?.method).toBe('POST');
-    expect(String(init?.body)).toContain('code=provider-code');
-    expect(String(init?.body)).toContain('client_secret=google-calendar-client-secret');
-    expect(String(url)).not.toContain('google-calendar-client-secret');
+    const request = requestAt(requests, 0);
+    expect(String(request.input)).toBe('https://oauth2.googleapis.com/token');
+    expect(request.init?.method).toBe('POST');
+    expect(String(request.init?.body)).toContain('code=provider-code');
+    expect(String(request.init?.body)).toContain('client_secret=google-calendar-client-secret');
+    expect(String(request.input)).not.toContain('google-calendar-client-secret');
   });
 
   it('creates the dedicated Misyra calendar by refreshing access inside the provider boundary', async () => {
-    const fetchImpl = vi
-      .fn()
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify({ access_token: 'fresh-access-token' }), {
-          status: 200,
-          headers: { 'content-type': 'application/json' },
-        }),
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify({ id: 'misyra-provider-calendar-id' }), {
-          status: 200,
-          headers: { 'content-type': 'application/json' },
-        }),
-      );
+    const requests: CapturedRequest[] = [];
+    const responses = [
+      new Response(JSON.stringify({ access_token: 'fresh-access-token' }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+      new Response(JSON.stringify({ id: 'misyra-provider-calendar-id' }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    ];
+    const fetchImpl = vi.fn((input: FetchInput, init?: FetchInit) => {
+      requests.push({ input, init });
+      const response = responses.shift();
+      return response
+        ? Promise.resolve(response)
+        : Promise.reject(new Error('Unexpected provider request'));
+    });
     const gateway = createGoogleCalendarOAuthGateway({ ...configuration, fetchImpl });
 
     await expect(gateway.createDedicatedCalendar('refresh-secret')).resolves.toBe(
@@ -73,28 +89,34 @@ describe('MTS-069 concrete Google OAuth gateway', () => {
     );
 
     expect(fetchImpl).toHaveBeenCalledTimes(2);
-    const [refreshUrl, refreshInit] = fetchImpl.mock.calls[0] ?? [];
-    expect(String(refreshUrl)).toBe('https://oauth2.googleapis.com/token');
-    expect(String(refreshInit?.body)).toContain('grant_type=refresh_token');
-    expect(String(refreshInit?.body)).toContain('refresh_token=refresh-secret');
-    const [calendarUrl, calendarInit] = fetchImpl.mock.calls[1] ?? [];
-    expect(String(calendarUrl)).toBe('https://www.googleapis.com/calendar/v3/calendars');
-    expect(calendarInit?.method).toBe('POST');
-    expect(calendarInit?.headers).toMatchObject({ Authorization: 'Bearer fresh-access-token' });
-    expect(JSON.parse(String(calendarInit?.body))).toEqual({ summary: 'Misyra' });
+    const refreshRequest = requestAt(requests, 0);
+    expect(String(refreshRequest.input)).toBe('https://oauth2.googleapis.com/token');
+    expect(String(refreshRequest.init?.body)).toContain('grant_type=refresh_token');
+    expect(String(refreshRequest.init?.body)).toContain('refresh_token=refresh-secret');
+    const calendarRequest = requestAt(requests, 1);
+    expect(String(calendarRequest.input)).toBe('https://www.googleapis.com/calendar/v3/calendars');
+    expect(calendarRequest.init?.method).toBe('POST');
+    expect(calendarRequest.init?.headers).toMatchObject({
+      Authorization: 'Bearer fresh-access-token',
+    });
+    expect(JSON.parse(String(calendarRequest.init?.body))).toEqual({ summary: 'Misyra' });
   });
 
   it('revokes the refresh credential through a form body and never through the URL', async () => {
-    const fetchImpl = vi.fn(() => Promise.resolve(new Response(null, { status: 200 })));
+    const requests: CapturedRequest[] = [];
+    const fetchImpl = vi.fn((input: FetchInput, init?: FetchInit) => {
+      requests.push({ input, init });
+      return Promise.resolve(new Response(null, { status: 200 }));
+    });
     const gateway = createGoogleCalendarOAuthGateway({ ...configuration, fetchImpl });
 
     await gateway.revokeRefreshToken('refresh-secret');
 
-    const [url, init] = fetchImpl.mock.calls[0] ?? [];
-    expect(String(url)).toBe('https://oauth2.googleapis.com/revoke');
-    expect(init?.method).toBe('POST');
-    expect(String(init?.body)).toBe('token=refresh-secret');
-    expect(String(url)).not.toContain('refresh-secret');
+    const request = requestAt(requests, 0);
+    expect(String(request.input)).toBe('https://oauth2.googleapis.com/revoke');
+    expect(request.init?.method).toBe('POST');
+    expect(String(request.init?.body)).toBe('token=refresh-secret');
+    expect(String(request.input)).not.toContain('refresh-secret');
   });
 
   it('rejects provider failures with a fixed redacted error', async () => {
