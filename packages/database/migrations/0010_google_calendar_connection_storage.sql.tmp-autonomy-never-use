@@ -1,1 +1,5 @@
-placeholder
+-- MTS-069 implementation note.
+-- OAuth state is persisted on the single external_calendar_connections row rather than a
+-- second principal table. This keeps the one-connection-per-account invariant authoritative
+-- throughout OAuth and avoids a separate durable table solely for transient OAuth state.
+-- This sidecar is documentation only; the executable migration is the .sql file beside it.
