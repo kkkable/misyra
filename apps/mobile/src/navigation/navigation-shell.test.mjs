@@ -21,6 +21,10 @@ vi.mock('expo-router', async () => {
   return { Redirect, Stack, Tabs };
 });
 
+vi.mock('react-native-reanimated', () => ({
+  useReducedMotion: () => false,
+}));
+
 vi.mock('../auth/auth-gate.js', async () => {
   const { createElement: createReactElement } = await import('react');
   return {
