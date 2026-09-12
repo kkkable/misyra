@@ -34,10 +34,8 @@ describe('MTS-065 notification rebuild runtime', () => {
 
   it('runs at most one follow-up batch when changes arrive during an active rebuild', async () => {
     const firstRun = deferred();
-    const rebuild = vi
-      .fn()
-      .mockImplementationOnce(async () => firstRun.promise)
-      .mockResolvedValue(undefined);
+    const rebuild = vi.fn(async () => undefined);
+    rebuild.mockImplementationOnce(async () => firstRun.promise);
     const runtime = createNotificationRebuildCoordinator({ rebuild });
 
     const first = runtime.request('mission-change');
