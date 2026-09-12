@@ -3,13 +3,19 @@ import {
   resolveLocalDateTimeInstant,
   type MissionOccurrenceInput,
 } from '@misyra/domain';
-import { formatMissionStartsNow, type MissionNotificationLocale } from '@misyra/localization';
+import {
+  formatMissionCountStartsNow,
+  formatMissionStartsNow,
+  type MissionNotificationLocale,
+} from '@misyra/localization';
 
 const MAX_NOTIFICATION_HORIZON_MS = 30 * 24 * 60 * 60 * 1000;
 
 export type MissionNotificationRequest = Readonly<{
-  occurrenceId: string;
+  occurrenceIds: readonly string[];
+  occurrenceId?: string;
   scheduledAt: string;
+  localDate: string;
   body: string;
 }>;
 
@@ -35,17 +41,26 @@ type CandidateRow = Readonly<{
   title: string;
 }>;
 
+type CandidateNotification = Readonly<{
+  occurrenceId: string;
+  scheduledAt: string;
+  localDate: string;
+  title: string;
+}>;
+
 type RegistryRow = Readonly<{
   notification_id: string;
   occurrence_id: string;
   scheduled_at: string;
 }>;
 
-type DesiredNotification = Readonly<{
-  occurrenceId: string;
-  scheduledAt: string;
-  body: string;
+type RegistryNotification = Readonly<{
+  notificationId: string;
+  occurrenceIds: readonly string[];
+  scheduledAt: string | null;
 }>;
+
+type DesiredNotification = MissionNotificationRequest;
 
 function parseInstant(value: string, label: string): number {
   const parsed = Date.parse(value);
@@ -83,6 +98,43 @@ function isEligibleForReminder(payload: ReturnType<typeof createMissionOccurrenc
   );
 }
 
+function groupDesiredNotifications(
+  candidates: readonly CandidateNotification[],
+  locale: MissionNotificationLocale,
+): DesiredNotification[] {
+  const byInstant = new Map<string, CandidateNotification[]>();
+  for (const candidate of candidates) {
+    const group = byInstant.get(candidate.scheduledAt);
+    if (group === undefined) byInstant.set(candidate.scheduledAt, [candidate]);
+    else group.push(candidate);
+  }
+
+  return [...byInstant.entries()]
+    .map(([scheduledAt, group]) => {
+      const sorted = [...group].sort((left, right) => left.occurrenceId.localeCompare(right.occurrenceId));
+      const first = sorted[0];
+      if (first === undefined) throw new Error('notification_group_empty');
+      const occurrenceIds = Object.freeze(sorted.map((item) => item.occurrenceId));
+      const base = {
+        occurrenceIds,
+        scheduledAt,
+        localDate: first.localDate,
+        body:
+          sorted.length === 1
+            ? formatMissionStartsNow(locale, first.title)
+            : formatMissionCountStartsNow(locale, sorted.length),
+      };
+      return sorted.length === 1
+        ? Object.freeze({ ...base, occurrenceId: first.occurrenceId })
+        : Object.freeze(base);
+    })
+    .sort(
+      (left, right) =>
+        left.scheduledAt.localeCompare(right.scheduledAt) ||
+        left.occurrenceIds[0]!.localeCompare(right.occurrenceIds[0]!),
+    );
+}
+
 async function loadDesiredNotifications(
   database: NotificationDatabase,
   accountId: string,
@@ -103,7 +155,7 @@ async function loadDesiredNotifications(
     accountId,
   );
 
-  const desired: DesiredNotification[] = [];
+  const candidates: CandidateNotification[] = [];
   for (const row of rows) {
     const parsed = JSON.parse(row.payload_json) as MissionOccurrenceInput;
     const occurrence = createMissionOccurrence(parsed);
@@ -113,23 +165,59 @@ async function loadDesiredNotifications(
     const scheduledMs = parseInstant(scheduledAt, 'Notification scheduled time');
     if (scheduledMs <= window.nowMs || scheduledMs >= window.horizonEndMs) continue;
 
-    desired.push(
+    candidates.push(
       Object.freeze({
         occurrenceId: occurrence.id,
         scheduledAt,
-        body: formatMissionStartsNow(locale, row.title),
+        localDate: occurrence.schedule.localStart.slice(0, 10),
+        title: row.title,
       }),
     );
   }
 
-  return desired.sort(
-    (left, right) =>
-      left.scheduledAt.localeCompare(right.scheduledAt) ||
-      left.occurrenceId.localeCompare(right.occurrenceId),
-  );
+  return groupDesiredNotifications(candidates, locale);
 }
 
-async function deleteRegistryRow(
+function groupRegistryRows(rows: readonly RegistryRow[]): RegistryNotification[] {
+  const grouped = new Map<
+    string,
+    { occurrenceIds: string[]; scheduledAt: string | null; inconsistent: boolean }
+  >();
+  for (const row of rows) {
+    const existing = grouped.get(row.notification_id);
+    if (existing === undefined) {
+      grouped.set(row.notification_id, {
+        occurrenceIds: [row.occurrence_id],
+        scheduledAt: row.scheduled_at,
+        inconsistent: false,
+      });
+      continue;
+    }
+    existing.occurrenceIds.push(row.occurrence_id);
+    if (existing.scheduledAt !== row.scheduled_at) existing.inconsistent = true;
+  }
+
+  return [...grouped.entries()]
+    .map(([notificationId, value]) =>
+      Object.freeze({
+        notificationId,
+        occurrenceIds: Object.freeze(
+          [...new Set(value.occurrenceIds)].sort((left, right) => left.localeCompare(right)),
+        ),
+        scheduledAt: value.inconsistent ? null : value.scheduledAt,
+      }),
+    )
+    .sort((left, right) => left.notificationId.localeCompare(right.notificationId));
+}
+
+function notificationSignature(
+  scheduledAt: string,
+  occurrenceIds: readonly string[],
+): string {
+  return `${scheduledAt}\u0000${occurrenceIds.join('\u0000')}`;
+}
+
+async function deleteRegistryRows(
   database: NotificationDatabase,
   accountId: string,
   notificationId: string,
@@ -151,21 +239,28 @@ async function scheduleAndPersist(
 ): Promise<void> {
   const notificationId = await scheduler.schedule(desired);
   try {
-    await database.runAsync(
-      `INSERT INTO notification_registry
-        (account_id, notification_id, occurrence_id, scheduled_at, updated_at)
-       VALUES (?, ?, ?, ?, ?)`,
-      accountId,
-      notificationId,
-      desired.occurrenceId,
-      desired.scheduledAt,
-      updatedAt,
-    );
+    for (const occurrenceId of desired.occurrenceIds) {
+      await database.runAsync(
+        `INSERT INTO notification_registry
+          (account_id, notification_id, occurrence_id, scheduled_at, updated_at)
+         VALUES (?, ?, ?, ?, ?)`,
+        accountId,
+        notificationId,
+        occurrenceId,
+        desired.scheduledAt,
+        updatedAt,
+      );
+    }
   } catch (error) {
+    try {
+      await deleteRegistryRows(database, accountId, notificationId);
+    } catch {
+      // Preserve the persistence failure while making a best-effort registry cleanup.
+    }
     try {
       await scheduler.cancel(notificationId);
     } catch {
-      // Preserve the persistence failure while making a best-effort orphan cleanup.
+      // Preserve the persistence failure while making a best-effort native cleanup.
     }
     throw error;
   }
@@ -185,35 +280,45 @@ export function createMissionNotificationReconciler({
   async function reconcileOnce(input: ReconcileWindow): Promise<void> {
     const window = validateWindow(input);
     const desired = await loadDesiredNotifications(database, accountId, window);
-    const desiredByOccurrence = new Map(desired.map((item) => [item.occurrenceId, item]));
+    const desiredBySignature = new Map(
+      desired.map((item) => [notificationSignature(item.scheduledAt, item.occurrenceIds), item]),
+    );
     const registryRows = await database.getAllAsync<RegistryRow>(
       `SELECT notification_id, occurrence_id, scheduled_at
          FROM notification_registry
         WHERE account_id = ?
-        ORDER BY scheduled_at, notification_id`,
+        ORDER BY scheduled_at, notification_id, occurrence_id`,
       accountId,
     );
+    const registryNotifications = groupRegistryRows(registryRows);
 
-    const retainedOccurrences = new Set<string>();
-    for (const row of registryRows) {
-      const target = desiredByOccurrence.get(row.occurrence_id);
+    const retainedSignatures = new Set<string>();
+    for (const registryNotification of registryNotifications) {
+      const signature =
+        registryNotification.scheduledAt === null
+          ? null
+          : notificationSignature(
+              registryNotification.scheduledAt,
+              registryNotification.occurrenceIds,
+            );
       const shouldRetain =
-        target !== undefined &&
-        row.scheduled_at === target.scheduledAt &&
-        !retainedOccurrences.has(row.occurrence_id);
+        signature !== null &&
+        desiredBySignature.has(signature) &&
+        !retainedSignatures.has(signature);
       if (shouldRetain) {
-        retainedOccurrences.add(row.occurrence_id);
+        retainedSignatures.add(signature);
         continue;
       }
 
-      await scheduler.cancel(row.notification_id);
-      await deleteRegistryRow(database, accountId, row.notification_id);
+      await scheduler.cancel(registryNotification.notificationId);
+      await deleteRegistryRows(database, accountId, registryNotification.notificationId);
     }
 
     for (const item of desired) {
-      if (retainedOccurrences.has(item.occurrenceId)) continue;
+      const signature = notificationSignature(item.scheduledAt, item.occurrenceIds);
+      if (retainedSignatures.has(signature)) continue;
       await scheduleAndPersist(database, accountId, scheduler, item, input.now);
-      retainedOccurrences.add(item.occurrenceId);
+      retainedSignatures.add(signature);
     }
   }
 
