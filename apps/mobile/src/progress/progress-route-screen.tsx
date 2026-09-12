@@ -44,21 +44,16 @@ export function ProgressRouteScreen() {
           repositories.progress.getSnapshot(),
           repositories.progress.listRecent(RECENT_COMPLETION_LIMIT),
         ]);
-        const recentItems = await Promise.all(
-          summaries.map(async (summary): Promise<ProgressRecentItem | null> => {
-            const mission = await repositories.missions.getById(summary.occurrenceId);
-            if (mission === null) return null;
-            return {
-              occurrenceId: summary.occurrenceId,
-              title: mission.series.title,
-              completedAt: summary.completedAt,
-              awardedXp: summary.awardedXp,
-            };
-          }),
-        );
         if (!active) return;
         setSnapshot(nextSnapshot);
-        setRecent(recentItems.filter((item): item is ProgressRecentItem => item !== null));
+        setRecent(
+          summaries.map((summary) => ({
+            occurrenceId: summary.occurrenceId,
+            title: summary.title,
+            completedAt: summary.completedAt,
+            awardedXp: summary.awardedXp,
+          })),
+        );
       };
 
       void load().then(() =>
