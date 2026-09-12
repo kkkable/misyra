@@ -29,6 +29,22 @@ type SyncPushResponse = Readonly<{
   conflicts: SyncConflictOutcomeContract[];
 }>;
 
+export type CompletionMutationSettlement =
+  | Readonly<{
+      mutationId: string;
+      occurrenceId: string;
+      status: 'completed';
+      awardedXp: number;
+      totalXp: number;
+    }>
+  | Readonly<{
+      mutationId: string;
+      occurrenceId: string;
+      status: 'already_completed';
+    }>;
+
+export type CompletionSettlementListener = (settlement: CompletionMutationSettlement) => void;
+
 export type AuthenticatedSyncApi = Readonly<{
   registerDevice(input: DeviceRegistrationRequest): Promise<DeviceRegistrationResponse>;
   getAccountSettings(): Promise<AccountSettings>;
@@ -64,6 +80,7 @@ type AuthenticatedSyncApiOptions = Readonly<{
   baseUrl: string;
   accessToken: string;
   fetcher?: Fetcher;
+  onCompletionSettlement?: CompletionSettlementListener;
 }>;
 
 class AuthenticatedSyncRequestError extends Error {
@@ -152,9 +169,21 @@ function permanentCompletionConflict(
   return null;
 }
 
+function reportAlreadyCompleted(
+  listener: CompletionSettlementListener | undefined,
+  mutation: SyncMutationContract,
+): void {
+  listener?.({
+    mutationId: mutation.mutationId,
+    occurrenceId: mutation.entityId,
+    status: 'already_completed',
+  });
+}
+
 export async function pushQueuedMutationsWithCompletions(
   api: CompletionPushApi,
   mutations: readonly SyncMutationContract[],
+  onCompletionSettlement?: CompletionSettlementListener,
 ): Promise<SyncPushResponse> {
   if (mutations.length === 0) return api.push(mutations);
 
@@ -167,9 +196,22 @@ export async function pushQueuedMutationsWithCompletions(
       try {
         const result = await api.completeMission(mutation.entityId, completion);
         if (result.status === 'completed') {
+          if (onCompletionSettlement !== undefined && result.totalXp === undefined) {
+            throw new Error('completion_total_xp_missing');
+          }
+          if (result.totalXp !== undefined) {
+            onCompletionSettlement?.({
+              mutationId: mutation.mutationId,
+              occurrenceId: mutation.entityId,
+              status: 'completed',
+              awardedXp: result.reward.awardedXp,
+              totalXp: result.totalXp,
+            });
+          }
           acceptedMutationIds.push(mutation.mutationId);
           continue;
         }
+        reportAlreadyCompleted(onCompletionSettlement, mutation);
         conflicts.push({
           kind: 'mission_completed_elsewhere',
           mutationId: mutation.mutationId,
@@ -178,6 +220,9 @@ export async function pushQueuedMutationsWithCompletions(
       } catch (error) {
         const conflict = permanentCompletionConflict(error, mutation);
         if (conflict === null) throw error;
+        if (conflict.kind === 'mission_completed_elsewhere') {
+          reportAlreadyCompleted(onCompletionSettlement, mutation);
+        }
         conflicts.push(conflict);
       }
       break;
@@ -198,6 +243,7 @@ export function createAuthenticatedSyncApi({
   baseUrl,
   accessToken,
   fetcher = fetch,
+  onCompletionSettlement,
 }: AuthenticatedSyncApiOptions): AuthenticatedSyncApi {
   if (accessToken.length === 0) throw new TypeError('Access token must not be empty.');
   const root = normalizedBaseUrl(baseUrl);
@@ -268,6 +314,7 @@ export function createAuthenticatedSyncApi({
       return pushQueuedMutationsWithCompletions(
         { completeMission, push: pushOrdinaryMutations },
         mutations,
+        onCompletionSettlement,
       );
     },
 
