@@ -30,6 +30,9 @@ describe('MTS-069 Google refresh-token encryption', () => {
     const cipher = createGoogleCalendarTokenCipher(key);
     const ciphertext = await cipher.encrypt('refresh-token');
     const [version, nonce, tag, encrypted] = ciphertext.split('.');
+    if (!version || !nonce || !tag || !encrypted) {
+      throw new Error('Ciphertext fixture does not contain the expected four components');
+    }
     const tampered = `${version}.${nonce}.${tag}.${encrypted}A`;
 
     await expect(cipher.decrypt(tampered)).rejects.toThrow();
