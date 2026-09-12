@@ -4,9 +4,17 @@ import { AppState, StyleSheet, Text, View, useColorScheme } from 'react-native';
 import { space, typography } from '@misyra/design-tokens';
 import { notificationSettingsCatalogs } from '@misyra/localization';
 
-import { PrimaryButton, Screen, TopBar, themeColors, type ColorScheme } from '../design-system/index.js';
+import {
+  PrimaryButton,
+  Screen,
+  TopBar,
+  themeColors,
+  type ColorScheme,
+} from '../design-system/index.js';
 import { useAppLanguage } from '../localization/use-app-language.js';
-import { rootNotificationPermissionService } from '../notifications/expo-notification-permission.js';
+import {
+  rootNotificationPermissionService,
+} from '../notifications/expo-notification-permission.js';
 import type { NotificationPermissionStatus } from '../notifications/notification-permission.js';
 import { createNotificationSettingsModel } from './notification-settings-model.js';
 
@@ -31,7 +39,10 @@ export function SettingsRouteScreen() {
 
   const catalog = notificationSettingsCatalogs[language];
   const model = useMemo(
-    () => (permission === null ? null : createNotificationSettingsModel({ messages: catalog, permission })),
+    () =>
+      permission === null
+        ? null
+        : createNotificationSettingsModel({ messages: catalog, permission }),
     [catalog, permission],
   );
 
