@@ -113,14 +113,21 @@ export function createGoogleCalendarConnectionService(input: {
     async startOAuth(accountId, request) {
       const state = stateFactory();
       const currentTime = now();
-      await input.store.saveOAuthState({
-        accountId,
-        stateHash: hashOAuthState(state),
-        expiresAt: new Date(currentTime.getTime() + stateTtlMs),
-        consumedAt: null,
-        initialSyncDirection: request.initialSyncDirection,
-        selectedCalendarId: request.selectedCalendarId ?? null,
-      });
+      try {
+        await input.store.saveOAuthState({
+          accountId,
+          stateHash: hashOAuthState(state),
+          expiresAt: new Date(currentTime.getTime() + stateTtlMs),
+          consumedAt: null,
+          initialSyncDirection: request.initialSyncDirection,
+          selectedCalendarId: request.selectedCalendarId ?? null,
+        });
+      } catch (error) {
+        if (isConnectionExistsError(error)) {
+          throw new GoogleCalendarOAuthError('connection_exists');
+        }
+        throw providerError();
+      }
 
       return {
         authorizationUrl: input.provider.buildAuthorizationUrl({ state }),
