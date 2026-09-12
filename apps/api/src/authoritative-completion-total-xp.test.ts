@@ -107,7 +107,12 @@ describe('MTS-061 authoritative completion total XP', () => {
     ]);
 
     expect(results.every((result) => result.status === 'completed')).toBe(true);
-    const totals = results.map((result) => result.totalXp).sort((left, right) => left - right);
+    const totals = results
+      .map((result) => {
+        if (result.totalXp === undefined) throw new Error('completed_result_missing_total_xp');
+        return result.totalXp;
+      })
+      .sort((left, right) => left - right);
     expect(totals).toEqual([100, 200]);
   });
 });
