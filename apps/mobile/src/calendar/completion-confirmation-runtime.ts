@@ -6,6 +6,7 @@ export type ForegroundCompletionConfirmationEvent = Readonly<{
 
 export type ForegroundCompletionRequest = Readonly<{
   occurrenceId: string;
+  mutationId: string;
 }>;
 
 type CompletionConfirmationListener = (event: ForegroundCompletionConfirmationEvent) => void;
