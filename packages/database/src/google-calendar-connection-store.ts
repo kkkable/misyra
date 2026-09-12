@@ -157,7 +157,7 @@ export function createPostgresGoogleCalendarConnectionStore(pool: Pool) {
         if (!row) throw new Error('connection insert returned no row');
         return mapConnection(row);
       } catch (error) {
-        if (isUniqueViolation(error)) throw new Error('connection_exists');
+        if (isUniqueViolation(error)) throw new Error('connection_exists', { cause: error });
         throw error;
       }
     },
