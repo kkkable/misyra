@@ -7,10 +7,12 @@ import {
 
 function deferred() {
   let resolve;
-  const promise = new Promise((next) => {
+  let reject;
+  const promise = new Promise((next, fail) => {
     resolve = next;
+    reject = fail;
   });
-  return { promise, resolve };
+  return { promise, reject, resolve };
 }
 
 // prettier-ignore
@@ -49,6 +51,30 @@ describe('MTS-065 notification rebuild runtime', () => {
 
     expect(rebuild).toHaveBeenCalledTimes(2);
     expect(rebuild.mock.calls[0]?.[0]).toEqual(['mission-change']);
+    expect(rebuild.mock.calls[1]?.[0]).toEqual(['synchronization', 'time-zone-change']);
+  });
+
+  it('does not launch an implicit retry after a failed rebuild', async () => {
+    const firstRun = deferred();
+    const rebuild = vi.fn(async () => undefined);
+    rebuild.mockImplementationOnce(async () => firstRun.promise);
+    const runtime = createNotificationRebuildCoordinator({ rebuild });
+
+    const first = runtime.request('mission-change');
+    await Promise.resolve();
+    const queued = runtime.request('synchronization');
+    firstRun.reject(new Error('offline'));
+
+    await expect(first).rejects.toThrow('offline');
+    await expect(queued).rejects.toThrow('offline');
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(rebuild).toHaveBeenCalledTimes(1);
+
+    await runtime.request('time-zone-change');
+
+    expect(rebuild).toHaveBeenCalledTimes(2);
     expect(rebuild.mock.calls[1]?.[0]).toEqual(['synchronization', 'time-zone-change']);
   });
 
