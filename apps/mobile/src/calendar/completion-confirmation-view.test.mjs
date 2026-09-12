@@ -4,13 +4,14 @@ import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('react-native', async () => {
   const { createElement: createReactElement } = await import('react');
-  const host = (name) => ({ children, ...props }) => createReactElement(name, props, children);
-  const Pressable = ({ children, ...props }) =>
-    createReactElement(
-      'Pressable',
-      props,
-      typeof children === 'function' ? children({ pressed: false }) : children,
-    );
+  const host = (name) => {
+    const Host = ({ children, ...props }) => createReactElement(name, props, children);
+    return Host;
+  };
+  const Pressable = ({ children, ...props }) => {
+    const content = typeof children === 'function' ? children({ pressed: false }) : children;
+    return createReactElement('Pressable', props, content);
+  };
 
   class AnimatedValue {
     constructor(value) {
@@ -58,6 +59,10 @@ function render(element) {
   return renderer;
 }
 
+function findByTestId(renderer, testID) {
+  return renderer.root.findByProps({ testID });
+}
+
 const event = Object.freeze({
   occurrenceId: '11111111-1111-4111-8111-111111111111',
   awardedXp: 86,
@@ -84,12 +89,10 @@ describe('MTS-061 compact completion confirmation', () => {
       ),
     );
 
-    const confirmation = renderer.root.findByProps({ testID: 'completion-confirmation' });
-    const message = renderer.root.findByProps({ testID: 'completion-confirmation-message' });
-    const doneButton = renderer.root.findByProps({ testID: 'completion-confirmation-done' });
-    const storyButton = renderer.root.findByProps({
-      testID: 'completion-confirmation-create-story',
-    });
+    const confirmation = findByTestId(renderer, 'completion-confirmation');
+    const message = findByTestId(renderer, 'completion-confirmation-message');
+    const doneButton = findByTestId(renderer, 'completion-confirmation-done');
+    const storyButton = findByTestId(renderer, 'completion-confirmation-create-story');
 
     expect(confirmation).toBeDefined();
     expect(message.props.children).toBe('Mission complete · +86 XP · Level 3');
@@ -118,11 +121,9 @@ describe('MTS-061 compact completion confirmation', () => {
       ),
     );
 
-    const message = renderer.root.findByProps({ testID: 'completion-confirmation-message' });
-    const doneButton = renderer.root.findByProps({ testID: 'completion-confirmation-done' });
-    const storyButton = renderer.root.findByProps({
-      testID: 'completion-confirmation-create-story',
-    });
+    const message = findByTestId(renderer, 'completion-confirmation-message');
+    const doneButton = findByTestId(renderer, 'completion-confirmation-done');
+    const storyButton = findByTestId(renderer, 'completion-confirmation-create-story');
     const confetti = renderer.root.findAllByProps({ testID: 'completion-confirmation-confetti' });
 
     expect(message.props.children).toBe('任務完成 · 0 XP');
