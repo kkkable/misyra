@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { createCompletionSettlementChannel } from './completion-settlement-runtime.js';
+import {
+  COMPLETION_SETTLEMENT_RETENTION_LIMIT,
+  createCompletionSettlementChannel,
+} from './completion-settlement-runtime.js';
 
 const settlement = Object.freeze({
   mutationId: '11111111-1111-4111-8111-111111111111',
@@ -21,5 +24,22 @@ describe('MTS-061 completion settlement runtime', () => {
     expect(lateListener).not.toHaveBeenCalled();
     expect(channel.consume(settlement.mutationId)).toEqual(settlement);
     expect(channel.consume(settlement.mutationId)).toBeNull();
+  });
+
+  it('bounds unconsumed transient settlements to the newest entries', () => {
+    const channel = createCompletionSettlementChannel();
+    const settlements = Array.from(
+      { length: COMPLETION_SETTLEMENT_RETENTION_LIMIT + 1 },
+      (_, index) => ({
+        mutationId: `mutation-${index}`,
+        occurrenceId: `occurrence-${index}`,
+        status: 'already_completed',
+      }),
+    );
+
+    for (const item of settlements) channel.publish(item);
+
+    expect(channel.consume(settlements[0].mutationId)).toBeNull();
+    expect(channel.consume(settlements.at(-1).mutationId)).toEqual(settlements.at(-1));
   });
 });
