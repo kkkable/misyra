@@ -70,18 +70,15 @@ describe('MTS-069 executable Google calendar composition', () => {
     await server.close();
   });
 
-  it(
-    'uses local-safe fixtures but requires explicit production Google calendar configuration',
-    () => {
-      const local = resolveGoogleCalendarStartupConfiguration({});
-      expect(local.clientId).toBe('fixture-google-calendar-client-id');
-      expect(local.clientSecret).toBe('fixture-google-calendar-client-secret');
-      expect(local.redirectUri).toBe('http://127.0.0.1:3000/v1/calendars/google/callback');
-      expect(local.encryptionKey).toHaveLength(32);
+  it('requires production Google calendar configuration with local-safe fixtures', () => {
+    const local = resolveGoogleCalendarStartupConfiguration({});
+    expect(local.clientId).toBe('fixture-google-calendar-client-id');
+    expect(local.clientSecret).toBe('fixture-google-calendar-client-secret');
+    expect(local.redirectUri).toBe('http://127.0.0.1:3000/v1/calendars/google/callback');
+    expect(local.encryptionKey).toHaveLength(32);
 
-      expect(() =>
-        resolveGoogleCalendarStartupConfiguration({ NODE_ENV: 'production' }),
-      ).toThrow('Missing required environment variable: GOOGLE_CALENDAR_CLIENT_ID');
-    },
-  );
+    expect(() => resolveGoogleCalendarStartupConfiguration({ NODE_ENV: 'production' })).toThrow(
+      'Missing required environment variable: GOOGLE_CALENDAR_CLIENT_ID',
+    );
+  });
 });
