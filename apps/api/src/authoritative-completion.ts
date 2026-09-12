@@ -30,6 +30,7 @@ export type AuthoritativeCompletionResult = Readonly<{
     proofBonusXp: number;
     awardedXp: number;
   }>;
+  totalXp?: number;
 }>;
 
 export type CompletionRejectionReason =
@@ -469,6 +470,7 @@ export async function completeMissionAuthoritatively(
         completionType: completion.completionType,
         actionTime: completion.actionTime.toISOString(),
         reward: Object.freeze({ baseXp, proofBonusXp, awardedXp }),
+        totalXp: progressProjection.totalXp,
       });
     },
   });
