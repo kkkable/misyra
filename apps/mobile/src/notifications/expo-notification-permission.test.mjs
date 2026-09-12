@@ -10,6 +10,14 @@ const state = vi.hoisted(() => ({
   },
 }));
 
+vi.mock('expo', () => ({
+  PermissionStatus: {
+    DENIED: 'denied',
+    GRANTED: 'granted',
+    UNDETERMINED: 'undetermined',
+  },
+}));
+
 vi.mock('expo-notifications', () => ({
   AndroidImportance: { DEFAULT: 3 },
   IosAuthorizationStatus: {
