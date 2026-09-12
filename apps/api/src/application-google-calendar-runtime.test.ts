@@ -79,9 +79,9 @@ describe('MTS-069 executable Google calendar composition', () => {
       expect(local.redirectUri).toBe('http://127.0.0.1:3000/v1/calendars/google/callback');
       expect(local.encryptionKey).toHaveLength(32);
 
-      expect(() => resolveGoogleCalendarStartupConfiguration({ NODE_ENV: 'production' })).toThrow(
-        'Missing required environment variable: GOOGLE_CALENDAR_CLIENT_ID',
-      );
+      expect(() =>
+        resolveGoogleCalendarStartupConfiguration({ NODE_ENV: 'production' }),
+      ).toThrow('Missing required environment variable: GOOGLE_CALENDAR_CLIENT_ID');
     },
   );
 });
