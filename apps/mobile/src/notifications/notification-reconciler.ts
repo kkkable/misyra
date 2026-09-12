@@ -53,7 +53,9 @@ function parseInstant(value: string, label: string): number {
   return parsed;
 }
 
-function validateWindow(window: ReconcileWindow): Readonly<{ nowMs: number; horizonEndMs: number }> {
+function validateWindow(
+  window: ReconcileWindow,
+): Readonly<{ nowMs: number; horizonEndMs: number }> {
   const nowMs = parseInstant(window.now, 'Notification reconciliation now');
   const horizonEndMs = parseInstant(window.horizonEnd, 'Notification horizon end');
   if (horizonEndMs <= nowMs) throw new RangeError('notification_horizon_must_be_future');
