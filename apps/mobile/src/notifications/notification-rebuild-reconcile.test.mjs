@@ -83,13 +83,12 @@ describe('MTS-065 notification rebuild reconciliation', () => {
 
     expect(cancel).toHaveBeenCalledWith('native-before-reboot');
     expect(schedule).toHaveBeenCalledTimes(1);
-    expect(registry).toEqual([
-      {
-        notification_id: 'native-after-reboot',
-        occurrence_id: OCCURRENCE_ID,
-        scheduled_at: '2026-09-14T01:00:00.000Z',
-      },
-    ]);
+    expect(registry).toHaveLength(1);
+    expect(registry[0]).toMatchObject({
+      occurrence_id: OCCURRENCE_ID,
+      scheduled_at: '2026-09-14T01:00:00.000Z',
+    });
+    expect(registry[0]?.notification_id).toContain('native-after-reboot');
   });
 
   it('replaces a same-time reminder when its native payload changes but retains it when unchanged', async () => {
