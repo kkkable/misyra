@@ -41,6 +41,10 @@ function timedMission(id, startMinute) {
   };
 }
 
+function hostPressable(renderer, testID) {
+  return renderer.root.find((node) => node.type === 'Pressable' && node.props.testID === testID);
+}
+
 describe('MTS-064 Calendar highlights from combined notifications', () => {
   it('draws a focus ring around every highlighted timed mission', () => {
     let renderer;
@@ -58,7 +62,7 @@ describe('MTS-064 Calendar highlights from combined notifications', () => {
     });
 
     for (const id of ['first', 'second']) {
-      const card = renderer.root.findByProps({ testID: `calendar-mission-card-${id}` });
+      const card = hostPressable(renderer, `calendar-mission-card-${id}`);
       expect(card.props.style).toEqual(
         expect.arrayContaining([expect.objectContaining({ borderWidth: 2 })]),
       );
@@ -86,7 +90,7 @@ describe('MTS-064 Calendar highlights from combined notifications', () => {
 
     expect(renderer.root.findAllByProps({ testID: 'calendar-all-day-more' })).toHaveLength(0);
     for (const id of ['fourth', 'fifth']) {
-      const card = renderer.root.findByProps({ testID: `calendar-all-day-mission-${id}` });
+      const card = hostPressable(renderer, `calendar-all-day-mission-${id}`);
       expect(card.props.accessibilityState).toEqual({ selected: true });
       expect(card.props.style).toEqual(
         expect.arrayContaining([expect.objectContaining({ borderWidth: 2 })]),
