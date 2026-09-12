@@ -48,6 +48,7 @@ function renderScreen(state, overrides = {}) {
   return { onBack, onConfirm, onDirectionChoice, renderer };
 }
 
+// prettier-ignore
 describe('MTS-068 rendered calendar connection direction flow', () => {
   it('offers exactly the two approved initial directions without duplicate matching or sync-status UI', () => {
     const { onDirectionChoice, renderer } = renderScreen({
