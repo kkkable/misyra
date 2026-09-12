@@ -9,6 +9,7 @@ import {
   createAuthenticatedSyncRuntime,
   createSyncSessionProvider,
 } from './authenticated-sync-runtime.js';
+import { completionSettlementChannel } from './completion-settlement-runtime.js';
 
 const installationStore = {
   getItem: (key: string) => SecureStore.getItemAsync(key),
@@ -61,6 +62,9 @@ export const rootSyncRuntime = createAuthenticatedSyncRuntime({
     createAuthenticatedSyncApi({
       baseUrl: getAuthApiBaseUrl(),
       accessToken: session.accessToken,
+      onCompletionSettlement: (settlement) => {
+        completionSettlementChannel.publish(settlement);
+      },
     }),
   generateInstallationId,
   deviceMetadata,
