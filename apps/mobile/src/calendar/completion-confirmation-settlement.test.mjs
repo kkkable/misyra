@@ -1,10 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { createCompletionSettlementChannel } from '../sync/completion-settlement-runtime.js';
-import {
-  createCompletionConfirmationChannel,
-  type ForegroundCompletionRequest,
-} from './completion-confirmation-runtime.js';
+import { createCompletionConfirmationChannel } from './completion-confirmation-runtime.js';
 import { settleForegroundCompletionRequest } from './completion-confirmation-settlement.js';
 
 const request = Object.freeze({
