@@ -84,9 +84,14 @@ function firstRouteParam(value: string | string[] | undefined): string | undefin
 function parseNotificationMissionIds(value: string | string[] | undefined): readonly string[] {
   const text = firstRouteParam(value);
   if (text === undefined) return [];
-  return [...new Set(text.split(',').map((item) => item.trim()).filter((item) => item.length > 0))].sort(
-    (left, right) => left.localeCompare(right),
-  );
+  return [
+    ...new Set(
+      text
+        .split(',')
+        .map((item) => item.trim())
+        .filter((item) => item.length > 0),
+    ),
+  ].sort((left, right) => left.localeCompare(right));
 }
 
 export interface CalendarSearchFocusTarget {
