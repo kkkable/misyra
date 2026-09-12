@@ -23,12 +23,10 @@ export function MissionNotificationResponseBridge() {
       return navigated;
     };
 
-    void Notifications.getLastNotificationResponseAsync()
-      .then(async (response) => {
-        if (response === null || !handleResponse(response)) return;
-        await Notifications.clearLastNotificationResponseAsync();
-      })
-      .catch(() => undefined);
+    const lastResponse = Notifications.getLastNotificationResponse();
+    if (lastResponse !== null && handleResponse(lastResponse)) {
+      Notifications.clearLastNotificationResponse();
+    }
 
     const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
       handleResponse(response);
