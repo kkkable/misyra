@@ -51,7 +51,7 @@ export function CalendarRouteWithCompletion() {
   const language = useAppLanguage();
   const nativeColorScheme = useColorScheme();
   const colorScheme: ColorScheme = nativeColorScheme === 'dark' ? 'dark' : 'light';
-  const numberLocale = getLocales()[0]?.languageTag ?? language;
+  const numberLocale = getLocales()[0].languageTag;
   const [confirmation, setConfirmation] = useState<ForegroundCompletionConfirmationEvent | null>(
     null,
   );
