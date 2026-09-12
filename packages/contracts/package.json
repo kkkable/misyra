@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./external-calendar": "./src/external-calendar.ts",
     "./v1": "./src/v1/index.ts",
     "./v1/api": "./src/v1/api.ts",
     "./v1/events": "./src/v1/events.ts",
