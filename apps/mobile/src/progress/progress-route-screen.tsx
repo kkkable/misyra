@@ -27,7 +27,7 @@ function resolvedColorScheme(value: ReturnType<typeof useColorScheme>): ColorSch
 export function ProgressRouteScreen() {
   const language = useAppLanguage();
   const colorScheme = resolvedColorScheme(useColorScheme());
-  const numberLocale = getLocales()[0]?.languageTag ?? language;
+  const numberLocale = getLocales()[0].languageTag;
   const [snapshot, setSnapshot] = useState<ProgressSnapshot>(EMPTY_PROGRESS);
   const [recent, setRecent] = useState<readonly ProgressRecentItem[]>([]);
 
