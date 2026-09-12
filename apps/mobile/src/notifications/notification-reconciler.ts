@@ -1,4 +1,8 @@
-import { createMissionOccurrence, resolveLocalDateTimeInstant } from '@misyra/domain';
+import {
+  createMissionOccurrence,
+  resolveLocalDateTimeInstant,
+  type MissionOccurrenceInput,
+} from '@misyra/domain';
 import { formatMissionStartsNow, type MissionNotificationLocale } from '@misyra/localization';
 
 const MAX_NOTIFICATION_HORIZON_MS = 30 * 24 * 60 * 60 * 1000;
@@ -99,7 +103,7 @@ async function loadDesiredNotifications(
 
   const desired: DesiredNotification[] = [];
   for (const row of rows) {
-    const parsed: unknown = JSON.parse(row.payload_json);
+    const parsed = JSON.parse(row.payload_json) as MissionOccurrenceInput;
     const occurrence = createMissionOccurrence(parsed);
     if (!isEligibleForReminder(occurrence)) continue;
 
