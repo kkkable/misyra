@@ -20,21 +20,28 @@ describe('MTS-064 notification tap navigation', () => {
     });
   });
 
-  it('opens the selected Calendar day and highlights every mission in a combined notification', () => {
-    expect(
-      resolveMissionNotificationNavigation({
-        localDate: '2026-09-14',
-        occurrenceIds: [SECOND_ID, FIRST_ID],
-      }),
-    ).toEqual({
-      kind: 'calendar-group',
-      date: '2026-09-14',
-      occurrenceIds: [FIRST_ID, SECOND_ID],
-    });
-  });
+  it(
+    'opens the selected Calendar day and highlights every mission in a combined notification',
+    () => {
+      expect(
+        resolveMissionNotificationNavigation({
+          localDate: '2026-09-14',
+          occurrenceIds: [SECOND_ID, FIRST_ID],
+        }),
+      ).toEqual({
+        kind: 'calendar-group',
+        date: '2026-09-14',
+        occurrenceIds: [FIRST_ID, SECOND_ID],
+      });
+    },
+  );
 
   it('rejects malformed notification payloads instead of navigating', () => {
-    expect(resolveMissionNotificationNavigation({ localDate: '2026-09-14', occurrenceIds: [] })).toBeNull();
-    expect(resolveMissionNotificationNavigation({ localDate: 'bad-date', occurrenceIds: [FIRST_ID] })).toBeNull();
+    expect(
+      resolveMissionNotificationNavigation({ localDate: '2026-09-14', occurrenceIds: [] }),
+    ).toBeNull();
+    expect(
+      resolveMissionNotificationNavigation({ localDate: 'bad-date', occurrenceIds: [FIRST_ID] }),
+    ).toBeNull();
   });
 });
