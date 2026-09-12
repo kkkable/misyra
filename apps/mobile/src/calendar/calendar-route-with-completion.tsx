@@ -21,6 +21,7 @@ async function settleForegroundCompletion(request: ForegroundCompletionRequest):
   await settleForegroundCompletionRequest({
     request,
     runSync: () => rootSyncRuntime.run(),
+    consumeSettlement: (mutationId) => completionSettlementChannel.consume(mutationId),
     subscribeSettlement: (listener) => completionSettlementChannel.subscribe(listener),
     publishConfirmation: (event) => {
       completionConfirmationChannel.publish(event);
