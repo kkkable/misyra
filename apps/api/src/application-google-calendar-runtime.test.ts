@@ -15,6 +15,11 @@ type FakeQueryResult = {
   rowCount: number;
 };
 
+type ConnectResponse = Readonly<{
+  ok: boolean;
+  payload: Readonly<{ authorizationUrl: string }>;
+}>;
+
 describe('MTS-069 executable Google calendar composition', () => {
   it('mounts the authenticated connect route through the PostgreSQL store', async () => {
     const query = vi.fn((sql: string): Promise<FakeQueryResult> => {
@@ -26,7 +31,7 @@ describe('MTS-069 executable Google calendar composition', () => {
     const pool = { query } as unknown as Pool;
     const provider: GoogleCalendarOAuthGateway = {
       buildAuthorizationUrl: vi.fn(
-        ({ state }) => `https://accounts.google.test/oauth?state=${state}`,
+        ({ state }: { state: string }) => `https://accounts.google.test/oauth?state=${state}`,
       ),
       exchangeCode: vi.fn(() => Promise.reject(new Error('not used'))),
       createDedicatedCalendar: vi.fn(() => Promise.reject(new Error('not used'))),
@@ -54,14 +59,11 @@ describe('MTS-069 executable Google calendar composition', () => {
         selectedCalendarId: 'primary',
       },
     });
+    const body = response.json() as ConnectResponse;
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toMatchObject({
-      ok: true,
-      payload: {
-        authorizationUrl: expect.stringContaining('https://accounts.google.test/oauth'),
-      },
-    });
+    expect(body.ok).toBe(true);
+    expect(body.payload.authorizationUrl).toContain('https://accounts.google.test/oauth');
     expect(query).toHaveBeenCalledOnce();
     expect(provider.buildAuthorizationUrl).toHaveBeenCalledOnce();
     await server.close();
