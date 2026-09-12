@@ -10,6 +10,7 @@ import {
 } from './auth-session.js';
 import { createSecureSessionStorage } from './secure-session-storage.js';
 import { createSignOutCleanup } from './sign-out-cleanup.js';
+import { rootMissionNotificationScheduler } from '../notifications/expo-mission-notifications.js';
 import { openMobileDatabase } from '../storage/database.js';
 
 let providerGateway: ProviderSignInGateway | null = null;
@@ -57,6 +58,13 @@ export const rootAuthController = createAuthSessionController({
   storage: rootAuthStorage,
   provider: configuredProviderGateway,
   api: configuredAuthApi,
-  cleanup: createSignOutCleanup({ openDatabase: openMobileDatabase }),
+  cleanup: createSignOutCleanup({
+    openDatabase: openMobileDatabase,
+    hooks: {
+      cancelNotifications: async () => {
+        await rootMissionNotificationScheduler.cancelAll();
+      },
+    },
+  }),
   messages: { signInFailed: rootAuthMessages.signInFailed },
 });
