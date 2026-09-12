@@ -88,7 +88,6 @@ export async function applyProgressProjectionChange(
     progress.updatedAt,
   );
 
-  await transaction.runAsync('DELETE FROM completion_summaries WHERE account_id = ?', accountId);
   for (const item of progress.recent) {
     await transaction.runAsync(
       `INSERT INTO completion_summaries
