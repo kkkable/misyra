@@ -12,9 +12,7 @@ import {
   type ColorScheme,
 } from '../design-system/index.js';
 import { useAppLanguage } from '../localization/use-app-language.js';
-import {
-  rootNotificationPermissionService,
-} from '../notifications/expo-notification-permission.js';
+import { rootNotificationPermissionService } from '../notifications/expo-notification-permission.js';
 import type { NotificationPermissionStatus } from '../notifications/notification-permission.js';
 import { createNotificationSettingsModel } from './notification-settings-model.js';
 
