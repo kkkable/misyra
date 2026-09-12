@@ -99,9 +99,10 @@ export function CompletionConfirmation({
     return () => animation.stop();
   }, [model.motion.durationMs, progress]);
 
-  const translateY = model.motion.transition === 'directional'
-    ? progress.interpolate({ inputRange: [0, 1], outputRange: [space[4], 0] })
-    : 0;
+  const translateY =
+    model.motion.transition === 'directional'
+      ? progress.interpolate({ inputRange: [0, 1], outputRange: [space[4], 0] })
+      : 0;
   const scale = model.motion.scaleLevel
     ? progress.interpolate({ inputRange: [0, 1], outputRange: [0.96, 1] })
     : 1;
@@ -187,6 +188,6 @@ const styles = StyleSheet.create({
   confettiDot: {
     width: space[2],
     height: space[2],
-    borderRadius: radius.full,
+    borderRadius: radius.pill,
   },
 });
