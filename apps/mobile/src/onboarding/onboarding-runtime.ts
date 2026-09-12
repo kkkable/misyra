@@ -25,8 +25,9 @@ let notificationPermissionRequest: (() => Promise<PermissionResult>) | null = nu
 let calendarPermissionRequest: ((provider: CalendarProvider) => Promise<PermissionResult>) | null =
   null;
 let activeCalendarConnectionCheck: () => Promise<boolean> = async () => false;
-let confirmedCalendarConnectionIntent: (intent: CalendarConnectionIntent) => Promise<void> = async () =>
-  undefined;
+let confirmedCalendarConnectionIntent: (
+  intent: CalendarConnectionIntent,
+) => Promise<void> = async () => undefined;
 
 export function configureOnboardingPermissionGateway(gateway: OnboardingPermissionGateway) {
   notificationPermissionRequest = () => gateway.requestNotifications();
