@@ -1,9 +1,6 @@
 import { duration } from '@misyra/design-tokens';
 import { calculateLevelProgress } from '@misyra/domain';
-import {
-  completionConfirmationCatalogs,
-  type LocalizationLocale,
-} from '@misyra/localization';
+import { completionConfirmationCatalogs, type LocalizationLocale } from '@misyra/localization';
 
 export const COMPLETION_CONFIRMATION_MOTION_MS = duration.celebrationMin;
 
