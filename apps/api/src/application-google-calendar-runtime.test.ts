@@ -28,7 +28,9 @@ describe('MTS-069 executable Google calendar composition', () => {
     });
     const pool = { query } as unknown as Pool;
     const provider: GoogleCalendarOAuthGateway = {
-      buildAuthorizationUrl: vi.fn(({ state }) => `https://accounts.google.test/oauth?state=${state}`),
+      buildAuthorizationUrl: vi.fn(
+        ({ state }) => `https://accounts.google.test/oauth?state=${state}`,
+      ),
       exchangeCode: vi.fn(() => Promise.reject(new Error('not used'))),
       createDedicatedCalendar: vi.fn(() => Promise.reject(new Error('not used'))),
       revokeRefreshToken: vi.fn(() => Promise.reject(new Error('not used'))),
@@ -59,7 +61,9 @@ describe('MTS-069 executable Google calendar composition', () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
       ok: true,
-      payload: { authorizationUrl: expect.stringContaining('https://accounts.google.test/oauth') },
+      payload: {
+        authorizationUrl: expect.stringContaining('https://accounts.google.test/oauth'),
+      },
     });
     expect(query).toHaveBeenCalledOnce();
     expect(provider.buildAuthorizationUrl).toHaveBeenCalledOnce();

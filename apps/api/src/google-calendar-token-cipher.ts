@@ -36,9 +36,12 @@ export function createGoogleCalendarTokenCipher(key: Uint8Array): GoogleCalendar
       const encrypted = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
       const authTag = cipher.getAuthTag();
       return Promise.resolve(
-        [VERSION, nonce.toString('base64url'), authTag.toString('base64url'), encrypted.toString('base64url')].join(
-          '.',
-        ),
+        [
+          VERSION,
+          nonce.toString('base64url'),
+          authTag.toString('base64url'),
+          encrypted.toString('base64url'),
+        ].join('.'),
       );
     },
 
@@ -61,7 +64,9 @@ export function createGoogleCalendarTokenCipher(key: Uint8Array): GoogleCalendar
         });
         decipher.setAAD(ADDITIONAL_AUTHENTICATED_DATA);
         decipher.setAuthTag(authTag);
-        const plaintext = Buffer.concat([decipher.update(encrypted), decipher.final()]).toString('utf8');
+        const plaintext = Buffer.concat([decipher.update(encrypted), decipher.final()]).toString(
+          'utf8',
+        );
         return Promise.resolve(plaintext);
       } catch (error) {
         return Promise.reject(new Error('Google calendar token decryption failed', { cause: error }));

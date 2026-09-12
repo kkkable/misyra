@@ -40,7 +40,11 @@ async function providerFetch(
   }
 }
 
-async function providerJson(fetchImpl: typeof fetch, url: string, init: RequestInit): Promise<unknown> {
+async function providerJson(
+  fetchImpl: typeof fetch,
+  url: string,
+  init: RequestInit,
+): Promise<unknown> {
   const response = await providerFetch(fetchImpl, url, init);
   try {
     return await response.json();

@@ -92,7 +92,9 @@ export function createGoogleCalendarRoutes(
       path: '/calendars/disconnect',
       handler: async (request, _reply, auth) => {
         const body = parseDisconnectBody(request.body);
-        await runGoogleCalendarOperation(() => service.disconnect(auth.accountId, body.connectionId));
+        await runGoogleCalendarOperation(() =>
+          service.disconnect(auth.accountId, body.connectionId),
+        );
         return { disconnected: true as const };
       },
     },
