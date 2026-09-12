@@ -4,8 +4,12 @@ export type ForegroundCompletionConfirmationEvent = Readonly<{
   totalXp: number;
 }>;
 
+export type ForegroundCompletionRequest = Readonly<{
+  occurrenceId: string;
+}>;
+
 type CompletionConfirmationListener = (event: ForegroundCompletionConfirmationEvent) => void;
-type CompletionRequestListener = () => void;
+type CompletionRequestListener = (request: ForegroundCompletionRequest) => void;
 
 export function createCompletionConfirmationChannel() {
   const listeners = new Set<CompletionConfirmationListener>();
@@ -25,8 +29,8 @@ export function createCompletionConfirmationRequestChannel() {
   const listeners = new Set<CompletionRequestListener>();
 
   return Object.freeze({
-    publish(): void {
-      for (const listener of [...listeners]) listener();
+    publish(request: ForegroundCompletionRequest): void {
+      for (const listener of [...listeners]) listener(request);
     },
     subscribe(listener: CompletionRequestListener): () => void {
       listeners.add(listener);
