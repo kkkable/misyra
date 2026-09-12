@@ -2,6 +2,11 @@ import { createElement } from 'react';
 import { act, create } from 'react-test-renderer';
 import { describe, expect, it, vi } from 'vitest';
 
+vi.mock('expo-router', () => ({
+  router: { back: vi.fn() },
+  useLocalSearchParams: () => ({ id: '11111111-1111-4111-8111-111111111111' }),
+}));
+
 vi.mock('react-native', async () => {
   const { createElement: createReactElement } = await import('react');
   const Pressable = ({ children, ...props }) =>
