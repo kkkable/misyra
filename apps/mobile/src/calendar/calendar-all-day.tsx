@@ -60,6 +60,7 @@ function hiddenCountLabel(hiddenCount: number, language: LocalizationLocale): st
 
 interface AllDayMissionListProps {
   readonly colorScheme: ColorScheme;
+  readonly highlightedMissionIds?: readonly string[];
   readonly language?: LocalizationLocale;
   readonly missions: readonly AllDayMissionSummary[];
   readonly onMissionPress?: ((mission: AllDayMissionSummary) => void) | undefined;
@@ -69,6 +70,7 @@ interface AllDayMissionListProps {
 
 export function AllDayMissionList({
   colorScheme,
+  highlightedMissionIds,
   language = 'en',
   missions,
   onMissionPress,
@@ -83,11 +85,16 @@ export function AllDayMissionList({
   }, [selectedDate]);
 
   useEffect(() => {
-    if (selectedMissionId === undefined) return;
+    const focusedIds = new Set(highlightedMissionIds ?? []);
+    if (selectedMissionId !== undefined) focusedIds.add(selectedMissionId);
+    if (focusedIds.size === 0) return;
+
     const ordered = orderAllDayMissions(missions);
-    const index = ordered.findIndex((mission) => mission.id === selectedMissionId);
-    if (index >= COLLAPSED_CARD_LIMIT) setExpanded(true);
-  }, [missions, selectedMissionId]);
+    const hiddenFocusedMission = ordered
+      .slice(COLLAPSED_CARD_LIMIT)
+      .some((mission) => focusedIds.has(mission.id));
+    if (hiddenFocusedMission) setExpanded(true);
+  }, [highlightedMissionIds, missions, selectedMissionId]);
 
   const projection = visibleAllDayMissions(missions, expanded);
 
@@ -100,7 +107,8 @@ export function AllDayMissionList({
   return (
     <View style={styles.container} testID="calendar-all-day-list">
       {projection.missions.map((mission) => {
-        const selected = selectedMissionId === mission.id;
+        const selected =
+          selectedMissionId === mission.id || highlightedMissionIds?.includes(mission.id) === true;
         return (
           <Pressable
             accessibilityLabel={mission.title}
