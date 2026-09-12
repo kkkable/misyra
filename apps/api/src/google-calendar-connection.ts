@@ -36,6 +36,7 @@ export type GoogleCalendarConnectionStore = Readonly<{
     accountId: string,
     connectionId: string,
   ): Promise<Pick<GoogleCalendarConnectionRecord, 'id' | 'encryptedRefreshToken'> | null>;
+  clearDisconnectedRefreshToken(accountId: string, connectionId: string): Promise<void>;
 }>;
 
 export type GoogleCalendarOAuthGateway = Readonly<{
@@ -193,6 +194,7 @@ export function createGoogleCalendarConnectionService(input: {
       try {
         const refreshToken = await input.cipher.decrypt(connection.encryptedRefreshToken);
         await input.provider.revokeRefreshToken(refreshToken);
+        await input.store.clearDisconnectedRefreshToken(accountId, connectionId);
       } catch {
         throw providerError();
       }
