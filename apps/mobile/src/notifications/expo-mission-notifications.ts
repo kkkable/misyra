@@ -5,12 +5,10 @@ import type { MissionNotificationScheduler } from './notification-reconciler.js'
 export const rootMissionNotificationScheduler: MissionNotificationScheduler = Object.freeze({
   async schedule(request) {
     const data =
-      Array.isArray(request.occurrenceIds) &&
-      request.occurrenceIds.length > 0 &&
-      typeof request.localDate === 'string'
+      request.occurrenceIds.length > 0
         ? {
             localDate: request.localDate,
-            occurrenceIds: [...request.occurrenceIds],
+            occurrenceIds: Array.from(request.occurrenceIds),
           }
         : { occurrenceId: request.occurrenceId };
 
