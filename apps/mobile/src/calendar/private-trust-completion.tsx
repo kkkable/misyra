@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { router, useLocalSearchParams } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { radius, space, typography } from '@misyra/design-tokens';
@@ -7,7 +6,6 @@ import type { CompletionState, EvidenceState } from '@misyra/domain';
 import { localizationCatalogs, type LocalizationLocale } from '@misyra/localization';
 
 import { themeColors, type ColorScheme } from '../design-system/index.js';
-import { completionConfirmationRequestChannel } from './completion-confirmation-runtime.js';
 
 export type NoEvidenceCompletionMode = 'private' | 'trust';
 
@@ -19,11 +17,6 @@ type NoEvidenceCompletionState = Readonly<{
   evidenceState: EvidenceState;
   trustMode: boolean;
 }>;
-
-function routeOccurrenceId(value: string | string[] | undefined): string | null {
-  const candidate = Array.isArray(value) ? value[0] : value;
-  return typeof candidate === 'string' && candidate.trim().length > 0 ? candidate : null;
-}
 
 export function resolveNoEvidenceCompletionMode({
   lifecycle,
@@ -51,8 +44,6 @@ export function PrivateTrustCompletionPanel({
   mode,
   onConfirm,
 }: PrivateTrustCompletionPanelProps) {
-  const params = useLocalSearchParams<{ id?: string | string[] }>();
-  const occurrenceId = routeOccurrenceId(params.id);
   const [confirming, setConfirming] = useState(false);
   const colors = themeColors(colorScheme);
   const catalog = localizationCatalogs[language];
@@ -93,14 +84,7 @@ export function PrivateTrustCompletionPanel({
           accessibilityLabel={actionLabel}
           accessibilityRole="button"
           onPress={() => {
-            void Promise.resolve(onConfirm(mode))
-              .then(() => {
-                if (occurrenceId !== null) {
-                  completionConfirmationRequestChannel.publish({ occurrenceId });
-                }
-                router.back();
-              })
-              .catch(() => undefined);
+            void Promise.resolve(onConfirm(mode)).catch(() => undefined);
           }}
           style={[styles.primaryAction, { backgroundColor: colors.primary }]}
           testID="private-trust-completion-confirm"
