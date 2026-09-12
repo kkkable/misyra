@@ -28,7 +28,9 @@ export type CompletionConfirmationProps = Readonly<{
   onCompletionHaptic?: () => void;
 }>;
 
-const triggerCompletionHaptic = () => haptics.triggerNonBlocking('completion');
+const triggerCompletionHaptic = () => {
+  haptics.triggerNonBlocking('completion');
+};
 
 function confettiDots(model: CompletionConfirmationModel, colorScheme: ColorScheme) {
   if (!model.motion.showConfetti) return null;
@@ -93,7 +95,9 @@ export function CompletionConfirmation({
       useNativeDriver: true,
     });
     animation.start();
-    return () => animation.stop();
+    return () => {
+      animation.stop();
+    };
   }, [model.motion.durationMs, progress]);
 
   const translateY =
