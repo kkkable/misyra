@@ -67,7 +67,7 @@ export async function settleForegroundCompletionRequest(
     retainedAfterSync !== null && matchesRequest(retainedAfterSync, input.request)
       ? retainedAfterSync
       : matchingSettlements[0];
-  if (exactSettlement !== undefined && exactSettlement !== null) {
+  if (exactSettlement !== undefined) {
     publishCompletedSettlement(exactSettlement, input.publishConfirmation);
     return;
   }
