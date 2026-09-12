@@ -10,6 +10,8 @@ import { NotificationRebuildBridge } from '../src/notifications/notification-reb
 import { OnboardingGate } from '../src/onboarding/onboarding-gate.js';
 import {
   configureOnboardingNotificationPermissionRequest,
+  rootCalendarConnectionController,
+  rootCalendarConnectionMessages,
   rootOnboardingController,
   rootOnboardingMessages,
   rootOnboardingNotificationChannelName,
@@ -37,7 +39,12 @@ export default function RootLayout() {
       <SystemMotionPreferenceProvider>
         <AuthGate controller={rootAuthController} messages={rootAuthMessages}>
           <SyncRuntimeGate>
-            <OnboardingGate controller={rootOnboardingController} messages={rootOnboardingMessages}>
+            <OnboardingGate
+              calendarConnectionController={rootCalendarConnectionController}
+              calendarConnectionMessages={rootCalendarConnectionMessages}
+              controller={rootOnboardingController}
+              messages={rootOnboardingMessages}
+            >
               <NotificationRebuildBridge />
               <MissionNotificationResponseBridge />
               <Stack screenOptions={{ headerShown: false }}>

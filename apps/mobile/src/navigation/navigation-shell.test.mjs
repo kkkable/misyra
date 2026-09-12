@@ -60,6 +60,8 @@ vi.mock('../onboarding/onboarding-gate.js', async () => {
 
 vi.mock('../onboarding/onboarding-runtime.js', () => ({
   configureOnboardingNotificationPermissionRequest: vi.fn(),
+  rootCalendarConnectionController: {},
+  rootCalendarConnectionMessages: {},
   rootOnboardingController: {},
   rootOnboardingMessages: {},
   rootOnboardingNotificationChannelName: 'Notifications',
