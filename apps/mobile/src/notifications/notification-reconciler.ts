@@ -11,6 +11,7 @@ import {
 } from '@misyra/localization';
 
 const MAX_NOTIFICATION_HORIZON_MS = 30 * 24 * 60 * 60 * 1000;
+const REGISTRY_METADATA_PREFIX = 'misyra-registry:';
 const COMBINED_REGISTRY_PREFIX = 'misyra-combined:';
 
 export type MissionNotificationRequest = Readonly<{
@@ -60,6 +61,7 @@ type RegistryRow = Readonly<{
 type StoredNotificationIdentity = Readonly<{
   nativeNotificationId: string;
   occurrenceIds: readonly string[] | null;
+  payloadSignature: string | null;
 }>;
 
 type DesiredNotification = MissionNotificationRequest &
@@ -200,45 +202,96 @@ async function loadDesiredNotifications(
   return groupDesiredNotifications(candidates, locale);
 }
 
+function notificationPayloadSignature(notification: DesiredNotification): string {
+  return `${notification.localDate}\u0000${notification.body}`;
+}
+
 function encodeStoredNotificationId(
   nativeNotificationId: string,
   occurrenceIds: readonly string[],
+  payloadSignature: string,
 ): string {
-  if (occurrenceIds.length <= 1) return nativeNotificationId;
-  return `${COMBINED_REGISTRY_PREFIX}${encodeURIComponent(
-    JSON.stringify({ nativeNotificationId, occurrenceIds }),
+  return `${REGISTRY_METADATA_PREFIX}${encodeURIComponent(
+    JSON.stringify({ nativeNotificationId, occurrenceIds, payloadSignature }),
   )}`;
 }
 
-function decodeStoredNotificationId(value: string): StoredNotificationIdentity {
-  if (!value.startsWith(COMBINED_REGISTRY_PREFIX)) {
-    return Object.freeze({ nativeNotificationId: value, occurrenceIds: null });
-  }
+function invalidStoredNotificationIdentity(value: string): StoredNotificationIdentity {
+  return Object.freeze({
+    nativeNotificationId: value,
+    occurrenceIds: null,
+    payloadSignature: null,
+  });
+}
 
+function sortedOccurrenceIds(value: unknown, minimumLength: number): readonly string[] | null {
+  if (
+    !Array.isArray(value) ||
+    value.length < minimumLength ||
+    value.some((item) => typeof item !== 'string' || item.length === 0)
+  ) {
+    return null;
+  }
+  return Object.freeze(
+    [...new Set(value as string[])].sort((left, right) => left.localeCompare(right)),
+  );
+}
+
+function decodeRegistryMetadata(value: string): StoredNotificationIdentity {
+  try {
+    const decoded = JSON.parse(
+      decodeURIComponent(value.slice(REGISTRY_METADATA_PREFIX.length)),
+    ) as Readonly<{
+      nativeNotificationId?: unknown;
+      occurrenceIds?: unknown;
+      payloadSignature?: unknown;
+    }>;
+    const occurrenceIds = sortedOccurrenceIds(decoded.occurrenceIds, 1);
+    if (
+      typeof decoded.nativeNotificationId !== 'string' ||
+      decoded.nativeNotificationId.length === 0 ||
+      occurrenceIds === null ||
+      typeof decoded.payloadSignature !== 'string'
+    ) {
+      return invalidStoredNotificationIdentity(value);
+    }
+    return Object.freeze({
+      nativeNotificationId: decoded.nativeNotificationId,
+      occurrenceIds,
+      payloadSignature: decoded.payloadSignature,
+    });
+  } catch {
+    return invalidStoredNotificationIdentity(value);
+  }
+}
+
+function decodeLegacyCombinedNotificationId(value: string): StoredNotificationIdentity {
   try {
     const decoded = JSON.parse(
       decodeURIComponent(value.slice(COMBINED_REGISTRY_PREFIX.length)),
     ) as Readonly<{ nativeNotificationId?: unknown; occurrenceIds?: unknown }>;
+    const occurrenceIds = sortedOccurrenceIds(decoded.occurrenceIds, 2);
     if (
       typeof decoded.nativeNotificationId !== 'string' ||
       decoded.nativeNotificationId.length === 0 ||
-      !Array.isArray(decoded.occurrenceIds) ||
-      decoded.occurrenceIds.length < 2 ||
-      decoded.occurrenceIds.some((item) => typeof item !== 'string' || item.length === 0)
+      occurrenceIds === null
     ) {
-      return Object.freeze({ nativeNotificationId: value, occurrenceIds: null });
+      return invalidStoredNotificationIdentity(value);
     }
     return Object.freeze({
       nativeNotificationId: decoded.nativeNotificationId,
-      occurrenceIds: Object.freeze(
-        [...new Set(decoded.occurrenceIds as string[])].sort((left, right) =>
-          left.localeCompare(right),
-        ),
-      ),
+      occurrenceIds,
+      payloadSignature: null,
     });
   } catch {
-    return Object.freeze({ nativeNotificationId: value, occurrenceIds: null });
+    return invalidStoredNotificationIdentity(value);
   }
+}
+
+function decodeStoredNotificationId(value: string): StoredNotificationIdentity {
+  if (value.startsWith(REGISTRY_METADATA_PREFIX)) return decodeRegistryMetadata(value);
+  if (value.startsWith(COMBINED_REGISTRY_PREFIX)) return decodeLegacyCombinedNotificationId(value);
+  return invalidStoredNotificationIdentity(value);
 }
 
 function notificationSignature(scheduledAt: string, occurrenceIds: readonly string[]): string {
@@ -269,6 +322,7 @@ async function scheduleAndPersist(
   const storedNotificationId = encodeStoredNotificationId(
     nativeNotificationId,
     desired.occurrenceIds,
+    notificationPayloadSignature(desired),
   );
   const canonicalOccurrenceId = desired.occurrenceIds[0];
   if (canonicalOccurrenceId === undefined) throw new Error('notification_group_empty');
@@ -325,10 +379,12 @@ export function createMissionNotificationReconciler({
       const occurrenceIds = storedIdentity.occurrenceIds ?? Object.freeze([row.occurrence_id]);
       const canonicalOccurrenceId = occurrenceIds[0];
       const signature = notificationSignature(row.scheduled_at, occurrenceIds);
+      const desiredNotification = desiredBySignature.get(signature);
       const shouldRetain =
         input.forceReschedule !== true &&
         canonicalOccurrenceId === row.occurrence_id &&
-        desiredBySignature.has(signature) &&
+        desiredNotification !== undefined &&
+        storedIdentity.payloadSignature === notificationPayloadSignature(desiredNotification) &&
         !retainedSignatures.has(signature);
       if (shouldRetain) {
         retainedSignatures.add(signature);
