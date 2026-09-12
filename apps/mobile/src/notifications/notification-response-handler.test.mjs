@@ -39,9 +39,10 @@ describe('MTS-064 notification response routing', () => {
     });
   });
 
-  it('does not navigate for malformed notification data', () => {
+  it('does not navigate for malformed or missing notification data', () => {
     const navigate = vi.fn();
 
+    expect(handleMissionNotificationData(undefined, navigate)).toBe(false);
     expect(handleMissionNotificationData({ localDate: 'bad', occurrenceIds: [] }, navigate)).toBe(
       false,
     );
