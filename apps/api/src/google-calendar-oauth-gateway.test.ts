@@ -99,9 +99,7 @@ describe('MTS-069 concrete Google OAuth gateway', () => {
 
   it('rejects provider failures with a fixed redacted error', async () => {
     const fetchImpl = vi.fn(() =>
-      Promise.resolve(
-        new Response('provider diagnostic includes refresh-secret', { status: 500 }),
-      ),
+      Promise.resolve(new Response('provider diagnostic includes refresh-secret', { status: 500 })),
     );
     const gateway = createGoogleCalendarOAuthGateway({ ...configuration, fetchImpl });
 
