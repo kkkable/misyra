@@ -52,6 +52,7 @@ export function createCalendarConnectionFlowController(input: {
   gateway: CalendarConnectionFlowGateway;
 }): CalendarConnectionFlowController {
   let state: CalendarConnectionFlowState = { step: 'idle' };
+  let confirmationInFlight: Promise<CalendarConnectionFlowState> | null = null;
 
   const requireConfirmationState = () => {
     if (state.step !== 'confirm_initial' && state.step !== 'confirm_final') {
@@ -88,33 +89,42 @@ export function createCalendarConnectionFlowController(input: {
       return state;
     },
 
-    async confirm() {
+    confirm() {
+      if (confirmationInFlight !== null) return confirmationInFlight;
       const confirmationState = requireConfirmationState();
 
-      if (confirmationState.step === 'confirm_initial') {
-        state = {
-          ...confirmationState,
-          step: 'confirm_final',
-        };
-        return state;
-      }
+      const operation = Promise.resolve().then(async (): Promise<CalendarConnectionFlowState> => {
+        if (confirmationState.step === 'confirm_initial') {
+          state = {
+            ...confirmationState,
+            step: 'confirm_final',
+          };
+          return state;
+        }
 
-      if (await input.gateway.hasActiveConnection()) {
-        state = { step: 'blocked', reason: 'connection_exists' };
-        return state;
-      }
+        if (await input.gateway.hasActiveConnection()) {
+          state = { step: 'blocked', reason: 'connection_exists' };
+          return state;
+        }
 
-      await input.gateway.onConfirmed({
-        provider: confirmationState.provider,
-        initialSyncDirection: confirmationState.initialSyncDirection,
-        initialMigrationWindow: 'future_only',
-        pastDataPolicy: 'unchanged',
+        await input.gateway.onConfirmed({
+          provider: confirmationState.provider,
+          initialSyncDirection: confirmationState.initialSyncDirection,
+          initialMigrationWindow: 'future_only',
+          pastDataPolicy: 'unchanged',
+        });
+        state = { step: 'complete' };
+        return state;
       });
-      state = { step: 'complete' };
-      return state;
+
+      confirmationInFlight = operation.finally(() => {
+        confirmationInFlight = null;
+      });
+      return confirmationInFlight;
     },
 
     back() {
+      if (confirmationInFlight !== null) return state;
       if (state.step === 'confirm_final') {
         state = { ...state, step: 'confirm_initial' };
         return state;
