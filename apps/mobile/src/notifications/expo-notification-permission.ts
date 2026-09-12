@@ -31,7 +31,9 @@ function snapshot(
   });
 }
 
-export function createExpoNotificationPermissionService() {
+export function createExpoNotificationPermissionService({
+  androidChannelName,
+}: Readonly<{ androidChannelName: string }>) {
   const native: NativeNotificationPermissionApi = Object.freeze({
     async getPermissions() {
       return snapshot(await Notifications.getPermissionsAsync());
@@ -41,7 +43,7 @@ export function createExpoNotificationPermissionService() {
     },
     async prepareAndroidPermissionChannel() {
       await Notifications.setNotificationChannelAsync(MISSION_REMINDER_CHANNEL_ID, {
-        name: 'Notifications',
+        name: androidChannelName,
         importance: Notifications.AndroidImportance.DEFAULT,
       });
     },
@@ -55,5 +57,3 @@ export function createExpoNotificationPermissionService() {
     platform: Platform.OS === 'android' ? 'android' : 'ios',
   });
 }
-
-export const rootNotificationPermissionService = createExpoNotificationPermissionService();
