@@ -33,7 +33,7 @@ function requestAt(requests: readonly CapturedRequest[], index: number): Capture
 }
 
 describe('MTS-069 concrete Google OAuth gateway', () => {
-  it('builds offline consent authorization with only the calendar scope and opaque state', () => {
+  it('builds offline consent authorization with least-privilege calendar scopes and opaque state', () => {
     const gateway = createGoogleCalendarOAuthGateway({
       ...configuration,
       fetchImpl: vi.fn(),
@@ -47,7 +47,10 @@ describe('MTS-069 concrete Google OAuth gateway', () => {
     expect(url.searchParams.get('response_type')).toBe('code');
     expect(url.searchParams.get('access_type')).toBe('offline');
     expect(url.searchParams.get('prompt')).toBe('consent');
-    expect(url.searchParams.get('scope')).toBe('https://www.googleapis.com/auth/calendar');
+    expect(url.searchParams.get('scope')).toBe(
+      'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.app.created',
+    );
+    expect(url.searchParams.get('scope')).not.toContain('https://www.googleapis.com/auth/calendar ');
     expect(url.searchParams.get('state')).toBe('opaque-state');
   });
 
