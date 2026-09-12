@@ -84,6 +84,8 @@ describe('MTS-061 compact completion confirmation', () => {
       renderer.root.findByProps({ testID: 'completion-confirmation-create-story' }).props
         .accessibilityLabel,
     ).toBe('建立 Story');
-    expect(renderer.root.findAllByProps({ testID: 'completion-confirmation-confetti' })).toHaveLength(0);
+    expect(
+      renderer.root.findAllByProps({ testID: 'completion-confirmation-confetti' }),
+    ).toHaveLength(0);
   });
 });
