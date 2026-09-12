@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { formatMissionCountStartsNow, formatMissionStartsNow } from './mission-notification-catalogs.js';
+import {
+  formatMissionCountStartsNow,
+  formatMissionStartsNow,
+} from './mission-notification-catalogs.js';
 
 describe('MTS-064 mission notification copy', () => {
   it('keeps the mission title for a single notification, including private missions', () => {
