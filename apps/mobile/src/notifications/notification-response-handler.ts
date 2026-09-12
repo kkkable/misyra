@@ -11,9 +11,11 @@ export type MissionNotificationDestination =
     }>;
 
 export function handleMissionNotificationData(
-  data: Readonly<{ localDate?: unknown; occurrenceIds?: unknown }>,
+  data: Readonly<{ localDate?: unknown; occurrenceIds?: unknown }> | undefined,
   navigate: (destination: MissionNotificationDestination) => void,
 ): boolean {
+  if (data === undefined) return false;
+
   const resolution = resolveMissionNotificationNavigation(data);
   if (resolution === null) return false;
 
