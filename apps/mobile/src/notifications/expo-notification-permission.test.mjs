@@ -1,6 +1,7 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const state = vi.hoisted(() => ({
+  platform: 'ios',
   permission: {
     canAskAgain: false,
     granted: false,
@@ -25,12 +26,23 @@ vi.mock('expo-notifications', () => ({
 
 vi.mock('react-native', () => ({
   Linking: { openSettings: vi.fn(async () => undefined) },
-  Platform: { OS: 'ios' },
+  Platform: {
+    get OS() {
+      return state.platform;
+    },
+  },
 }));
+
+import * as Notifications from 'expo-notifications';
 
 import { createExpoNotificationPermissionService } from './expo-notification-permission.js';
 
 describe('MTS-062 Expo notification permission adapter', () => {
+  beforeEach(() => {
+    state.platform = 'ios';
+    vi.clearAllMocks();
+  });
+
   it.each([3, 4])(
     'treats iOS authorization status %s as enabled when the generic granted flag is false',
     async (iosStatus) => {
@@ -49,4 +61,22 @@ describe('MTS-062 Expo notification permission adapter', () => {
       });
     },
   );
+
+  it('uses the caller-localized label for the Android permission prerequisite channel', async () => {
+    state.platform = 'android';
+    state.permission = {
+      canAskAgain: true,
+      granted: false,
+      ios: { status: 0 },
+      status: 'undetermined',
+    };
+
+    const service = createExpoNotificationPermissionService({ androidChannelName: '通知' });
+    await service.request();
+
+    expect(Notifications.setNotificationChannelAsync).toHaveBeenCalledWith('mission-reminders', {
+      name: '通知',
+      importance: 3,
+    });
+  });
 });
