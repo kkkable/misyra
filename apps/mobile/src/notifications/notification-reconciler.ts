@@ -10,6 +10,7 @@ import {
 } from '@misyra/localization';
 
 const MAX_NOTIFICATION_HORIZON_MS = 30 * 24 * 60 * 60 * 1000;
+const COMBINED_REGISTRY_PREFIX = 'misyra-combined:';
 
 export type MissionNotificationRequest = Readonly<{
   occurrenceIds: readonly string[];
@@ -54,10 +55,9 @@ type RegistryRow = Readonly<{
   scheduled_at: string;
 }>;
 
-type RegistryNotification = Readonly<{
-  notificationId: string;
-  occurrenceIds: readonly string[];
-  scheduledAt: string | null;
+type StoredNotificationIdentity = Readonly<{
+  nativeNotificationId: string;
+  occurrenceIds: readonly string[] | null;
 }>;
 
 type DesiredNotification = MissionNotificationRequest;
@@ -178,36 +178,45 @@ async function loadDesiredNotifications(
   return groupDesiredNotifications(candidates, locale);
 }
 
-function groupRegistryRows(rows: readonly RegistryRow[]): RegistryNotification[] {
-  const grouped = new Map<
-    string,
-    { occurrenceIds: string[]; scheduledAt: string | null; inconsistent: boolean }
-  >();
-  for (const row of rows) {
-    const existing = grouped.get(row.notification_id);
-    if (existing === undefined) {
-      grouped.set(row.notification_id, {
-        occurrenceIds: [row.occurrence_id],
-        scheduledAt: row.scheduled_at,
-        inconsistent: false,
-      });
-      continue;
-    }
-    existing.occurrenceIds.push(row.occurrence_id);
-    if (existing.scheduledAt !== row.scheduled_at) existing.inconsistent = true;
+function encodeStoredNotificationId(
+  nativeNotificationId: string,
+  occurrenceIds: readonly string[],
+): string {
+  if (occurrenceIds.length <= 1) return nativeNotificationId;
+  return `${COMBINED_REGISTRY_PREFIX}${encodeURIComponent(
+    JSON.stringify({ nativeNotificationId, occurrenceIds }),
+  )}`;
+}
+
+function decodeStoredNotificationId(value: string): StoredNotificationIdentity {
+  if (!value.startsWith(COMBINED_REGISTRY_PREFIX)) {
+    return Object.freeze({ nativeNotificationId: value, occurrenceIds: null });
   }
 
-  return [...grouped.entries()]
-    .map(([notificationId, value]) =>
-      Object.freeze({
-        notificationId,
-        occurrenceIds: Object.freeze(
-          [...new Set(value.occurrenceIds)].sort((left, right) => left.localeCompare(right)),
+  try {
+    const decoded = JSON.parse(
+      decodeURIComponent(value.slice(COMBINED_REGISTRY_PREFIX.length)),
+    ) as Readonly<{ nativeNotificationId?: unknown; occurrenceIds?: unknown }>;
+    if (
+      typeof decoded.nativeNotificationId !== 'string' ||
+      decoded.nativeNotificationId.length === 0 ||
+      !Array.isArray(decoded.occurrenceIds) ||
+      decoded.occurrenceIds.length < 2 ||
+      decoded.occurrenceIds.some((item) => typeof item !== 'string' || item.length === 0)
+    ) {
+      return Object.freeze({ nativeNotificationId: value, occurrenceIds: null });
+    }
+    return Object.freeze({
+      nativeNotificationId: decoded.nativeNotificationId,
+      occurrenceIds: Object.freeze(
+        [...new Set(decoded.occurrenceIds as string[])].sort((left, right) =>
+          left.localeCompare(right),
         ),
-        scheduledAt: value.inconsistent ? null : value.scheduledAt,
-      }),
-    )
-    .sort((left, right) => left.notificationId.localeCompare(right.notificationId));
+      ),
+    });
+  } catch {
+    return Object.freeze({ nativeNotificationId: value, occurrenceIds: null });
+  }
 }
 
 function notificationSignature(
@@ -217,16 +226,16 @@ function notificationSignature(
   return `${scheduledAt}\u0000${occurrenceIds.join('\u0000')}`;
 }
 
-async function deleteRegistryRows(
+async function deleteRegistryRow(
   database: NotificationDatabase,
   accountId: string,
-  notificationId: string,
+  storedNotificationId: string,
 ): Promise<void> {
   await database.runAsync(
     `DELETE FROM notification_registry
       WHERE account_id = ? AND notification_id = ?`,
     accountId,
-    notificationId,
+    storedNotificationId,
   );
 }
 
@@ -237,30 +246,30 @@ async function scheduleAndPersist(
   desired: DesiredNotification,
   updatedAt: string,
 ): Promise<void> {
-  const notificationId = await scheduler.schedule(desired);
+  const nativeNotificationId = await scheduler.schedule(desired);
+  const storedNotificationId = encodeStoredNotificationId(
+    nativeNotificationId,
+    desired.occurrenceIds,
+  );
+  const canonicalOccurrenceId = desired.occurrenceIds[0];
+  if (canonicalOccurrenceId === undefined) throw new Error('notification_group_empty');
+
   try {
-    for (const occurrenceId of desired.occurrenceIds) {
-      await database.runAsync(
-        `INSERT INTO notification_registry
-          (account_id, notification_id, occurrence_id, scheduled_at, updated_at)
-         VALUES (?, ?, ?, ?, ?)`,
-        accountId,
-        notificationId,
-        occurrenceId,
-        desired.scheduledAt,
-        updatedAt,
-      );
-    }
+    await database.runAsync(
+      `INSERT INTO notification_registry
+        (account_id, notification_id, occurrence_id, scheduled_at, updated_at)
+       VALUES (?, ?, ?, ?, ?)`,
+      accountId,
+      storedNotificationId,
+      canonicalOccurrenceId,
+      desired.scheduledAt,
+      updatedAt,
+    );
   } catch (error) {
     try {
-      await deleteRegistryRows(database, accountId, notificationId);
+      await scheduler.cancel(nativeNotificationId);
     } catch {
-      // Preserve the persistence failure while making a best-effort registry cleanup.
-    }
-    try {
-      await scheduler.cancel(notificationId);
-    } catch {
-      // Preserve the persistence failure while making a best-effort native cleanup.
+      // Preserve the persistence failure while making a best-effort orphan cleanup.
     }
     throw error;
   }
@@ -287,22 +296,18 @@ export function createMissionNotificationReconciler({
       `SELECT notification_id, occurrence_id, scheduled_at
          FROM notification_registry
         WHERE account_id = ?
-        ORDER BY scheduled_at, notification_id, occurrence_id`,
+        ORDER BY scheduled_at, notification_id`,
       accountId,
     );
-    const registryNotifications = groupRegistryRows(registryRows);
 
     const retainedSignatures = new Set<string>();
-    for (const registryNotification of registryNotifications) {
-      const signature =
-        registryNotification.scheduledAt === null
-          ? null
-          : notificationSignature(
-              registryNotification.scheduledAt,
-              registryNotification.occurrenceIds,
-            );
+    for (const row of registryRows) {
+      const storedIdentity = decodeStoredNotificationId(row.notification_id);
+      const occurrenceIds = storedIdentity.occurrenceIds ?? Object.freeze([row.occurrence_id]);
+      const canonicalOccurrenceId = occurrenceIds[0];
+      const signature = notificationSignature(row.scheduled_at, occurrenceIds);
       const shouldRetain =
-        signature !== null &&
+        canonicalOccurrenceId === row.occurrence_id &&
         desiredBySignature.has(signature) &&
         !retainedSignatures.has(signature);
       if (shouldRetain) {
@@ -310,8 +315,8 @@ export function createMissionNotificationReconciler({
         continue;
       }
 
-      await scheduler.cancel(registryNotification.notificationId);
-      await deleteRegistryRows(database, accountId, registryNotification.notificationId);
+      await scheduler.cancel(storedIdentity.nativeNotificationId);
+      await deleteRegistryRow(database, accountId, row.notification_id);
     }
 
     for (const item of desired) {
