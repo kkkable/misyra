@@ -26,6 +26,8 @@ describe('MTS-038 root onboarding composition', () => {
     expect(layoutSource).toContain('createExpoNotificationPermissionService');
     expect(layoutSource).toContain('rootOnboardingNotificationChannelName');
     expect(layoutSource).toContain('rootOnboardingNotificationPermissionService.request()');
-    expect(runtimeSource).toContain('notificationSettingsCatalogs[rootOnboardingLocale].notifications');
+    expect(runtimeSource).toContain(
+      'notificationSettingsCatalogs[rootOnboardingLocale].notifications',
+    );
   });
 });
