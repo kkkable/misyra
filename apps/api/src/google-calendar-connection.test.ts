@@ -66,6 +66,13 @@ function createHarness() {
         encryptedRefreshToken: record.encryptedRefreshToken,
       });
     }),
+    clearDisconnectedRefreshToken: vi.fn(
+      (requestedAccountId: string, requestedConnectionId: string) => {
+        void requestedAccountId;
+        void requestedConnectionId;
+        return Promise.resolve();
+      },
+    ),
   };
   const provider = {
     buildAuthorizationUrl: vi.fn(
@@ -202,7 +209,7 @@ describe('MTS-069 Google OAuth and connection storage', () => {
     expect(connection.providerCalendarId).toBe('misyra-calendar-id');
   });
 
-  it('marks a connection disconnected before revoking provider access', async () => {
+  it('marks a connection disconnected before revoking provider access and then clears the stored credential', async () => {
     const { cipher, connections, provider, service, store } = createHarness();
     await service.startOAuth(accountId, {
       initialSyncDirection: 'external_to_misyra',
@@ -218,6 +225,14 @@ describe('MTS-069 Google OAuth and connection storage', () => {
       record.state = 'disconnected';
       return Promise.resolve({ id: record.id, encryptedRefreshToken: record.encryptedRefreshToken });
     });
+    store.clearDisconnectedRefreshToken.mockImplementation(
+      (requestedAccountId, requestedConnectionId) => {
+        void requestedAccountId;
+        void requestedConnectionId;
+        callOrder.push('clear');
+        return Promise.resolve();
+      },
+    );
     provider.revokeRefreshToken.mockImplementation((refreshToken) => {
       void refreshToken;
       callOrder.push('revoke');
@@ -226,10 +241,29 @@ describe('MTS-069 Google OAuth and connection storage', () => {
 
     await service.disconnect(accountId, connectionId);
 
-    expect(callOrder).toEqual(['disconnect', 'revoke']);
+    expect(callOrder).toEqual(['disconnect', 'revoke', 'clear']);
     expect(connections.get(connectionId)?.state).toBe('disconnected');
     expect(cipher.decrypt).toHaveBeenCalledWith('encrypted:21');
     expect(provider.revokeRefreshToken).toHaveBeenCalledWith('google-refresh-secret');
+    expect(store.clearDisconnectedRefreshToken).toHaveBeenCalledWith(accountId, connectionId);
+  });
+
+  it('keeps provider revocation retryable after a transient failure while local sync remains disconnected', async () => {
+    const { connections, provider, service } = createHarness();
+    await service.startOAuth(accountId, {
+      initialSyncDirection: 'external_to_misyra',
+      selectedCalendarId: 'primary',
+    });
+    await service.completeOAuth({ state: 'opaque-oauth-state-value', code: 'authorization-code' });
+    provider.revokeRefreshToken.mockRejectedValueOnce(new Error('temporary revoke failure'));
+
+    await expect(service.disconnect(accountId, connectionId)).rejects.toMatchObject({
+      code: 'provider_error',
+    });
+    expect(connections.get(connectionId)?.state).toBe('disconnected');
+
+    await expect(service.disconnect(accountId, connectionId)).resolves.toBeUndefined();
+    expect(provider.revokeRefreshToken).toHaveBeenCalledTimes(2);
   });
 
   it('never exposes a refresh token in provider-facing failure messages', async () => {
