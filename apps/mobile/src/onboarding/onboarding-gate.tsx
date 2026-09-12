@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useColorScheme } from 'react-native';
 
 import type { CalendarConnectionCatalog } from '@misyra/localization';
@@ -31,6 +31,7 @@ export function OnboardingGate({
   const [state, setState] = useState<OnboardingState | null>(null);
   const [calendarConnectionState, setCalendarConnectionState] =
     useState<CalendarConnectionFlowState>(() => calendarConnectionController.getState());
+  const calendarConfirmationInFlight = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -59,18 +60,25 @@ export function OnboardingGate({
         }}
         onConfirm={() => {
           if (
-            calendarConnectionState.step !== 'confirm_initial' &&
-            calendarConnectionState.step !== 'confirm_final'
+            calendarConfirmationInFlight.current ||
+            (calendarConnectionState.step !== 'confirm_initial' &&
+              calendarConnectionState.step !== 'confirm_final')
           ) {
             return;
           }
           const provider = calendarConnectionState.provider;
-          void calendarConnectionController.confirm().then(async (nextState) => {
-            setCalendarConnectionState(nextState);
-            if (nextState.step === 'complete') {
-              setState(await controller.chooseCalendarProvider(provider));
-            }
-          });
+          calendarConfirmationInFlight.current = true;
+          void calendarConnectionController
+            .confirm()
+            .then(async (nextState) => {
+              setCalendarConnectionState(nextState);
+              if (nextState.step === 'complete') {
+                setState(await controller.chooseCalendarProvider(provider));
+              }
+            })
+            .finally(() => {
+              calendarConfirmationInFlight.current = false;
+            });
         }}
         onDirectionChoice={(direction) => {
           setCalendarConnectionState(calendarConnectionController.chooseDirection(direction));
