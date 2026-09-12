@@ -50,10 +50,7 @@ function fixedInstantOccurrence({ id, localStart, localFinish, timeZone }) {
   };
 }
 
-function createDatabase(
-  rows,
-  account = { language: 'en', app_time_zone: 'Asia/Hong_Kong' },
-) {
+function createDatabase(rows, account = { language: 'en', app_time_zone: 'Asia/Hong_Kong' }) {
   const registry = [];
   return {
     registry,
