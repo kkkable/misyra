@@ -66,7 +66,7 @@ describe('MTS-065 notification rebuild runtime', () => {
 
     let handoff;
     firstRun.resolve();
-    queueMicrotask(() => {
+    globalThis.queueMicrotask(() => {
       handoff = runtime.request('synchronization');
     });
 
