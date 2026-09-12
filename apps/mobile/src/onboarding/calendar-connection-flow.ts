@@ -123,6 +123,9 @@ export function createCalendarConnectionFlowController(input: {
         state = { step: 'direction', provider: state.provider };
         return state;
       }
+      if (state.step === 'direction' || state.step === 'blocked') {
+        state = { step: 'idle' };
+      }
       return state;
     },
   };
