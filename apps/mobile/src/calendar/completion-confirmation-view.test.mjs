@@ -41,18 +41,19 @@ describe('MTS-061 compact completion confirmation', () => {
       ),
     );
 
-    expect(renderer.root.findByProps({ testID: 'completion-confirmation' })).toBeDefined();
-    expect(
-      renderer.root.findByProps({ testID: 'completion-confirmation-message' }).props.children,
-    ).toBe('Mission complete · +86 XP · Level 3');
+    const confirmation = renderer.root.findByProps({ testID: 'completion-confirmation' });
+    const message = renderer.root.findByProps({ testID: 'completion-confirmation-message' });
+    const doneButton = renderer.root.findByProps({ testID: 'completion-confirmation-done' });
+    const storyButton = renderer.root.findByProps({
+      testID: 'completion-confirmation-create-story',
+    });
+
+    expect(confirmation).toBeDefined();
+    expect(message.props.children).toBe('Mission complete · +86 XP · Level 3');
     expect(onCompletionHaptic).toHaveBeenCalledTimes(1);
 
-    act(() =>
-      renderer.root.findByProps({ testID: 'completion-confirmation-done' }).props.onPress(),
-    );
-    act(() =>
-      renderer.root.findByProps({ testID: 'completion-confirmation-create-story' }).props.onPress(),
-    );
+    act(() => doneButton.props.onPress());
+    act(() => storyButton.props.onPress());
 
     expect(onDone).toHaveBeenCalledTimes(1);
     expect(onCreateStory).toHaveBeenCalledTimes(1);
@@ -74,18 +75,16 @@ describe('MTS-061 compact completion confirmation', () => {
       ),
     );
 
-    expect(
-      renderer.root.findByProps({ testID: 'completion-confirmation-message' }).props.children,
-    ).toBe('任務完成 · 0 XP');
-    expect(
-      renderer.root.findByProps({ testID: 'completion-confirmation-done' }).props.accessibilityLabel,
-    ).toBe('完成');
-    expect(
-      renderer.root.findByProps({ testID: 'completion-confirmation-create-story' }).props
-        .accessibilityLabel,
-    ).toBe('建立 Story');
-    expect(
-      renderer.root.findAllByProps({ testID: 'completion-confirmation-confetti' }),
-    ).toHaveLength(0);
+    const message = renderer.root.findByProps({ testID: 'completion-confirmation-message' });
+    const doneButton = renderer.root.findByProps({ testID: 'completion-confirmation-done' });
+    const storyButton = renderer.root.findByProps({
+      testID: 'completion-confirmation-create-story',
+    });
+    const confetti = renderer.root.findAllByProps({ testID: 'completion-confirmation-confetti' });
+
+    expect(message.props.children).toBe('任務完成 · 0 XP');
+    expect(doneButton.props.accessibilityLabel).toBe('完成');
+    expect(storyButton.props.accessibilityLabel).toBe('建立 Story');
+    expect(confetti).toHaveLength(0);
   });
 });
