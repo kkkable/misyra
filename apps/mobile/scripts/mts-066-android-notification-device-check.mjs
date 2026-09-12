@@ -46,7 +46,8 @@ export function buildAndroidNotificationDeliveryRecord(input) {
     device,
     androidApi: input.androidApi,
     exactAccess,
-    deliveryPath: exactAccess === 'granted' ? 'exact-when-available' : 'best-supported-fallback',
+    deliveryPath:
+      exactAccess === 'denied' ? 'best-supported-fallback' : 'exact-when-available',
     scheduledAt: scheduled.text,
     observedAt: observed.text,
     deliveryDeltaMs: observed.timestamp - scheduled.timestamp,
