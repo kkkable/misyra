@@ -319,6 +319,7 @@ export function CalendarMissionDetailsRouteScreen() {
       const deviceId = await requireRegisteredDeviceId(authState.session.accountId);
       const database = await openMobileDatabase();
       const effectiveActionAt = new Date().toISOString();
+      const mutationId = generateUuid();
       await queueNoEvidenceCompletion({
         database,
         accountId: authState.session.accountId,
@@ -326,9 +327,9 @@ export function CalendarMissionDetailsRouteScreen() {
         occurrenceId,
         mode,
         effectiveActionAt,
-        idempotencyKey: generateUuid(),
+        idempotencyKey: mutationId,
       });
-      completionConfirmationRequestChannel.publish({ occurrenceId });
+      completionConfirmationRequestChannel.publish({ occurrenceId, mutationId });
       router.back();
     },
     [details, router],
