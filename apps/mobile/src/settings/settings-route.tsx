@@ -12,7 +12,7 @@ import {
   type ColorScheme,
 } from '../design-system/index.js';
 import { useAppLanguage } from '../localization/use-app-language.js';
-import { rootNotificationPermissionService } from '../notifications/expo-notification-permission.js';
+import { createExpoNotificationPermissionService } from '../notifications/expo-notification-permission.js';
 import type { NotificationPermissionStatus } from '../notifications/notification-permission.js';
 import { createNotificationSettingsModel } from './notification-settings-model.js';
 
@@ -21,11 +21,19 @@ export function SettingsRouteScreen() {
   const nativeColorScheme = useColorScheme();
   const colorScheme: ColorScheme = nativeColorScheme === 'dark' ? 'dark' : 'light';
   const colors = themeColors(colorScheme);
+  const catalog = notificationSettingsCatalogs[language];
+  const permissionService = useMemo(
+    () =>
+      createExpoNotificationPermissionService({
+        androidChannelName: catalog.notifications,
+      }),
+    [catalog.notifications],
+  );
   const [permission, setPermission] = useState<NotificationPermissionStatus | null>(null);
 
   const refresh = useCallback(async () => {
-    setPermission(await rootNotificationPermissionService.getStatus());
-  }, []);
+    setPermission(await permissionService.getStatus());
+  }, [permissionService]);
 
   useEffect(() => {
     void refresh();
@@ -39,7 +47,6 @@ export function SettingsRouteScreen() {
     };
   }, [refresh]);
 
-  const catalog = notificationSettingsCatalogs[language];
   const model = useMemo(
     () =>
       permission === null
@@ -51,11 +58,11 @@ export function SettingsRouteScreen() {
   const runAction = useCallback(async () => {
     if (model?.action === undefined || model.action === null) return;
     if (model.action.kind === 'request') {
-      setPermission(await rootNotificationPermissionService.request());
+      setPermission(await permissionService.request());
       return;
     }
-    await rootNotificationPermissionService.openSettings();
-  }, [model]);
+    await permissionService.openSettings();
+  }, [model, permissionService]);
 
   return (
     <Screen colorScheme={colorScheme} testID="settings-route">
