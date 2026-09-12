@@ -92,6 +92,10 @@ function resolveWallTime(localDateTime: string, timeZone: string, label: string)
   }
 }
 
+export function resolveLocalDateTimeInstant(localDateTime: string, timeZone: string): string {
+  return toIsoInstant(resolveWallTime(localDateTime, timeZone, 'Local date-time'));
+}
+
 function freezeSchedule(schedule: MissionSchedule): MissionSchedule {
   return Object.freeze(schedule);
 }
