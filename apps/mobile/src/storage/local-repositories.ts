@@ -40,6 +40,7 @@ export interface ExternalLinkSummary {
 
 export interface CompletionSummary {
   readonly occurrenceId: string;
+  readonly title: string;
   readonly completedAt: string;
   readonly awardedXp: number;
   readonly payload: unknown;
@@ -134,6 +135,7 @@ interface ExternalLinkRow {
 
 interface CompletionRow {
   readonly occurrence_id: string;
+  readonly title: string;
   readonly completed_at: string;
   readonly awarded_xp: number;
   readonly payload_json: string;
@@ -341,6 +343,7 @@ export function createLocalRepositories(database: LocalRepositoryDatabase, accou
     const requestedLimit = boundedLimit(limit);
     const rows = await database.getAllAsync<CompletionRow>(
       `SELECT c.occurrence_id,
+              s.title,
               c.completed_at,
               c.awarded_xp,
               c.payload_json,
@@ -350,6 +353,9 @@ export function createLocalRepositories(database: LocalRepositoryDatabase, accou
          JOIN cached_mission_occurrences o
            ON o.account_id = c.account_id
           AND o.occurrence_id = c.occurrence_id
+         JOIN cached_mission_series s
+           ON s.account_id = o.account_id
+          AND s.series_id = o.series_id
         WHERE c.account_id = ?
           AND json_extract(o.payload_json, '$.deletionState') <> 'deleted'
         ORDER BY c.completed_at DESC, c.occurrence_id
@@ -359,6 +365,7 @@ export function createLocalRepositories(database: LocalRepositoryDatabase, accou
     );
     return rows.map((row) => ({
       occurrenceId: row.occurrence_id,
+      title: row.title,
       completedAt: row.completed_at,
       awardedXp: row.awarded_xp,
       payload: parseJson(row.payload_json),
@@ -543,7 +550,7 @@ export function createLocalRepositories(database: LocalRepositoryDatabase, accou
         boundedLimit(limit);
         return observe(
           () => listRecentProgress(limit),
-          ['completion_summaries', 'cached_mission_occurrences'],
+          ['completion_summaries', 'cached_mission_occurrences', 'cached_mission_series'],
         );
       },
     },
