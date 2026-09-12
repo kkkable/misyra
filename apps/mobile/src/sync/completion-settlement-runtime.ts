@@ -14,7 +14,7 @@ export function createCompletionSettlementChannel() {
       retained.delete(settlement.mutationId);
       retained.set(settlement.mutationId, settlement);
       while (retained.size > COMPLETION_SETTLEMENT_RETENTION_LIMIT) {
-        const oldestMutationId = retained.keys().next().value as string | undefined;
+        const oldestMutationId = retained.keys().next().value;
         if (oldestMutationId === undefined) break;
         retained.delete(oldestMutationId);
       }
