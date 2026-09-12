@@ -213,7 +213,7 @@ export function createMutationQueue(database: MutationQueueDatabase, accountId: 
         destination: input.destination,
       };
       const serializedEnvelope = JSON.stringify(storedEnvelope);
-      let appliedLocally = false;
+      const commitState = { appliedLocally: false };
 
       await database.withExclusiveTransactionAsync(async (transaction) => {
         const existing = await transaction.getFirstAsync<{ command_json: string }>(
@@ -250,10 +250,10 @@ export function createMutationQueue(database: MutationQueueDatabase, accountId: 
           serializedEnvelope,
           input.mutation.clientOccurredAt,
         );
-        appliedLocally = true;
+        commitState.appliedLocally = true;
       });
 
-      if (appliedLocally) {
+      if (commitState.appliedLocally) {
         publishLocalMutationApplied({ entityType: input.mutation.entityType });
       }
     },
