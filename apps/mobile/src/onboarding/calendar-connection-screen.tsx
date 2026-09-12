@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 
+import type { ExternalCalendarInitialSyncDirection } from '@misyra/contracts';
 import { space, typography } from '@misyra/design-tokens';
 import type { CalendarConnectionCatalog } from '@misyra/localization';
 
@@ -10,10 +11,7 @@ import {
   themeColors,
   type ColorScheme,
 } from '../design-system/index.js';
-import type {
-  CalendarConnectionFlowState,
-} from './calendar-connection-flow.js';
-import type { ExternalCalendarInitialSyncDirection } from '@misyra/contracts';
+import type { CalendarConnectionFlowState } from './calendar-connection-flow.js';
 
 type VisibleCalendarConnectionState = Exclude<
   CalendarConnectionFlowState,
