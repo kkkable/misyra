@@ -37,6 +37,12 @@ vi.mock('../auth/auth-runtime.js', () => ({
   rootAuthMessages: {},
 }));
 
+vi.mock('../notifications/expo-notification-permission.js', () => ({
+  createExpoNotificationPermissionService: vi.fn(() => ({
+    request: vi.fn(),
+  })),
+}));
+
 vi.mock('../onboarding/onboarding-gate.js', async () => {
   const { createElement: createReactElement } = await import('react');
   return {
@@ -45,8 +51,10 @@ vi.mock('../onboarding/onboarding-gate.js', async () => {
 });
 
 vi.mock('../onboarding/onboarding-runtime.js', () => ({
+  configureOnboardingNotificationPermissionRequest: vi.fn(),
   rootOnboardingController: {},
   rootOnboardingMessages: {},
+  rootOnboardingNotificationChannelName: 'Notifications',
 }));
 
 vi.mock('../sync/sync-runtime-gate.js', async () => {
