@@ -290,13 +290,9 @@ export const calendarCommandResultSchema = z.discriminatedUnion('status', [
 ]);
 
 export type ExternalCalendarProvider = z.infer<typeof externalCalendarProviderSchema>;
-export type ExternalCalendarConnectionState = z.infer<
-  typeof externalCalendarConnectionStateSchema
->;
+export type ExternalCalendarConnectionState = z.infer<typeof externalCalendarConnectionStateSchema>;
 export type ExternalCalendarErrorCode = z.infer<typeof externalCalendarErrorCodeSchema>;
-export type ExternalCalendarRecurrenceScope = z.infer<
-  typeof externalCalendarRecurrenceScopeSchema
->;
+export type ExternalCalendarRecurrenceScope = z.infer<typeof externalCalendarRecurrenceScopeSchema>;
 export type NormalizedCalendarRecurrence = z.infer<typeof normalizedCalendarRecurrenceSchema>;
 export type NormalizedProviderSchedule = z.infer<typeof normalizedProviderScheduleSchema>;
 export type NormalizedProviderEvent = z.infer<typeof normalizedProviderEventSchema>;
