@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('expo-notifications', () => ({
+  SchedulableTriggerInputTypes: { DATE: 'date' },
   cancelAllScheduledNotificationsAsync: vi.fn(async () => undefined),
   cancelScheduledNotificationAsync: vi.fn(async () => undefined),
   scheduleNotificationAsync: vi.fn(async () => 'native-42'),
@@ -25,7 +26,10 @@ describe('MTS-063 Expo mission notification scheduler', () => {
         body: 'Mission starts now.',
         data: { occurrenceId: '323e4567-e89b-42d3-a456-426614174000' },
       },
-      trigger: new Date('2026-09-13T02:00:00.000Z'),
+      trigger: {
+        type: 'date',
+        date: new Date('2026-09-13T02:00:00.000Z'),
+      },
     });
   });
 
