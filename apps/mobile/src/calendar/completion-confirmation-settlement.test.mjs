@@ -18,6 +18,34 @@ function harness() {
 }
 
 describe('MTS-061 authoritative foreground settlement', () => {
+  it('uses a retained exact settlement when periodic sync wins the race before the foreground listener', async () => {
+    const { settlements, confirmations, listener } = harness();
+    const runSync = vi.fn(() => Promise.resolve());
+    settlements.publish({
+      mutationId: request.mutationId,
+      occurrenceId: request.occurrenceId,
+      status: 'completed',
+      awardedXp: 86,
+      totalXp: 250,
+    });
+
+    await settleForegroundCompletionRequest({
+      request,
+      runSync,
+      consumeSettlement: (mutationId) => settlements.consume(mutationId),
+      subscribeSettlement: (subscriber) => settlements.subscribe(subscriber),
+      publishConfirmation: (event) => confirmations.publish(event),
+    });
+
+    expect(runSync).not.toHaveBeenCalled();
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(listener).toHaveBeenCalledWith({
+      occurrenceId: request.occurrenceId,
+      awardedXp: 86,
+      totalXp: 250,
+    });
+  });
+
   it('uses the exact accepted transaction total even when another completion settles later', async () => {
     const { settlements, confirmations, listener } = harness();
 
