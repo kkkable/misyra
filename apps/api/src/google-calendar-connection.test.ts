@@ -35,48 +35,61 @@ function createHarness() {
   const states = new Map<string, OAuthStateRecord>();
   const connections = new Map<string, ConnectionRecord>();
   const store = {
-    saveOAuthState: vi.fn(async (record: OAuthStateRecord) => {
+    saveOAuthState: vi.fn((record: OAuthStateRecord) => {
       states.set(record.stateHash, record);
+      return Promise.resolve();
     }),
-    consumeOAuthState: vi.fn(async (stateHash: string, currentTime: Date) => {
+    consumeOAuthState: vi.fn((stateHash: string, currentTime: Date) => {
       const record = states.get(stateHash);
       if (!record || record.consumedAt || record.expiresAt.getTime() <= currentTime.getTime()) {
-        return null;
+        return Promise.resolve(null);
       }
       record.consumedAt = currentTime;
-      return record;
+      return Promise.resolve(record);
     }),
-    createConnection: vi.fn(async (record: Omit<ConnectionRecord, 'id'>) => {
+    createConnection: vi.fn((record: Omit<ConnectionRecord, 'id'>) => {
       if ([...connections.values()].some((item) => item.accountId === record.accountId)) {
-        throw new Error('connection_exists');
+        return Promise.reject(new Error('connection_exists'));
       }
       const saved: ConnectionRecord = { ...record, id: connectionId };
       connections.set(connectionId, saved);
-      return saved;
+      return Promise.resolve(saved);
     }),
-    disconnectConnection: vi.fn(async (requestedAccountId: string, requestedConnectionId: string) => {
+    disconnectConnection: vi.fn((requestedAccountId: string, requestedConnectionId: string) => {
       const record = connections.get(requestedConnectionId);
       if (!record || record.accountId !== requestedAccountId || record.state === 'disconnected') {
-        return null;
+        return Promise.resolve(null);
       }
       record.state = 'disconnected';
-      return {
+      return Promise.resolve({
         id: record.id,
         encryptedRefreshToken: record.encryptedRefreshToken,
-      };
+      });
     }),
   };
   const provider = {
     buildAuthorizationUrl: vi.fn(
       ({ state }: { state: string }) => `https://accounts.google.test/oauth?state=${state}`,
     ),
-    exchangeCode: vi.fn(async (_code: string) => ({ refreshToken: 'google-refresh-secret' })),
-    createDedicatedCalendar: vi.fn(async (_refreshToken: string) => 'misyra-calendar-id'),
-    revokeRefreshToken: vi.fn(async (_refreshToken: string) => undefined),
+    exchangeCode: vi.fn((code: string) => {
+      void code;
+      return Promise.resolve({ refreshToken: 'google-refresh-secret' });
+    }),
+    createDedicatedCalendar: vi.fn((refreshToken: string) => {
+      void refreshToken;
+      return Promise.resolve('misyra-calendar-id');
+    }),
+    revokeRefreshToken: vi.fn((refreshToken: string) => {
+      void refreshToken;
+      return Promise.resolve();
+    }),
   };
   const cipher = {
-    encrypt: vi.fn(async (plaintext: string) => `encrypted:${plaintext.length}`),
-    decrypt: vi.fn(async (_ciphertext: string) => 'google-refresh-secret'),
+    encrypt: vi.fn((plaintext: string) => Promise.resolve(`encrypted:${String(plaintext.length)}`)),
+    decrypt: vi.fn((ciphertext: string) => {
+      void ciphertext;
+      return Promise.resolve('google-refresh-secret');
+    }),
   };
   const service = createGoogleCalendarConnectionService({
     store,
@@ -198,15 +211,17 @@ describe('MTS-069 Google OAuth and connection storage', () => {
     await service.completeOAuth({ state: 'opaque-oauth-state-value', code: 'authorization-code' });
 
     const callOrder: string[] = [];
-    store.disconnectConnection.mockImplementation(async (requestedAccountId, requestedConnectionId) => {
+    store.disconnectConnection.mockImplementation((requestedAccountId, requestedConnectionId) => {
       callOrder.push('disconnect');
       const record = connections.get(requestedConnectionId);
-      if (!record || record.accountId !== requestedAccountId) return null;
+      if (!record || record.accountId !== requestedAccountId) return Promise.resolve(null);
       record.state = 'disconnected';
-      return { id: record.id, encryptedRefreshToken: record.encryptedRefreshToken };
+      return Promise.resolve({ id: record.id, encryptedRefreshToken: record.encryptedRefreshToken });
     });
-    provider.revokeRefreshToken.mockImplementation(async () => {
+    provider.revokeRefreshToken.mockImplementation((refreshToken) => {
+      void refreshToken;
       callOrder.push('revoke');
+      return Promise.resolve();
     });
 
     await service.disconnect(accountId, connectionId);
