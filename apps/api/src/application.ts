@@ -3,6 +3,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import {
   createPostgresAuthStore,
   createPostgresDeviceSettingsStore,
+  createPostgresGoogleCalendarConnectionStore,
   deleteAccountTransaction,
 } from '@misyra/database';
 import type { AuthProvider } from '@misyra/contracts';
@@ -19,6 +20,14 @@ import { createCompletionRoutes } from './completion-routes.js';
 import { createDeviceSettingsRoutes } from './device-settings-routes.js';
 import { createDeviceSettingsService } from './device-settings.js';
 import {
+  createGoogleCalendarConnectionService,
+  type GoogleCalendarOAuthGateway,
+  type GoogleCalendarTokenCipher,
+} from './google-calendar-connection.js';
+import { createGoogleCalendarOAuthGateway } from './google-calendar-oauth-gateway.js';
+import { createGoogleCalendarRoutes } from './google-calendar-routes.js';
+import { createGoogleCalendarTokenCipher } from './google-calendar-token-cipher.js';
+import {
   createApiServer,
   type ApiAuditLog,
   type AuthenticateRequest,
@@ -27,6 +36,11 @@ import {
 import { createProviderProofVerifier } from './provider-proof-verifier.js';
 import { createSyncRoutes } from './sync-routes.js';
 import { createPostgresSyncService } from './sync-service.js';
+
+type GoogleCalendarApplicationDependencies = Readonly<{
+  provider: GoogleCalendarOAuthGateway;
+  cipher: GoogleCalendarTokenCipher;
+}>;
 
 type AuthApplicationOptions = {
   pool: Pool;
@@ -38,6 +52,7 @@ type AuthApplicationOptions = {
   readiness?: ReadinessCheck;
   authenticate?: AuthenticateRequest;
   auditLog?: ApiAuditLog;
+  googleCalendar?: GoogleCalendarApplicationDependencies;
 };
 
 type SessionActiveCheck = (
@@ -50,6 +65,12 @@ const LOCAL_AUTH_DEFAULTS = {
   appleAudience: 'fixture-apple-auth-audience',
   googleAudience: 'fixture-google-auth-audience',
   accessTokenSecret: 'fixture-local-auth-access-token-secret',
+} as const;
+const LOCAL_GOOGLE_CALENDAR_DEFAULTS = {
+  clientId: 'fixture-google-calendar-client-id',
+  clientSecret: 'fixture-google-calendar-client-secret',
+  redirectUri: 'http://127.0.0.1:3000/v1/calendars/google/callback',
+  encryptionKey: 'BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc',
 } as const;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -78,6 +99,17 @@ export function createApiApplication(options: AuthApplicationOptions) {
   });
   const deviceSettingsService = createDeviceSettingsService(deviceSettingsStore);
   const syncService = createPostgresSyncService(options.pool);
+  const googleCalendarRoutes =
+    options.googleCalendar === undefined
+      ? []
+      : createGoogleCalendarRoutes(
+          createGoogleCalendarConnectionService({
+            store: createPostgresGoogleCalendarConnectionStore(options.pool),
+            provider: options.googleCalendar.provider,
+            cipher: options.googleCalendar.cipher,
+            ...(options.now === undefined ? {} : { now: options.now }),
+          }),
+        );
 
   return createApiServer({
     routes: [
@@ -86,6 +118,7 @@ export function createApiApplication(options: AuthApplicationOptions) {
       ...createDeviceSettingsRoutes(deviceSettingsService),
       ...createCompletionRoutes(options.pool),
       ...createSyncRoutes(syncService),
+      ...googleCalendarRoutes,
     ],
     ...(options.readiness === undefined ? {} : { readiness: options.readiness }),
     ...(options.authenticate === undefined ? {} : { authenticate: options.authenticate }),
@@ -117,6 +150,41 @@ export function resolveAuthStartupConfiguration(env: NodeJS.ProcessEnv) {
       'AUTH_ACCESS_TOKEN_SECRET',
       LOCAL_AUTH_DEFAULTS.accessTokenSecret,
     ),
+  };
+}
+
+export function resolveGoogleCalendarStartupConfiguration(env: NodeJS.ProcessEnv) {
+  const encodedEncryptionKey = localOrRequiredEnv(
+    env,
+    'GOOGLE_CALENDAR_TOKEN_ENCRYPTION_KEY',
+    LOCAL_GOOGLE_CALENDAR_DEFAULTS.encryptionKey,
+  );
+  const encryptionKey = Buffer.from(encodedEncryptionKey, 'base64url');
+  if (
+    !/^[A-Za-z0-9_-]+$/.test(encodedEncryptionKey) ||
+    encryptionKey.length !== 32 ||
+    encryptionKey.toString('base64url') !== encodedEncryptionKey
+  ) {
+    throw new Error('GOOGLE_CALENDAR_TOKEN_ENCRYPTION_KEY must be a 32-byte base64url value');
+  }
+
+  return {
+    clientId: localOrRequiredEnv(
+      env,
+      'GOOGLE_CALENDAR_CLIENT_ID',
+      LOCAL_GOOGLE_CALENDAR_DEFAULTS.clientId,
+    ),
+    clientSecret: localOrRequiredEnv(
+      env,
+      'GOOGLE_CALENDAR_CLIENT_SECRET',
+      LOCAL_GOOGLE_CALENDAR_DEFAULTS.clientSecret,
+    ),
+    redirectUri: localOrRequiredEnv(
+      env,
+      'GOOGLE_CALENDAR_REDIRECT_URI',
+      LOCAL_GOOGLE_CALENDAR_DEFAULTS.redirectUri,
+    ),
+    encryptionKey,
   };
 }
 
@@ -211,6 +279,7 @@ export function createHmacAccessTokenAuthenticator(
 export async function startApiApplication(env: NodeJS.ProcessEnv = process.env) {
   const pool = new Pool({ connectionString: databaseUrl(env) });
   const authConfiguration = resolveAuthStartupConfiguration(env);
+  const googleCalendarConfiguration = resolveGoogleCalendarStartupConfiguration(env);
   const authStore = createPostgresAuthStore(pool);
   const server = createApiApplication({
     pool,
@@ -222,6 +291,14 @@ export async function startApiApplication(env: NodeJS.ProcessEnv = process.env) 
       (accountId, sessionId, currentTime) =>
         authStore.isSessionActive(accountId, sessionId, currentTime),
     ),
+    googleCalendar: {
+      provider: createGoogleCalendarOAuthGateway({
+        clientId: googleCalendarConfiguration.clientId,
+        clientSecret: googleCalendarConfiguration.clientSecret,
+        redirectUri: googleCalendarConfiguration.redirectUri,
+      }),
+      cipher: createGoogleCalendarTokenCipher(googleCalendarConfiguration.encryptionKey),
+    },
   });
   server.addHook('onClose', async () => {
     await pool.end();

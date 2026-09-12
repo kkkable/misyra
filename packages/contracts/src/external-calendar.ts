@@ -232,6 +232,29 @@ export const connectCalendarInputSchema = z
   })
   .strict();
 
+export const googleCalendarConnectRequestSchema = z.discriminatedUnion('initialSyncDirection', [
+  z
+    .object({
+      initialSyncDirection: z.literal('external_to_misyra'),
+      selectedCalendarId: z.string().min(1),
+    })
+    .strict(),
+  z.object({ initialSyncDirection: z.literal('misyra_to_external') }).strict(),
+]);
+
+export const googleCalendarCallbackQuerySchema = z
+  .object({
+    state: z.string().min(1),
+    code: z.string().min(1),
+  })
+  .strict();
+
+export const disconnectCalendarRequestSchema = z
+  .object({
+    connectionId: uuidSchema,
+  })
+  .strict();
+
 export const restoreHiddenEventInputSchema = z
   .object({
     connectionId: uuidSchema,
@@ -308,6 +331,9 @@ export type NormalizedProviderEvent = z.infer<typeof normalizedProviderEventSche
 export type CalendarCommand = z.infer<typeof calendarCommandSchema>;
 export type CalendarConnection = z.infer<typeof calendarConnectionSchema>;
 export type ConnectCalendarInput = z.infer<typeof connectCalendarInputSchema>;
+export type GoogleCalendarConnectRequest = z.infer<typeof googleCalendarConnectRequestSchema>;
+export type GoogleCalendarCallbackQuery = z.infer<typeof googleCalendarCallbackQuerySchema>;
+export type DisconnectCalendarRequest = z.infer<typeof disconnectCalendarRequestSchema>;
 export type RestoreHiddenEventInput = z.infer<typeof restoreHiddenEventInputSchema>;
 export type ImportBatch = z.infer<typeof importBatchSchema>;
 export type ProviderChangeBatch = z.infer<typeof providerChangeBatchSchema>;
