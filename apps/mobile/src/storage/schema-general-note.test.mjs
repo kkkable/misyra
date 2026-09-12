@@ -54,13 +54,13 @@ afterEach(() => {
 });
 
 describe('MTS-046 general mission note migration', () => {
-  it('keeps general notes distinct from Personal Mission Notes in schema version 6', async () => {
+  it('keeps general notes distinct from Personal Mission Notes after the version 6 migration', async () => {
     const database = new NodeSqliteAdapter();
     databases.push(database);
 
     await applyMobileMigrations(database);
 
-    expect(MOBILE_SCHEMA_VERSION).toBe(6);
+    expect(MOBILE_SCHEMA_VERSION).toBe(7);
     expect(
       database.all('PRAGMA table_info(search_documents)').map((column) => column.name),
     ).toContain('general_note');
@@ -169,7 +169,7 @@ describe('MTS-046 general mission note migration', () => {
 
     await applyMigrations(database, mobileMigrations);
 
-    expect((await database.getFirstAsync('PRAGMA user_version'))?.user_version).toBe(6);
+    expect((await database.getFirstAsync('PRAGMA user_version'))?.user_version).toBe(7);
     expect(
       await database.getFirstAsync(
         `SELECT personal_note, general_note

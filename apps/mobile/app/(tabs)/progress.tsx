@@ -1,9 +1,5 @@
-import { Text, View } from 'react-native';
+import { ProgressRouteScreen } from '../../src/progress/progress-route-screen.js';
 
-export default function ProgressPlaceholder() {
-  return (
-    <View>
-      <Text>Progress</Text>
-    </View>
-  );
+export default function ProgressRoute() {
+  return <ProgressRouteScreen />;
 }

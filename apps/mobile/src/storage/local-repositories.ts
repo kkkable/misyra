@@ -40,10 +40,19 @@ export interface ExternalLinkSummary {
 
 export interface CompletionSummary {
   readonly occurrenceId: string;
+  readonly title: string;
   readonly completedAt: string;
   readonly awardedXp: number;
   readonly payload: unknown;
   readonly updatedAt: string;
+}
+
+export interface ProgressSnapshot {
+  readonly totalXp: number;
+  readonly totalCompleted: number;
+  readonly currentStreak: number;
+  readonly longestStreak: number;
+  readonly updatedAt: string | null;
 }
 
 export interface LocalSettings {
@@ -94,6 +103,7 @@ type QueryDependency =
   | 'cached_mission_series'
   | 'cached_mission_occurrences'
   | 'completion_summaries'
+  | 'progress_snapshots'
   | 'personal_notes'
   | 'external_links'
   | 'hidden_event_summaries'
@@ -125,11 +135,20 @@ interface ExternalLinkRow {
 
 interface CompletionRow {
   readonly occurrence_id: string;
+  readonly title: string;
   readonly completed_at: string;
   readonly awarded_xp: number;
   readonly payload_json: string;
   readonly updated_at: string;
   readonly occurrence_payload_json: string;
+}
+
+interface ProgressSnapshotRow {
+  readonly total_xp: number;
+  readonly total_completed: number;
+  readonly current_streak: number;
+  readonly longest_streak: number;
+  readonly updated_at: string;
 }
 
 interface SettingsRow {
@@ -324,6 +343,7 @@ export function createLocalRepositories(database: LocalRepositoryDatabase, accou
     const requestedLimit = boundedLimit(limit);
     const rows = await database.getAllAsync<CompletionRow>(
       `SELECT c.occurrence_id,
+              s.title,
               c.completed_at,
               c.awarded_xp,
               c.payload_json,
@@ -333,6 +353,9 @@ export function createLocalRepositories(database: LocalRepositoryDatabase, accou
          JOIN cached_mission_occurrences o
            ON o.account_id = c.account_id
           AND o.occurrence_id = c.occurrence_id
+         JOIN cached_mission_series s
+           ON s.account_id = o.account_id
+          AND s.series_id = o.series_id
         WHERE c.account_id = ?
           AND json_extract(o.payload_json, '$.deletionState') <> 'deleted'
         ORDER BY c.completed_at DESC, c.occurrence_id
@@ -342,11 +365,37 @@ export function createLocalRepositories(database: LocalRepositoryDatabase, accou
     );
     return rows.map((row) => ({
       occurrenceId: row.occurrence_id,
+      title: row.title,
       completedAt: row.completed_at,
       awardedXp: row.awarded_xp,
       payload: parseJson(row.payload_json),
       updatedAt: row.updated_at,
     }));
+  };
+
+  const getProgressSnapshot = async (): Promise<ProgressSnapshot> => {
+    const row = await database.getFirstAsync<ProgressSnapshotRow>(
+      `SELECT total_xp, total_completed, current_streak, longest_streak, updated_at
+         FROM progress_snapshots
+        WHERE account_id = ?`,
+      accountId,
+    );
+    if (row === null) {
+      return {
+        totalXp: 0,
+        totalCompleted: 0,
+        currentStreak: 0,
+        longestStreak: 0,
+        updatedAt: null,
+      };
+    }
+    return {
+      totalXp: row.total_xp,
+      totalCompleted: row.total_completed,
+      currentStreak: row.current_streak,
+      longestStreak: row.longest_streak,
+      updatedAt: row.updated_at,
+    };
   };
 
   const getSettings = async (): Promise<LocalSettings | null> => {
@@ -494,12 +543,14 @@ export function createLocalRepositories(database: LocalRepositoryDatabase, accou
         ),
     },
     progress: {
+      getSnapshot: getProgressSnapshot,
+      observeSnapshot: () => observe(getProgressSnapshot, ['progress_snapshots']),
       listRecent: listRecentProgress,
       observeRecent: (limit: number) => {
         boundedLimit(limit);
         return observe(
           () => listRecentProgress(limit),
-          ['completion_summaries', 'cached_mission_occurrences'],
+          ['completion_summaries', 'cached_mission_occurrences', 'cached_mission_series'],
         );
       },
     },
