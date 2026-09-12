@@ -7,6 +7,7 @@ import { rootMissionNotificationScheduler } from './expo-mission-notifications.j
 import {
   createNotificationRebuildCoordinator,
   createNotificationRebuildLifecycle,
+  requiresForcedNotificationReschedule,
   type NotificationRebuildReason,
 } from './notification-rebuild-runtime.js';
 import { createMissionNotificationReconciler } from './notification-reconciler.js';
@@ -31,8 +32,7 @@ async function rebuildNotifications(reasons: readonly NotificationRebuildReason[
     scheduler: rootMissionNotificationScheduler,
   });
   const now = new Date();
-  const forceReschedule =
-    reasons.includes('device-reboot') || reasons.includes('permission-restored');
+  const forceReschedule = requiresForcedNotificationReschedule(reasons);
 
   await reconciler.reconcile({
     now: now.toISOString(),
