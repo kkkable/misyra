@@ -38,7 +38,6 @@ export function createNotificationRebuildCoordinator({ rebuild }: Readonly<{ reb
       })
       .finally(() => {
         activeDrain = null;
-        if (pendingReasons.size > 0) void ensureDrain();
       });
     return activeDrain;
   };
