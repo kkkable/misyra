@@ -439,10 +439,32 @@ export const externalCalendarConnections = pgTable(
       .references(() => accounts.id, { onDelete: 'cascade' }),
     provider: text('provider').notNull(),
     syncDirection: text('sync_direction').notNull(),
+    providerCalendarId: text('provider_calendar_id'),
+    encryptedRefreshToken: text('encrypted_refresh_token'),
+    connectionState: text('connection_state').notNull().default('connected'),
+    oauthStateHash: text('oauth_state_hash'),
+    oauthStateExpiresAt: timestamp('oauth_state_expires_at', { withTimezone: true }),
+    oauthStateConsumedAt: timestamp('oauth_state_consumed_at', { withTimezone: true }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (table) => [uniqueIndex('external_calendar_connections_account_uidx').on(table.accountId)],
+  (table) => [
+    uniqueIndex('external_calendar_connections_account_uidx').on(table.accountId),
+    index('external_calendar_connections_oauth_state_hash_idx')
+      .on(table.oauthStateHash)
+      .where(sql`${table.oauthStateHash} is not null`),
+    index('external_calendar_connections_oauth_state_expiry_idx')
+      .on(table.oauthStateExpiresAt)
+      .where(sql`${table.oauthStateHash} is not null and ${table.oauthStateConsumedAt} is null`),
+    check(
+      'external_calendar_connections_state_check',
+      sql`${table.connectionState} in ('connected', 'permission_revoked', 'provider_unavailable', 'disconnected')`,
+    ),
+    check(
+      'external_calendar_connections_oauth_state_check',
+      sql`(${table.oauthStateHash} is null and ${table.oauthStateExpiresAt} is null and ${table.oauthStateConsumedAt} is null) or (char_length(${table.oauthStateHash}) = 64 and ${table.oauthStateExpiresAt} is not null)`,
+    ),
+  ],
 );
 
 export const externalEventLinks = pgTable(
