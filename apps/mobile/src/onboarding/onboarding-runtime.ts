@@ -5,6 +5,12 @@ import { localizationCatalogs, notificationSettingsCatalogs } from '@misyra/loca
 
 import { resolveAuthLocale } from '../auth/auth-messages.js';
 import {
+  calendarConnectionMessagesForLocale,
+  createCalendarConnectionFlowController,
+  type CalendarConnectionFlowGateway,
+  type CalendarConnectionIntent,
+} from './calendar-connection-flow.js';
+import {
   createOnboardingController,
   type CalendarProvider,
   type OnboardingPermissionGateway,
@@ -18,6 +24,9 @@ const ONBOARDING_STATE_KEY = 'misyra.onboarding.v1';
 let notificationPermissionRequest: (() => Promise<PermissionResult>) | null = null;
 let calendarPermissionRequest: ((provider: CalendarProvider) => Promise<PermissionResult>) | null =
   null;
+let activeCalendarConnectionCheck: () => Promise<boolean> = async () => false;
+let confirmedCalendarConnectionIntent: (intent: CalendarConnectionIntent) => Promise<void> = async () =>
+  undefined;
 
 export function configureOnboardingPermissionGateway(gateway: OnboardingPermissionGateway) {
   notificationPermissionRequest = () => gateway.requestNotifications();
@@ -28,6 +37,13 @@ export function configureOnboardingNotificationPermissionRequest(
   request: () => Promise<PermissionResult>,
 ) {
   notificationPermissionRequest = request;
+}
+
+export function configureOnboardingCalendarConnectionGateway(
+  gateway: CalendarConnectionFlowGateway,
+) {
+  activeCalendarConnectionCheck = () => gateway.hasActiveConnection();
+  confirmedCalendarConnectionIntent = (intent) => gateway.onConfirmed(intent);
 }
 
 function isOnboardingState(value: unknown): value is OnboardingState {
@@ -69,6 +85,15 @@ const permissions: OnboardingPermissionGateway = {
   },
 };
 
+const calendarConnectionGateway: CalendarConnectionFlowGateway = {
+  hasActiveConnection() {
+    return activeCalendarConnectionCheck();
+  },
+  onConfirmed(intent) {
+    return confirmedCalendarConnectionIntent(intent);
+  },
+};
+
 export const rootOnboardingController = createOnboardingController({
   store: rootOnboardingStore,
   permissions,
@@ -93,7 +118,11 @@ export function onboardingMessagesForLocale(locale: 'en' | 'zh-HK'): OnboardingM
 
 const rootOnboardingLocale = resolveAuthLocale(getLocales()[0]);
 
+export const rootCalendarConnectionController = createCalendarConnectionFlowController({
+  gateway: calendarConnectionGateway,
+});
+export const rootCalendarConnectionMessages =
+  calendarConnectionMessagesForLocale(rootOnboardingLocale);
 export const rootOnboardingNotificationChannelName =
   notificationSettingsCatalogs[rootOnboardingLocale].notifications;
-
 export const rootOnboardingMessages = onboardingMessagesForLocale(rootOnboardingLocale);
