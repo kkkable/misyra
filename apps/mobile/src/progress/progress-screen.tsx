@@ -43,7 +43,8 @@ export function ProgressScreen({
 }: ProgressScreenProps) {
   const colors = themeColors(colorScheme);
   const catalog = progressLocalizationCatalogs[language];
-  const formatNumber = numberFormatter(numberLocale, language).format;
+  const formatter = numberFormatter(numberLocale, language);
+  const formatNumber = (value: number): string => formatter.format(value);
   const level = calculateLevelProgress(snapshot.totalXp);
 
   return (
