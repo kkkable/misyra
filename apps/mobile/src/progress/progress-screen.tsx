@@ -2,10 +2,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { layout, radius, space, typography } from '@misyra/design-tokens';
 import { calculateLevelProgress } from '@misyra/domain';
-import {
-  progressLocalizationCatalogs,
-  type LocalizationLocale,
-} from '@misyra/localization';
+import { progressLocalizationCatalogs, type LocalizationLocale } from '@misyra/localization';
 
 import { themeColors, type ColorScheme } from '../design-system/contracts.js';
 import type { ProgressSnapshot } from '../storage/local-repositories.js';
