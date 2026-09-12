@@ -34,12 +34,31 @@ function occurrence({ id, allDay = false }) {
   };
 }
 
-function createDatabase(rows) {
+function fixedInstantOccurrence({ id, localStart, localFinish, timeZone }) {
+  const base = occurrence({ id });
+  return {
+    ...base,
+    schedule: {
+      ...base.schedule,
+      localStart,
+      localFinish,
+      startInstant: '2026-09-15T03:30:00.000Z',
+      finishInstant: '2026-09-15T04:00:00.000Z',
+      timeZone,
+      timeBehavior: 'fixed_instant',
+    },
+  };
+}
+
+function createDatabase(
+  rows,
+  account = { language: 'en', app_time_zone: 'Asia/Hong_Kong' },
+) {
   const registry = [];
   return {
     registry,
     async getFirstAsync() {
-      return { language: 'en' };
+      return account;
     },
     async getAllAsync(sql) {
       if (sql.includes('cached_mission_occurrences')) return rows;
@@ -89,6 +108,54 @@ describe('MTS-064 same-time combined notifications', () => {
       occurrenceIds: [FIRST_ID, SECOND_ID],
       scheduledAt: '2026-09-14T01:00:00.000Z',
       localDate: '2026-09-14',
+      body: '2 missions start now',
+    });
+  });
+
+  it('uses the Calendar app-time-zone date for fixed-instant grouped notification navigation', async () => {
+    const database = createDatabase(
+      [
+        {
+          payload_json: JSON.stringify(
+            fixedInstantOccurrence({
+              id: FIRST_ID,
+              localStart: '2026-09-14T23:30:00',
+              localFinish: '2026-09-15T00:00:00',
+              timeZone: 'America/New_York',
+            }),
+          ),
+          title: 'New York mission',
+        },
+        {
+          payload_json: JSON.stringify(
+            fixedInstantOccurrence({
+              id: SECOND_ID,
+              localStart: '2026-09-15T12:30:00',
+              localFinish: '2026-09-15T13:00:00',
+              timeZone: 'Asia/Tokyo',
+            }),
+          ),
+          title: 'Tokyo mission',
+        },
+      ],
+      { language: 'en', app_time_zone: 'Asia/Tokyo' },
+    );
+    const schedule = vi.fn(async () => 'native-fixed-group');
+    const reconciler = createMissionNotificationReconciler({
+      database,
+      accountId: ACCOUNT_ID,
+      scheduler: { schedule, cancel: vi.fn(), cancelAll: vi.fn() },
+    });
+
+    await reconciler.reconcile({
+      now: '2026-09-12T00:00:00.000Z',
+      horizonEnd: '2026-09-20T00:00:00.000Z',
+    });
+
+    expect(schedule).toHaveBeenCalledWith({
+      occurrenceIds: [FIRST_ID, SECOND_ID],
+      scheduledAt: '2026-09-15T03:30:00.000Z',
+      localDate: '2026-09-15',
       body: '2 missions start now',
     });
   });
