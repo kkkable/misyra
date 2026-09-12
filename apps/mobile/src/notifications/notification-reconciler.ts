@@ -111,7 +111,9 @@ function groupDesiredNotifications(
 
   return [...byInstant.entries()]
     .map(([scheduledAt, group]) => {
-      const sorted = [...group].sort((left, right) => left.occurrenceId.localeCompare(right.occurrenceId));
+      const sorted = [...group].sort((left, right) =>
+        left.occurrenceId.localeCompare(right.occurrenceId),
+      );
       const first = sorted[0];
       if (first === undefined) throw new Error('notification_group_empty');
       const occurrenceIds = Object.freeze(sorted.map((item) => item.occurrenceId));
@@ -128,11 +130,13 @@ function groupDesiredNotifications(
         ? Object.freeze({ ...base, occurrenceId: first.occurrenceId })
         : Object.freeze(base);
     })
-    .sort(
-      (left, right) =>
-        left.scheduledAt.localeCompare(right.scheduledAt) ||
-        left.occurrenceIds[0]!.localeCompare(right.occurrenceIds[0]!),
-    );
+    .sort((left, right) => {
+      const scheduledOrder = left.scheduledAt.localeCompare(right.scheduledAt);
+      if (scheduledOrder !== 0) return scheduledOrder;
+      const leftOccurrenceId = left.occurrenceIds[0] ?? '';
+      const rightOccurrenceId = right.occurrenceIds[0] ?? '';
+      return leftOccurrenceId.localeCompare(rightOccurrenceId);
+    });
 }
 
 async function loadDesiredNotifications(
@@ -219,10 +223,7 @@ function decodeStoredNotificationId(value: string): StoredNotificationIdentity {
   }
 }
 
-function notificationSignature(
-  scheduledAt: string,
-  occurrenceIds: readonly string[],
-): string {
+function notificationSignature(scheduledAt: string, occurrenceIds: readonly string[]): string {
   return `${scheduledAt}\u0000${occurrenceIds.join('\u0000')}`;
 }
 
