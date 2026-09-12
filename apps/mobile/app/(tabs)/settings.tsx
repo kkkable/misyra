@@ -1,9 +1,5 @@
-import { Text, View } from 'react-native';
+import { SettingsRouteScreen } from '../../src/settings/settings-route.js';
 
-export default function SettingsPlaceholder() {
-  return (
-    <View>
-      <Text>Settings</Text>
-    </View>
-  );
+export default function SettingsRoute() {
+  return <SettingsRouteScreen />;
 }
