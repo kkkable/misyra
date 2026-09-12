@@ -54,17 +54,14 @@ async function providerJson(
 }
 
 function requiredProviderString(value: unknown, field: string): string {
-  if (
-    typeof value !== 'object' ||
-    value === null ||
-    Array.isArray(value) ||
-    !(field in value) ||
-    typeof (value as Record<string, unknown>)[field] !== 'string' ||
-    (value as Record<string, string>)[field].length === 0
-  ) {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
     throw providerFailure();
   }
-  return (value as Record<string, string>)[field];
+  const providerValue = (value as Record<string, unknown>)[field];
+  if (typeof providerValue !== 'string' || providerValue.length === 0) {
+    throw providerFailure();
+  }
+  return providerValue;
 }
 
 function formBody(values: Record<string, string>): URLSearchParams {
