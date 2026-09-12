@@ -4,7 +4,10 @@ export { appTimeZoneUpdatedMessage } from './app-time-zone-messages.js';
 export { completionConfirmationCatalogs } from './completion-confirmation-catalogs.js';
 export type { CompletionConfirmationCatalog } from './completion-confirmation-catalogs.js';
 export { importedEventDisplayTitle } from './imported-event-title.js';
-export { formatMissionStartsNow, missionNotificationCatalogs } from './mission-notification-catalogs.js';
+export {
+  formatMissionStartsNow,
+  missionNotificationCatalogs,
+} from './mission-notification-catalogs.js';
 export type { MissionNotificationLocale } from './mission-notification-catalogs.js';
 export { notificationSettingsCatalogs } from './notification-settings-catalogs.js';
 export type { NotificationSettingsCatalog } from './notification-settings-catalogs.js';
