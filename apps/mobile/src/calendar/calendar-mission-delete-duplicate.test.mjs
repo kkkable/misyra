@@ -214,7 +214,7 @@ describe('MTS-048 local mission deletion', () => {
         accountId,
         occurrenceId,
       ),
-    ).toBeNull();
+    ).toEqual({ notification_id: 'notification-1' });
 
     const queued = await database.getFirstAsync(
       `SELECT command_json

@@ -3,6 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
 import { getAuthApiBaseUrl, rootAuthController } from '../auth/auth-runtime.js';
+import { rootNotificationRebuildLifecycle } from '../notifications/root-notification-rebuild-runtime.js';
 import { openMobileDatabase } from '../storage/database.js';
 import { createAuthenticatedSyncApi } from './authenticated-sync-api.js';
 import {
@@ -54,7 +55,7 @@ function deviceMetadata() {
   });
 }
 
-export const rootSyncRuntime = createAuthenticatedSyncRuntime({
+const authenticatedRootSyncRuntime = createAuthenticatedSyncRuntime({
   sessionProvider: createSyncSessionProvider(rootAuthController),
   installationStore,
   openDatabase: openMobileDatabase,
@@ -68,6 +69,19 @@ export const rootSyncRuntime = createAuthenticatedSyncRuntime({
     }),
   generateInstallationId,
   deviceMetadata,
+});
+
+export const rootSyncRuntime = Object.freeze({
+  async run() {
+    const result = await authenticatedRootSyncRuntime.run();
+    if (result !== null) {
+      const timeZoneChanged = result.timeZoneNotice !== undefined && result.timeZoneNotice !== null;
+      await rootNotificationRebuildLifecycle
+        .afterSynchronization(timeZoneChanged)
+        .catch(() => undefined);
+    }
+    return result;
+  },
 });
 
 export async function requireRegisteredDeviceId(accountId: string): Promise<string> {

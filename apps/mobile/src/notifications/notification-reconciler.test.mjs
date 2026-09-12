@@ -339,7 +339,7 @@ describe('MTS-063 local notification registry and rolling horizon', () => {
     );
     expect(rows).toEqual([
       {
-        notification_id: 'native-2',
+        notification_id: expect.stringMatching(/^misyra-registry:/),
         occurrence_id: occurrenceId(10),
         scheduled_at: '2026-09-13T03:00:00.000Z',
       },

@@ -49,6 +49,12 @@ export type ProcessPendingResult = Readonly<{
   stoppedOn: string | null;
 }>;
 
+export type LocalMutationAppliedEvent = Readonly<{
+  entityType: SyncMutationEntityType;
+}>;
+
+type LocalMutationAppliedListener = (event: LocalMutationAppliedEvent) => void;
+
 interface StoredEnvelope {
   readonly mutation: SyncMutation;
   readonly destination: MutationDestination;
@@ -58,6 +64,25 @@ interface MutationRow {
   readonly mutation_id: string;
   readonly sequence: number;
   readonly command_json: string;
+}
+
+const localMutationAppliedListeners = new Set<LocalMutationAppliedListener>();
+
+export function subscribeLocalMutationApplied(listener: LocalMutationAppliedListener): () => void {
+  localMutationAppliedListeners.add(listener);
+  return () => {
+    localMutationAppliedListeners.delete(listener);
+  };
+}
+
+export function publishLocalMutationApplied(event: LocalMutationAppliedEvent): void {
+  for (const listener of localMutationAppliedListeners) {
+    try {
+      listener(event);
+    } catch {
+      // Notification rebuild observation must never roll back an already committed mutation.
+    }
+  }
 }
 
 function assertNonEmpty(value: string, name: string): void {
@@ -188,6 +213,7 @@ export function createMutationQueue(database: MutationQueueDatabase, accountId: 
         destination: input.destination,
       };
       const serializedEnvelope = JSON.stringify(storedEnvelope);
+      const commitState = { appliedLocally: false };
 
       await database.withExclusiveTransactionAsync(async (transaction) => {
         const existing = await transaction.getFirstAsync<{ command_json: string }>(
@@ -224,7 +250,12 @@ export function createMutationQueue(database: MutationQueueDatabase, accountId: 
           serializedEnvelope,
           input.mutation.clientOccurredAt,
         );
+        commitState.appliedLocally = true;
       });
+
+      if (commitState.appliedLocally) {
+        publishLocalMutationApplied({ entityType: input.mutation.entityType });
+      }
     },
 
     listPending,

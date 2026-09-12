@@ -7,7 +7,11 @@ import {
   type RecurringSeriesScope,
 } from '@misyra/domain';
 
-import { createMutationQueue, type MutationQueueDatabase } from '../storage/mutation-queue.js';
+import {
+  createMutationQueue,
+  publishLocalMutationApplied,
+  type MutationQueueDatabase,
+} from '../storage/mutation-queue.js';
 
 type CalendarMissionDeletionEntry = Readonly<{
   occurrenceId: string;
@@ -170,11 +174,6 @@ async function deleteSingleCalendarMission({
         accountId,
         occurrenceId,
       );
-      await transaction.runAsync(
-        'DELETE FROM notification_registry WHERE account_id = ? AND occurrence_id = ?',
-        accountId,
-        occurrenceId,
-      );
     },
   });
 
@@ -287,7 +286,7 @@ export async function undoCalendarMissionDeletion({
 }>): Promise<boolean> {
   assertNonEmpty(accountId, 'Account ID');
   const deletions = deletion.scopedDeletions ?? [deletion];
-  let restored = false;
+  const commitState = { restored: false };
 
   await database.withExclusiveTransactionAsync(async (transaction) => {
     for (const item of deletions) {
@@ -342,30 +341,15 @@ export async function undoCalendarMissionDeletion({
         accountId,
         item.occurrenceId,
       );
-      for (const notification of item.notifications) {
-        await transaction.runAsync(
-          `INSERT INTO notification_registry
-            (account_id, notification_id, occurrence_id, scheduled_at, updated_at)
-           VALUES (?, ?, ?, ?, ?)
-           ON CONFLICT(account_id, notification_id) DO UPDATE SET
-             occurrence_id = excluded.occurrence_id,
-             scheduled_at = excluded.scheduled_at,
-             updated_at = excluded.updated_at`,
-          accountId,
-          notification.notificationId,
-          item.occurrenceId,
-          notification.scheduledAt,
-          notification.updatedAt,
-        );
-      }
       await transaction.runAsync(
         'DELETE FROM mutation_queue WHERE account_id = ? AND mutation_id = ?',
         accountId,
         item.mutationId,
       );
     }
-    restored = true;
+    commitState.restored = true;
   });
 
-  return restored;
+  if (commitState.restored) publishLocalMutationApplied({ entityType: 'mission' });
+  return commitState.restored;
 }

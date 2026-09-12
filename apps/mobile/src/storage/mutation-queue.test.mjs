@@ -2,7 +2,7 @@ import { DatabaseSync } from 'node:sqlite';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { createMutationQueue } from './mutation-queue.js';
+import { createMutationQueue, subscribeLocalMutationApplied } from './mutation-queue.js';
 import { applyMobileMigrations } from './schema.js';
 
 class NodeSqliteAdapter {
@@ -210,6 +210,33 @@ describe('MTS-030 optimistic mutation queue', () => {
 
     expect(localApplications).toBe(1);
     expect(await queue.listPending()).toHaveLength(1);
+  });
+
+  it('publishes one post-commit event for a newly applied local mutation only', async () => {
+    const database = createDatabase();
+    await applyMobileMigrations(database);
+    await seedAccount(database);
+    const queue = createMutationQueue(database, 'account-a');
+    const events = [];
+    const unsubscribe = subscribeLocalMutationApplied((event) => events.push(event));
+    const queuedMutation = mutation('mutation-notification');
+    const enqueue = () =>
+      queue.enqueue({
+        mutation: queuedMutation,
+        destination: server,
+        applyLocal: async () => {},
+      });
+
+    await enqueue();
+    await enqueue();
+    unsubscribe();
+    await queue.enqueue({
+      mutation: mutation('mutation-after-unsubscribe'),
+      destination: server,
+      applyLocal: async () => {},
+    });
+
+    expect(events).toEqual([{ entityType: 'mission' }]);
   });
 
   it('discards a disconnected provider command without deleting optimistic internal state', async () => {

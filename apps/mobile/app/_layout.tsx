@@ -6,6 +6,7 @@ import { rootAuthController, rootAuthMessages } from '../src/auth/auth-runtime.j
 import { SystemMotionPreferenceProvider } from '../src/experience/system-reduce-motion.js';
 import { createExpoNotificationPermissionService } from '../src/notifications/expo-notification-permission.js';
 import { MissionNotificationResponseBridge } from '../src/notifications/mission-notification-response-bridge.js';
+import { NotificationRebuildBridge } from '../src/notifications/notification-rebuild-bridge.js';
 import { OnboardingGate } from '../src/onboarding/onboarding-gate.js';
 import {
   configureOnboardingNotificationPermissionRequest,
@@ -37,6 +38,7 @@ export default function RootLayout() {
         <AuthGate controller={rootAuthController} messages={rootAuthMessages}>
           <SyncRuntimeGate>
             <OnboardingGate controller={rootOnboardingController} messages={rootOnboardingMessages}>
+              <NotificationRebuildBridge />
               <MissionNotificationResponseBridge />
               <Stack screenOptions={{ headerShown: false }}>
                 <Stack.Screen name="(tabs)" options={{ headerShown: false }} />

@@ -14,6 +14,7 @@ import {
 import { useAppLanguage } from '../localization/use-app-language.js';
 import { createExpoNotificationPermissionService } from '../notifications/expo-notification-permission.js';
 import type { NotificationPermissionStatus } from '../notifications/notification-permission.js';
+import { rootNotificationRebuildLifecycle } from '../notifications/root-notification-rebuild-runtime.js';
 import { createNotificationSettingsModel } from './notification-settings-model.js';
 
 export function SettingsRouteScreen() {
@@ -58,7 +59,11 @@ export function SettingsRouteScreen() {
   const runAction = useCallback(async () => {
     if (model?.action === undefined || model.action === null) return;
     if (model.action.kind === 'request') {
-      setPermission(await permissionService.request());
+      const nextPermission = await permissionService.request();
+      setPermission(nextPermission);
+      if (nextPermission.status === 'enabled') {
+        await rootNotificationRebuildLifecycle.onForeground().catch(() => undefined);
+      }
       return;
     }
     await permissionService.openSettings();
