@@ -2,7 +2,10 @@ import { DatabaseSync } from 'node:sqlite';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { deleteCalendarMission, undoCalendarMissionDeletion } from '../calendar/calendar-mission-delete.js';
+import {
+  deleteCalendarMission,
+  undoCalendarMissionDeletion,
+} from '../calendar/calendar-mission-delete.js';
 import { applyMobileMigrations } from '../storage/schema.js';
 import { subscribeLocalMutationApplied } from '../storage/mutation-queue.js';
 import { createMissionNotificationReconciler } from './notification-reconciler.js';
@@ -149,63 +152,69 @@ async function deleteFixtureMission(database) {
 }
 
 describe('MTS-065 deletion notification rebuild integration', () => {
-  it('keeps the native registry identity until reconciliation cancels the obsolete reminder', async () => {
-    const database = createDatabase();
-    await seedDeletionFixture(database);
+  it(
+    'keeps the native registry identity until reconciliation cancels the obsolete reminder',
+    async () => {
+      const database = createDatabase();
+      await seedDeletionFixture(database);
 
-    await deleteFixtureMission(database);
+      await deleteFixtureMission(database);
 
-    expect(
-      await database.getFirstAsync(
-        `SELECT notification_id
-           FROM notification_registry
-          WHERE account_id = ? AND occurrence_id = ?`,
-        ACCOUNT_ID,
-        OCCURRENCE_ID,
-      ),
-    ).toEqual({ notification_id: 'native-before-delete' });
+      expect(
+        await database.getFirstAsync(
+          `SELECT notification_id
+             FROM notification_registry
+            WHERE account_id = ? AND occurrence_id = ?`,
+          ACCOUNT_ID,
+          OCCURRENCE_ID,
+        ),
+      ).toEqual({ notification_id: 'native-before-delete' });
 
-    const cancel = vi.fn(async () => undefined);
-    const schedule = vi.fn(async () => 'unexpected-native');
-    const reconciler = createMissionNotificationReconciler({
-      database,
-      accountId: ACCOUNT_ID,
-      scheduler: { cancel, schedule, cancelAll: vi.fn() },
-    });
+      const cancel = vi.fn(async () => undefined);
+      const schedule = vi.fn(async () => 'unexpected-native');
+      const reconciler = createMissionNotificationReconciler({
+        database,
+        accountId: ACCOUNT_ID,
+        scheduler: { cancel, schedule, cancelAll: vi.fn() },
+      });
 
-    await reconciler.reconcile({
-      now: '2026-09-12T01:00:00.000Z',
-      horizonEnd: '2026-09-20T01:00:00.000Z',
-    });
+      await reconciler.reconcile({
+        now: '2026-09-12T01:00:00.000Z',
+        horizonEnd: '2026-09-20T01:00:00.000Z',
+      });
 
-    expect(cancel).toHaveBeenCalledWith('native-before-delete');
-    expect(schedule).not.toHaveBeenCalled();
-    expect(
-      await database.getFirstAsync(
-        `SELECT notification_id
-           FROM notification_registry
-          WHERE account_id = ? AND occurrence_id = ?`,
-        ACCOUNT_ID,
-        OCCURRENCE_ID,
-      ),
-    ).toBeNull();
-  });
+      expect(cancel).toHaveBeenCalledWith('native-before-delete');
+      expect(schedule).not.toHaveBeenCalled();
+      expect(
+        await database.getFirstAsync(
+          `SELECT notification_id
+             FROM notification_registry
+            WHERE account_id = ? AND occurrence_id = ?`,
+          ACCOUNT_ID,
+          OCCURRENCE_ID,
+        ),
+      ).toBeNull();
+    },
+  );
 
-  it('publishes a mission-change observation after undo commits so a cancelled reminder can be rebuilt', async () => {
-    const database = createDatabase();
-    await seedDeletionFixture(database);
-    const deletion = await deleteFixtureMission(database);
-    const observed = [];
-    const unsubscribe = subscribeLocalMutationApplied((event) => observed.push(event.entityType));
+  it(
+    'publishes a mission-change observation after undo commits so a cancelled reminder can be rebuilt',
+    async () => {
+      const database = createDatabase();
+      await seedDeletionFixture(database);
+      const deletion = await deleteFixtureMission(database);
+      const observed = [];
+      const unsubscribe = subscribeLocalMutationApplied((event) => observed.push(event.entityType));
 
-    try {
-      await expect(
-        undoCalendarMissionDeletion({ database, accountId: ACCOUNT_ID, deletion }),
-      ).resolves.toBe(true);
-    } finally {
-      unsubscribe();
-    }
+      try {
+        await expect(
+          undoCalendarMissionDeletion({ database, accountId: ACCOUNT_ID, deletion }),
+        ).resolves.toBe(true);
+      } finally {
+        unsubscribe();
+      }
 
-    expect(observed).toEqual(['mission']);
-  });
+      expect(observed).toEqual(['mission']);
+    },
+  );
 });
