@@ -34,7 +34,9 @@ export function SettingsRouteScreen() {
         void refresh();
       }
     });
-    return () => subscription.remove();
+    return () => {
+      subscription.remove();
+    };
   }, [refresh]);
 
   const catalog = notificationSettingsCatalogs[language];
