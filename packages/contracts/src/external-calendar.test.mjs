@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   calendarCommandSchema,
   calendarConnectionSchema,
+  connectCalendarInputSchema,
   externalCalendarErrorCodeSchema,
   externalCalendarOwnershipMatrix,
   normalizedProviderEventSchema,
@@ -85,6 +86,24 @@ describe('MTS-067 shared external-calendar adapter contract', () => {
     expect(result.success).toBe(false);
   });
 
+  it('keeps initial sync direction in the shared connection boundary', () => {
+    const input = connectCalendarInputSchema.parse({
+      provider: 'apple',
+      providerCalendarId: 'calendar-1',
+      initialSyncDirection: 'misyra_to_external',
+    });
+    const connection = calendarConnectionSchema.parse({
+      id: connectionId,
+      provider: 'apple',
+      providerCalendarId: 'calendar-1',
+      initialSyncDirection: 'misyra_to_external',
+      state: 'connected',
+    });
+
+    expect(input.initialSyncDirection).toBe('misyra_to_external');
+    expect(connection.initialSyncDirection).toBe('misyra_to_external');
+  });
+
   it('normalizes recurrence, connection state, and provider failures without provider payloads', () => {
     const recurringEvent = normalizedProviderEventSchema.parse({
       ...normalizedEvent,
@@ -97,6 +116,7 @@ describe('MTS-067 shared external-calendar adapter contract', () => {
       id: connectionId,
       provider: 'google',
       providerCalendarId: 'calendar-1',
+      initialSyncDirection: 'external_to_misyra',
       state: 'provider_unavailable',
     });
 
