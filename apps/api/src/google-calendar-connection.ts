@@ -1,4 +1,8 @@
+import { createHash, randomBytes } from 'node:crypto';
+
 import type { ExternalCalendarInitialSyncDirection } from '@misyra/contracts';
+
+const DEFAULT_STATE_TTL_MS = 10 * 60 * 1000;
 
 export type GoogleCalendarOAuthStateRecord = Readonly<{
   accountId: string;
@@ -76,6 +80,22 @@ export type GoogleCalendarConnectionService = Readonly<{
   disconnect(accountId: string, connectionId: string): Promise<void>;
 }>;
 
+function hashOAuthState(state: string): string {
+  return createHash('sha256').update(state).digest('hex');
+}
+
+function createDefaultState(): string {
+  return randomBytes(32).toString('base64url');
+}
+
+function providerError(): GoogleCalendarOAuthError {
+  return new GoogleCalendarOAuthError('provider_error');
+}
+
+function isConnectionExistsError(error: unknown): boolean {
+  return error instanceof Error && error.message === 'connection_exists';
+}
+
 export function createGoogleCalendarConnectionService(input: {
   store: GoogleCalendarConnectionStore;
   provider: GoogleCalendarOAuthGateway;
@@ -84,21 +104,94 @@ export function createGoogleCalendarConnectionService(input: {
   stateFactory?: () => string;
   stateTtlMs?: number;
 }): GoogleCalendarConnectionService {
-  void input;
+  const now = input.now ?? (() => new Date());
+  const stateFactory = input.stateFactory ?? createDefaultState;
+  const stateTtlMs = input.stateTtlMs ?? DEFAULT_STATE_TTL_MS;
+
+  if (!Number.isFinite(stateTtlMs) || stateTtlMs <= 0) {
+    throw new TypeError('stateTtlMs must be a positive finite number');
+  }
+
   return {
-    startOAuth(accountId, request) {
-      void accountId;
-      void request;
-      return Promise.reject(new Error('MTS-069 not implemented'));
+    async startOAuth(accountId, request) {
+      const state = stateFactory();
+      const currentTime = now();
+      await input.store.saveOAuthState({
+        accountId,
+        stateHash: hashOAuthState(state),
+        expiresAt: new Date(currentTime.getTime() + stateTtlMs),
+        consumedAt: null,
+        initialSyncDirection: request.initialSyncDirection,
+        selectedCalendarId: request.selectedCalendarId ?? null,
+      });
+
+      return {
+        authorizationUrl: input.provider.buildAuthorizationUrl({ state }),
+      };
     },
-    completeOAuth(request) {
-      void request;
-      return Promise.reject(new Error('MTS-069 not implemented'));
+
+    async completeOAuth(request) {
+      const state = await input.store.consumeOAuthState(hashOAuthState(request.state), now());
+      if (!state) {
+        throw new GoogleCalendarOAuthError('invalid_state');
+      }
+
+      let refreshToken: string;
+      try {
+        ({ refreshToken } = await input.provider.exchangeCode(request.code));
+      } catch {
+        throw providerError();
+      }
+
+      let providerCalendarId: string;
+      if (state.initialSyncDirection === 'misyra_to_external') {
+        try {
+          providerCalendarId = await input.provider.createDedicatedCalendar(refreshToken);
+        } catch {
+          throw providerError();
+        }
+      } else if (state.selectedCalendarId) {
+        providerCalendarId = state.selectedCalendarId;
+      } else {
+        throw new GoogleCalendarOAuthError('invalid_state');
+      }
+
+      let encryptedRefreshToken: string;
+      try {
+        encryptedRefreshToken = await input.cipher.encrypt(refreshToken);
+      } catch {
+        throw providerError();
+      }
+
+      try {
+        return await input.store.createConnection({
+          accountId: state.accountId,
+          provider: 'google',
+          providerCalendarId,
+          initialSyncDirection: state.initialSyncDirection,
+          encryptedRefreshToken,
+          state: 'connected',
+        });
+      } catch (error) {
+        if (isConnectionExistsError(error)) {
+          throw new GoogleCalendarOAuthError('connection_exists');
+        }
+        throw providerError();
+      }
     },
-    disconnect(accountId, connectionId) {
-      void accountId;
-      void connectionId;
-      return Promise.reject(new Error('MTS-069 not implemented'));
+
+    async disconnect(accountId, connectionId) {
+      const connection = await input.store.disconnectConnection(accountId, connectionId);
+      if (!connection) {
+        throw new GoogleCalendarOAuthError('not_found');
+      }
+
+      try {
+        const refreshToken = await input.cipher.decrypt(connection.encryptedRefreshToken);
+        await input.provider.revokeRefreshToken(refreshToken);
+      } catch {
+        throw providerError();
+      }
     },
   };
 }
