@@ -61,7 +61,9 @@ describe('MTS-062 Expo notification permission adapter', () => {
         status: 'denied',
       };
 
-      const service = createExpoNotificationPermissionService();
+      const service = createExpoNotificationPermissionService({
+        androidChannelName: 'Notifications',
+      });
 
       await expect(service.getStatus()).resolves.toEqual({
         status: 'enabled',
