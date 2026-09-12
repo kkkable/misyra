@@ -10,7 +10,10 @@ const event = Object.freeze({
   awardedXp: 86,
   totalXp: 186,
 });
-const request = Object.freeze({ occurrenceId: event.occurrenceId });
+const request = Object.freeze({
+  occurrenceId: event.occurrenceId,
+  mutationId: '22222222-2222-4222-8222-222222222222',
+});
 
 describe('MTS-061 foreground completion confirmation runtime', () => {
   it('delivers an explicit foreground completion to active Calendar listeners', () => {
