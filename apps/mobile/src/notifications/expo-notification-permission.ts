@@ -1,3 +1,4 @@
+import { PermissionStatus } from 'expo';
 import * as Notifications from 'expo-notifications';
 import { Linking, Platform } from 'react-native';
 
@@ -19,7 +20,7 @@ function snapshot(
     iosStatus === Notifications.IosAuthorizationStatus.PROVISIONAL ||
     iosStatus === Notifications.IosAuthorizationStatus.EPHEMERAL;
   const undetermined =
-    permission.status === 'undetermined' ||
+    permission.status === PermissionStatus.UNDETERMINED ||
     iosStatus === Notifications.IosAuthorizationStatus.NOT_DETERMINED;
   const status = granted ? 'granted' : undetermined ? 'undetermined' : 'denied';
 
