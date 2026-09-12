@@ -7,10 +7,7 @@ import { rootAuthController } from '../auth/auth-runtime.js';
 import type { ColorScheme } from '../design-system/contracts.js';
 import { useAppLanguage } from '../localization/use-app-language.js';
 import { openMobileDatabase } from '../storage/database.js';
-import {
-  createLocalRepositories,
-  type ProgressSnapshot,
-} from '../storage/local-repositories.js';
+import { createLocalRepositories, type ProgressSnapshot } from '../storage/local-repositories.js';
 import { rootSyncRuntime } from '../sync/root-sync-runtime.js';
 import { ProgressScreen, type ProgressRecentItem } from './progress-screen.js';
 
