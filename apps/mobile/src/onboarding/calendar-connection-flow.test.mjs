@@ -109,6 +109,31 @@ describe('MTS-068 calendar connection direction flow', () => {
     expect(harness.gateway.onConfirmed).not.toHaveBeenCalled();
   });
 
+  it('coalesces rapid initial confirmations so one tap burst cannot consume both confirmations', async () => {
+    const harness = createHarness();
+
+    await harness.controller.start('google');
+    harness.controller.chooseDirection('external_to_misyra');
+
+    const firstConfirmation = harness.controller.confirm();
+    const secondConfirmation = harness.controller.confirm();
+
+    await expect(Promise.all([firstConfirmation, secondConfirmation])).resolves.toEqual([
+      {
+        step: 'confirm_final',
+        provider: 'google',
+        initialSyncDirection: 'external_to_misyra',
+      },
+      {
+        step: 'confirm_final',
+        provider: 'google',
+        initialSyncDirection: 'external_to_misyra',
+      },
+    ]);
+    expect(harness.gateway.onConfirmed).not.toHaveBeenCalled();
+    expect(harness.controller.getState()).toMatchObject({ step: 'confirm_final' });
+  });
+
   it('coalesces rapid final confirmations so the provider handoff runs once', async () => {
     let releaseHandoff;
     const handoff = new Promise((resolve) => {
