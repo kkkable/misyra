@@ -5,7 +5,8 @@ import {
   createCalendarConnectionFlowController,
 } from './calendar-connection-flow.js';
 
-function createHarness({ activeConnection = false } = {}) {
+function createHarness({ activeConnection: initiallyActive = false } = {}) {
+  let activeConnection = initiallyActive;
   const confirmed = [];
   const gateway = {
     hasActiveConnection: vi.fn(async () => activeConnection),
@@ -18,6 +19,9 @@ function createHarness({ activeConnection = false } = {}) {
     confirmed,
     controller: createCalendarConnectionFlowController({ gateway }),
     gateway,
+    setActiveConnection(value) {
+      activeConnection = value;
+    },
   };
 }
 
@@ -87,6 +91,61 @@ describe('MTS-068 calendar connection direction flow', () => {
       /direction cannot be chosen/i,
     );
     expect(harness.gateway.onConfirmed).not.toHaveBeenCalled();
+  });
+
+  it('rechecks uniqueness at final confirmation so a concurrent connection wins safely', async () => {
+    const harness = createHarness();
+
+    await harness.controller.start('google');
+    harness.controller.chooseDirection('external_to_misyra');
+    await harness.controller.confirm();
+    harness.setActiveConnection(true);
+
+    expect(await harness.controller.confirm()).toEqual({
+      step: 'blocked',
+      reason: 'connection_exists',
+    });
+    expect(harness.gateway.hasActiveConnection).toHaveBeenCalledTimes(2);
+    expect(harness.gateway.onConfirmed).not.toHaveBeenCalled();
+  });
+
+  it('returns to provider choice from direction or blocked state and steps backward through confirmations', async () => {
+    const harness = createHarness();
+
+    await harness.controller.start('apple');
+    expect(harness.controller.back()).toEqual({ step: 'idle' });
+
+    await harness.controller.start('apple');
+    harness.controller.chooseDirection('misyra_to_external');
+    await harness.controller.confirm();
+    expect(harness.controller.back()).toMatchObject({ step: 'confirm_initial' });
+    expect(harness.controller.back()).toEqual({ step: 'direction', provider: 'apple' });
+    expect(harness.controller.back()).toEqual({ step: 'idle' });
+
+    harness.setActiveConnection(true);
+    await harness.controller.start('google');
+    expect(harness.controller.back()).toEqual({ step: 'idle' });
+  });
+
+  it('keeps final confirmation retryable when the provider-neutral handoff fails', async () => {
+    const gateway = {
+      hasActiveConnection: vi.fn(async () => false),
+      onConfirmed: vi.fn(async () => {
+        throw new Error('temporary handoff failure');
+      }),
+    };
+    const controller = createCalendarConnectionFlowController({ gateway });
+
+    await controller.start('google');
+    controller.chooseDirection('external_to_misyra');
+    await controller.confirm();
+
+    await expect(controller.confirm()).rejects.toThrow('temporary handoff failure');
+    expect(controller.getState()).toMatchObject({
+      step: 'confirm_final',
+      provider: 'google',
+      initialSyncDirection: 'external_to_misyra',
+    });
   });
 
   it('provides confirmation copy that states future impact, unchanged past data, and later bidirectional sync', () => {
