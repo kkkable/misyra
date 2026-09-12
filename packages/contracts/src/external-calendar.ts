@@ -247,7 +247,7 @@ export const googleCalendarCallbackQuerySchema = z
     state: z.string().min(1),
     code: z.string().min(1),
   })
-  .strict();
+  .strip();
 
 export const disconnectCalendarRequestSchema = z
   .object({
