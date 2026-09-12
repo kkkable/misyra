@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { radius, space, typography } from '@misyra/design-tokens';
@@ -6,6 +7,7 @@ import type { CompletionState, EvidenceState } from '@misyra/domain';
 import { localizationCatalogs, type LocalizationLocale } from '@misyra/localization';
 
 import { themeColors, type ColorScheme } from '../design-system/index.js';
+import { completionConfirmationRequestChannel } from './completion-confirmation-runtime.js';
 
 export type NoEvidenceCompletionMode = 'private' | 'trust';
 
@@ -84,7 +86,12 @@ export function PrivateTrustCompletionPanel({
           accessibilityLabel={actionLabel}
           accessibilityRole="button"
           onPress={() => {
-            void Promise.resolve(onConfirm(mode)).catch(() => undefined);
+            void Promise.resolve(onConfirm(mode))
+              .then(() => {
+                completionConfirmationRequestChannel.publish();
+                router.back();
+              })
+              .catch(() => undefined);
           }}
           style={[styles.primaryAction, { backgroundColor: colors.primary }]}
           testID="private-trust-completion-confirm"
