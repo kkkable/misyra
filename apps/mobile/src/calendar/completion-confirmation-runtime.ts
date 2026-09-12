@@ -5,6 +5,7 @@ export type ForegroundCompletionConfirmationEvent = Readonly<{
 }>;
 
 type CompletionConfirmationListener = (event: ForegroundCompletionConfirmationEvent) => void;
+type CompletionRequestListener = () => void;
 
 export function createCompletionConfirmationChannel() {
   const listeners = new Set<CompletionConfirmationListener>();
@@ -20,4 +21,19 @@ export function createCompletionConfirmationChannel() {
   });
 }
 
+export function createCompletionConfirmationRequestChannel() {
+  const listeners = new Set<CompletionRequestListener>();
+
+  return Object.freeze({
+    publish(): void {
+      for (const listener of [...listeners]) listener();
+    },
+    subscribe(listener: CompletionRequestListener): () => void {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+  });
+}
+
 export const completionConfirmationChannel = createCompletionConfirmationChannel();
+export const completionConfirmationRequestChannel = createCompletionConfirmationRequestChannel();
