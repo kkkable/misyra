@@ -67,6 +67,7 @@ describe('MTS-061 authoritative foreground settlement', () => {
           totalXp: 350,
         });
       },
+      consumeSettlement: (mutationId) => settlements.consume(mutationId),
       subscribeSettlement: (subscriber) => settlements.subscribe(subscriber),
       publishConfirmation: (event) => confirmations.publish(event),
     });
@@ -77,6 +78,7 @@ describe('MTS-061 authoritative foreground settlement', () => {
       awardedXp: 86,
       totalXp: 250,
     });
+    expect(settlements.consume(request.mutationId)).toBeNull();
   });
 
   it('does not animate when another device already completed the mission', async () => {
@@ -91,11 +93,13 @@ describe('MTS-061 authoritative foreground settlement', () => {
           status: 'already_completed',
         });
       },
+      consumeSettlement: (mutationId) => settlements.consume(mutationId),
       subscribeSettlement: (subscriber) => settlements.subscribe(subscriber),
       publishConfirmation: (event) => confirmations.publish(event),
     });
 
     expect(listener).not.toHaveBeenCalled();
+    expect(settlements.consume(request.mutationId)).toBeNull();
   });
 
   it('still confirms an accepted completion when the later pull phase fails', async () => {
@@ -113,10 +117,12 @@ describe('MTS-061 authoritative foreground settlement', () => {
         });
         throw new Error('pull_failed_after_completion');
       },
+      consumeSettlement: (mutationId) => settlements.consume(mutationId),
       subscribeSettlement: (subscriber) => settlements.subscribe(subscriber),
       publishConfirmation: (event) => confirmations.publish(event),
     });
 
     expect(listener).toHaveBeenCalledTimes(1);
+    expect(settlements.consume(request.mutationId)).toBeNull();
   });
 });
