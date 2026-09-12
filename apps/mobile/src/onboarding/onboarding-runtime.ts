@@ -24,10 +24,10 @@ const ONBOARDING_STATE_KEY = 'misyra.onboarding.v1';
 let notificationPermissionRequest: (() => Promise<PermissionResult>) | null = null;
 let calendarPermissionRequest: ((provider: CalendarProvider) => Promise<PermissionResult>) | null =
   null;
-let activeCalendarConnectionCheck: () => Promise<boolean> = async () => false;
+let activeCalendarConnectionCheck: () => Promise<boolean> = () => Promise.resolve(false);
 let confirmedCalendarConnectionIntent: (
   intent: CalendarConnectionIntent,
-) => Promise<void> = async () => undefined;
+) => Promise<void> = () => Promise.resolve();
 
 export function configureOnboardingPermissionGateway(gateway: OnboardingPermissionGateway) {
   notificationPermissionRequest = () => gateway.requestNotifications();
