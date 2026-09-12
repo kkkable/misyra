@@ -40,7 +40,7 @@ export function createExpoNotificationPermissionService() {
     },
     async prepareAndroidPermissionChannel() {
       await Notifications.setNotificationChannelAsync(MISSION_REMINDER_CHANNEL_ID, {
-        name: 'Misyra',
+        name: 'Notifications',
         importance: Notifications.AndroidImportance.DEFAULT,
       });
     },
