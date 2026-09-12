@@ -33,6 +33,35 @@ describe('MTS-063 Expo mission notification scheduler', () => {
     });
   });
 
+  it('carries selected-day and deterministic occurrence identities for combined taps', async () => {
+    await rootMissionNotificationScheduler.schedule({
+      occurrenceIds: [
+        '323e4567-e89b-42d3-a456-426614174001',
+        '323e4567-e89b-42d3-a456-426614174002',
+      ],
+      localDate: '2026-09-14',
+      scheduledAt: '2026-09-14T01:00:00.000Z',
+      body: '2 missions start now',
+    });
+
+    expect(Notifications.scheduleNotificationAsync).toHaveBeenLastCalledWith({
+      content: {
+        body: '2 missions start now',
+        data: {
+          localDate: '2026-09-14',
+          occurrenceIds: [
+            '323e4567-e89b-42d3-a456-426614174001',
+            '323e4567-e89b-42d3-a456-426614174002',
+          ],
+        },
+      },
+      trigger: {
+        type: 'date',
+        date: new Date('2026-09-14T01:00:00.000Z'),
+      },
+    });
+  });
+
   it('cancels one or all native scheduled notifications through the Expo boundary', async () => {
     await rootMissionNotificationScheduler.cancel('native-42');
     await rootMissionNotificationScheduler.cancelAll();
