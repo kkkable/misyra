@@ -2,6 +2,49 @@ import { createElement } from 'react';
 import { act, create } from 'react-test-renderer';
 import { describe, expect, it, vi } from 'vitest';
 
+vi.mock('react-native', async () => {
+  const { createElement: createReactElement } = await import('react');
+  const host = (name) => ({ children, ...props }) => createReactElement(name, props, children);
+  const Pressable = ({ children, ...props }) =>
+    createReactElement(
+      'Pressable',
+      props,
+      typeof children === 'function' ? children({ pressed: false }) : children,
+    );
+
+  class AnimatedValue {
+    constructor(value) {
+      this.value = value;
+    }
+
+    setValue(value) {
+      this.value = value;
+    }
+
+    interpolate() {
+      return this.value;
+    }
+  }
+
+  return {
+    Animated: {
+      Value: AnimatedValue,
+      View: host('AnimatedView'),
+      timing: () => ({ start: vi.fn(), stop: vi.fn() }),
+    },
+    Easing: { bezier: () => (value) => value },
+    Modal: host('Modal'),
+    Platform: { OS: 'ios' },
+    Pressable,
+    ScrollView: host('ScrollView'),
+    StyleSheet: { create: (styles) => styles },
+    Switch: host('Switch'),
+    Text: host('Text'),
+    TextInput: host('TextInput'),
+    View: host('View'),
+  };
+});
+
 import { MotionPreferenceProvider } from '../experience/reduce-motion.js';
 import { CompletionConfirmation } from './completion-confirmation-view.js';
 
