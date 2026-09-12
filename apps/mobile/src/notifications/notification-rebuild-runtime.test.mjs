@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   createNotificationRebuildCoordinator,
   createNotificationRebuildLifecycle,
+  requiresForcedNotificationReschedule,
 } from './notification-rebuild-runtime.js';
 
 function deferred() {
@@ -54,13 +55,13 @@ describe('MTS-065 notification rebuild runtime', () => {
     expect(rebuild.mock.calls[1]?.[0]).toEqual(['synchronization', 'time-zone-change']);
   });
 
-  it('does not launch an implicit retry after a failed rebuild', async () => {
+  it('preserves failed recovery reasons without launching an implicit retry', async () => {
     const firstRun = deferred();
     const rebuild = vi.fn(async () => undefined);
     rebuild.mockImplementationOnce(async () => firstRun.promise);
     const runtime = createNotificationRebuildCoordinator({ rebuild });
 
-    const first = runtime.request('mission-change');
+    const first = runtime.request('device-reboot');
     await Promise.resolve();
     const queued = runtime.request('synchronization');
     firstRun.reject(new Error('offline'));
@@ -75,7 +76,19 @@ describe('MTS-065 notification rebuild runtime', () => {
     await runtime.request('time-zone-change');
 
     expect(rebuild).toHaveBeenCalledTimes(2);
-    expect(rebuild.mock.calls[1]?.[0]).toEqual(['synchronization', 'time-zone-change']);
+    expect(rebuild.mock.calls[1]?.[0]).toEqual([
+      'device-reboot',
+      'synchronization',
+      'time-zone-change',
+    ]);
+  });
+
+  it('forces native re-registration only for recovery or time-zone reasons', () => {
+    expect(requiresForcedNotificationReschedule(['device-reboot'])).toBe(true);
+    expect(requiresForcedNotificationReschedule(['permission-restored'])).toBe(true);
+    expect(requiresForcedNotificationReschedule(['time-zone-change'])).toBe(true);
+    expect(requiresForcedNotificationReschedule(['sign-in'])).toBe(false);
+    expect(requiresForcedNotificationReschedule(['mission-change', 'synchronization'])).toBe(false);
   });
 
   it('wires every notification rebuild lifecycle trigger', async () => {
@@ -106,13 +119,14 @@ describe('MTS-065 notification rebuild runtime', () => {
     mutationListener?.({ entityType: 'completion' });
     mutationListener?.({ entityType: 'settings' });
     mutationListener?.({ entityType: 'story' });
-    await lifecycle.afterSynchronization();
+    await lifecycle.afterSynchronization(true);
     await lifecycle.onForeground();
 
     expect(request).toHaveBeenCalledWith('mission-change');
     expect(request).toHaveBeenCalledWith('time-zone-change');
     expect(request).toHaveBeenCalledWith('synchronization');
     expect(request).toHaveBeenCalledWith('permission-restored');
+    expect(request.mock.calls.filter(([reason]) => reason === 'time-zone-change')).toHaveLength(1);
     expect(request).toHaveBeenCalledTimes(7);
 
     lifecycle.stop();
