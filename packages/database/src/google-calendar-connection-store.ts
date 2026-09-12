@@ -68,37 +68,45 @@ function mapConnection(row: ConnectionRow): GoogleCalendarConnectionRecord {
   };
 }
 
-function isUniqueViolation(error: unknown): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    (error as { code?: unknown }).code === '23505'
-  );
-}
-
 export function createPostgresGoogleCalendarConnectionStore(pool: Pool) {
   return {
     async saveOAuthState(record: GoogleCalendarOAuthStateRecord): Promise<void> {
-      await pool.query(
-        `INSERT INTO google_calendar_oauth_states (
-           state_hash,
+      const result = await pool.query<{ id: string }>(
+        `INSERT INTO external_calendar_connections (
            account_id,
-           expires_at,
-           consumed_at,
-           initial_sync_direction,
-           selected_calendar_id
+           provider,
+           sync_direction,
+           provider_calendar_id,
+           encrypted_refresh_token,
+           connection_state,
+           oauth_state_hash,
+           oauth_state_expires_at,
+           oauth_state_consumed_at
          )
-         VALUES ($1, $2, $3, $4, $5, $6)`,
+         VALUES ($1, 'google', $2, $3, NULL, 'disconnected', $4, $5, $6)
+         ON CONFLICT (account_id) DO UPDATE
+             SET provider = 'google',
+                 sync_direction = EXCLUDED.sync_direction,
+                 provider_calendar_id = EXCLUDED.provider_calendar_id,
+                 encrypted_refresh_token = NULL,
+                 connection_state = 'disconnected',
+                 oauth_state_hash = EXCLUDED.oauth_state_hash,
+                 oauth_state_expires_at = EXCLUDED.oauth_state_expires_at,
+                 oauth_state_consumed_at = EXCLUDED.oauth_state_consumed_at,
+                 updated_at = now()
+           WHERE external_calendar_connections.connection_state = 'disconnected'
+         RETURNING id`,
         [
-          record.stateHash,
           record.accountId,
-          record.expiresAt,
-          record.consumedAt,
           record.initialSyncDirection,
           record.selectedCalendarId,
+          record.stateHash,
+          record.expiresAt,
+          record.consumedAt,
         ],
       );
+
+      if (!result.rows[0]) throw new Error('connection_exists');
     },
 
     async consumeOAuthState(
@@ -106,17 +114,29 @@ export function createPostgresGoogleCalendarConnectionStore(pool: Pool) {
       currentTime: Date,
     ): Promise<GoogleCalendarOAuthStateRecord | null> {
       const result = await pool.query<OAuthStateRow>(
-        `UPDATE google_calendar_oauth_states
-            SET consumed_at = $2
-          WHERE state_hash = $1
-            AND consumed_at IS NULL
-            AND expires_at > $2
-        RETURNING account_id,
-                  state_hash,
-                  expires_at,
-                  consumed_at,
-                  initial_sync_direction,
-                  selected_calendar_id`,
+        `WITH candidate AS (
+           SELECT id
+             FROM external_calendar_connections
+            WHERE provider = 'google'
+              AND connection_state = 'disconnected'
+              AND oauth_state_hash = $1
+              AND oauth_state_consumed_at IS NULL
+              AND oauth_state_expires_at > $2
+            ORDER BY id
+            LIMIT 1
+            FOR UPDATE
+         )
+         UPDATE external_calendar_connections AS connection
+            SET oauth_state_consumed_at = $2,
+                updated_at = now()
+           FROM candidate
+          WHERE connection.id = candidate.id
+         RETURNING connection.account_id,
+                   connection.oauth_state_hash AS state_hash,
+                   connection.oauth_state_expires_at AS expires_at,
+                   connection.oauth_state_consumed_at AS consumed_at,
+                   connection.sync_direction AS initial_sync_direction,
+                   connection.provider_calendar_id AS selected_calendar_id`,
         [stateHash, currentTime],
       );
       const row = result.rows[0];
@@ -126,40 +146,50 @@ export function createPostgresGoogleCalendarConnectionStore(pool: Pool) {
     async createConnection(
       record: Omit<GoogleCalendarConnectionRecord, 'id'>,
     ): Promise<GoogleCalendarConnectionRecord> {
-      try {
-        const result = await pool.query<ConnectionRow>(
-          `INSERT INTO external_calendar_connections (
-             account_id,
-             provider,
-             sync_direction,
-             provider_calendar_id,
-             encrypted_refresh_token,
-             connection_state
-           )
-           VALUES ($1, $2, $3, $4, $5, $6)
-           RETURNING id,
-                     account_id,
-                     provider,
-                     provider_calendar_id,
-                     sync_direction,
-                     encrypted_refresh_token,
-                     connection_state`,
-          [
-            record.accountId,
-            record.provider,
-            record.initialSyncDirection,
-            record.providerCalendarId,
-            record.encryptedRefreshToken,
-            record.state,
-          ],
-        );
-        const row = result.rows[0];
-        if (!row) throw new Error('connection insert returned no row');
-        return mapConnection(row);
-      } catch (error) {
-        if (isUniqueViolation(error)) throw new Error('connection_exists', { cause: error });
-        throw error;
+      const result = await pool.query<ConnectionRow>(
+        `UPDATE external_calendar_connections
+            SET provider = $2,
+                sync_direction = $3,
+                provider_calendar_id = $4,
+                encrypted_refresh_token = $5,
+                connection_state = $6,
+                oauth_state_hash = NULL,
+                oauth_state_expires_at = NULL,
+                oauth_state_consumed_at = NULL,
+                updated_at = now()
+          WHERE account_id = $1
+            AND provider = 'google'
+            AND connection_state = 'disconnected'
+            AND oauth_state_consumed_at IS NOT NULL
+        RETURNING id,
+                  account_id,
+                  provider,
+                  provider_calendar_id,
+                  sync_direction,
+                  encrypted_refresh_token,
+                  connection_state`,
+        [
+          record.accountId,
+          record.provider,
+          record.initialSyncDirection,
+          record.providerCalendarId,
+          record.encryptedRefreshToken,
+          record.state,
+        ],
+      );
+      const row = result.rows[0];
+      if (row) return mapConnection(row);
+
+      const existing = await pool.query<{ connection_state: string }>(
+        `SELECT connection_state
+           FROM external_calendar_connections
+          WHERE account_id = $1`,
+        [record.accountId],
+      );
+      if (existing.rows[0]?.connection_state === 'connected') {
+        throw new Error('connection_exists');
       }
+      throw new Error('connection_state_missing');
     },
 
     async disconnectConnection(
