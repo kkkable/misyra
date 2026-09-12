@@ -77,6 +77,7 @@ describe('MTS-065 notification rebuild runtime', () => {
     expect(request).toHaveBeenCalledWith('device-reboot');
 
     mutationListener?.({ entityType: 'mission' });
+    mutationListener?.({ entityType: 'completion' });
     mutationListener?.({ entityType: 'settings' });
     mutationListener?.({ entityType: 'story' });
     await lifecycle.afterSynchronization();
@@ -86,7 +87,7 @@ describe('MTS-065 notification rebuild runtime', () => {
     expect(request).toHaveBeenCalledWith('time-zone-change');
     expect(request).toHaveBeenCalledWith('synchronization');
     expect(request).toHaveBeenCalledWith('permission-restored');
-    expect(request).toHaveBeenCalledTimes(6);
+    expect(request).toHaveBeenCalledTimes(7);
 
     lifecycle.stop();
     expect(mutationListener).toBeNull();
