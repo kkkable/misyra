@@ -15,6 +15,10 @@ const ordinalSchema = z.union([
 
 export const externalCalendarProviderSchema = z.enum(['apple', 'google']);
 export const externalCalendarOwnershipSchema = z.enum(['app_owned', 'organizer_controlled']);
+export const externalCalendarInitialSyncDirectionSchema = z.enum([
+  'external_to_misyra',
+  'misyra_to_external',
+]);
 export const externalCalendarConnectionStateSchema = z.enum([
   'connected',
   'permission_revoked',
@@ -215,6 +219,7 @@ export const calendarConnectionSchema = z
     id: uuidSchema,
     provider: externalCalendarProviderSchema,
     providerCalendarId: z.string().min(1),
+    initialSyncDirection: externalCalendarInitialSyncDirectionSchema,
     state: externalCalendarConnectionStateSchema,
   })
   .strict();
@@ -223,6 +228,7 @@ export const connectCalendarInputSchema = z
   .object({
     provider: externalCalendarProviderSchema,
     providerCalendarId: z.string().min(1),
+    initialSyncDirection: externalCalendarInitialSyncDirectionSchema,
   })
   .strict();
 
@@ -290,6 +296,9 @@ export const calendarCommandResultSchema = z.discriminatedUnion('status', [
 ]);
 
 export type ExternalCalendarProvider = z.infer<typeof externalCalendarProviderSchema>;
+export type ExternalCalendarInitialSyncDirection = z.infer<
+  typeof externalCalendarInitialSyncDirectionSchema
+>;
 export type ExternalCalendarConnectionState = z.infer<typeof externalCalendarConnectionStateSchema>;
 export type ExternalCalendarErrorCode = z.infer<typeof externalCalendarErrorCodeSchema>;
 export type ExternalCalendarRecurrenceScope = z.infer<typeof externalCalendarRecurrenceScopeSchema>;
