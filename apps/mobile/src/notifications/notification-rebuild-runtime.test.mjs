@@ -51,45 +51,48 @@ describe('MTS-065 notification rebuild runtime', () => {
     expect(rebuild.mock.calls[1]?.[0]).toEqual(['synchronization', 'time-zone-change']);
   });
 
-  it('wires sign-in, reboot, mission, time-zone, synchronization, and permission restoration triggers', async () => {
-    let mutationListener = null;
-    const request = vi.fn(async () => undefined);
-    const permissionService = {
-      getStatus: vi
-        .fn()
-        .mockResolvedValueOnce({ status: 'denied', canRequest: false })
-        .mockResolvedValueOnce({ status: 'enabled', canRequest: false }),
-    };
-    const lifecycle = createNotificationRebuildLifecycle({
-      request,
-      permissionService,
-      subscribeLocalMutation(listener) {
-        mutationListener = listener;
-        return () => {
-          mutationListener = null;
-        };
-      },
-    });
+  it(
+    'wires sign-in, reboot, mission, time-zone, synchronization, and permission restoration triggers',
+    async () => {
+      let mutationListener = null;
+      const request = vi.fn(async () => undefined);
+      const permissionService = {
+        getStatus: vi
+          .fn()
+          .mockResolvedValueOnce({ status: 'denied', canRequest: false })
+          .mockResolvedValueOnce({ status: 'enabled', canRequest: false }),
+      };
+      const lifecycle = createNotificationRebuildLifecycle({
+        request,
+        permissionService,
+        subscribeLocalMutation(listener) {
+          mutationListener = listener;
+          return () => {
+            mutationListener = null;
+          };
+        },
+      });
 
-    await lifecycle.start();
-    expect(request).toHaveBeenCalledWith('sign-in');
-    expect(request).toHaveBeenCalledWith('device-reboot');
+      await lifecycle.start();
+      expect(request).toHaveBeenCalledWith('sign-in');
+      expect(request).toHaveBeenCalledWith('device-reboot');
 
-    mutationListener?.({ entityType: 'mission' });
-    mutationListener?.({ entityType: 'settings' });
-    mutationListener?.({ entityType: 'story' });
-    await lifecycle.afterSynchronization();
-    await lifecycle.onForeground();
+      mutationListener?.({ entityType: 'mission' });
+      mutationListener?.({ entityType: 'settings' });
+      mutationListener?.({ entityType: 'story' });
+      await lifecycle.afterSynchronization();
+      await lifecycle.onForeground();
 
-    expect(request).toHaveBeenCalledWith('mission-change');
-    expect(request).toHaveBeenCalledWith('time-zone-change');
-    expect(request).toHaveBeenCalledWith('synchronization');
-    expect(request).toHaveBeenCalledWith('permission-restored');
-    expect(request).toHaveBeenCalledTimes(6);
+      expect(request).toHaveBeenCalledWith('mission-change');
+      expect(request).toHaveBeenCalledWith('time-zone-change');
+      expect(request).toHaveBeenCalledWith('synchronization');
+      expect(request).toHaveBeenCalledWith('permission-restored');
+      expect(request).toHaveBeenCalledTimes(6);
 
-    lifecycle.stop();
-    expect(mutationListener).toBeNull();
-  });
+      lifecycle.stop();
+      expect(mutationListener).toBeNull();
+    },
+  );
 
   it('keeps rebuild batches independent across device-local runtime instances', async () => {
     const deviceARebuild = vi.fn(async () => undefined);
