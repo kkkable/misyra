@@ -59,7 +59,7 @@ describe('MTS-069 executable Google calendar composition', () => {
         selectedCalendarId: 'primary',
       },
     });
-    const body = response.json() as ConnectResponse;
+    const body = response.json<ConnectResponse>();
 
     expect(response.statusCode).toBe(200);
     expect(body.ok).toBe(true);
