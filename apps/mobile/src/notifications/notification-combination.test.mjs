@@ -64,36 +64,45 @@ function createDatabase(rows) {
 }
 
 describe('MTS-064 same-time combined notifications', () => {
-  it('combines missions that resolve to the same exact trigger instant into one deterministic request', async () => {
-    const database = createDatabase([
-      { payload_json: JSON.stringify(occurrence({ id: SECOND_ID, allDay: true })), title: 'Private task' },
-      { payload_json: JSON.stringify(occurrence({ id: FIRST_ID })), title: 'Stand-up' },
-    ]);
-    const schedule = vi.fn(async () => 'native-group');
-    const reconciler = createMissionNotificationReconciler({
-      database,
-      accountId: ACCOUNT_ID,
-      scheduler: { schedule, cancel: vi.fn(), cancelAll: vi.fn() },
-    });
+  it(
+    'combines missions that resolve to the same exact trigger instant into one deterministic request',
+    async () => {
+      const database = createDatabase([
+        {
+          payload_json: JSON.stringify(occurrence({ id: SECOND_ID, allDay: true })),
+          title: 'Private task',
+        },
+        { payload_json: JSON.stringify(occurrence({ id: FIRST_ID })), title: 'Stand-up' },
+      ]);
+      const schedule = vi.fn(async () => 'native-group');
+      const reconciler = createMissionNotificationReconciler({
+        database,
+        accountId: ACCOUNT_ID,
+        scheduler: { schedule, cancel: vi.fn(), cancelAll: vi.fn() },
+      });
 
-    await reconciler.reconcile({
-      now: '2026-09-12T00:00:00.000Z',
-      horizonEnd: '2026-09-20T00:00:00.000Z',
-    });
+      await reconciler.reconcile({
+        now: '2026-09-12T00:00:00.000Z',
+        horizonEnd: '2026-09-20T00:00:00.000Z',
+      });
 
-    expect(schedule).toHaveBeenCalledTimes(1);
-    expect(schedule).toHaveBeenCalledWith({
-      occurrenceIds: [FIRST_ID, SECOND_ID],
-      scheduledAt: '2026-09-14T01:00:00.000Z',
-      localDate: '2026-09-14',
-      body: '2 missions start now',
-    });
-  });
+      expect(schedule).toHaveBeenCalledTimes(1);
+      expect(schedule).toHaveBeenCalledWith({
+        occurrenceIds: [FIRST_ID, SECOND_ID],
+        scheduledAt: '2026-09-14T01:00:00.000Z',
+        localDate: '2026-09-14',
+        body: '2 missions start now',
+      });
+    },
+  );
 
   it('retains one unchanged combined native notification without scheduling duplicates', async () => {
     const rows = [
       { payload_json: JSON.stringify(occurrence({ id: FIRST_ID })), title: 'Stand-up' },
-      { payload_json: JSON.stringify(occurrence({ id: SECOND_ID, allDay: true })), title: 'Private task' },
+      {
+        payload_json: JSON.stringify(occurrence({ id: SECOND_ID, allDay: true })),
+        title: 'Private task',
+      },
     ];
     const database = createDatabase(rows);
     const schedule = vi.fn(async () => 'native-group');
