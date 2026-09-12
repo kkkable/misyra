@@ -47,6 +47,10 @@ vi.mock('../notifications/mission-notification-response-bridge.js', () => ({
   MissionNotificationResponseBridge: () => null,
 }));
 
+vi.mock('../notifications/notification-rebuild-bridge.js', () => ({
+  NotificationRebuildBridge: () => null,
+}));
+
 vi.mock('../onboarding/onboarding-gate.js', async () => {
   const { createElement: createReactElement } = await import('react');
   return {
