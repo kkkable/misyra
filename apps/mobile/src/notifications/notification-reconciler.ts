@@ -36,6 +36,7 @@ type NotificationDatabase = Readonly<{
 type ReconcileWindow = Readonly<{
   now: string;
   horizonEnd: string;
+  forceReschedule?: boolean;
 }>;
 
 type CandidateRow = Readonly<{
@@ -325,6 +326,7 @@ export function createMissionNotificationReconciler({
       const canonicalOccurrenceId = occurrenceIds[0];
       const signature = notificationSignature(row.scheduled_at, occurrenceIds);
       const shouldRetain =
+        input.forceReschedule !== true &&
         canonicalOccurrenceId === row.occurrence_id &&
         desiredBySignature.has(signature) &&
         !retainedSignatures.has(signature);
