@@ -21,6 +21,17 @@ type SubscribeLocalMutation = (
   listener: (event: NotificationRebuildMutationEvent) => void,
 ) => () => void;
 
+export function requiresForcedNotificationReschedule(
+  reasons: readonly NotificationRebuildReason[],
+): boolean {
+  return reasons.some(
+    (reason) =>
+      reason === 'device-reboot' ||
+      reason === 'permission-restored' ||
+      reason === 'time-zone-change',
+  );
+}
+
 export function createNotificationRebuildCoordinator({ rebuild }: Readonly<{ rebuild: Rebuild }>) {
   const pendingReasons = new Set<NotificationRebuildReason>();
   let activeDrain: Promise<void> | null = null;
@@ -33,7 +44,15 @@ export function createNotificationRebuildCoordinator({ rebuild }: Readonly<{ reb
         while (pendingReasons.size > 0) {
           const reasons = Object.freeze([...pendingReasons]);
           pendingReasons.clear();
-          await rebuild(reasons);
+          try {
+            await rebuild(reasons);
+          } catch (error) {
+            const queuedReasons = [...pendingReasons];
+            pendingReasons.clear();
+            for (const reason of reasons) pendingReasons.add(reason);
+            for (const reason of queuedReasons) pendingReasons.add(reason);
+            throw error;
+          }
         }
       })
       .finally(() => {
@@ -84,7 +103,6 @@ export function createNotificationRebuildLifecycle({
           if (event.entityType === 'mission' || event.entityType === 'completion') {
             requestWithoutBlockingMutation('mission-change');
           }
-          if (event.entityType === 'settings') requestWithoutBlockingMutation('time-zone-change');
         });
         await Promise.all([request('sign-in'), request('device-reboot')]);
       })();
