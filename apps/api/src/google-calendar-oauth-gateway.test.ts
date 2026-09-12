@@ -10,11 +10,25 @@ const configuration = {
 
 type FetchInput = Parameters<typeof fetch>[0];
 type FetchInit = Parameters<typeof fetch>[1];
-type CapturedRequest = Readonly<{ input: FetchInput; init: FetchInit }>;
+type CapturedRequest = Readonly<{ url: string; init: FetchInit }>;
+
+function requestUrl(input: FetchInput): string {
+  if (typeof input === 'string') return input;
+  if (input instanceof URL) return input.toString();
+  return input.url;
+}
+
+function requestBody(init: FetchInit): string {
+  const body = init?.body;
+  if (body === undefined || body === null) return '';
+  if (typeof body === 'string') return body;
+  if (body instanceof URLSearchParams) return body.toString();
+  throw new Error('Unexpected request body type');
+}
 
 function requestAt(requests: readonly CapturedRequest[], index: number): CapturedRequest {
   const request = requests[index];
-  if (!request) throw new Error(`Missing captured request at index ${index}`);
+  if (!request) throw new Error(`Missing captured request at index ${String(index)}`);
   return request;
 }
 
@@ -40,7 +54,7 @@ describe('MTS-069 concrete Google OAuth gateway', () => {
   it('exchanges an authorization code without putting credentials in the URL', async () => {
     const requests: CapturedRequest[] = [];
     const fetchImpl = vi.fn((input: FetchInput, init?: FetchInit) => {
-      requests.push({ input, init });
+      requests.push({ url: requestUrl(input), init });
       return Promise.resolve(
         new Response(
           JSON.stringify({ access_token: 'access-secret', refresh_token: 'refresh-secret' }),
@@ -56,11 +70,11 @@ describe('MTS-069 concrete Google OAuth gateway', () => {
 
     expect(fetchImpl).toHaveBeenCalledOnce();
     const request = requestAt(requests, 0);
-    expect(String(request.input)).toBe('https://oauth2.googleapis.com/token');
+    expect(request.url).toBe('https://oauth2.googleapis.com/token');
     expect(request.init?.method).toBe('POST');
-    expect(String(request.init?.body)).toContain('code=provider-code');
-    expect(String(request.init?.body)).toContain('client_secret=google-calendar-client-secret');
-    expect(String(request.input)).not.toContain('google-calendar-client-secret');
+    expect(requestBody(request.init)).toContain('code=provider-code');
+    expect(requestBody(request.init)).toContain('client_secret=google-calendar-client-secret');
+    expect(request.url).not.toContain('google-calendar-client-secret');
   });
 
   it('creates the dedicated Misyra calendar by refreshing access inside the provider boundary', async () => {
@@ -76,7 +90,7 @@ describe('MTS-069 concrete Google OAuth gateway', () => {
       }),
     ];
     const fetchImpl = vi.fn((input: FetchInput, init?: FetchInit) => {
-      requests.push({ input, init });
+      requests.push({ url: requestUrl(input), init });
       const response = responses.shift();
       return response
         ? Promise.resolve(response)
@@ -90,22 +104,23 @@ describe('MTS-069 concrete Google OAuth gateway', () => {
 
     expect(fetchImpl).toHaveBeenCalledTimes(2);
     const refreshRequest = requestAt(requests, 0);
-    expect(String(refreshRequest.input)).toBe('https://oauth2.googleapis.com/token');
-    expect(String(refreshRequest.init?.body)).toContain('grant_type=refresh_token');
-    expect(String(refreshRequest.init?.body)).toContain('refresh_token=refresh-secret');
+    expect(refreshRequest.url).toBe('https://oauth2.googleapis.com/token');
+    expect(requestBody(refreshRequest.init)).toContain('grant_type=refresh_token');
+    expect(requestBody(refreshRequest.init)).toContain('refresh_token=refresh-secret');
     const calendarRequest = requestAt(requests, 1);
-    expect(String(calendarRequest.input)).toBe('https://www.googleapis.com/calendar/v3/calendars');
+    expect(calendarRequest.url).toBe('https://www.googleapis.com/calendar/v3/calendars');
     expect(calendarRequest.init?.method).toBe('POST');
     expect(calendarRequest.init?.headers).toMatchObject({
       Authorization: 'Bearer fresh-access-token',
     });
-    expect(JSON.parse(String(calendarRequest.init?.body))).toEqual({ summary: 'Misyra' });
+    const calendarBody: unknown = JSON.parse(requestBody(calendarRequest.init));
+    expect(calendarBody).toEqual({ summary: 'Misyra' });
   });
 
   it('revokes the refresh credential through a form body and never through the URL', async () => {
     const requests: CapturedRequest[] = [];
     const fetchImpl = vi.fn((input: FetchInput, init?: FetchInit) => {
-      requests.push({ input, init });
+      requests.push({ url: requestUrl(input), init });
       return Promise.resolve(new Response(null, { status: 200 }));
     });
     const gateway = createGoogleCalendarOAuthGateway({ ...configuration, fetchImpl });
@@ -113,10 +128,10 @@ describe('MTS-069 concrete Google OAuth gateway', () => {
     await gateway.revokeRefreshToken('refresh-secret');
 
     const request = requestAt(requests, 0);
-    expect(String(request.input)).toBe('https://oauth2.googleapis.com/revoke');
+    expect(request.url).toBe('https://oauth2.googleapis.com/revoke');
     expect(request.init?.method).toBe('POST');
-    expect(String(request.init?.body)).toBe('token=refresh-secret');
-    expect(String(request.input)).not.toContain('refresh-secret');
+    expect(requestBody(request.init)).toBe('token=refresh-secret');
+    expect(request.url).not.toContain('refresh-secret');
   });
 
   it('rejects provider failures with a fixed redacted error', async () => {
