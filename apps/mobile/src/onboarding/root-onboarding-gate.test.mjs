@@ -14,4 +14,11 @@ describe('MTS-038 root onboarding composition', () => {
     expect(source.indexOf('<AuthGate')).toBeLessThan(source.indexOf('<OnboardingGate'));
     expect(source.indexOf('<OnboardingGate')).toBeLessThan(source.indexOf('<Stack'));
   });
+
+  it('MTS-062 binds the explicit onboarding notification choice to the device permission service', async () => {
+    const source = await readFile(rootLayoutPath, 'utf8');
+
+    expect(source).toContain('configureOnboardingNotificationPermissionRequest');
+    expect(source).toContain('rootNotificationPermissionService.request()');
+  });
 });
