@@ -61,20 +61,38 @@ export function createNotificationRebuildLifecycle({
     ReturnType<NotificationPermissionService['getStatus']>
   >['status'] | null = null;
   let unsubscribeMutation: (() => void) | null = null;
+  let startGeneration = 0;
+  let starting: Promise<void> | null = null;
 
   const requestWithoutBlockingMutation = (reason: NotificationRebuildReason) => {
     void request(reason).catch(() => undefined);
   };
 
   return Object.freeze({
-    async start(): Promise<void> {
-      if (unsubscribeMutation !== null) return;
-      previousPermissionStatus = (await permissionService.getStatus()).status;
-      unsubscribeMutation = subscribeLocalMutation((event) => {
-        if (event.entityType === 'mission') requestWithoutBlockingMutation('mission-change');
-        if (event.entityType === 'settings') requestWithoutBlockingMutation('time-zone-change');
+    start(): Promise<void> {
+      if (unsubscribeMutation !== null) return Promise.resolve();
+      if (starting !== null) return starting;
+
+      const generation = startGeneration + 1;
+      startGeneration = generation;
+      const run = (async () => {
+        const status = (await permissionService.getStatus()).status;
+        if (generation !== startGeneration) return;
+
+        previousPermissionStatus = status;
+        unsubscribeMutation = subscribeLocalMutation((event) => {
+          if (event.entityType === 'mission' || event.entityType === 'completion') {
+            requestWithoutBlockingMutation('mission-change');
+          }
+          if (event.entityType === 'settings') requestWithoutBlockingMutation('time-zone-change');
+        });
+        await Promise.all([request('sign-in'), request('device-reboot')]);
+      })();
+
+      starting = run.finally(() => {
+        if (generation === startGeneration) starting = null;
       });
-      await Promise.all([request('sign-in'), request('device-reboot')]);
+      return starting;
     },
 
     async afterSynchronization(timeZoneChanged = false): Promise<void> {
@@ -96,6 +114,8 @@ export function createNotificationRebuildLifecycle({
     },
 
     stop(): void {
+      startGeneration += 1;
+      starting = null;
       unsubscribeMutation?.();
       unsubscribeMutation = null;
       previousPermissionStatus = null;
