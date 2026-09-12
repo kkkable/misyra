@@ -41,6 +41,25 @@ async function createAccount() {
   return id;
 }
 
+async function prepareConsumedOAuthState(
+  store: ReturnType<typeof createPostgresGoogleCalendarConnectionStore>,
+  input: {
+    accountId: string;
+    stateHash: string;
+    initialSyncDirection: 'external_to_misyra' | 'misyra_to_external';
+    selectedCalendarId: string | null;
+  },
+) {
+  const currentTime = new Date('2026-09-12T15:00:00.000Z');
+  await store.saveOAuthState({
+    ...input,
+    expiresAt: new Date('2026-09-12T15:10:00.000Z'),
+    consumedAt: null,
+  });
+  const consumed = await store.consumeOAuthState(input.stateHash, currentTime);
+  if (!consumed) throw new Error('expected OAuth state to be consumable');
+}
+
 describe('MTS-069 PostgreSQL Google calendar connection store', () => {
   it('atomically consumes bounded OAuth state once and rejects expiry', async () => {
     const store = createPostgresGoogleCalendarConnectionStore(pool);
@@ -81,6 +100,12 @@ describe('MTS-069 PostgreSQL Google calendar connection store', () => {
   it('persists the selected calendar and encrypted refresh token with one connection per account', async () => {
     const store = createPostgresGoogleCalendarConnectionStore(pool);
     const accountId = await createAccount();
+    await prepareConsumedOAuthState(store, {
+      accountId,
+      stateHash: 'c'.repeat(64),
+      initialSyncDirection: 'external_to_misyra',
+      selectedCalendarId: 'selected-calendar',
+    });
 
     const connection = await store.createConnection({
       accountId,
@@ -104,10 +129,12 @@ describe('MTS-069 PostgreSQL Google calendar connection store', () => {
       providerCalendarId: string | null;
       encryptedRefreshToken: string | null;
       connectionState: string;
+      oauthStateHash: string | null;
     }>(
       `SELECT provider_calendar_id AS "providerCalendarId",
               encrypted_refresh_token AS "encryptedRefreshToken",
-              connection_state AS "connectionState"
+              connection_state AS "connectionState",
+              oauth_state_hash AS "oauthStateHash"
          FROM external_calendar_connections
         WHERE id = $1`,
       [connection.id],
@@ -116,6 +143,7 @@ describe('MTS-069 PostgreSQL Google calendar connection store', () => {
       providerCalendarId: 'selected-calendar',
       encryptedRefreshToken: 'ciphertext-only',
       connectionState: 'connected',
+      oauthStateHash: null,
     });
 
     await expect(
@@ -133,6 +161,12 @@ describe('MTS-069 PostgreSQL Google calendar connection store', () => {
   it('durably stops synchronization before returning the token needed for revocation', async () => {
     const store = createPostgresGoogleCalendarConnectionStore(pool);
     const accountId = await createAccount();
+    await prepareConsumedOAuthState(store, {
+      accountId,
+      stateHash: 'd'.repeat(64),
+      initialSyncDirection: 'misyra_to_external',
+      selectedCalendarId: null,
+    });
     const connection = await store.createConnection({
       accountId,
       provider: 'google',
