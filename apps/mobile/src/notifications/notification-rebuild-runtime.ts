@@ -1,4 +1,7 @@
-import type { NotificationPermissionService } from './notification-permission.js';
+import type {
+  NotificationPermissionService,
+  NotificationPermissionStatus,
+} from './notification-permission.js';
 
 export type NotificationRebuildReason =
   | 'sign-in'
@@ -57,9 +60,7 @@ export function createNotificationRebuildLifecycle({
   permissionService: Pick<NotificationPermissionService, 'getStatus'>;
   subscribeLocalMutation: SubscribeLocalMutation;
 }>) {
-  let previousPermissionStatus: Awaited<
-    ReturnType<NotificationPermissionService['getStatus']>
-  >['status'] | null = null;
+  let previousPermissionStatus: NotificationPermissionStatus['status'] | null = null;
   let unsubscribeMutation: (() => void) | null = null;
   let startGeneration = 0;
   let starting: Promise<void> | null = null;
