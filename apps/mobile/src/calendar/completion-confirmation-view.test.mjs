@@ -42,12 +42,14 @@ describe('MTS-061 compact completion confirmation', () => {
     );
 
     expect(renderer.root.findByProps({ testID: 'completion-confirmation' })).toBeDefined();
-    expect(renderer.root.findByProps({ testID: 'completion-confirmation-message' }).props.children).toBe(
-      'Mission complete · +86 XP · Level 3',
-    );
+    expect(
+      renderer.root.findByProps({ testID: 'completion-confirmation-message' }).props.children,
+    ).toBe('Mission complete · +86 XP · Level 3');
     expect(onCompletionHaptic).toHaveBeenCalledTimes(1);
 
-    act(() => renderer.root.findByProps({ testID: 'completion-confirmation-done' }).props.onPress());
+    act(() =>
+      renderer.root.findByProps({ testID: 'completion-confirmation-done' }).props.onPress(),
+    );
     act(() =>
       renderer.root.findByProps({ testID: 'completion-confirmation-create-story' }).props.onPress(),
     );
@@ -72,14 +74,15 @@ describe('MTS-061 compact completion confirmation', () => {
       ),
     );
 
-    expect(renderer.root.findByProps({ testID: 'completion-confirmation-message' }).props.children).toBe(
-      '任務完成 · 0 XP',
-    );
-    expect(renderer.root.findByProps({ testID: 'completion-confirmation-done' }).props.accessibilityLabel).toBe(
-      '完成',
-    );
     expect(
-      renderer.root.findByProps({ testID: 'completion-confirmation-create-story' }).props.accessibilityLabel,
+      renderer.root.findByProps({ testID: 'completion-confirmation-message' }).props.children,
+    ).toBe('任務完成 · 0 XP');
+    expect(
+      renderer.root.findByProps({ testID: 'completion-confirmation-done' }).props.accessibilityLabel,
+    ).toBe('完成');
+    expect(
+      renderer.root.findByProps({ testID: 'completion-confirmation-create-story' }).props
+        .accessibilityLabel,
     ).toBe('建立 Story');
     expect(renderer.root.findAllByProps({ testID: 'completion-confirmation-confetti' })).toHaveLength(0);
   });
