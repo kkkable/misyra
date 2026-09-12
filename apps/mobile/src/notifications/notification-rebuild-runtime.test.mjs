@@ -55,6 +55,28 @@ describe('MTS-065 notification rebuild runtime', () => {
     expect(rebuild.mock.calls[1]?.[0]).toEqual(['synchronization', 'time-zone-change']);
   });
 
+  it('does not strand a trigger queued during successful drain handoff', async () => {
+    const firstRun = deferred();
+    const rebuild = vi.fn(async () => undefined);
+    rebuild.mockImplementationOnce(async () => firstRun.promise);
+    const runtime = createNotificationRebuildCoordinator({ rebuild });
+
+    const first = runtime.request('mission-change');
+    await Promise.resolve();
+
+    let handoff;
+    firstRun.resolve();
+    queueMicrotask(() => {
+      handoff = runtime.request('synchronization');
+    });
+
+    await first;
+    await handoff;
+
+    expect(rebuild).toHaveBeenCalledTimes(2);
+    expect(rebuild.mock.calls[1]?.[0]).toEqual(['synchronization']);
+  });
+
   it('preserves failed recovery reasons without launching an implicit retry', async () => {
     const firstRun = deferred();
     const rebuild = vi.fn(async () => undefined);
