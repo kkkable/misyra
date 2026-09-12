@@ -26,4 +26,5 @@ export const calendarConnectionCatalogs = {
 } as const;
 
 export type CalendarConnectionLocale = keyof typeof calendarConnectionCatalogs;
-export type CalendarConnectionCatalog = (typeof calendarConnectionCatalogs)[CalendarConnectionLocale];
+export type CalendarConnectionCatalog =
+  (typeof calendarConnectionCatalogs)[CalendarConnectionLocale];
