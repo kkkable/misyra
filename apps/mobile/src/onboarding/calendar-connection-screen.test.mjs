@@ -50,7 +50,10 @@ function renderScreen(state, overrides = {}) {
 
 describe('MTS-068 rendered calendar connection direction flow', () => {
   it('offers exactly the two approved initial directions without duplicate matching or sync-status UI', () => {
-    const { onDirectionChoice, renderer } = renderScreen({ step: 'direction', provider: 'google' });
+    const { onDirectionChoice, renderer } = renderScreen({
+      step: 'direction',
+      provider: 'google',
+    });
 
     const external = renderer.root.findByProps({ testID: 'calendar-direction-external' });
     const misyra = renderer.root.findByProps({ testID: 'calendar-direction-misyra' });
@@ -77,8 +80,12 @@ describe('MTS-068 rendered calendar connection direction flow', () => {
       initialSyncDirection: 'external_to_misyra',
     });
 
-    expect(first.renderer.root.findByProps({ children: messages.initialConfirmation })).toBeTruthy();
-    expect(first.renderer.root.findByProps({ testID: 'calendar-direction-continue' })).toBeTruthy();
+    expect(
+      first.renderer.root.findByProps({ children: messages.initialConfirmation }),
+    ).toBeTruthy();
+    expect(
+      first.renderer.root.findByProps({ testID: 'calendar-direction-continue' }),
+    ).toBeTruthy();
     expect(
       first.renderer.root.findAll((node) => node.props?.testID === 'calendar-direction-confirm'),
     ).toHaveLength(0);
@@ -88,8 +95,12 @@ describe('MTS-068 rendered calendar connection direction flow', () => {
       provider: 'apple',
       initialSyncDirection: 'external_to_misyra',
     });
-    expect(final.renderer.root.findByProps({ children: messages.finalConfirmation })).toBeTruthy();
-    act(() => final.renderer.root.findByProps({ testID: 'calendar-direction-confirm' }).props.onPress());
+    expect(
+      final.renderer.root.findByProps({ children: messages.finalConfirmation }),
+    ).toBeTruthy();
+    act(() =>
+      final.renderer.root.findByProps({ testID: 'calendar-direction-confirm' }).props.onPress(),
+    );
     expect(final.onConfirm).toHaveBeenCalledOnce();
   });
 
