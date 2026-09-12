@@ -51,10 +51,7 @@ export type GoogleCalendarTokenCipher = Readonly<{
 }>;
 
 export type GoogleCalendarOAuthErrorCode =
-  | 'invalid_state'
-  | 'connection_exists'
-  | 'not_found'
-  | 'provider_error';
+  'invalid_state' | 'connection_exists' | 'not_found' | 'provider_error';
 
 export class GoogleCalendarOAuthError extends Error {
   readonly code: GoogleCalendarOAuthErrorCode;
