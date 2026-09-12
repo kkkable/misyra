@@ -24,6 +24,12 @@ export function configureOnboardingPermissionGateway(gateway: OnboardingPermissi
   calendarPermissionRequest = (provider) => gateway.requestCalendar(provider);
 }
 
+export function configureOnboardingNotificationPermissionRequest(
+  request: () => Promise<PermissionResult>,
+) {
+  notificationPermissionRequest = request;
+}
+
 function isOnboardingState(value: unknown): value is OnboardingState {
   if (typeof value !== 'object' || value === null) return false;
   const candidate = value as Partial<OnboardingState>;
