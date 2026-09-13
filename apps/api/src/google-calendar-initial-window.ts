@@ -5,11 +5,7 @@ import type {
   SynchronizedImportBatch,
   SynchronizedProviderEvent,
 } from '@misyra/contracts';
-import {
-  expandRecurrenceDates,
-  resolveLocalDateTimeInstant,
-  type MissionRecurrence,
-} from '@misyra/domain';
+import { expandRecurrenceDates, resolveLocalDateTimeInstant } from '@misyra/domain';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -192,7 +188,7 @@ function futureOnlyEvent(
 
   const candidateDates = expandRecurrenceDates({
     anchorLocalDate,
-    recurrence: event.recurrence as MissionRecurrence,
+    recurrence: event.recurrence,
     windowStartLocalDate: anchorLocalDate,
     windowEndLocalDate: searchEndLocalDate,
   });
