@@ -95,14 +95,8 @@ async function providerResponse(
       ...init,
       signal: init.signal ?? AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
-  } catch (cause) {
-    throw new ExternalCalendarAdapterError(
-      'provider_unavailable',
-      'google_calendar_request_failed',
-      {
-        cause,
-      },
-    );
+  } catch {
+    throw new ExternalCalendarAdapterError('provider_unavailable', 'google_calendar_request_failed');
   }
 
   if (options.invalidCursorOnGone === true && response.status === 410) {
@@ -277,7 +271,7 @@ function parseGoogleRecurrence(value: unknown): NormalizedCalendarRecurrence | n
       if (!Number.isInteger(month) || month < 1 || month > 12) return null;
       const dayOfMonth = Number.parseInt(parts.BYMONTHDAY ?? '', 10);
       if (Number.isInteger(dayOfMonth) && dayOfMonth >= 1 && dayOfMonth <= 31) {
-        return { pattern: { type: 'yearly-date', interval, month, dayOfMonth }, end };
+        return { pattern: { type: 'yearly-date', interval, month, day: dayOfMonth }, end };
       }
       const ordinal = parseOrdinalWeekday(parts.BYDAY ?? '');
       return ordinal === null
@@ -431,7 +425,7 @@ function serializeGoogleRecurrence(recurrence: NormalizedCalendarRecurrence): st
         'FREQ=YEARLY',
         `INTERVAL=${String(pattern.interval)}`,
         `BYMONTH=${String(pattern.month)}`,
-        `BYMONTHDAY=${String(pattern.dayOfMonth)}`,
+        `BYMONTHDAY=${String(pattern.day)}`,
       );
       break;
     case 'yearly-ordinal':
@@ -523,9 +517,13 @@ async function listGoogleEvents(
   let pageToken: string | undefined;
 
   for (let page = 0; page < maxPages; page += 1) {
+    const listInput = {
+      ...(syncToken === undefined ? {} : { syncToken }),
+      ...(pageToken === undefined ? {} : { pageToken }),
+    };
     const payload = await providerJson(
       fetchImpl,
-      googleListUrl(context.session.providerCalendarId, { syncToken, pageToken }),
+      googleListUrl(context.session.providerCalendarId, listInput),
       { headers: { Authorization: `Bearer ${context.accessToken}` } },
       { invalidCursorOnGone: syncToken !== undefined },
     );
