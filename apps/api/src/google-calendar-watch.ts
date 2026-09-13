@@ -203,19 +203,21 @@ export function createGoogleCalendarWatchService(
     }
 
     const observedNow = now();
-    const dueChannels = await dependencies.store.listChannelsDueForRenewal({
-      before: new Date(observedNow.getTime() + renewalLeadMs),
-      limit,
-    });
+    const before = new Date(observedNow.getTime() + renewalLeadMs);
+    let renewed = 0;
 
-    for (const current of dueChannels) {
+    while (renewed < limit) {
+      const [current] = await dependencies.store.listChannelsDueForRenewal({ before, limit: 1 });
+      if (current === undefined) break;
+
       const replacement = await createRegistration(current.connectionId);
       await dependencies.store.markRenewed({
         previousChannelId: current.channelId,
         replacement,
       });
+      renewed += 1;
     }
-    return dueChannels.length;
+    return renewed;
   }
 
   return Object.freeze({ handleWebhook, ensureChannel, renewDueChannels });
