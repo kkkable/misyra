@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
+  AccountLifecycleDependencyError,
   AccountLifecycleSecurityError,
   createAccountLifecycleService,
   type ReauthenticationProofClaims,
@@ -166,7 +167,7 @@ describe('MTS-037 recent reauthentication', () => {
 
     await expect(
       harness.service.deleteAccount(accountId, grant.reauthenticationProof),
-    ).rejects.toThrow('calendar_disconnect_failed');
+    ).rejects.toBeInstanceOf(AccountLifecycleDependencyError);
     expect(harness.deleteAccount).not.toHaveBeenCalled();
   });
 
