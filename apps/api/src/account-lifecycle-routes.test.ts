@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { AccountLifecycleDependencyError } from './account-lifecycle.js';
 import {
   createAccountLifecycleRoutes,
   type AccountLifecycleRouteService,
@@ -68,6 +69,28 @@ describe('MTS-037 account lifecycle routes', () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({ ok: true, payload: { deleted: true } });
     expect(deleteAccount).toHaveBeenCalledWith(accountId, 'reauth-proof');
+    await server.close();
+  });
+
+  it('returns a retryable unavailable error when required account cleanup cannot finish', async () => {
+    const { lifecycleService, deleteAccount } = service();
+    deleteAccount.mockRejectedValueOnce(new AccountLifecycleDependencyError());
+    const server = createApiServer({
+      routes: createAccountLifecycleRoutes(lifecycleService),
+      authenticate: () => ({ accountId }),
+    });
+
+    const response = await server.inject({
+      method: 'DELETE',
+      url: '/v1/account',
+      payload: { reauthenticationProof: 'reauth-proof' },
+    });
+
+    expect(response.statusCode).toBe(503);
+    expect(response.json()).toMatchObject({
+      ok: false,
+      error: { code: 'temporarily_unavailable', retryable: true },
+    });
     await server.close();
   });
 
