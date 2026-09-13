@@ -12,6 +12,9 @@ const postgresPort = process.env.POSTGRES_PORT ?? '5432';
 const databaseName = `misyra_mts071_${randomUUID().replaceAll('-', '')}`;
 const databaseUrl = `postgresql://${postgresUser}:${postgresPassword}@127.0.0.1:${postgresPort}/${databaseName}`;
 const adminUrl = `postgresql://${postgresUser}:${postgresPassword}@127.0.0.1:${postgresPort}/postgres`;
+const futureOldExpiry = new Date('2099-09-13T12:00:00.000Z');
+const futureRenewalBoundary = new Date('2099-09-13T13:00:00.000Z');
+const futureNewExpiry = new Date('2099-09-20T12:00:00.000Z');
 let pool: Pool;
 
 beforeAll(async () => {
@@ -55,7 +58,7 @@ async function createConnection(): Promise<string> {
 const tokenHash = 'a'.repeat(64);
 
 describe('MTS-071 PostgreSQL Google watch store', () => {
-  it('persists current channels and renews them without invalidating overlap delivery', async () => {
+  it('persists current channels, schedules a registration pull, and preserves overlap delivery', async () => {
     const connectionId = await createConnection();
     const store = createPostgresGoogleCalendarWatchStore(pool);
 
@@ -65,13 +68,23 @@ describe('MTS-071 PostgreSQL Google watch store', () => {
         channelId: 'channel-old',
         resourceId: 'resource-old',
         tokenHash,
-        expiresAt: new Date('2026-09-13T12:00:00.000Z'),
+        expiresAt: futureOldExpiry,
       },
     });
 
     await expect(store.hasCurrentChannel(connectionId)).resolves.toBe(true);
+    const registrationPull = await pool.query<{ count: string }>(
+      `SELECT count(*)::text AS count
+         FROM outbox_events
+        WHERE aggregate_id = $1
+          AND event_type = 'google_calendar_pull_requested'
+          AND payload ->> 'reason' = 'watch_registered'`,
+      [connectionId],
+    );
+    expect(registrationPull.rows[0]?.count).toBe('1');
+
     const renewalQuery = {
-      before: new Date('2026-09-13T13:00:00.000Z'),
+      before: futureRenewalBoundary,
       limit: 25,
     } as const;
     await expect(store.listChannelsDueForRenewal(renewalQuery)).resolves.toEqual([
@@ -80,7 +93,7 @@ describe('MTS-071 PostgreSQL Google watch store', () => {
         channelId: 'channel-old',
         resourceId: 'resource-old',
         tokenHash,
-        expiresAt: new Date('2026-09-13T12:00:00.000Z'),
+        expiresAt: futureOldExpiry,
       },
     ]);
     await expect(
@@ -93,7 +106,7 @@ describe('MTS-071 PostgreSQL Google watch store', () => {
         channelId: 'channel-new',
         resourceId: 'resource-new',
         tokenHash,
-        expiresAt: new Date('2026-09-20T12:00:00.000Z'),
+        expiresAt: futureNewExpiry,
       },
     });
 
@@ -105,6 +118,18 @@ describe('MTS-071 PostgreSQL Google watch store', () => {
       connectionId,
       resourceId: 'resource-new',
     });
+  });
+
+  it('claims a connected Google connection with no watch only once across store instances', async () => {
+    const connectionId = await createConnection();
+    type RepairClaimStore = Readonly<{
+      claimConnectionMissingChannel(): Promise<string | null>;
+    }>;
+    const firstStore = createPostgresGoogleCalendarWatchStore(pool) as unknown as RepairClaimStore;
+    const secondStore = createPostgresGoogleCalendarWatchStore(pool) as unknown as RepairClaimStore;
+
+    await expect(firstStore.claimConnectionMissingChannel()).resolves.toBe(connectionId);
+    await expect(secondStore.claimConnectionMissingChannel()).resolves.toBeNull();
   });
 
   it('deduplicates signals durably and queues exactly one pull outbox event', async () => {
@@ -134,7 +159,9 @@ describe('MTS-071 PostgreSQL Google watch store', () => {
          (SELECT count(*) FROM misyra_internal.google_calendar_watch_signals
            WHERE channel_id = 'channel-dedupe' AND message_number = '42')::text AS signals,
          (SELECT count(*) FROM outbox_events
-           WHERE aggregate_id = $1 AND event_type = 'google_calendar_pull_requested')::text AS outbox`,
+           WHERE aggregate_id = $1
+             AND event_type = 'google_calendar_pull_requested'
+             AND payload ->> 'messageNumber' = '42')::text AS outbox`,
       [connectionId],
     );
     expect(persisted.rows[0]).toEqual({ signals: '1', outbox: '1' });
