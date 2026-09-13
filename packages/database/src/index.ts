@@ -12,3 +12,4 @@ export * from './account-deletion.js';
 export * from './device-settings-store.js';
 export * from './sync-store.js';
 export * from './google-calendar-connection-store.js';
+export * from './google-calendar-sync-store.js';
