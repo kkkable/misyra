@@ -51,6 +51,13 @@ export class AccountLifecycleSecurityError extends Error {
   }
 }
 
+export class AccountLifecycleDependencyError extends Error {
+  constructor() {
+    super('account_lifecycle_dependency_unavailable');
+    this.name = 'AccountLifecycleDependencyError';
+  }
+}
+
 function issuerMatches(expected: string | readonly string[], actual: string) {
   return typeof expected === 'string' ? expected === actual : expected.includes(actual);
 }
@@ -202,7 +209,13 @@ export function createAccountLifecycleService(options: AccountLifecycleServiceOp
       ) {
         throw new AccountLifecycleSecurityError();
       }
-      await options.beforeDeleteAccount?.(accountId);
+      if (options.beforeDeleteAccount) {
+        try {
+          await options.beforeDeleteAccount(accountId);
+        } catch {
+          throw new AccountLifecycleDependencyError();
+        }
+      }
       return options.deleteAccount(accountId);
     },
   };
