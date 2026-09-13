@@ -219,7 +219,9 @@ describe('MTS-070 PostgreSQL Google calendar synchronization store', () => {
     const deviceId = device.rows[0]?.id;
     if (!deviceId) throw new Error('device insert returned no id');
 
-    await pool.query(`UPDATE mission_series SET title = 'Local newer title' WHERE id = $1`, [seriesId]);
+    await pool.query(`UPDATE mission_series SET title = 'Local newer title' WHERE id = $1`, [
+      seriesId,
+    ]);
     await pool.query(
       `UPDATE mission_occurrences
           SET synchronization_state = 'pending', version = version + 1
@@ -290,9 +292,10 @@ describe('MTS-070 PostgreSQL Google calendar synchronization store', () => {
 
     await store.clearCursor(connectionId);
 
-    const cursor = await pool.query(`SELECT cursor FROM calendar_sync_cursors WHERE connection_id = $1`, [
-      connectionId,
-    ]);
+    const cursor = await pool.query(
+      `SELECT cursor FROM calendar_sync_cursors WHERE connection_id = $1`,
+      [connectionId],
+    );
     expect(cursor.rowCount).toBe(0);
     const connection = await pool.query<{ state: string }>(
       `SELECT connection_state AS state FROM external_calendar_connections WHERE id = $1`,
