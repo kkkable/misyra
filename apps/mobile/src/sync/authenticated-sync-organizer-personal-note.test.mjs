@@ -194,12 +194,9 @@ describe('MTS-072 authenticated organizer ownership projection', () => {
         },
       },
     ]);
-    await database.runAsync(
-      `UPDATE local_accounts SET sync_cursor = 2 WHERE account_id = ?`,
-      accountId,
-    );
     await runAuthenticatedServerSync({ database, accountId, api: secondApi });
 
+    expect(secondApi.pull).toHaveBeenCalledWith({ cursor: 2, limit: 100 });
     expect(
       await database.getFirstAsync(
         `SELECT title, location, provider_text, personal_note, general_note
