@@ -117,7 +117,10 @@ function scheduleAtLocalDate(
   localDate: string,
 ): NormalizedProviderSchedule {
   if (schedule.type === 'all_day') {
-    const durationDays = localDayDifference(schedule.startLocalDate, schedule.endLocalDateExclusive);
+    const durationDays = localDayDifference(
+      schedule.startLocalDate,
+      schedule.endLocalDateExclusive,
+    );
     if (durationDays <= 0) throw new TypeError('All-day calendar schedule is invalid');
     return {
       ...schedule,
@@ -150,10 +153,7 @@ function scheduleFinishEpochMs(schedule: NormalizedProviderSchedule): number {
     return finish;
   }
   return new Date(
-    resolveLocalDateTimeInstant(
-      `${schedule.endLocalDateExclusive}T00:00:00`,
-      schedule.timeZone,
-    ),
+    resolveLocalDateTimeInstant(`${schedule.endLocalDateExclusive}T00:00:00`, schedule.timeZone),
   ).getTime();
 }
 
@@ -180,10 +180,7 @@ function futureOnlyEvent(
 
   const anchorLocalDate = scheduleAnchorLocalDate(event.schedule);
   const nowLocalDate = localDateAtInstant(now, event.schedule.timeZone);
-  let searchEndLocalDate = addLocalDays(
-    nowLocalDate,
-    recurrenceSearchDays(event.recurrence),
-  );
+  let searchEndLocalDate = addLocalDays(nowLocalDate, recurrenceSearchDays(event.recurrence));
   if (
     event.recurrence.end.type === 'date' &&
     localDateEpochDay(event.recurrence.end.inclusiveLocalDate) <
