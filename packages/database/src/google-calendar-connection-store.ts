@@ -193,6 +193,19 @@ export function createPostgresGoogleCalendarConnectionStore(pool: Pool) {
       throw new Error('connection_state_missing');
     },
 
+    async findRevocableConnectionId(accountId: string): Promise<string | null> {
+      const result = await pool.query<{ id: string }>(
+        `SELECT id
+           FROM external_calendar_connections
+          WHERE account_id = $1
+            AND provider = 'google'
+            AND encrypted_refresh_token IS NOT NULL
+          LIMIT 1`,
+        [accountId],
+      );
+      return result.rows[0]?.id ?? null;
+    },
+
     async disconnectConnection(
       accountId: string,
       connectionId: string,
