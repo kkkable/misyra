@@ -81,8 +81,8 @@ async function insertTimedMission(
   );
 }
 
-describe('MTS-070 PostgreSQL initial migration window', () => {
-  it('exports only unfinished future missions during Misyra-first initial migration', async () => {
+describe('MTS-070 PostgreSQL pending-command source', () => {
+  it('keeps historical and future pending commands available so only initial setup filters them', async () => {
     const { accountId, connectionId } = await createAccountAndConnection();
     await insertTimedMission(
       accountId,
@@ -100,14 +100,10 @@ describe('MTS-070 PostgreSQL initial migration window', () => {
       now: () => new Date('2026-09-13T03:00:00.000Z'),
     });
 
-    const initial = await store.listPendingCommands(connectionId, { initialMigration: true });
-    const normal = await store.listPendingCommands(connectionId, { initialMigration: false });
+    const pending = await store.listPendingCommands(connectionId);
 
     expect(
-      initial.map(({ command }) => (command.operation === 'create' ? command.event.title : null)),
-    ).toEqual(['Future local mission']);
-    expect(
-      normal.map(({ command }) => (command.operation === 'create' ? command.event.title : null)),
+      pending.map(({ command }) => (command.operation === 'create' ? command.event.title : null)),
     ).toEqual(['Past local mission', 'Future local mission']);
   });
 });
