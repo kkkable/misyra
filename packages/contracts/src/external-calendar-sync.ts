@@ -50,6 +50,4 @@ export const synchronizedProviderChangeBatchSchema = z
 export type SynchronizedProviderEvent = z.infer<typeof synchronizedProviderEventSchema>;
 export type SynchronizedImportBatch = z.infer<typeof synchronizedImportBatchSchema>;
 export type SynchronizedProviderChange = z.infer<typeof synchronizedProviderChangeSchema>;
-export type SynchronizedProviderChangeBatch = z.infer<
-  typeof synchronizedProviderChangeBatchSchema
->;
+export type SynchronizedProviderChangeBatch = z.infer<typeof synchronizedProviderChangeBatchSchema>;
