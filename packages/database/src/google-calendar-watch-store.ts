@@ -72,7 +72,7 @@ export function createPostgresGoogleCalendarWatchStore(
               w.resource_id AS "resourceId",
               w.token_hash AS "tokenHash",
               w.expires_at AS "expiresAt"
-         FROM google_calendar_watch_channels w
+         FROM misyra_internal.google_calendar_watch_channels w
          JOIN external_calendar_connections c ON c.id = w.connection_id
         WHERE w.channel_id = $1
           AND c.provider = 'google'
@@ -87,7 +87,7 @@ export function createPostgresGoogleCalendarWatchStore(
       `WITH connected AS (
          SELECT c.account_id
            FROM external_calendar_connections c
-           JOIN google_calendar_watch_channels w
+           JOIN misyra_internal.google_calendar_watch_channels w
              ON w.connection_id = c.id
             AND w.channel_id = $2
           WHERE c.id = $1
@@ -95,7 +95,7 @@ export function createPostgresGoogleCalendarWatchStore(
             AND c.connection_state = 'connected'
        ),
        inserted_signal AS (
-         INSERT INTO google_calendar_watch_signals (
+         INSERT INTO misyra_internal.google_calendar_watch_signals (
            channel_id, message_number, resource_state
          )
          SELECT $2, $3, $4
@@ -131,7 +131,7 @@ export function createPostgresGoogleCalendarWatchStore(
     const result = await pool.query<{ present: boolean }>(
       `SELECT EXISTS (
          SELECT 1
-           FROM google_calendar_watch_channels w
+           FROM misyra_internal.google_calendar_watch_channels w
            JOIN external_calendar_connections c ON c.id = w.connection_id
           WHERE w.connection_id = $1
             AND w.superseded_at IS NULL
@@ -146,7 +146,7 @@ export function createPostgresGoogleCalendarWatchStore(
 
   async function saveChannel(input: GoogleCalendarSaveChannelRecord): Promise<void> {
     await pool.query(
-      `INSERT INTO google_calendar_watch_channels (
+      `INSERT INTO misyra_internal.google_calendar_watch_channels (
          channel_id, connection_id, resource_id, token_hash, expires_at
        ) VALUES ($1, $2, $3, $4, $5)`,
       [
@@ -169,7 +169,7 @@ export function createPostgresGoogleCalendarWatchStore(
               w.resource_id AS "resourceId",
               w.token_hash AS "tokenHash",
               w.expires_at AS "expiresAt"
-         FROM google_calendar_watch_channels w
+         FROM misyra_internal.google_calendar_watch_channels w
          JOIN external_calendar_connections c ON c.id = w.connection_id
         WHERE w.superseded_at IS NULL
           AND w.expires_at <= $1
@@ -187,7 +187,7 @@ export function createPostgresGoogleCalendarWatchStore(
     try {
       await client.query('BEGIN');
       const previous = await client.query<{ connectionId: string }>(
-        `UPDATE google_calendar_watch_channels
+        `UPDATE misyra_internal.google_calendar_watch_channels
             SET superseded_at = CURRENT_TIMESTAMP
           WHERE channel_id = $1
             AND superseded_at IS NULL
@@ -200,7 +200,7 @@ export function createPostgresGoogleCalendarWatchStore(
       }
 
       await client.query(
-        `INSERT INTO google_calendar_watch_channels (
+        `INSERT INTO misyra_internal.google_calendar_watch_channels (
            channel_id, connection_id, resource_id, token_hash, expires_at
          ) VALUES ($1, $2, $3, $4, $5)`,
         [
