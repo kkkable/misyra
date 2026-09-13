@@ -48,9 +48,12 @@ describe('MTS-070 Google calendar route synchronization composition', () => {
     expect(completeOAuth).toHaveBeenCalledOnce();
     expect(initialSync).toHaveBeenCalledOnce();
     expect(initialSync).toHaveBeenCalledWith(connectionId);
-    expect(completeOAuth.mock.invocationCallOrder[0]).toBeLessThan(
-      initialSync.mock.invocationCallOrder[0],
-    );
+    const completeOrder = completeOAuth.mock.invocationCallOrder.at(0);
+    const syncOrder = initialSync.mock.invocationCallOrder.at(0);
+    if (completeOrder === undefined || syncOrder === undefined) {
+      throw new Error('expected OAuth completion and initial sync invocation');
+    }
+    expect(completeOrder).toBeLessThan(syncOrder);
     await server.close();
   });
 });
