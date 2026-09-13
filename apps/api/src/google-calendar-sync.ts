@@ -5,8 +5,10 @@ import {
   type CalendarCommandResult,
   type ExternalCalendarConnectionState,
   type ExternalCalendarInitialSyncDirection,
+  type RestoreHiddenEventInput,
   type SynchronizedImportBatch,
   type SynchronizedProviderChangeBatch,
+  type SynchronizedProviderEvent,
 } from '@misyra/contracts';
 
 import {
@@ -28,6 +30,7 @@ export interface PendingCalendarCommand {
 export interface GoogleCalendarSynchronizationProvider {
   initialImport(connectionId: string): Promise<SynchronizedImportBatch>;
   pullChanges(connectionId: string): Promise<SynchronizedProviderChangeBatch>;
+  restoreHiddenEvent(input: RestoreHiddenEventInput): Promise<SynchronizedProviderEvent>;
   applyCommands(commands: readonly CalendarCommand[]): Promise<readonly CalendarCommandResult[]>;
 }
 
