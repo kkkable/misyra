@@ -221,7 +221,7 @@ export function createGoogleCalendarWatchService(
     }
 
     let maintained = 0;
-    let repairError: unknown;
+    let repairError: Error | undefined;
     while (maintained < limit) {
       const connectionId = await dependencies.store.claimConnectionMissingChannel();
       if (connectionId === null) break;
@@ -229,7 +229,8 @@ export function createGoogleCalendarWatchService(
       try {
         await ensureChannel(connectionId);
       } catch (error) {
-        repairError = error;
+        repairError =
+          error instanceof Error ? error : new Error('google_calendar_watch_repair_failed');
         break;
       }
     }
