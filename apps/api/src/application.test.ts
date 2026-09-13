@@ -8,6 +8,7 @@ import {
   createHmacAccessTokenAuthenticator,
   createHmacAccessTokenIssuer,
   resolveAuthStartupConfiguration,
+  resolveGoogleCalendarStartupConfiguration,
 } from './application.js';
 import type { ProviderProofVerifier } from './auth.js';
 import { createApiServer } from './index.js';
@@ -109,6 +110,52 @@ describe('MTS-034 executable API composition', () => {
       },
       accessTokenSecret: 'production-auth-secret-at-least-32-characters',
     });
+  });
+});
+
+describe('MTS-071 Google Calendar startup configuration', () => {
+  const encryptionKey = 'BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc';
+
+  it('documents the webhook address and uses the specified local route by default', () => {
+    const envExample = readFileSync(new URL('../../../.env.example', import.meta.url), 'utf8');
+    expect(envExample).toMatch(
+      /^GOOGLE_CALENDAR_WEBHOOK_ADDRESS=http:\/\/127\.0\.0\.1:3000\/v1\/webhooks\/google-calendar$/m,
+    );
+
+    const configuration = resolveGoogleCalendarStartupConfiguration({});
+    expect(configuration).toMatchObject({
+      clientId: 'fixture-google-calendar-client-id',
+      clientSecret: 'fixture-google-calendar-client-secret',
+      redirectUri: 'http://127.0.0.1:3000/v1/calendars/google/callback',
+      webhookAddress: 'http://127.0.0.1:3000/v1/webhooks/google-calendar',
+    });
+    expect(configuration.encryptionKey).toEqual(Buffer.from(encryptionKey, 'base64url'));
+  });
+
+  it('requires an explicit HTTPS webhook address in production', () => {
+    const production = {
+      NODE_ENV: 'production',
+      GOOGLE_CALENDAR_CLIENT_ID: 'production-google-calendar-client-id',
+      GOOGLE_CALENDAR_CLIENT_SECRET: 'production-google-calendar-client-secret-value',
+      GOOGLE_CALENDAR_REDIRECT_URI: 'https://api.example.test/v1/calendars/google/callback',
+      GOOGLE_CALENDAR_TOKEN_ENCRYPTION_KEY: encryptionKey,
+    } as const;
+
+    expect(() => resolveGoogleCalendarStartupConfiguration(production)).toThrow(
+      'Missing required environment variable: GOOGLE_CALENDAR_WEBHOOK_ADDRESS',
+    );
+    expect(() =>
+      resolveGoogleCalendarStartupConfiguration({
+        ...production,
+        GOOGLE_CALENDAR_WEBHOOK_ADDRESS: 'http://api.example.test/v1/webhooks/google-calendar',
+      }),
+    ).toThrow('GOOGLE_CALENDAR_WEBHOOK_ADDRESS must use HTTPS in production');
+    expect(
+      resolveGoogleCalendarStartupConfiguration({
+        ...production,
+        GOOGLE_CALENDAR_WEBHOOK_ADDRESS: 'https://api.example.test/v1/webhooks/google-calendar',
+      }).webhookAddress,
+    ).toBe('https://api.example.test/v1/webhooks/google-calendar');
   });
 });
 
