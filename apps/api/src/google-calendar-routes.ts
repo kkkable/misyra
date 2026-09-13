@@ -97,7 +97,11 @@ export function createGoogleCalendarRoutes(
         const query = parseCallbackQuery(request.query);
         const connection = await runGoogleCalendarOperation(() => service.completeOAuth(query));
         await syncService?.initialSync(connection.id);
-        await watchService?.ensureChannel(connection.id);
+        try {
+          await watchService?.ensureChannel(connection.id);
+        } catch {
+          // The durable watch-maintenance loop repairs connected calendars that lack a channel.
+        }
         return calendarConnectionSchema.parse({
           id: connection.id,
           provider: connection.provider,
