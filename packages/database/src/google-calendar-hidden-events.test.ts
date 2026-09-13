@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { createPostgresGoogleCalendarHiddenEventStore } from './google-calendar-hidden-event-store.js';
 import { createPostgresGoogleCalendarSyncStore } from './google-calendar-sync-store.js';
 import { applyMigrations } from './migrations.js';
 
@@ -73,23 +74,13 @@ function currentProviderEvent() {
   };
 }
 
-type RestoringStore = ReturnType<typeof createPostgresGoogleCalendarSyncStore> &
-  Readonly<{
-    restoreHiddenEvent(
-      connectionId: string,
-      input: Readonly<{
-        recurrenceScope: 'this_occurrence' | 'this_and_future' | 'entire_series';
-        event: ReturnType<typeof currentProviderEvent>;
-      }>,
-    ): Promise<Readonly<{ occurrenceId: string }>>;
-  }>;
-
 describe('MTS-073 PostgreSQL hidden external-event restoration', () => {
   it('removes only the matching dismissal and reimports current details as a fresh active mission', async () => {
     const { accountId, connectionId } = await createAccountAndConnection();
-    const store = createPostgresGoogleCalendarSyncStore(pool) as RestoringStore;
+    const syncStore = createPostgresGoogleCalendarSyncStore(pool);
+    const hiddenEventStore = createPostgresGoogleCalendarHiddenEventStore(pool);
 
-    await store.reconcileFullImport(connectionId, {
+    await syncStore.reconcileFullImport(connectionId, {
       events: [currentProviderEvent()],
       cursor: 'sync-token-before-hide',
     });
@@ -121,7 +112,7 @@ describe('MTS-073 PostgreSQL hidden external-event restoration', () => {
       [accountId, connectionId],
     );
 
-    const restored = await store.restoreHiddenEvent(connectionId, {
+    const restored = await hiddenEventStore.restoreHiddenEvent(connectionId, {
       recurrenceScope: 'this_occurrence',
       event: currentProviderEvent(),
     });
