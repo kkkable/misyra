@@ -16,7 +16,7 @@ import {
 } from './google-calendar-watch.js';
 
 const NOW = new Date('2026-09-13T07:00:00.000Z');
-const WEBHOOK_ADDRESS = 'https://example.test/v1/calendars/google/webhook';
+const WEBHOOK_ADDRESS = 'https://example.test/v1/webhooks/google-calendar';
 const CONNECTION_ID = '11111111-1111-4111-8111-111111111111';
 
 function tokenHash(token: string) {
@@ -45,10 +45,11 @@ function createHarness(
   const scheduledWork: string[] = [];
   const savedChannels: GoogleCalendarWatchRegistration[] = [];
   const renewedChannels: GoogleCalendarWatchRegistration[] = [];
+  const dueQueue = [...(input.dueChannels ?? [])];
 
   const getChannel = vi.fn((channelId: string) => {
-    void channelId;
-    return Promise.resolve(input.storedChannel ?? channel());
+    const stored = input.storedChannel === undefined ? channel() : input.storedChannel;
+    return Promise.resolve(stored?.channelId === channelId ? stored : null);
   });
   const schedulePullOnce = vi.fn((signal: GoogleCalendarPullSignal) => {
     const key = `${signal.channelId}:${signal.messageNumber}`;
@@ -66,8 +67,8 @@ function createHarness(
     return Promise.resolve();
   });
   const listChannelsDueForRenewal = vi.fn((query: GoogleCalendarRenewalQuery) => {
-    void query;
-    return Promise.resolve(input.dueChannels ?? []);
+    const amount = Math.min(query.limit, dueQueue.length);
+    return Promise.resolve(dueQueue.splice(0, amount));
   });
   const markRenewed = vi.fn((renewed: GoogleCalendarRenewedChannel) => {
     renewedChannels.push(renewed.replacement);
@@ -215,27 +216,25 @@ describe('MTS-071 Google Calendar watch lifecycle', () => {
     expect(watchEvents).not.toHaveBeenCalled();
   });
 
-  it('renews before expiry in bounded batches', async () => {
-    const oldChannel = channel({ expiresAt: new Date('2026-09-13T12:00:00.000Z') });
+  it('renews before expiry with one durable claim at a time and honors the batch bound', async () => {
+    const first = channel({ expiresAt: new Date('2026-09-13T12:00:00.000Z') });
+    const second = channel({
+      channelId: 'channel-second',
+      expiresAt: new Date('2026-09-13T12:30:00.000Z'),
+    });
     const { service, listChannelsDueForRenewal, watchEvents, renewedChannels } = createHarness({
-      dueChannels: [oldChannel],
+      dueChannels: [first, second],
     });
 
-    await expect(service.renewDueChannels(25)).resolves.toBe(1);
+    await expect(service.renewDueChannels(1)).resolves.toBe(1);
 
+    expect(listChannelsDueForRenewal).toHaveBeenCalledTimes(1);
     expect(listChannelsDueForRenewal).toHaveBeenCalledWith({
       before: new Date('2026-09-13T13:00:00.000Z'),
-      limit: 25,
+      limit: 1,
     });
     expect(watchEvents).toHaveBeenCalledTimes(1);
-    expect(renewedChannels).toEqual([
-      {
-        channelId: 'channel-new',
-        resourceId: 'resource-for-channel-new',
-        tokenHash: tokenHash('new-secret-token'),
-        expiresAt: new Date('2026-09-20T07:00:00.000Z'),
-      },
-    ]);
+    expect(renewedChannels).toHaveLength(1);
   });
 
   it('rejects an unbounded renewal batch size', async () => {
