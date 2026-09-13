@@ -7,7 +7,6 @@ import { createGoogleCalendarSyncProvider } from './google-calendar-sync-provide
 const connectionId = '11111111-1111-4111-8111-111111111111';
 
 type FetchInput = Parameters<typeof fetch>[0];
-type FetchInit = Parameters<typeof fetch>[1];
 type RestoringProvider = ReturnType<typeof createGoogleCalendarSyncProvider> &
   Readonly<{
     restoreHiddenEvent(
@@ -54,7 +53,7 @@ describe('MTS-073 Google hidden-event restoration', () => {
         { status: 200, headers: { 'content-type': 'application/json' } },
       ),
     ];
-    const fetchImpl = vi.fn((input: FetchInput, _init?: FetchInit) => {
+    const fetchImpl = vi.fn((input: FetchInput) => {
       requests.push(requestUrl(input));
       const response = responses.shift();
       return response
