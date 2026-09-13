@@ -1,4 +1,8 @@
-import { accountSettingsSchema, type AccountSettings } from '@misyra/contracts';
+import {
+  accountSettingsSchema,
+  mobileMissionPersonalNoteSchema,
+  type AccountSettings,
+} from '@misyra/contracts';
 import {
   createMissionOccurrence,
   createMissionSeries,
@@ -169,6 +173,14 @@ function settingsFromChange(change: ServerAccountChange): AccountSettings | null
   return accountSettingsSchema.parse(change.payload);
 }
 
+function personalNoteFromChange(change: ServerAccountChange): Readonly<{ note: string }> | null {
+  if (change.entityType !== 'mission_personal_note') return null;
+  if (change.operation !== 'upsert') {
+    throw new Error('Unsupported mission personal-note change operation.');
+  }
+  return mobileMissionPersonalNoteSchema.parse(change.payload);
+}
+
 function optionalPayloadString(payload: Record<string, unknown>, key: string): string | null {
   const value = payload[key];
   if (value === undefined || value === null) return null;
@@ -244,6 +256,11 @@ async function applyMissionProjection(
   if (tombstone !== null) return;
 
   const schedule = mission.occurrence.schedule;
+  const organizerControlled =
+    mission.occurrence.calendarSource === 'external' &&
+    mission.occurrence.fieldOwnership === 'organizer_controlled';
+  const providerText = organizerControlled ? notes : null;
+  const generalNote = organizerControlled ? null : notes;
   await transaction.runAsync(
     `INSERT INTO cached_mission_series
        (account_id, series_id, title, timezone, payload_json, updated_at)
@@ -287,11 +304,12 @@ async function applyMissionProjection(
   await transaction.runAsync(
     `INSERT INTO search_documents
        (account_id, document_id, occurrence_id, title, location, provider_text, personal_note, general_note, updated_at)
-     VALUES (?, ?, ?, ?, ?, NULL, NULL, ?, ?)
+     VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?)
      ON CONFLICT(account_id, document_id) DO UPDATE SET
        occurrence_id = excluded.occurrence_id,
        title = excluded.title,
        location = excluded.location,
+       provider_text = excluded.provider_text,
        general_note = excluded.general_note,
        updated_at = excluded.updated_at`,
     accountId,
@@ -299,8 +317,38 @@ async function applyMissionProjection(
     mission.occurrence.id,
     mission.series.title,
     location,
-    notes,
+    providerText,
+    generalNote,
     updatedAt,
+  );
+}
+
+async function applyMissionPersonalNoteProjection(
+  transaction: ServerSyncDatabase,
+  accountId: string,
+  occurrenceId: string,
+  note: string,
+  updatedAt: string,
+): Promise<void> {
+  await transaction.runAsync(
+    `INSERT INTO personal_notes (account_id, occurrence_id, note, updated_at)
+     VALUES (?, ?, ?, ?)
+     ON CONFLICT(account_id, occurrence_id) DO UPDATE SET
+       note = excluded.note,
+       updated_at = excluded.updated_at`,
+    accountId,
+    occurrenceId,
+    note,
+    updatedAt,
+  );
+  await transaction.runAsync(
+    `UPDATE search_documents
+        SET personal_note = ?, updated_at = ?
+      WHERE account_id = ? AND occurrence_id = ?`,
+    note,
+    updatedAt,
+    accountId,
+    occurrenceId,
   );
 }
 
@@ -404,6 +452,17 @@ async function applyAuthoritativeChanges(
       );
       continue;
     }
+    const personalNote = personalNoteFromChange(change);
+    if (personalNote !== null) {
+      await applyMissionPersonalNoteProjection(
+        transaction,
+        accountId,
+        change.entityId,
+        personalNote.note,
+        new Date().toISOString(),
+      );
+      continue;
+    }
     const mission = missionFromChange(change);
     if (mission !== null) {
       await applyMissionProjection(transaction, accountId, mission, new Date().toISOString());
@@ -419,7 +478,10 @@ async function applyAuthoritativeSnapshot(
   entries: readonly ServerAccountChange[],
 ) {
   const ordered = [
-    ...entries.filter((entry) => entry.entityType !== 'progress'),
+    ...entries.filter(
+      (entry) => entry.entityType !== 'mission_personal_note' && entry.entityType !== 'progress',
+    ),
+    ...entries.filter((entry) => entry.entityType === 'mission_personal_note'),
     ...entries.filter((entry) => entry.entityType === 'progress'),
   ];
   await applyAuthoritativeChanges(transaction, accountId, ordered);
