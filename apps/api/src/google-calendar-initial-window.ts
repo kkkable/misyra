@@ -99,7 +99,11 @@ function localDateFromEpochDay(epochDay: number): string {
   if (!Number.isSafeInteger(epochDay)) throw new RangeError('Calendar date range is too large');
   const date = new Date(epochDay * DAY_MS);
   if (Number.isNaN(date.getTime())) throw new RangeError('Calendar date range is too large');
-  const localDate = formatLocalDate(date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate());
+  const localDate = formatLocalDate(
+    date.getUTCFullYear(),
+    date.getUTCMonth() + 1,
+    date.getUTCDate(),
+  );
   if (localDate === null) throw new RangeError('Calendar date range is too large');
   return localDate;
 }
@@ -221,19 +225,19 @@ function weeklyCandidate(
     .sort((left, right) => left - right);
   const firstBlockOffsets = offsets.filter((offset) => anchorWeekStart + offset >= anchorDay);
   const blockSpan = interval * 7;
-  if (!Number.isSafeInteger(blockSpan)) throw new RangeError('Calendar recurrence range is too large');
+  if (!Number.isSafeInteger(blockSpan))
+    throw new RangeError('Calendar recurrence range is too large');
 
   let block = Math.max(0, Math.floor((targetDay - anchorWeekStart) / blockSpan));
   for (let attempt = 0; attempt < 2; attempt += 1) {
     const blockStart = anchorWeekStart + block * blockSpan;
-    if (!Number.isSafeInteger(blockStart)) throw new RangeError('Calendar recurrence range is too large');
+    if (!Number.isSafeInteger(blockStart))
+      throw new RangeError('Calendar recurrence range is too large');
     const available = block === 0 ? firstBlockOffsets : offsets;
     const position = available.findIndex((offset) => blockStart + offset >= targetDay);
     if (position >= 0) {
       const index =
-        block === 0
-          ? position
-          : firstBlockOffsets.length + (block - 1) * offsets.length + position;
+        block === 0 ? position : firstBlockOffsets.length + (block - 1) * offsets.length + position;
       return {
         localDate: localDateFromEpochDay(blockStart + (available[position] ?? 0)),
         index: safeOccurrenceIndex(index),
@@ -260,12 +264,14 @@ function monthlyOrdinalCandidate(
     recurrence.ordinal,
     recurrence.weekday,
   );
-  const firstStep = first !== null && localDateEpochDay(first) >= localDateEpochDay(anchorLocalDate) ? 0 : 1;
+  const firstStep =
+    first !== null && localDateEpochDay(first) >= localDateEpochDay(anchorLocalDate) ? 0 : 1;
   let step = Math.max(firstStep, Math.floor(Math.max(0, targetMonth - anchorMonth) / interval));
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
     const monthValue = anchorMonth + step * interval;
-    if (!Number.isSafeInteger(monthValue)) throw new RangeError('Calendar recurrence range is too large');
+    if (!Number.isSafeInteger(monthValue))
+      throw new RangeError('Calendar recurrence range is too large');
     const period = yearMonthFromAbsoluteMonth(monthValue);
     const candidate = ordinalWeekdayDate(
       period.year,
@@ -299,7 +305,8 @@ function yearlyOrdinalCandidate(
     recurrence.ordinal,
     recurrence.weekday,
   );
-  const firstStep = first !== null && localDateEpochDay(first) >= localDateEpochDay(anchorLocalDate) ? 0 : 1;
+  const firstStep =
+    first !== null && localDateEpochDay(first) >= localDateEpochDay(anchorLocalDate) ? 0 : 1;
   let step = Math.max(firstStep, Math.floor(Math.max(0, target.year - anchor.year) / interval));
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
@@ -343,7 +350,8 @@ function countMonthlyDateOccurrencesBefore(
   if (step <= 0) return 0;
   const anchor = localDateParts(anchorLocalDate);
   const anchorMonth = absoluteMonth(anchor.year, anchor.month);
-  const cycleLength = GREGORIAN_MONTH_CYCLE / greatestCommonDivisor(interval, GREGORIAN_MONTH_CYCLE);
+  const cycleLength =
+    GREGORIAN_MONTH_CYCLE / greatestCommonDivisor(interval, GREGORIAN_MONTH_CYCLE);
   let validPerCycle = 0;
   for (let offset = 0; offset < cycleLength; offset += 1) {
     if (monthlyDateIsValid(anchorMonth, interval, dayOfMonth, offset)) validPerCycle += 1;
@@ -355,10 +363,7 @@ function countMonthlyDateOccurrencesBefore(
     if (monthlyDateIsValid(anchorMonth, interval, dayOfMonth, offset)) count += 1;
   }
   const stepZero = formatLocalDate(anchor.year, anchor.month, dayOfMonth);
-  if (
-    stepZero !== null &&
-    localDateEpochDay(stepZero) < localDateEpochDay(anchorLocalDate)
-  ) {
+  if (stepZero !== null && localDateEpochDay(stepZero) < localDateEpochDay(anchorLocalDate)) {
     count -= 1;
   }
   return safeOccurrenceIndex(count);
@@ -374,12 +379,14 @@ function monthlyDateCandidate(
   const target = localDateParts(targetLocalDate);
   const anchorMonth = absoluteMonth(anchor.year, anchor.month);
   const targetMonth = absoluteMonth(target.year, target.month);
-  const cycleLength = GREGORIAN_MONTH_CYCLE / greatestCommonDivisor(interval, GREGORIAN_MONTH_CYCLE);
+  const cycleLength =
+    GREGORIAN_MONTH_CYCLE / greatestCommonDivisor(interval, GREGORIAN_MONTH_CYCLE);
   let step = Math.max(0, Math.floor(Math.max(0, targetMonth - anchorMonth) / interval));
 
   for (let attempt = 0; attempt <= cycleLength; attempt += 1) {
     const monthValue = anchorMonth + step * interval;
-    if (!Number.isSafeInteger(monthValue)) throw new RangeError('Calendar recurrence range is too large');
+    if (!Number.isSafeInteger(monthValue))
+      throw new RangeError('Calendar recurrence range is too large');
     const period = yearMonthFromAbsoluteMonth(monthValue);
     if (period.year > 9999) return null;
     const candidate = formatLocalDate(period.year, period.month, recurrence.dayOfMonth);
@@ -434,10 +441,7 @@ function countYearlyDateOccurrencesBefore(
     if (yearlyDateIsValid(anchor.year, interval, month, day, offset)) count += 1;
   }
   const stepZero = formatLocalDate(anchor.year, month, day);
-  if (
-    stepZero !== null &&
-    localDateEpochDay(stepZero) < localDateEpochDay(anchorLocalDate)
-  ) {
+  if (stepZero !== null && localDateEpochDay(stepZero) < localDateEpochDay(anchorLocalDate)) {
     count -= 1;
   }
   return safeOccurrenceIndex(count);
@@ -517,7 +521,10 @@ function scheduleAnchorLocalDate(schedule: NormalizedProviderSchedule): string {
 
 function scheduleSpanDays(schedule: NormalizedProviderSchedule): number {
   if (schedule.type === 'all_day') {
-    const durationDays = localDayDifference(schedule.startLocalDate, schedule.endLocalDateExclusive);
+    const durationDays = localDayDifference(
+      schedule.startLocalDate,
+      schedule.endLocalDateExclusive,
+    );
     if (durationDays <= 0) throw new TypeError('All-day calendar schedule is invalid');
     return durationDays;
   }
@@ -593,11 +600,7 @@ function futureOnlyEvent(
   const anchorLocalDate = scheduleAnchorLocalDate(event.schedule);
   const nowLocalDate = localDateAtInstant(now, event.schedule.timeZone);
   const searchStartLocalDate = addLocalDays(nowLocalDate, -scheduleSpanDays(event.schedule));
-  let candidate = firstOccurrenceOnOrAfter(
-    anchorLocalDate,
-    event.recurrence,
-    searchStartLocalDate,
-  );
+  let candidate = firstOccurrenceOnOrAfter(anchorLocalDate, event.recurrence, searchStartLocalDate);
 
   for (let attempt = 0; attempt < 2 && candidate !== null; attempt += 1) {
     const schedule = scheduleAtLocalDate(event.schedule, candidate.localDate);
