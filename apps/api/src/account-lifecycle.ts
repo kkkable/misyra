@@ -32,6 +32,7 @@ export type AccountLifecycleServiceOptions = Readonly<{
   expectedIssuer?: Record<AuthProvider, string | readonly string[]>;
   issueReauthenticationProof(claims: ReauthenticationProofClaims): string;
   verifyReauthenticationProof(proof: string): ReauthenticationProofClaims | null;
+  beforeDeleteAccount?(accountId: string): Promise<void>;
   deleteAccount(accountId: string): Promise<{ deleted: true }>;
   now?: () => Date;
 }>;
@@ -201,6 +202,7 @@ export function createAccountLifecycleService(options: AccountLifecycleServiceOp
       ) {
         throw new AccountLifecycleSecurityError();
       }
+      await options.beforeDeleteAccount?.(accountId);
       return options.deleteAccount(accountId);
     },
   };
