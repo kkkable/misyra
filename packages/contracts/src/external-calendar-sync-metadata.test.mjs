@@ -30,7 +30,8 @@ describe('MTS-070 provider edit timestamp contract', () => {
   it('requires a provider update instant on synchronized events', () => {
     expect(synchronizedProviderEventSchema.parse(providerEvent)).toEqual(providerEvent);
 
-    const { providerUpdatedAt: _providerUpdatedAt, ...missingTimestamp } = providerEvent;
+    const missingTimestamp = { ...providerEvent };
+    delete missingTimestamp.providerUpdatedAt;
     expect(() => synchronizedProviderEventSchema.parse(missingTimestamp)).toThrow();
   });
 
