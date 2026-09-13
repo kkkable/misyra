@@ -11,7 +11,8 @@ UPDATE hidden_external_events hidden
    SET provider = connections.provider,
        provider_calendar_id = connections.provider_calendar_id,
        recurrence_scope = CASE
-         WHEN hidden.recurrence_scope = 'event' THEN 'this_occurrence'
+         WHEN hidden.recurrence_scope = 'event'
+          AND connections.provider_calendar_id IS NOT NULL THEN 'this_occurrence'
          ELSE hidden.recurrence_scope
        END
   FROM external_calendar_connections connections
@@ -58,7 +59,8 @@ BEGIN
       connections.provider_calendar_id,
       links.provider_event_id,
       CASE
-        WHEN links.recurrence_scope = 'event' THEN 'this_occurrence'
+        WHEN links.recurrence_scope = 'event'
+         AND connections.provider_calendar_id IS NOT NULL THEN 'this_occurrence'
         ELSE links.recurrence_scope
       END,
       CASE
