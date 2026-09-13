@@ -81,6 +81,15 @@ export function createApiApplication(options: AuthApplicationOptions) {
   const reauthenticationProofCodec = createHmacReauthenticationProofCodec(
     options.reauthenticationProofSecret,
   );
+  const googleCalendarService =
+    options.googleCalendar === undefined
+      ? undefined
+      : createGoogleCalendarConnectionService({
+          store: createPostgresGoogleCalendarConnectionStore(options.pool),
+          provider: options.googleCalendar.provider,
+          cipher: options.googleCalendar.cipher,
+          ...(options.now === undefined ? {} : { now: options.now }),
+        });
   const authService = createAuthService({
     store: authStore,
     verifier,
@@ -94,22 +103,19 @@ export function createApiApplication(options: AuthApplicationOptions) {
     expectedAudience: options.expectedAudience,
     issueReauthenticationProof: (claims) => reauthenticationProofCodec.issue(claims),
     verifyReauthenticationProof: (proof) => reauthenticationProofCodec.verify(proof),
+    ...(googleCalendarService === undefined
+      ? {}
+      : {
+          beforeDeleteAccount: (accountId: string) =>
+            googleCalendarService.disconnectAccount(accountId),
+        }),
     deleteAccount: (accountId) => deleteAccountTransaction(options.pool, accountId),
     ...(options.now === undefined ? {} : { now: options.now }),
   });
   const deviceSettingsService = createDeviceSettingsService(deviceSettingsStore);
   const syncService = createPostgresSyncService(options.pool);
   const googleCalendarRoutes =
-    options.googleCalendar === undefined
-      ? []
-      : createGoogleCalendarRoutes(
-          createGoogleCalendarConnectionService({
-            store: createPostgresGoogleCalendarConnectionStore(options.pool),
-            provider: options.googleCalendar.provider,
-            cipher: options.googleCalendar.cipher,
-            ...(options.now === undefined ? {} : { now: options.now }),
-          }),
-        );
+    googleCalendarService === undefined ? [] : createGoogleCalendarRoutes(googleCalendarService);
 
   return createApiServer({
     routes: [
