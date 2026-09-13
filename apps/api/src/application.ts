@@ -107,6 +107,22 @@ export function createGoogleCalendarSyncSessionLoader(
   };
 }
 
+export function startGoogleCalendarWatchRenewal(
+  service: Pick<GoogleCalendarWatchService, 'renewDueChannels'>,
+  onError: () => void,
+): () => void {
+  const renew = () => {
+    void service.renewDueChannels().catch(() => {
+      onError();
+    });
+  };
+
+  renew();
+  const renewalTimer = setInterval(renew, GOOGLE_WATCH_RENEWAL_INTERVAL_MS);
+  renewalTimer.unref();
+  return () => clearInterval(renewalTimer);
+}
+
 export function createApiApplication(options: AuthApplicationOptions) {
   const authStore = createPostgresAuthStore(options.pool);
   const deviceSettingsStore = createPostgresDeviceSettingsStore(options.pool);
@@ -395,20 +411,17 @@ export async function startApiApplication(env: NodeJS.ProcessEnv = process.env) 
       watchService: googleCalendarWatchService,
     },
   });
-  const renewalTimer = setInterval(() => {
-    void googleCalendarWatchService.renewDueChannels().catch(() => {
-      server.log.error('Google Calendar watch renewal failed');
-    });
-  }, GOOGLE_WATCH_RENEWAL_INTERVAL_MS);
-  renewalTimer.unref();
+  const stopWatchRenewal = startGoogleCalendarWatchRenewal(googleCalendarWatchService, () => {
+    server.log.error('Google Calendar watch renewal failed');
+  });
   server.addHook('onClose', async () => {
-    clearInterval(renewalTimer);
+    stopWatchRenewal();
     await pool.end();
   });
   try {
     await server.listen({ host: '127.0.0.1', port: 3000 });
   } catch (error) {
-    clearInterval(renewalTimer);
+    stopWatchRenewal();
     await pool.end();
     throw error;
   }
