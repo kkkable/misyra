@@ -39,6 +39,7 @@ function createHarness(
     storedChannel?: GoogleCalendarWatchChannel | null;
     dueChannels?: readonly GoogleCalendarWatchChannel[];
     hasCurrentChannel?: boolean;
+    missingConnectionIds?: readonly string[];
   }> = {},
 ) {
   const seen = new Set<string>();
@@ -46,6 +47,7 @@ function createHarness(
   const savedChannels: GoogleCalendarWatchRegistration[] = [];
   const renewedChannels: GoogleCalendarWatchRegistration[] = [];
   const dueQueue = [...(input.dueChannels ?? [])];
+  const missingConnectionQueue = [...(input.missingConnectionIds ?? [])];
 
   const getChannel = vi.fn((channelId: string) => {
     const stored = input.storedChannel === undefined ? channel() : input.storedChannel;
@@ -66,6 +68,9 @@ function createHarness(
     savedChannels.push(saved.channel);
     return Promise.resolve();
   });
+  const claimConnectionMissingChannel = vi.fn(() =>
+    Promise.resolve(missingConnectionQueue.shift() ?? null),
+  );
   const listChannelsDueForRenewal = vi.fn((query: GoogleCalendarRenewalQuery) => {
     const amount = Math.min(query.limit, dueQueue.length);
     return Promise.resolve(dueQueue.splice(0, amount));
@@ -80,6 +85,7 @@ function createHarness(
     schedulePullOnce,
     hasCurrentChannel,
     saveChannel,
+    claimConnectionMissingChannel,
     listChannelsDueForRenewal,
     markRenewed,
   };
@@ -109,6 +115,7 @@ function createHarness(
     renewedChannels,
     schedulePullOnce,
     watchEvents,
+    claimConnectionMissingChannel,
     listChannelsDueForRenewal,
   };
 }
@@ -216,6 +223,19 @@ describe('MTS-071 Google Calendar watch lifecycle', () => {
     expect(watchEvents).not.toHaveBeenCalled();
   });
 
+  it('repairs claimed connected calendars that have no watch', async () => {
+    const secondConnectionId = '22222222-2222-4222-8222-222222222222';
+    const { service, claimConnectionMissingChannel, watchEvents, savedChannels } = createHarness({
+      missingConnectionIds: [CONNECTION_ID, secondConnectionId],
+    });
+
+    await expect(service.repairMissingChannels(2)).resolves.toBe(2);
+
+    expect(claimConnectionMissingChannel).toHaveBeenCalledTimes(2);
+    expect(watchEvents).toHaveBeenCalledTimes(2);
+    expect(savedChannels).toHaveLength(2);
+  });
+
   it('renews before expiry with one durable claim at a time and honors the batch bound', async () => {
     const first = channel({ expiresAt: new Date('2026-09-13T12:00:00.000Z') });
     const second = channel({
@@ -237,10 +257,10 @@ describe('MTS-071 Google Calendar watch lifecycle', () => {
     expect(renewedChannels).toHaveLength(1);
   });
 
-  it('rejects an unbounded renewal batch size', async () => {
+  it('rejects unbounded maintenance batch sizes', async () => {
     const { service } = createHarness();
 
-    await expect(service.renewDueChannels(0)).rejects.toThrow(
+    await expect(service.repairMissingChannels(0)).rejects.toThrow(
       'google_calendar_watch_limit_invalid',
     );
     await expect(service.renewDueChannels(501)).rejects.toThrow(
