@@ -95,6 +95,7 @@ export function createPostgresGoogleCalendarConnectionStore(pool: Pool) {
                  oauth_state_consumed_at = EXCLUDED.oauth_state_consumed_at,
                  updated_at = now()
            WHERE external_calendar_connections.connection_state = 'disconnected'
+             AND external_calendar_connections.encrypted_refresh_token IS NULL
          RETURNING id`,
         [
           record.accountId,
