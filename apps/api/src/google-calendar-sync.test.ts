@@ -73,6 +73,8 @@ function provider(overrides: Partial<GoogleCalendarSynchronizationProvider> = {}
       changes: [{ type: 'upsert', event: providerEvent }],
       cursor: 'sync-token-next',
     });
+  const restoreHiddenEvent =
+    overrides.restoreHiddenEvent ?? vi.fn().mockResolvedValue(providerEvent);
   const applyCommands =
     overrides.applyCommands ??
     vi
@@ -83,9 +85,10 @@ function provider(overrides: Partial<GoogleCalendarSynchronizationProvider> = {}
   const value: GoogleCalendarSynchronizationProvider = {
     initialImport,
     pullChanges,
+    restoreHiddenEvent,
     applyCommands,
   };
-  return { value, initialImport, pullChanges, applyCommands };
+  return { value, initialImport, pullChanges, restoreHiddenEvent, applyCommands };
 }
 
 function store(overrides: Partial<GoogleCalendarSyncStore> = {}) {
