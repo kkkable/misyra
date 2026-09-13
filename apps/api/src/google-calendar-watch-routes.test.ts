@@ -103,4 +103,33 @@ describe('MTS-071 Google watch API routes', () => {
     expect(watchService.ensureChannel).toHaveBeenCalledWith(connectionId);
     await server.close();
   });
+
+  it('keeps a completed connection usable when initial watch provisioning fails transiently', async () => {
+    const syncService: GoogleCalendarRouteSyncService = {
+      initialSync: vi.fn().mockResolvedValue(undefined),
+    };
+    const ensureChannel = vi.fn().mockRejectedValue(new Error('provider temporarily unavailable'));
+    const watchService: GoogleCalendarRouteWatchService = {
+      handleWebhook: vi.fn().mockResolvedValue({ accepted: true, scheduled: true }),
+      ensureChannel,
+    };
+    const server = createApiServer({
+      routes: createGoogleCalendarRoutes(connectionService(), syncService, watchService),
+      authenticate: () => ({ accountId }),
+    });
+
+    const response = await server.inject({
+      method: 'GET',
+      url: '/v1/calendars/google/callback?state=opaque-state&code=provider-code',
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      ok: true,
+      payload: { id: connectionId, state: 'connected' },
+    });
+    expect(syncService.initialSync).toHaveBeenCalledWith(connectionId);
+    expect(ensureChannel).toHaveBeenCalledWith(connectionId);
+    await server.close();
+  });
 });
