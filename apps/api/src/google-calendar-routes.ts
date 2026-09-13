@@ -67,8 +67,12 @@ async function runGoogleCalendarOperation<T>(operation: () => Promise<T>): Promi
   }
 }
 
-function header(headers: Readonly<Record<string, string | undefined>>, name: string): string {
-  return headers[name] ?? '';
+function header(
+  headers: Readonly<Record<string, string | readonly string[] | undefined>>,
+  name: string,
+): string {
+  const value = headers[name];
+  return typeof value === 'string' ? value : '';
 }
 
 export function createGoogleCalendarRoutes(
