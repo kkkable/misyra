@@ -84,6 +84,34 @@ describe('MTS-070 future-only initial Google migration', () => {
     });
   });
 
+  it('matches domain semantics when weekly recurrence weekdays contain duplicates', () => {
+    const batch = projectFutureOnlyInitialImport(
+      {
+        events: [
+          timedEvent('weekly-duplicates', '2026-09-01T01:00:00.000Z', '2026-09-01T02:00:00.000Z', {
+            pattern: { type: 'weekly', interval: 1, weekdays: [2, 2, 4], weekStartsOn: 1 },
+            end: { type: 'count', occurrenceCount: 6 },
+          }),
+        ],
+        cursor: 'sync-token-next',
+      },
+      now,
+    );
+
+    expect(batch.events).toHaveLength(1);
+    expect(batch.events[0]).toMatchObject({
+      providerEventId: 'weekly-duplicates',
+      schedule: {
+        type: 'timed',
+        startInstant: '2026-09-15T01:00:00.000Z',
+        finishInstant: '2026-09-15T02:00:00.000Z',
+      },
+      recurrence: {
+        end: { type: 'count', occurrenceCount: 2 },
+      },
+    });
+  });
+
   it('omits recurring provider series with no unfinished occurrence remaining', () => {
     const batch = projectFutureOnlyInitialImport(
       {
