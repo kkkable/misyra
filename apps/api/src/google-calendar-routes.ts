@@ -10,6 +10,7 @@ import {
   type GoogleCalendarConnectionService,
 } from './google-calendar-connection.js';
 import type { GoogleCalendarSyncService } from './google-calendar-sync.js';
+import type { GoogleCalendarWatchService } from './google-calendar-watch.js';
 import { ApiError, type ApiRouteDefinition } from './index.js';
 
 export type GoogleCalendarRouteService = Pick<
@@ -18,6 +19,10 @@ export type GoogleCalendarRouteService = Pick<
 >;
 
 export type GoogleCalendarRouteSyncService = Pick<GoogleCalendarSyncService, 'initialSync'>;
+export type GoogleCalendarRouteWatchService = Pick<
+  GoogleCalendarWatchService,
+  'handleWebhook' | 'ensureChannel'
+>;
 
 function validationFailed(): never {
   throw new ApiError('validation_failed');
@@ -62,11 +67,16 @@ async function runGoogleCalendarOperation<T>(operation: () => Promise<T>): Promi
   }
 }
 
+function header(headers: Readonly<Record<string, string | undefined>>, name: string): string {
+  return headers[name] ?? '';
+}
+
 export function createGoogleCalendarRoutes(
   service: GoogleCalendarRouteService,
   syncService?: GoogleCalendarRouteSyncService,
+  watchService?: GoogleCalendarRouteWatchService,
 ): ApiRouteDefinition[] {
-  return [
+  const routes: ApiRouteDefinition[] = [
     {
       method: 'POST',
       path: '/calendars/google/connect',
@@ -83,6 +93,7 @@ export function createGoogleCalendarRoutes(
         const query = parseCallbackQuery(request.query);
         const connection = await runGoogleCalendarOperation(() => service.completeOAuth(query));
         await syncService?.initialSync(connection.id);
+        await watchService?.ensureChannel(connection.id);
         return calendarConnectionSchema.parse({
           id: connection.id,
           provider: connection.provider,
@@ -104,4 +115,23 @@ export function createGoogleCalendarRoutes(
       },
     },
   ];
+
+  if (watchService !== undefined) {
+    routes.push({
+      method: 'POST',
+      path: '/calendars/google/webhook',
+      public: true,
+      handler: (request) =>
+        watchService.handleWebhook({
+          channelId: header(request.headers, 'x-goog-channel-id'),
+          resourceId: header(request.headers, 'x-goog-resource-id'),
+          channelToken: header(request.headers, 'x-goog-channel-token'),
+          messageNumber: header(request.headers, 'x-goog-message-number'),
+          resourceState: header(request.headers, 'x-goog-resource-state'),
+          body: request.body,
+        }),
+    });
+  }
+
+  return routes;
 }
