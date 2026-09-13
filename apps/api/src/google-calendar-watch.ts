@@ -202,9 +202,7 @@ export function createGoogleCalendarWatchService(
     await dependencies.store.saveChannel({ connectionId, channel });
   }
 
-  async function repairMissingChannels(
-    limit = DEFAULT_MAINTENANCE_BATCH_LIMIT,
-  ): Promise<number> {
+  async function repairMissingChannels(limit = DEFAULT_MAINTENANCE_BATCH_LIMIT): Promise<number> {
     requireMaintenanceLimit(limit);
     let repaired = 0;
     while (repaired < limit) {
