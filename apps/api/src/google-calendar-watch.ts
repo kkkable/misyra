@@ -93,8 +93,9 @@ export type GoogleCalendarWatchDependencies = Readonly<{
 }>;
 
 export function createGoogleCalendarWatchService(
-  _dependencies: GoogleCalendarWatchDependencies,
+  dependencies: GoogleCalendarWatchDependencies,
 ): GoogleCalendarWatchService {
+  void dependencies;
   const fail = () => Promise.reject(new Error('google_calendar_watch_not_implemented'));
   return Object.freeze({
     handleWebhook: fail,
