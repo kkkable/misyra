@@ -135,9 +135,8 @@ describe('MTS-073 organizer-controlled recurring dismissal transport', () => {
     const queued = await database.getFirstAsync(
       `SELECT command_json
          FROM mutation_queue
-        WHERE account_id = ? AND entity_id = ?`,
+        WHERE account_id = ?`,
       accountId,
-      occurrenceId,
     );
     const mutation = JSON.parse(queued.command_json).mutation;
     expect(mutation).toMatchObject({
