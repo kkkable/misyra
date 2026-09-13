@@ -74,10 +74,10 @@ describe('MTS-070 concrete Google synchronization provider', () => {
         status: 200,
         headers: { 'content-type': 'application/json' },
       }),
-      new Response(
-        JSON.stringify({ items: [recordedTimedEvent], nextPageToken: 'page-2' }),
-        { status: 200, headers: { 'content-type': 'application/json' } },
-      ),
+      new Response(JSON.stringify({ items: [recordedTimedEvent], nextPageToken: 'page-2' }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
       new Response(JSON.stringify({ items: [], nextSyncToken: 'sync-token-next' }), {
         status: 200,
         headers: { 'content-type': 'application/json' },
@@ -243,7 +243,9 @@ describe('MTS-070 concrete Google synchronization provider', () => {
       'https://www.googleapis.com/calendar/v3/calendars/calendar-1/events',
     );
     expect(createRequest.url).not.toContain('refresh-secret');
-    expect(createRequest.init?.headers).toMatchObject({ Authorization: 'Bearer fresh-access-token' });
+    expect(createRequest.init?.headers).toMatchObject({
+      Authorization: 'Bearer fresh-access-token',
+    });
     expect(JSON.parse(requestBody(createRequest.init))).toEqual({
       summary: 'Local mission',
       description: 'Provider note',
