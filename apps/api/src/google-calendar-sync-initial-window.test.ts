@@ -53,15 +53,10 @@ describe('MTS-070 future-only initial Google migration', () => {
     const batch = projectFutureOnlyInitialImport(
       {
         events: [
-          timedEvent(
-            'weekly',
-            '2026-09-01T01:00:00.000Z',
-            '2026-09-01T02:00:00.000Z',
-            {
-              pattern: { type: 'weekly', interval: 1, weekdays: [2], weekStartsOn: 1 },
-              end: { type: 'count', occurrenceCount: 4 },
-            },
-          ),
+          timedEvent('weekly', '2026-09-01T01:00:00.000Z', '2026-09-01T02:00:00.000Z', {
+            pattern: { type: 'weekly', interval: 1, weekdays: [2], weekStartsOn: 1 },
+            end: { type: 'count', occurrenceCount: 4 },
+          }),
         ],
         cursor: 'sync-token-next',
       },
@@ -93,15 +88,10 @@ describe('MTS-070 future-only initial Google migration', () => {
     const batch = projectFutureOnlyInitialImport(
       {
         events: [
-          timedEvent(
-            'exhausted',
-            '2026-09-01T01:00:00.000Z',
-            '2026-09-01T02:00:00.000Z',
-            {
-              pattern: { type: 'weekly', interval: 1, weekdays: [2], weekStartsOn: 1 },
-              end: { type: 'count', occurrenceCount: 2 },
-            },
-          ),
+          timedEvent('exhausted', '2026-09-01T01:00:00.000Z', '2026-09-01T02:00:00.000Z', {
+            pattern: { type: 'weekly', interval: 1, weekdays: [2], weekStartsOn: 1 },
+            end: { type: 'count', occurrenceCount: 2 },
+          }),
         ],
         cursor: 'sync-token-next',
       },
