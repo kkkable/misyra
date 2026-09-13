@@ -330,7 +330,10 @@ export async function startApiApplication(env: NodeJS.ProcessEnv = process.env) 
   const googleCalendarSyncProvider = createGoogleCalendarSyncProvider({
     clientId: googleCalendarConfiguration.clientId,
     clientSecret: googleCalendarConfiguration.clientSecret,
-    loadSession: createGoogleCalendarSyncSessionLoader(googleCalendarSyncStore, googleCalendarCipher),
+    loadSession: createGoogleCalendarSyncSessionLoader(
+      googleCalendarSyncStore,
+      googleCalendarCipher,
+    ),
   });
   const server = createApiApplication({
     pool,
