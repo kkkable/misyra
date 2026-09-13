@@ -32,6 +32,7 @@ export type GoogleCalendarConnectionStore = Readonly<{
   createConnection(
     record: Omit<GoogleCalendarConnectionRecord, 'id'>,
   ): Promise<GoogleCalendarConnectionRecord>;
+  findRevocableConnectionId(accountId: string): Promise<string | null>;
   disconnectConnection(
     accountId: string,
     connectionId: string,
@@ -76,6 +77,7 @@ export type GoogleCalendarConnectionService = Readonly<{
     input: Readonly<{ state: string; code: string }>,
   ): Promise<GoogleCalendarConnectionRecord>;
   disconnect(accountId: string, connectionId: string): Promise<void>;
+  disconnectAccount(accountId: string): Promise<void>;
 }>;
 
 function hashOAuthState(state: string): string {
@@ -109,6 +111,29 @@ export function createGoogleCalendarConnectionService(input: {
   if (!Number.isFinite(stateTtlMs) || stateTtlMs <= 0) {
     throw new TypeError('stateTtlMs must be a positive finite number');
   }
+
+  const revokeProviderGrantBestEffort = async (refreshToken: string) => {
+    try {
+      await input.provider.revokeRefreshToken(refreshToken);
+    } catch {
+      // The original OAuth completion failure remains authoritative. Never expose provider details.
+    }
+  };
+
+  const disconnectConnection = async (accountId: string, connectionId: string) => {
+    const connection = await input.store.disconnectConnection(accountId, connectionId);
+    if (!connection) {
+      throw new GoogleCalendarOAuthError('not_found');
+    }
+
+    try {
+      const refreshToken = await input.cipher.decrypt(connection.encryptedRefreshToken);
+      await input.provider.revokeRefreshToken(refreshToken);
+      await input.store.clearDisconnectedRefreshToken(accountId, connectionId);
+    } catch {
+      throw providerError();
+    }
+  };
 
   return {
     async startOAuth(accountId, request) {
@@ -153,11 +178,13 @@ export function createGoogleCalendarConnectionService(input: {
         try {
           providerCalendarId = await input.provider.createDedicatedCalendar(refreshToken);
         } catch {
+          await revokeProviderGrantBestEffort(refreshToken);
           throw providerError();
         }
       } else if (state.selectedCalendarId) {
         providerCalendarId = state.selectedCalendarId;
       } else {
+        await revokeProviderGrantBestEffort(refreshToken);
         throw new GoogleCalendarOAuthError('invalid_state');
       }
 
@@ -165,6 +192,7 @@ export function createGoogleCalendarConnectionService(input: {
       try {
         encryptedRefreshToken = await input.cipher.encrypt(refreshToken);
       } catch {
+        await revokeProviderGrantBestEffort(refreshToken);
         throw providerError();
       }
 
@@ -178,6 +206,7 @@ export function createGoogleCalendarConnectionService(input: {
           state: 'connected',
         });
       } catch (error) {
+        await revokeProviderGrantBestEffort(refreshToken);
         if (isConnectionExistsError(error)) {
           throw new GoogleCalendarOAuthError('connection_exists');
         }
@@ -185,18 +214,24 @@ export function createGoogleCalendarConnectionService(input: {
       }
     },
 
-    async disconnect(accountId, connectionId) {
-      const connection = await input.store.disconnectConnection(accountId, connectionId);
-      if (!connection) {
-        throw new GoogleCalendarOAuthError('not_found');
-      }
+    disconnect: disconnectConnection,
 
+    async disconnectAccount(accountId) {
+      let connectionId: string | null;
       try {
-        const refreshToken = await input.cipher.decrypt(connection.encryptedRefreshToken);
-        await input.provider.revokeRefreshToken(refreshToken);
-        await input.store.clearDisconnectedRefreshToken(accountId, connectionId);
+        connectionId = await input.store.findRevocableConnectionId(accountId);
       } catch {
         throw providerError();
+      }
+      if (!connectionId) return;
+
+      try {
+        await disconnectConnection(accountId, connectionId);
+      } catch (error) {
+        if (error instanceof GoogleCalendarOAuthError && error.code === 'not_found') {
+          return;
+        }
+        throw error;
       }
     },
   };
