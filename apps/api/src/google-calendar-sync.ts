@@ -9,6 +9,11 @@ import {
   type SynchronizedProviderChangeBatch,
 } from '@misyra/contracts';
 
+import {
+  isFutureInitialCalendarCommand,
+  projectFutureOnlyInitialImport,
+} from './google-calendar-initial-window.js';
+
 export interface GoogleCalendarSyncConnection {
   readonly id: string;
   readonly initialSyncDirection: ExternalCalendarInitialSyncDirection;
@@ -47,6 +52,7 @@ export interface GoogleCalendarSyncService {
 export interface GoogleCalendarSyncServiceDependencies {
   readonly provider: GoogleCalendarSynchronizationProvider;
   readonly store: GoogleCalendarSyncStore;
+  readonly now?: () => Date;
 }
 
 function assertConnected(
@@ -61,39 +67,54 @@ async function pushPendingCommands(
   provider: GoogleCalendarSynchronizationProvider,
   store: GoogleCalendarSyncStore,
   connectionId: string,
+  initialMigration: boolean,
+  currentTime: Date,
 ): Promise<void> {
   const pending = await store.listPendingCommands(connectionId);
-  if (pending.length === 0) return;
+  const parsedPending = pending.map((item) => ({
+    occurrenceId: item.occurrenceId,
+    command: calendarCommandSchema.parse(item.command),
+  }));
+  const effectivePending = initialMigration
+    ? parsedPending.filter(({ command }) => isFutureInitialCalendarCommand(command, currentTime))
+    : parsedPending;
+  if (effectivePending.length === 0) return;
 
-  const commands = pending.map(({ command }) => calendarCommandSchema.parse(command));
-  const results = await provider.applyCommands(commands);
-  await store.applyCommandResults(connectionId, pending, results);
+  const results = await provider.applyCommands(effectivePending.map(({ command }) => command));
+  await store.applyCommandResults(connectionId, effectivePending, results);
 }
 
 async function fullImport(
   provider: GoogleCalendarSynchronizationProvider,
   store: GoogleCalendarSyncStore,
   connectionId: string,
+  initialMigration: boolean,
+  currentTime: Date,
 ): Promise<void> {
   const batch = await provider.initialImport(connectionId);
-  await store.reconcileFullImport(connectionId, batch);
+  await store.reconcileFullImport(
+    connectionId,
+    initialMigration ? projectFutureOnlyInitialImport(batch, currentTime) : batch,
+  );
 }
 
 export function createGoogleCalendarSyncService(
   dependencies: GoogleCalendarSyncServiceDependencies,
 ): GoogleCalendarSyncService {
   const { provider, store } = dependencies;
+  const now = dependencies.now ?? (() => new Date());
 
   return Object.freeze({
     async initialSync(connectionId: string): Promise<void> {
       const connection = await store.getConnection(connectionId);
       assertConnected(connection);
+      const currentTime = now();
 
       if (connection.initialSyncDirection === 'misyra_to_external') {
-        await pushPendingCommands(provider, store, connectionId);
+        await pushPendingCommands(provider, store, connectionId, true, currentTime);
       }
 
-      await fullImport(provider, store, connectionId);
+      await fullImport(provider, store, connectionId, true, currentTime);
     },
 
     async incrementalSync(connectionId: string): Promise<void> {
@@ -112,10 +133,10 @@ export function createGoogleCalendarSyncService(
         }
 
         await store.clearCursor(connectionId);
-        await fullImport(provider, store, connectionId);
+        await fullImport(provider, store, connectionId, false, now());
       }
 
-      await pushPendingCommands(provider, store, connectionId);
+      await pushPendingCommands(provider, store, connectionId, false, now());
     },
   });
 }
