@@ -199,11 +199,14 @@ export function createPostgresGoogleCalendarConnectionStore(pool: Pool) {
       const result = await pool.query<DisconnectedConnectionRow>(
         `UPDATE external_calendar_connections
             SET connection_state = 'disconnected',
-                updated_at = now()
+                updated_at = CASE
+                  WHEN connection_state = 'connected' THEN now()
+                  ELSE updated_at
+                END
           WHERE id = $1
             AND account_id = $2
             AND provider = 'google'
-            AND connection_state = 'connected'
+            AND connection_state IN ('connected', 'disconnected')
             AND encrypted_refresh_token IS NOT NULL
         RETURNING id,
                   encrypted_refresh_token`,
@@ -215,6 +218,19 @@ export function createPostgresGoogleCalendarConnectionStore(pool: Pool) {
         id: row.id,
         encryptedRefreshToken: row.encrypted_refresh_token,
       };
+    },
+
+    async clearDisconnectedRefreshToken(accountId: string, connectionId: string): Promise<void> {
+      await pool.query(
+        `UPDATE external_calendar_connections
+            SET encrypted_refresh_token = NULL,
+                updated_at = now()
+          WHERE id = $1
+            AND account_id = $2
+            AND provider = 'google'
+            AND connection_state = 'disconnected'`,
+        [connectionId, accountId],
+      );
     },
   };
 }
