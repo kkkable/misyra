@@ -70,6 +70,7 @@ export interface MissionDetailsScreenProps {
   readonly onFieldChange?:
     ((field: MissionDetailsEditableField, value: string) => void) | undefined;
   readonly onSave?: ((scope?: RecurringSeriesScope) => void | Promise<void>) | undefined;
+  readonly onPersonalNoteSave?: ((note: string) => void | Promise<void>) | undefined;
   readonly onDuplicate?: ((missionId: string) => void | Promise<void>) | undefined;
   readonly onDelete?:
     ((missionId: string, scope?: RecurringSeriesScope) => void | Promise<void>) | undefined;
@@ -198,6 +199,7 @@ export function MissionDetailsScreen({
   onNoEvidenceComplete,
   onFieldChange,
   onSave,
+  onPersonalNoteSave,
   onDuplicate,
   onDelete,
 }: MissionDetailsScreenProps) {
@@ -396,15 +398,34 @@ export function MissionDetailsScreen({
       )}
 
       {details.fieldOwnership === 'organizer_controlled' ? (
-        <DetailsField
-          colorScheme={colorScheme}
-          editable={personalNoteEditable}
-          label={catalog['calendar.details.personalNote']}
-          multiline
-          onChangeText={fieldChangeHandler(onFieldChange, 'personalNote')}
-          testID="mission-details-personal-note"
-          value={details.personalNote ?? ''}
-        />
+        <>
+          <DetailsField
+            colorScheme={colorScheme}
+            editable={personalNoteEditable}
+            label={catalog['calendar.details.personalNote']}
+            multiline
+            onChangeText={fieldChangeHandler(onFieldChange, 'personalNote')}
+            testID="mission-details-personal-note"
+            value={details.personalNote ?? ''}
+          />
+          {personalNoteEditable && onPersonalNoteSave !== undefined ? (
+            <Pressable
+              accessibilityLabel={catalog['calendar.create.save']}
+              accessibilityRole="button"
+              onPress={() => {
+                void Promise.resolve(onPersonalNoteSave(details.personalNote ?? '')).catch(
+                  () => undefined,
+                );
+              }}
+              style={[styles.primaryAction, { backgroundColor: colors.primary }]}
+              testID="mission-details-personal-note-save"
+            >
+              <Text allowFontScaling style={[styles.actionText, { color: colors.primaryText }]}>
+                {catalog['calendar.create.save']}
+              </Text>
+            </Pressable>
+          ) : null}
+        </>
       ) : null}
 
       <View style={styles.section}>

@@ -61,6 +61,20 @@ export const externalCalendarOwnershipMatrix = Object.freeze({
   }),
 });
 
+const missionAiBaseContextSchema = z
+  .object({
+    missionTitle: z.string().min(1),
+    providerTaskDetails: z.string().nullable(),
+    scheduleContext: z.string().min(1),
+  })
+  .strict();
+
+export const storyTextMissionContextSchema = missionAiBaseContextSchema
+  .extend({ personalNote: z.string().nullable() })
+  .strict();
+
+export const evidenceVerificationMissionContextSchema = missionAiBaseContextSchema;
+
 const recurrenceEndSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('never') }).strict(),
   z.object({ type: z.literal('date'), inclusiveLocalDate: localDateSchema }).strict(),

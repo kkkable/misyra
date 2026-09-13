@@ -1,7 +1,14 @@
 import type { MigrationDatabase, SqlBindValue } from './schema.js';
 
 const MAX_RETRY_ATTEMPTS = 5;
-const ENTITY_TYPES = ['mission', 'story', 'completion', 'evidence', 'settings'] as const;
+const ENTITY_TYPES = [
+  'mission',
+  'mission_personal_note',
+  'story',
+  'completion',
+  'evidence',
+  'settings',
+] as const;
 const OPERATIONS = ['create', 'update', 'delete', 'complete', 'submit'] as const;
 
 export interface MutationQueueDatabase extends MigrationDatabase {

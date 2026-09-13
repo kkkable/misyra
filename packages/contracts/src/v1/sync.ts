@@ -63,6 +63,8 @@ export const mobileMissionSchema = z
   })
   .strict();
 
+export const mobileMissionPersonalNoteSchema = z.object({ note: z.string() }).strict();
+
 export const mobileCalendarConnectionSchema = z
   .object({
     id: uuidSchema,
@@ -94,6 +96,17 @@ const missionDeleteChangeSchema = z
   })
   .strict();
 
+const missionPersonalNoteUpsertChangeSchema = z
+  .object({
+    version: contractVersionSchema,
+    sequence: z.number().int().nonnegative(),
+    entityType: z.literal('mission_personal_note'),
+    entityId: uuidSchema,
+    operation: z.literal('upsert'),
+    payload: mobileMissionPersonalNoteSchema,
+  })
+  .strict();
+
 const calendarConnectionUpsertChangeSchema = z
   .object({
     version: contractVersionSchema,
@@ -119,12 +132,14 @@ const calendarConnectionDeleteChangeSchema = z
 export const syncChangeSchema = z.union([
   missionUpsertChangeSchema,
   missionDeleteChangeSchema,
+  missionPersonalNoteUpsertChangeSchema,
   calendarConnectionUpsertChangeSchema,
   calendarConnectionDeleteChangeSchema,
 ]);
 
 export const syncMutationEntityTypeSchema = z.enum([
   'mission',
+  'mission_personal_note',
   'story',
   'completion',
   'evidence',
@@ -219,6 +234,7 @@ export const syncSnapshotResponseSchema = z
   .strict();
 
 export type MobileMission = z.infer<typeof mobileMissionSchema>;
+export type MobileMissionPersonalNote = z.infer<typeof mobileMissionPersonalNoteSchema>;
 export type MobileCalendarConnection = z.infer<typeof mobileCalendarConnectionSchema>;
 export type SyncChange = z.infer<typeof syncChangeSchema>;
 export type SyncMutationContract = z.infer<typeof syncMutationSchema>;

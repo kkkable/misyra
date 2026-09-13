@@ -26,6 +26,7 @@ import {
   type MissionDetailsProjection,
 } from './calendar-mission-details.js';
 import { saveCalendarMissionDetails } from './calendar-mission-details-save.js';
+import { saveOrganizerPersonalNote } from './calendar-organizer-personal-note-save.js';
 import {
   createCalendarMission,
   type CalendarMissionCreateInput,
@@ -310,6 +311,30 @@ export function CalendarMissionDetailsRouteScreen() {
     [details, loadDetails],
   );
 
+  const savePersonalNote = useCallback(
+    async (note: string) => {
+      if (details === null) return;
+      const authState = await rootAuthController.restore();
+      if (authState.status !== 'signed_in') {
+        throw new Error('calendar_personal_note_requires_sign_in');
+      }
+      const deviceId = await requireRegisteredDeviceId(authState.session.accountId);
+      const database = await openMobileDatabase();
+      await saveOrganizerPersonalNote({
+        database,
+        accountId: authState.session.accountId,
+        deviceId,
+        occurrenceId: details.id,
+        note,
+        now: new Date(),
+        generateId: generateUuid,
+      });
+      setLoaded(false);
+      await loadDetails();
+    },
+    [details, loadDetails],
+  );
+
   const completeWithoutEvidence = useCallback(
     async (mode: NoEvidenceCompletionMode) => {
       if (details === null) return;
@@ -484,6 +509,7 @@ export function CalendarMissionDetailsRouteScreen() {
         onDuplicate={duplicateMission}
         onFieldChange={changeField}
         onNoEvidenceComplete={completeWithoutEvidence}
+        onPersonalNoteSave={savePersonalNote}
         onSave={saveDetails}
         trustMode={trustMode}
       />
