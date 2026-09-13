@@ -17,9 +17,7 @@ function tokenHash(token: string) {
   return createHash('sha256').update(token).digest('hex');
 }
 
-function channel(
-  overrides: Partial<GoogleCalendarWatchChannel> = {},
-): GoogleCalendarWatchChannel {
+function channel(overrides: Partial<GoogleCalendarWatchChannel> = {}): GoogleCalendarWatchChannel {
   return {
     connectionId: '11111111-1111-4111-8111-111111111111',
     channelId: 'channel-old',
@@ -30,11 +28,13 @@ function channel(
   };
 }
 
-function createHarness(input: Readonly<{
-  storedChannel?: GoogleCalendarWatchChannel | null;
-  dueChannels?: readonly GoogleCalendarWatchChannel[];
-  hasCurrentChannel?: boolean;
-}> = {}) {
+function createHarness(
+  input: Readonly<{
+    storedChannel?: GoogleCalendarWatchChannel | null;
+    dueChannels?: readonly GoogleCalendarWatchChannel[];
+    hasCurrentChannel?: boolean;
+  }> = {},
+) {
   const scheduledSignals = new Set<string>();
   const scheduledWork: string[] = [];
   const savedChannels: Array<{
@@ -124,9 +124,9 @@ describe('MTS-071 Google Calendar watch notifications', () => {
       accepted: true,
       scheduled: true,
     });
-    await expect(service.handleWebhook({ ...message, body: 'different opaque body' })).resolves.toEqual(
-      { accepted: true, scheduled: false },
-    );
+    await expect(
+      service.handleWebhook({ ...message, body: 'different opaque body' }),
+    ).resolves.toEqual({ accepted: true, scheduled: false });
 
     expect(scheduledWork).toHaveLength(1);
   });
