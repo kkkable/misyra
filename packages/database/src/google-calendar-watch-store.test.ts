@@ -70,12 +70,11 @@ describe('MTS-071 PostgreSQL Google watch store', () => {
     });
 
     await expect(store.hasCurrentChannel(connectionId)).resolves.toBe(true);
-    await expect(
-      store.listChannelsDueForRenewal({
-        before: new Date('2026-09-13T13:00:00.000Z'),
-        limit: 25,
-      }),
-    ).resolves.toEqual([
+    const renewalQuery = {
+      before: new Date('2026-09-13T13:00:00.000Z'),
+      limit: 25,
+    } as const;
+    await expect(store.listChannelsDueForRenewal(renewalQuery)).resolves.toEqual([
       {
         connectionId,
         channelId: 'channel-old',
@@ -84,6 +83,9 @@ describe('MTS-071 PostgreSQL Google watch store', () => {
         expiresAt: new Date('2026-09-13T12:00:00.000Z'),
       },
     ]);
+    await expect(
+      createPostgresGoogleCalendarWatchStore(pool).listChannelsDueForRenewal(renewalQuery),
+    ).resolves.toEqual([]);
 
     await store.markRenewed({
       previousChannelId: 'channel-old',
