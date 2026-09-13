@@ -129,7 +129,7 @@ describe('MTS-071 PostgreSQL Google watch store', () => {
 
     const persisted = await pool.query<{ signals: string; outbox: string }>(
       `SELECT
-         (SELECT count(*) FROM google_calendar_watch_signals
+         (SELECT count(*) FROM misyra_internal.google_calendar_watch_signals
            WHERE channel_id = 'channel-dedupe' AND message_number = '42')::text AS signals,
          (SELECT count(*) FROM outbox_events
            WHERE aggregate_id = $1 AND event_type = 'google_calendar_pull_requested')::text AS outbox`,
