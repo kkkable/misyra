@@ -31,3 +31,9 @@ CREATE TABLE misyra_internal.google_calendar_watch_signals (
   CONSTRAINT google_calendar_watch_signals_message_number_check
     CHECK (message_number ~ '^[0-9]+$')
 );
+
+CREATE TABLE misyra_internal.google_calendar_watch_repair_claims (
+  connection_id uuid PRIMARY KEY
+    REFERENCES public.external_calendar_connections(id) ON DELETE CASCADE,
+  claimed_until timestamptz NOT NULL
+);
