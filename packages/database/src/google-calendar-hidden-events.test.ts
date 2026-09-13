@@ -178,9 +178,7 @@ describe('MTS-073 PostgreSQL hidden external-event restoration', () => {
         WHERE link.connection_id = $1 AND link.provider_event_id = 'provider-event-1'`,
       [connectionId],
     );
-    expect(reimported.rows).toEqual([
-      { startInstant: new Date('2026-09-27T01:00:00.000Z') },
-    ]);
+    expect(reimported.rows).toEqual([{ startInstant: new Date('2026-09-27T01:00:00.000Z') }]);
   });
 
   it('removes only the matching dismissal and reimports current details as a fresh active mission', async () => {
