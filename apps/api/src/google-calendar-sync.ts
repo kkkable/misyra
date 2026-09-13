@@ -114,7 +114,10 @@ export function createGoogleCalendarSyncService(
         const batch = await provider.pullChanges(connectionId);
         await store.applyProviderChanges(connectionId, batch);
       } catch (error) {
-        if (!(error instanceof ExternalCalendarAdapterError) || error.code !== 'invalid_sync_cursor') {
+        if (
+          !(error instanceof ExternalCalendarAdapterError) ||
+          error.code !== 'invalid_sync_cursor'
+        ) {
           throw error;
         }
 
