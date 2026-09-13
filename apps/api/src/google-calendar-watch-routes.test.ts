@@ -43,7 +43,7 @@ describe('MTS-071 Google watch API routes', () => {
 
     const response = await server.inject({
       method: 'POST',
-      url: '/v1/calendars/google/webhook',
+      url: '/v1/webhooks/google-calendar',
       headers: {
         'x-goog-channel-id': 'channel-1',
         'x-goog-resource-id': 'resource-1',
