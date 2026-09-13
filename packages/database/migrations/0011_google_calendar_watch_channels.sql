@@ -6,6 +6,7 @@ CREATE TABLE misyra_internal.google_calendar_watch_channels (
   resource_id text NOT NULL,
   token_hash text NOT NULL,
   expires_at timestamptz NOT NULL,
+  renewal_claimed_until timestamptz,
   superseded_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT google_calendar_watch_channels_token_hash_check
@@ -17,7 +18,7 @@ CREATE UNIQUE INDEX google_calendar_watch_channels_current_connection_uidx
   WHERE superseded_at IS NULL;
 
 CREATE INDEX google_calendar_watch_channels_renewal_idx
-  ON misyra_internal.google_calendar_watch_channels (expires_at, connection_id)
+  ON misyra_internal.google_calendar_watch_channels (expires_at, renewal_claimed_until, connection_id)
   WHERE superseded_at IS NULL;
 
 CREATE TABLE misyra_internal.google_calendar_watch_signals (
