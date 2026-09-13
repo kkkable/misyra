@@ -447,12 +447,6 @@ function serializeGoogleRecurrence(recurrence: NormalizedCalendarRecurrence): st
   return `RRULE:${components.join(';')}`;
 }
 
-function googleSchedule(
-  schedule: CalendarCommand extends never ? never : CalendarCommand['operation'],
-) {
-  return schedule;
-}
-
 function writableEventBody(event: Extract<CalendarCommand, { operation: 'create' }>['event']) {
   const body: Record<string, unknown> = {
     summary: event.title,
