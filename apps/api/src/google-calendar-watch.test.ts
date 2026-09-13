@@ -17,7 +17,9 @@ function tokenHash(token: string) {
   return createHash('sha256').update(token).digest('hex');
 }
 
-function channel(overrides: Partial<GoogleCalendarWatchChannel> = {}): GoogleCalendarWatchChannel {
+function channel(
+  overrides: Partial<GoogleCalendarWatchChannel> = {},
+): GoogleCalendarWatchChannel {
   return {
     connectionId: '11111111-1111-4111-8111-111111111111',
     channelId: 'channel-old',
@@ -86,28 +88,31 @@ function createHarness(
 }
 
 describe('MTS-071 Google Calendar watch notifications', () => {
-  it('treats the webhook body as opaque and schedules work from verified headers only', async () => {
-    const { service, store, scheduledWork } = createHarness();
+  it(
+    'treats the webhook body as opaque and schedules work from verified headers only',
+    async () => {
+      const { service, store, scheduledWork } = createHarness();
 
-    await expect(
-      service.handleWebhook({
+      await expect(
+        service.handleWebhook({
+          channelId: 'channel-old',
+          resourceId: 'resource-1',
+          channelToken: 'secret-token',
+          messageNumber: '42',
+          resourceState: 'exists',
+          body: { fabricated: ['event', 'payload'], shouldNeverBeParsed: true },
+        }),
+      ).resolves.toEqual({ accepted: true, scheduled: true });
+
+      expect(store.schedulePullOnce).toHaveBeenCalledWith({
+        connectionId: '11111111-1111-4111-8111-111111111111',
         channelId: 'channel-old',
-        resourceId: 'resource-1',
-        channelToken: 'secret-token',
         messageNumber: '42',
         resourceState: 'exists',
-        body: { fabricated: ['event', 'payload'], shouldNeverBeParsed: true },
-      }),
-    ).resolves.toEqual({ accepted: true, scheduled: true });
-
-    expect(store.schedulePullOnce).toHaveBeenCalledWith({
-      connectionId: '11111111-1111-4111-8111-111111111111',
-      channelId: 'channel-old',
-      messageNumber: '42',
-      resourceState: 'exists',
-    });
-    expect(scheduledWork).toEqual(['11111111-1111-4111-8111-111111111111']);
-  });
+      });
+      expect(scheduledWork).toEqual(['11111111-1111-4111-8111-111111111111']);
+    },
+  );
 
   it('does not duplicate pull work when Google retries the same channel message', async () => {
     const { service, scheduledWork } = createHarness();
@@ -141,23 +146,26 @@ describe('MTS-071 Google Calendar watch notifications', () => {
       'resource-1',
       'secret-token',
     ],
-  ])('fails safely for %s without scheduling pull work', async (_label, stored, resourceId, token) => {
-    const { service, store, scheduledWork } = createHarness({ storedChannel: stored });
+  ])(
+    'fails safely for %s without scheduling pull work',
+    async (_label, stored, resourceId, token) => {
+      const { service, store, scheduledWork } = createHarness({ storedChannel: stored });
 
-    await expect(
-      service.handleWebhook({
-        channelId: 'channel-old',
-        resourceId,
-        channelToken: token,
-        messageNumber: '44',
-        resourceState: 'exists',
-        body: { ignored: true },
-      }),
-    ).resolves.toEqual({ accepted: false, scheduled: false });
+      await expect(
+        service.handleWebhook({
+          channelId: 'channel-old',
+          resourceId,
+          channelToken: token,
+          messageNumber: '44',
+          resourceState: 'exists',
+          body: { ignored: true },
+        }),
+      ).resolves.toEqual({ accepted: false, scheduled: false });
 
-    expect(store.schedulePullOnce).not.toHaveBeenCalled();
-    expect(scheduledWork).toEqual([]);
-  });
+      expect(store.schedulePullOnce).not.toHaveBeenCalled();
+      expect(scheduledWork).toEqual([]);
+    },
+  );
 });
 
 describe('MTS-071 Google Calendar watch lifecycle', () => {
@@ -222,7 +230,11 @@ describe('MTS-071 Google Calendar watch lifecycle', () => {
   it('rejects an unbounded renewal batch size', async () => {
     const { service } = createHarness();
 
-    await expect(service.renewDueChannels(0)).rejects.toThrow('google_calendar_watch_limit_invalid');
-    await expect(service.renewDueChannels(501)).rejects.toThrow('google_calendar_watch_limit_invalid');
+    await expect(service.renewDueChannels(0)).rejects.toThrow(
+      'google_calendar_watch_limit_invalid',
+    );
+    await expect(service.renewDueChannels(501)).rejects.toThrow(
+      'google_calendar_watch_limit_invalid',
+    );
   });
 });
