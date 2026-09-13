@@ -1,4 +1,5 @@
 import {
+  calendarCommandSchema,
   ExternalCalendarAdapterError,
   type CalendarCommand,
   type CalendarCommandResult,
@@ -16,7 +17,7 @@ export interface GoogleCalendarSyncConnection {
 
 export interface PendingCalendarCommand {
   readonly occurrenceId: string;
-  readonly command: CalendarCommand;
+  readonly command: unknown;
 }
 
 export interface GoogleCalendarSynchronizationProvider {
@@ -64,7 +65,8 @@ async function pushPendingCommands(
   const pending = await store.listPendingCommands(connectionId);
   if (pending.length === 0) return;
 
-  const results = await provider.applyCommands(pending.map(({ command }) => command));
+  const commands = pending.map(({ command }) => calendarCommandSchema.parse(command));
+  const results = await provider.applyCommands(commands);
   await store.applyCommandResults(connectionId, pending, results);
 }
 
