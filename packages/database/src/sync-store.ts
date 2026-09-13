@@ -96,6 +96,10 @@ type SettingsPatch = Readonly<{
   trustMode?: boolean;
 }>;
 
+type MissionPersonalNotePayload = Readonly<{
+  note: string;
+}>;
+
 type MissionScheduleBase = Readonly<{
   localStart: string;
   localFinish: string;
@@ -211,6 +215,18 @@ function assertExecutableMutationShape(mutation: StoredSyncMutation): void {
       throw new SyncMutationValidationError(
         'Settings synchronization only supports update operations',
       );
+    }
+    return;
+  }
+
+  if (mutation.entityType === 'mission_personal_note') {
+    if (mutation.operation !== 'update') {
+      throw new SyncMutationValidationError(
+        'Mission personal-note synchronization only supports update operations',
+      );
+    }
+    if (mutation.baseVersion !== null) {
+      throw new SyncMutationValidationError('Mission personal-note update cannot provide a base version');
     }
     return;
   }
@@ -344,6 +360,17 @@ function parseSettingsPatch(payload: unknown): SettingsPatch {
     patch.trustMode = source.trustMode;
   }
   return patch;
+}
+
+function parseMissionPersonalNotePayload(payload: unknown): MissionPersonalNotePayload {
+  const source = asRecord(payload, 'Mission personal-note payload');
+  const keys = Object.keys(source);
+  if (keys.length !== 1 || keys[0] !== 'note' || typeof source.note !== 'string') {
+    throw new SyncMutationValidationError(
+      'Mission personal-note payload must contain only a string note',
+    );
+  }
+  return { note: source.note };
 }
 
 function requiredDateTimePart(parts: readonly Intl.DateTimeFormatPart[], type: string): string {
@@ -754,6 +781,59 @@ async function applySettingsMutation(
   return row;
 }
 
+async function applyMissionPersonalNoteMutation(
+  client: PoolClient,
+  mutation: StoredSyncMutation,
+): Promise<MissionPersonalNotePayload> {
+  const payload = parseMissionPersonalNotePayload(mutation.payload);
+  const target = await client.query<{
+    calendarSource: string;
+    completionState: string;
+    deletionState: string;
+    fieldOwnership: string;
+    scheduleState: string;
+  }>(
+    `SELECT calendar_source AS "calendarSource",
+            completion_state AS "completionState",
+            deletion_state AS "deletionState",
+            field_ownership AS "fieldOwnership",
+            schedule_state AS "scheduleState"
+       FROM mission_occurrences
+      WHERE id = $1 AND account_id = $2
+      FOR UPDATE`,
+    [mutation.entityId, mutation.accountId],
+  );
+  const occurrence = target.rows[0];
+  if (occurrence === undefined) {
+    throw new SyncMutationValidationError('Mission personal-note target was not found');
+  }
+  if (
+    occurrence.calendarSource !== 'external' ||
+    occurrence.fieldOwnership !== 'organizer_controlled' ||
+    occurrence.scheduleState !== 'scheduled' ||
+    occurrence.completionState !== 'incomplete' ||
+    occurrence.deletionState !== 'active'
+  ) {
+    throw new SyncMutationValidationError(
+      'Mission personal notes require an active unfinished organizer-controlled imported mission',
+    );
+  }
+
+  const saved = await client.query(
+    `INSERT INTO mission_personal_notes (occurrence_id, account_id, note)
+     VALUES ($1, $2, $3)
+     ON CONFLICT (occurrence_id) DO UPDATE
+       SET note = EXCLUDED.note,
+           updated_at = now()
+     WHERE mission_personal_notes.account_id = EXCLUDED.account_id`,
+    [mutation.entityId, mutation.accountId, payload.note],
+  );
+  if (saved.rowCount !== 1) {
+    throw new SyncMutationConflictError('Mission personal note changed while it was saved');
+  }
+  return payload;
+}
+
 async function upsertMissionSeries(
   client: PoolClient,
   accountId: string,
@@ -1102,6 +1182,9 @@ async function applyExecutableMutation(
 ): Promise<unknown> {
   if (mutation.entityType === 'settings') {
     return applySettingsMutation(client, mutation.accountId, mutation.operation, mutation.payload);
+  }
+  if (mutation.entityType === 'mission_personal_note') {
+    return applyMissionPersonalNoteMutation(client, mutation);
   }
   if (mutation.entityType === 'mission') {
     if (mutation.operation === 'update') {
