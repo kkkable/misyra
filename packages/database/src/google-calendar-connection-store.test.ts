@@ -202,6 +202,17 @@ describe('MTS-069 PostgreSQL Google calendar connection store', () => {
     await expect(store.disconnectConnection(accountId, connection.id)).resolves.toEqual(
       revocationRecord,
     );
+    await expect(
+      store.saveOAuthState({
+        accountId,
+        stateHash: 'e'.repeat(64),
+        expiresAt: new Date('2026-09-12T15:20:00.000Z'),
+        consumedAt: null,
+        initialSyncDirection: 'external_to_misyra',
+        selectedCalendarId: 'replacement-calendar',
+      }),
+    ).rejects.toThrow('connection_exists');
+
     await store.clearDisconnectedRefreshToken(accountId, connection.id);
 
     const cleaned = await pool.query<{ encryptedRefreshToken: string | null }>(
