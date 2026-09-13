@@ -78,7 +78,9 @@ describe('MTS-069 concrete Google OAuth gateway', () => {
     expect(request.url).toBe('https://oauth2.googleapis.com/token');
     expect(request.init?.method).toBe('POST');
     expect(requestBody(request.init)).toContain('code=provider-code');
-    expect(requestBody(request.init)).toContain('client_secret=fixture-google-calendar-client-secret');
+    expect(requestBody(request.init)).toContain(
+      'client_secret=fixture-google-calendar-client-secret',
+    );
     expect(request.url).not.toContain('fixture-google-calendar-client-secret');
   });
 
