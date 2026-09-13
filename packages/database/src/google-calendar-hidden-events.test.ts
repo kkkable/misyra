@@ -75,6 +75,58 @@ function currentProviderEvent() {
 }
 
 describe('MTS-073 PostgreSQL hidden external-event restoration', () => {
+  it('persists provider identity, canonical scope, and effective range when an import is dismissed', async () => {
+    const { accountId, connectionId } = await createAccountAndConnection();
+    const syncStore = createPostgresGoogleCalendarSyncStore(pool);
+
+    await syncStore.reconcileFullImport(connectionId, {
+      events: [currentProviderEvent()],
+      cursor: 'sync-token-before-dismiss',
+    });
+    const linked = await pool.query<{ occurrenceId: string }>(
+      `SELECT occurrence_id AS "occurrenceId"
+         FROM external_event_links
+        WHERE connection_id = $1 AND provider_event_id = 'provider-event-1'`,
+      [connectionId],
+    );
+    const occurrenceId = linked.rows[0]?.occurrenceId;
+    if (!occurrenceId) throw new Error('expected imported occurrence');
+
+    await pool.query(
+      `UPDATE mission_occurrences
+          SET deletion_state = 'deleted', synchronization_state = 'synced', version = version + 1
+        WHERE id = $1 AND account_id = $2`,
+      [occurrenceId, accountId],
+    );
+
+    const dismissal = await pool.query<{
+      provider: string;
+      providerCalendarId: string;
+      providerEventId: string;
+      recurrenceScope: string;
+      effectiveStart: Date | null;
+      effectiveEnd: Date | null;
+    }>(
+      `SELECT provider,
+              provider_calendar_id AS "providerCalendarId",
+              provider_event_id AS "providerEventId",
+              recurrence_scope AS "recurrenceScope",
+              effective_start AS "effectiveStart",
+              effective_end AS "effectiveEnd"
+         FROM hidden_external_events
+        WHERE connection_id = $1 AND provider_event_id = 'provider-event-1'`,
+      [connectionId],
+    );
+    expect(dismissal.rows[0]).toEqual({
+      provider: 'google',
+      providerCalendarId: 'calendar-1',
+      providerEventId: 'provider-event-1',
+      recurrenceScope: 'this_occurrence',
+      effectiveStart: new Date('2026-09-20T01:00:00.000Z'),
+      effectiveEnd: new Date('2026-09-20T02:00:00.000Z'),
+    });
+  });
+
   it('removes only the matching dismissal and reimports current details as a fresh active mission', async () => {
     const { accountId, connectionId } = await createAccountAndConnection();
     const syncStore = createPostgresGoogleCalendarSyncStore(pool);
