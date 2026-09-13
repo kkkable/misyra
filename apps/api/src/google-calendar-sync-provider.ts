@@ -96,16 +96,23 @@ async function providerResponse(
       signal: init.signal ?? AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
   } catch (cause) {
-    throw new ExternalCalendarAdapterError('provider_unavailable', 'google_calendar_request_failed', {
-      cause,
-    } as ErrorOptions);
+    throw new ExternalCalendarAdapterError(
+      'provider_unavailable',
+      'google_calendar_request_failed',
+      {
+        cause,
+      } as ErrorOptions,
+    );
   }
 
   if (options.invalidCursorOnGone === true && response.status === 410) {
     throw new ExternalCalendarAdapterError('invalid_sync_cursor', 'invalid_sync_cursor');
   }
   if (!response.ok) {
-    throw new ExternalCalendarAdapterError(mapHttpError(response.status), 'google_calendar_request_failed');
+    throw new ExternalCalendarAdapterError(
+      mapHttpError(response.status),
+      'google_calendar_request_failed',
+    );
   }
   return response;
 }
@@ -182,7 +189,9 @@ function googleDateToLocalDate(value: string): string {
   return value;
 }
 
-function parseRecurrenceEnd(parts: Readonly<Record<string, string>>): NormalizedCalendarRecurrence['end'] {
+function parseRecurrenceEnd(
+  parts: Readonly<Record<string, string>>,
+): NormalizedCalendarRecurrence['end'] {
   const count = parts.COUNT;
   if (count !== undefined) {
     const occurrenceCount = Number.parseInt(count, 10);
@@ -201,15 +210,19 @@ function parseRecurrenceEnd(parts: Readonly<Record<string, string>>): Normalized
 }
 
 function weekdayIndex(value: string | undefined, fallback: number): number {
-  const index = value === undefined ? -1 : GOOGLE_WEEKDAYS.indexOf(value as (typeof GOOGLE_WEEKDAYS)[number]);
+  const index =
+    value === undefined ? -1 : GOOGLE_WEEKDAYS.indexOf(value as (typeof GOOGLE_WEEKDAYS)[number]);
   return index >= 0 ? index : fallback;
 }
 
-function parseOrdinalWeekday(value: string): Readonly<{ ordinal: 1 | 2 | 3 | 4 | -1; weekday: number }> | null {
+function parseOrdinalWeekday(
+  value: string,
+): Readonly<{ ordinal: 1 | 2 | 3 | 4 | -1; weekday: number }> | null {
   const match = /^(-1|[1-4])(SU|MO|TU|WE|TH|FR|SA)$/.exec(value);
   if (!match) return null;
   const ordinal = Number.parseInt(match[1] ?? '', 10);
-  if (ordinal !== -1 && ordinal !== 1 && ordinal !== 2 && ordinal !== 3 && ordinal !== 4) return null;
+  if (ordinal !== -1 && ordinal !== 1 && ordinal !== 2 && ordinal !== 3 && ordinal !== 4)
+    return null;
   return { ordinal, weekday: weekdayIndex(match[2], 0) };
 }
 
@@ -331,7 +344,8 @@ function normalizeEvent(
     location: optionalString(raw, 'location'),
     providerNotes: optionalString(raw, 'description'),
     status: 'confirmed' as const,
-    ownership: organizer?.self === true ? ('app_owned' as const) : ('organizer_controlled' as const),
+    ownership:
+      organizer?.self === true ? ('app_owned' as const) : ('organizer_controlled' as const),
   };
 
   const parsed = synchronizedProviderEventSchema.safeParse(normalized);
@@ -433,7 +447,9 @@ function serializeGoogleRecurrence(recurrence: NormalizedCalendarRecurrence): st
   return `RRULE:${components.join(';')}`;
 }
 
-function googleSchedule(schedule: CalendarCommand extends never ? never : CalendarCommand['operation']) {
+function googleSchedule(
+  schedule: CalendarCommand extends never ? never : CalendarCommand['operation'],
+) {
   return schedule;
 }
 
@@ -469,7 +485,8 @@ function writablePatchBody(patch: Extract<CalendarCommand, { operation: 'update'
     }
   }
   if (patch.recurrence !== undefined) {
-    body.recurrence = patch.recurrence === null ? [] : [serializeGoogleRecurrence(patch.recurrence)];
+    body.recurrence =
+      patch.recurrence === null ? [] : [serializeGoogleRecurrence(patch.recurrence)];
   }
   return body;
 }
@@ -544,15 +561,23 @@ async function applyCommand(
 ): Promise<CalendarCommandResult> {
   try {
     if (command.operation === 'create') {
-      const payload = await providerJson(fetchImpl, eventsEndpoint(context.session.providerCalendarId), {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${context.accessToken}`,
-          'content-type': 'application/json',
+      const payload = await providerJson(
+        fetchImpl,
+        eventsEndpoint(context.session.providerCalendarId),
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${context.accessToken}`,
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify(writableEventBody(command.event)),
         },
-        body: JSON.stringify(writableEventBody(command.event)),
-      });
-      return { commandId: command.commandId, status: 'applied', providerEventId: requiredString(payload, 'id') };
+      );
+      return {
+        commandId: command.commandId,
+        status: 'applied',
+        providerEventId: requiredString(payload, 'id'),
+      };
     }
 
     if (command.recurrenceScope === 'this_and_future') {
@@ -572,7 +597,11 @@ async function applyCommand(
           body: JSON.stringify(writablePatchBody(command.patch)),
         },
       );
-      return { commandId: command.commandId, status: 'applied', providerEventId: command.providerEventId };
+      return {
+        commandId: command.commandId,
+        status: 'applied',
+        providerEventId: command.providerEventId,
+      };
     }
 
     await providerResponse(
@@ -583,7 +612,11 @@ async function applyCommand(
         headers: { Authorization: `Bearer ${context.accessToken}` },
       },
     );
-    return { commandId: command.commandId, status: 'applied', providerEventId: command.providerEventId };
+    return {
+      commandId: command.commandId,
+      status: 'applied',
+      providerEventId: command.providerEventId,
+    };
   } catch (error) {
     return {
       commandId: command.commandId,
@@ -609,7 +642,11 @@ export function createGoogleCalendarSyncProvider(
       const events = listed.items
         .filter((item) => optionalString(item, 'status') !== 'cancelled')
         .map((item) =>
-          normalizeEvent(item, context.session.providerCalendarId, context.session.timeZone ?? 'UTC'),
+          normalizeEvent(
+            item,
+            context.session.providerCalendarId,
+            context.session.timeZone ?? 'UTC',
+          ),
         );
       return synchronizedImportBatchSchema.parse({ events, cursor: listed.cursor });
     },
@@ -619,12 +656,7 @@ export function createGoogleCalendarSyncProvider(
       if (context.session.cursor === null) {
         throw new ExternalCalendarAdapterError('invalid_sync_cursor', 'invalid_sync_cursor');
       }
-      const listed = await listGoogleEvents(
-        fetchImpl,
-        context,
-        maxPages,
-        context.session.cursor,
-      );
+      const listed = await listGoogleEvents(fetchImpl, context, maxPages, context.session.cursor);
       const changes = listed.items.map((item) =>
         normalizeIncrementalItem(
           item,
@@ -635,7 +667,9 @@ export function createGoogleCalendarSyncProvider(
       return synchronizedProviderChangeBatchSchema.parse({ changes, cursor: listed.cursor });
     },
 
-    async applyCommands(commands: readonly CalendarCommand[]): Promise<readonly CalendarCommandResult[]> {
+    async applyCommands(
+      commands: readonly CalendarCommand[],
+    ): Promise<readonly CalendarCommandResult[]> {
       const contextByConnection = new Map<string, Promise<GoogleProviderContext>>();
       const context = (connectionId: string) => {
         const existing = contextByConnection.get(connectionId);
@@ -646,7 +680,9 @@ export function createGoogleCalendarSyncProvider(
       };
 
       return Promise.all(
-        commands.map(async (command) => applyCommand(fetchImpl, await context(command.connectionId), command)),
+        commands.map(async (command) =>
+          applyCommand(fetchImpl, await context(command.connectionId), command),
+        ),
       );
     },
   });
