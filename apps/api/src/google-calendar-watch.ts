@@ -91,7 +91,8 @@ export type GoogleCalendarWatchServiceDependencies = Readonly<{
 export function createGoogleCalendarWatchService(
   _dependencies: GoogleCalendarWatchServiceDependencies,
 ): GoogleCalendarWatchService {
-  const notImplemented = () => Promise.reject(new Error('google_calendar_watch_not_implemented'));
+  const notImplemented = () =>
+    Promise.reject(new Error('google_calendar_watch_not_implemented'));
   return Object.freeze({
     handleWebhook: notImplemented,
     ensureChannel: notImplemented,
