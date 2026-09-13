@@ -4,7 +4,7 @@ import { createGoogleCalendarOAuthGateway } from './google-calendar-oauth-gatewa
 
 const configuration = {
   clientId: 'google-calendar-client-id',
-  clientSecret: 'google-calendar-client-secret',
+  clientSecret: 'fixture-google-calendar-client-secret',
   redirectUri: 'https://api.example.test/v1/calendars/google/callback',
 };
 
@@ -78,8 +78,8 @@ describe('MTS-069 concrete Google OAuth gateway', () => {
     expect(request.url).toBe('https://oauth2.googleapis.com/token');
     expect(request.init?.method).toBe('POST');
     expect(requestBody(request.init)).toContain('code=provider-code');
-    expect(requestBody(request.init)).toContain('client_secret=google-calendar-client-secret');
-    expect(request.url).not.toContain('google-calendar-client-secret');
+    expect(requestBody(request.init)).toContain('client_secret=fixture-google-calendar-client-secret');
+    expect(request.url).not.toContain('fixture-google-calendar-client-secret');
   });
 
   it('creates the dedicated Misyra calendar by refreshing access inside the provider boundary', async () => {
