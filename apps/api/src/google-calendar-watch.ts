@@ -15,23 +15,33 @@ export type GoogleCalendarWatchMessage = Readonly<{
   body?: unknown;
 }>;
 
-export type GoogleCalendarWatchChannelRegistration = Readonly<{
+export type GoogleCalendarWatchRegistration = Readonly<{
   channelId: string;
   resourceId: string;
   tokenHash: string;
   expiresAt: Date;
 }>;
 
-export type GoogleCalendarWatchSchedulePullInput = Readonly<{
+export type GoogleCalendarPullSignal = Readonly<{
   connectionId: string;
   channelId: string;
   messageNumber: string;
   resourceState: string;
 }>;
 
-export type GoogleCalendarWatchRenewalQuery = Readonly<{
+export type GoogleCalendarRenewalQuery = Readonly<{
   before: Date;
   limit: number;
+}>;
+
+export type GoogleCalendarSaveChannel = Readonly<{
+  connectionId: string;
+  channel: GoogleCalendarWatchRegistration;
+}>;
+
+export type GoogleCalendarRenewedChannel = Readonly<{
+  previousChannelId: string;
+  replacement: GoogleCalendarWatchRegistration;
 }>;
 
 export type GoogleCalendarWatchRequest = Readonly<{
@@ -46,26 +56,20 @@ export type GoogleCalendarWatchResponse = Readonly<{
   expiresAt: Date;
 }>;
 
-export type GoogleCalendarWatchWebhookResult = Readonly<{
+export type GoogleCalendarWatchResult = Readonly<{
   accepted: boolean;
   scheduled: boolean;
 }>;
 
 export interface GoogleCalendarWatchStore {
   getChannel(channelId: string): Promise<GoogleCalendarWatchChannel | null>;
-  schedulePullOnce(input: GoogleCalendarWatchSchedulePullInput): Promise<boolean>;
+  schedulePullOnce(input: GoogleCalendarPullSignal): Promise<boolean>;
   hasCurrentChannel(connectionId: string): Promise<boolean>;
-  saveChannel(
-    connectionId: string,
-    channel: GoogleCalendarWatchChannelRegistration,
-  ): Promise<void>;
+  saveChannel(input: GoogleCalendarSaveChannel): Promise<void>;
   listChannelsDueForRenewal(
-    input: GoogleCalendarWatchRenewalQuery,
+    input: GoogleCalendarRenewalQuery,
   ): Promise<readonly GoogleCalendarWatchChannel[]>;
-  markRenewed(
-    previousChannelId: string,
-    replacement: GoogleCalendarWatchChannelRegistration,
-  ): Promise<void>;
+  markRenewed(input: GoogleCalendarRenewedChannel): Promise<void>;
 }
 
 export interface GoogleCalendarWatchProvider {
@@ -73,12 +77,12 @@ export interface GoogleCalendarWatchProvider {
 }
 
 export interface GoogleCalendarWatchService {
-  handleWebhook(message: GoogleCalendarWatchMessage): Promise<GoogleCalendarWatchWebhookResult>;
+  handleWebhook(message: GoogleCalendarWatchMessage): Promise<GoogleCalendarWatchResult>;
   ensureChannel(connectionId: string): Promise<void>;
   renewDueChannels(limit?: number): Promise<number>;
 }
 
-export type GoogleCalendarWatchServiceDependencies = Readonly<{
+export type GoogleCalendarWatchDependencies = Readonly<{
   store: GoogleCalendarWatchStore;
   provider: GoogleCalendarWatchProvider;
   webhookAddress: string;
@@ -89,13 +93,12 @@ export type GoogleCalendarWatchServiceDependencies = Readonly<{
 }>;
 
 export function createGoogleCalendarWatchService(
-  _dependencies: GoogleCalendarWatchServiceDependencies,
+  _dependencies: GoogleCalendarWatchDependencies,
 ): GoogleCalendarWatchService {
-  const notImplemented = () =>
-    Promise.reject(new Error('google_calendar_watch_not_implemented'));
+  const fail = () => Promise.reject(new Error('google_calendar_watch_not_implemented'));
   return Object.freeze({
-    handleWebhook: notImplemented,
-    ensureChannel: notImplemented,
-    renewDueChannels: notImplemented,
+    handleWebhook: fail,
+    ensureChannel: fail,
+    renewDueChannels: fail,
   });
 }
