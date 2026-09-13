@@ -53,12 +53,10 @@ const createCommand: CalendarCommand = {
 function provider(overrides: Partial<ExternalCalendarAdapter> = {}): ExternalCalendarAdapter {
   return {
     connect: vi.fn(),
-    initialImport: vi
-      .fn<(_connectionId: string) => Promise<ImportBatch>>()
-      .mockResolvedValue({
-        events: [providerEvent],
-        cursor: 'sync-token-full',
-      }),
+    initialImport: vi.fn<(_connectionId: string) => Promise<ImportBatch>>().mockResolvedValue({
+      events: [providerEvent],
+      cursor: 'sync-token-full',
+    }),
     pullChanges: vi
       .fn<(_connectionId: string) => Promise<ProviderChangeBatch>>()
       .mockResolvedValue({
@@ -111,79 +109,73 @@ describe('MTS-070 Google initial and incremental synchronization', () => {
     expect(calendarProvider.applyCommands).not.toHaveBeenCalled();
   });
 
-  it(
-    'exports eligible app missions first when Misyra is the initial source, then captures a full-sync cursor',
-    async () => {
-      const calendarProvider = provider();
-      const syncStore = store({
-        getConnection: vi.fn().mockResolvedValue({
-          id: connectionId,
-          initialSyncDirection: 'misyra_to_external',
-          state: 'connected',
-        }),
-        listPendingCommands: vi.fn().mockResolvedValue([{ occurrenceId, command: createCommand }]),
-      });
-      const service = createGoogleCalendarSyncService({
-        provider: calendarProvider,
-        store: syncStore,
-      });
+  it('exports eligible app missions first when Misyra is the initial source, then captures a full-sync cursor', async () => {
+    const calendarProvider = provider();
+    const syncStore = store({
+      getConnection: vi.fn().mockResolvedValue({
+        id: connectionId,
+        initialSyncDirection: 'misyra_to_external',
+        state: 'connected',
+      }),
+      listPendingCommands: vi.fn().mockResolvedValue([{ occurrenceId, command: createCommand }]),
+    });
+    const service = createGoogleCalendarSyncService({
+      provider: calendarProvider,
+      store: syncStore,
+    });
 
-      await service.initialSync(connectionId);
+    await service.initialSync(connectionId);
 
-      expect(calendarProvider.applyCommands).toHaveBeenCalledWith([createCommand]);
-      expect(syncStore.applyCommandResults).toHaveBeenCalledWith(
-        connectionId,
-        [{ occurrenceId, command: createCommand }],
-        [{ commandId, status: 'applied', providerEventId: 'created-provider-event' }],
-      );
-      expect(calendarProvider.initialImport).toHaveBeenCalledWith(connectionId);
-      expect(syncStore.reconcileFullImport).toHaveBeenCalledWith(connectionId, {
-        events: [providerEvent],
-        cursor: 'sync-token-full',
-      });
-    },
-  );
+    expect(calendarProvider.applyCommands).toHaveBeenCalledWith([createCommand]);
+    expect(syncStore.applyCommandResults).toHaveBeenCalledWith(
+      connectionId,
+      [{ occurrenceId, command: createCommand }],
+      [{ commandId, status: 'applied', providerEventId: 'created-provider-event' }],
+    );
+    expect(calendarProvider.initialImport).toHaveBeenCalledWith(connectionId);
+    expect(syncStore.reconcileFullImport).toHaveBeenCalledWith(connectionId, {
+      events: [providerEvent],
+      cursor: 'sync-token-full',
+    });
+  });
 
-  it(
-    'applies provider changes before pushing still-pending local commands during incremental sync',
-    async () => {
-      const order: string[] = [];
-      const calendarProvider = provider({
-        pullChanges: vi.fn(async () => {
-          order.push('pull');
-          return {
-            changes: [{ type: 'upsert' as const, event: providerEvent }],
-            cursor: 'sync-token-next',
-          };
-        }),
-        applyCommands: vi.fn(async () => {
-          order.push('push');
-          return [{ commandId, status: 'applied' as const, providerEventId: 'event-1' }];
-        }),
-      });
-      const syncStore = store({
-        applyProviderChanges: vi.fn(async () => {
-          order.push('reconcile');
-        }),
-        listPendingCommands: vi.fn(async () => {
-          order.push('pending');
-          return [{ occurrenceId, command: createCommand }];
-        }),
-      });
-      const service = createGoogleCalendarSyncService({
-        provider: calendarProvider,
-        store: syncStore,
-      });
+  it('applies provider changes before pushing still-pending local commands during incremental sync', async () => {
+    const order: string[] = [];
+    const calendarProvider = provider({
+      pullChanges: vi.fn(async () => {
+        order.push('pull');
+        return {
+          changes: [{ type: 'upsert' as const, event: providerEvent }],
+          cursor: 'sync-token-next',
+        };
+      }),
+      applyCommands: vi.fn(async () => {
+        order.push('push');
+        return [{ commandId, status: 'applied' as const, providerEventId: 'event-1' }];
+      }),
+    });
+    const syncStore = store({
+      applyProviderChanges: vi.fn(async () => {
+        order.push('reconcile');
+      }),
+      listPendingCommands: vi.fn(async () => {
+        order.push('pending');
+        return [{ occurrenceId, command: createCommand }];
+      }),
+    });
+    const service = createGoogleCalendarSyncService({
+      provider: calendarProvider,
+      store: syncStore,
+    });
 
-      await service.incrementalSync(connectionId);
+    await service.incrementalSync(connectionId);
 
-      expect(order).toEqual(['pull', 'reconcile', 'pending', 'push']);
-      expect(syncStore.applyProviderChanges).toHaveBeenCalledWith(connectionId, {
-        changes: [{ type: 'upsert', event: providerEvent }],
-        cursor: 'sync-token-next',
-      });
-    },
-  );
+    expect(order).toEqual(['pull', 'reconcile', 'pending', 'push']);
+    expect(syncStore.applyProviderChanges).toHaveBeenCalledWith(connectionId, {
+      changes: [{ type: 'upsert', event: providerEvent }],
+      cursor: 'sync-token-next',
+    });
+  });
 
   it('recovers an invalid Google sync token with one controlled full resync', async () => {
     const calendarProvider = provider({
