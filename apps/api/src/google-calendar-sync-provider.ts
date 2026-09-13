@@ -101,7 +101,7 @@ async function providerResponse(
       'google_calendar_request_failed',
       {
         cause,
-      } as ErrorOptions,
+      },
     );
   }
 
