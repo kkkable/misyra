@@ -45,6 +45,7 @@ function createHarness(
     return token;
   });
   const verifyReauthenticationProof = vi.fn((token: string) => grants.get(token) ?? null);
+  const beforeDeleteAccount = vi.fn(() => Promise.resolve());
   const deleteAccount = vi.fn(() => Promise.resolve({ deleted: true as const }));
   const service = createAccountLifecycleService({
     identityStore,
@@ -56,6 +57,7 @@ function createHarness(
     },
     issueReauthenticationProof,
     verifyReauthenticationProof,
+    beforeDeleteAccount,
     deleteAccount,
     now: () => now,
   });
@@ -66,6 +68,7 @@ function createHarness(
     identityStore,
     issueReauthenticationProof,
     verifyReauthenticationProof,
+    beforeDeleteAccount,
     deleteAccount,
   };
 }
@@ -128,9 +131,9 @@ describe('MTS-037 recent reauthentication', () => {
     expect(replayed.issueReauthenticationProof).not.toHaveBeenCalled();
   });
 
-  it('binds deletion authority to the authenticated account and the provider-proof five-minute deadline', async () => {
+  it('binds deletion authority to the authenticated account and completes calendar cleanup first', async () => {
     const issuedAt = new Date(now.getTime() - 60_000);
-    const { service, deleteAccount } = createHarness({ issuedAt });
+    const { service, beforeDeleteAccount, deleteAccount } = createHarness({ issuedAt });
     const grant = await service.reauthenticate(accountId, {
       provider: 'google',
       proof: 'fresh-provider-proof',
@@ -140,12 +143,31 @@ describe('MTS-037 recent reauthentication', () => {
     await expect(service.deleteAccount(accountId, grant.reauthenticationProof)).resolves.toEqual({
       deleted: true,
     });
+    expect(beforeDeleteAccount).toHaveBeenCalledWith(accountId);
     expect(deleteAccount).toHaveBeenCalledWith(accountId);
+    expect(beforeDeleteAccount.mock.invocationCallOrder[0]).toBeLessThan(
+      deleteAccount.mock.invocationCallOrder[0] ?? Number.MAX_SAFE_INTEGER,
+    );
 
     await expect(
       service.deleteAccount(otherAccountId, grant.reauthenticationProof),
     ).rejects.toBeInstanceOf(AccountLifecycleSecurityError);
     expect(deleteAccount).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not delete account data when required calendar cleanup fails', async () => {
+    const harness = createHarness({ issuedAt: new Date(now.getTime() - 60_000) });
+    const grant = await harness.service.reauthenticate(accountId, {
+      provider: 'google',
+      proof: 'fresh-provider-proof',
+      nonce: 'nonce-1',
+    });
+    harness.beforeDeleteAccount.mockRejectedValueOnce(new Error('calendar_disconnect_failed'));
+
+    await expect(
+      harness.service.deleteAccount(accountId, grant.reauthenticationProof),
+    ).rejects.toThrow('calendar_disconnect_failed');
+    expect(harness.deleteAccount).not.toHaveBeenCalled();
   });
 
   it('rejects a previously issued deletion proof once its five-minute provider-proof window expires', async () => {
@@ -167,6 +189,7 @@ describe('MTS-037 recent reauthentication', () => {
       },
       issueReauthenticationProof: harness.issueReauthenticationProof,
       verifyReauthenticationProof: harness.verifyReauthenticationProof,
+      beforeDeleteAccount: harness.beforeDeleteAccount,
       deleteAccount: harness.deleteAccount,
       now: () => new Date(issuedAt.getTime() + 5 * 60_000 + 1),
     });
@@ -174,6 +197,7 @@ describe('MTS-037 recent reauthentication', () => {
     await expect(
       expiredService.deleteAccount(accountId, grant.reauthenticationProof),
     ).rejects.toBeInstanceOf(AccountLifecycleSecurityError);
+    expect(harness.beforeDeleteAccount).not.toHaveBeenCalled();
     expect(harness.deleteAccount).not.toHaveBeenCalled();
   });
 });
