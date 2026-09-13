@@ -68,7 +68,11 @@ function dependencies(direction: 'external_to_misyra' | 'misyra_to_external') {
   };
   const store = {
     getConnection: vi.fn(() =>
-      Promise.resolve({ id: connectionId, initialSyncDirection: direction, state: 'connected' as const }),
+      Promise.resolve({
+        id: connectionId,
+        initialSyncDirection: direction,
+        state: 'connected' as const,
+      }),
     ),
     reconcileFullImport: vi.fn(() => Promise.resolve()),
     applyProviderChanges: vi.fn(() => Promise.resolve()),
