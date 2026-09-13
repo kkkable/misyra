@@ -149,9 +149,7 @@ async function deleteSingleCalendarMission({
       baseVersion,
       clientOccurredAt: occurredAt,
       payload:
-        hiddenDismissalScope === undefined
-          ? null
-          : { recurrenceScope: hiddenDismissalScope },
+        hiddenDismissalScope === undefined ? null : { recurrenceScope: hiddenDismissalScope },
     },
     destination: { kind: 'server' },
     applyLocal: async (transaction) => {
