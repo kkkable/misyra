@@ -220,11 +220,22 @@ export function createGoogleCalendarWatchService(
       throw new Error('google_calendar_watch_renewal_lead_invalid');
     }
 
-    const repaired = await repairMissingChannels(limit);
+    let maintained = 0;
+    let repairError: unknown;
+    while (maintained < limit) {
+      const connectionId = await dependencies.store.claimConnectionMissingChannel();
+      if (connectionId === null) break;
+      maintained += 1;
+      try {
+        await ensureChannel(connectionId);
+      } catch (error) {
+        repairError = error;
+        break;
+      }
+    }
+
     const observedNow = now();
     const before = new Date(observedNow.getTime() + renewalLeadMs);
-    let maintained = repaired;
-
     while (maintained < limit) {
       const [current] = await dependencies.store.listChannelsDueForRenewal({ before, limit: 1 });
       if (current === undefined) break;
@@ -236,6 +247,8 @@ export function createGoogleCalendarWatchService(
       });
       maintained += 1;
     }
+
+    if (repairError !== undefined) throw repairError;
     return maintained;
   }
 
