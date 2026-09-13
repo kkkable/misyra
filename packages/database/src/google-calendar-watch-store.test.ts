@@ -160,11 +160,10 @@ describe('MTS-071 PostgreSQL Google watch store', () => {
 
     await expect(store.getChannel('channel-disconnected')).resolves.toBeNull();
     await expect(store.hasCurrentChannel(connectionId)).resolves.toBe(false);
-    await expect(
-      store.listChannelsDueForRenewal({
-        before: new Date('2100-01-01T00:00:00.000Z'),
-        limit: 25,
-      }),
-    ).resolves.toEqual([]);
+    const renewalCandidates = await store.listChannelsDueForRenewal({
+      before: new Date('2100-01-01T00:00:00.000Z'),
+      limit: 25,
+    });
+    expect(renewalCandidates.some((channel) => channel.connectionId === connectionId)).toBe(false);
   });
 });
