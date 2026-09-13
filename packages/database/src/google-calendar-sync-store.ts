@@ -358,14 +358,31 @@ async function linkedMission(
 async function hiddenEvent(
   client: PoolClient,
   connectionId: string,
-  providerEventId: string,
+  event: SynchronizedProviderEvent,
 ): Promise<boolean> {
+  const schedule = persistenceSchedule(event.schedule);
   const result = await client.query(
     `SELECT 1
        FROM hidden_external_events
-      WHERE connection_id = $1 AND provider_event_id = $2
+      WHERE connection_id = $1
+        AND provider_event_id = $2
+        AND (
+          recurrence_scope = 'entire_series'
+          OR (
+            recurrence_scope = 'this_and_future'
+            AND (effective_start IS NULL OR effective_start <= $3)
+          )
+          OR (
+            recurrence_scope IN ('event', 'this_occurrence')
+            AND (
+              effective_start IS NULL
+              OR effective_end IS NULL
+              OR (effective_start <= $3 AND $3 < effective_end)
+            )
+          )
+        )
       LIMIT 1`,
-    [connectionId, providerEventId],
+    [connectionId, event.providerEventId, schedule.startInstant],
   );
   return result.rowCount === 1;
 }
@@ -446,7 +463,7 @@ async function insertImportedEvent(
   context: ConnectionContext,
   event: SynchronizedProviderEvent,
 ): Promise<void> {
-  if (await hiddenEvent(client, context.id, event.providerEventId)) return;
+  if (await hiddenEvent(client, context.id, event)) return;
   const schedule = persistenceSchedule(event.schedule);
   const series = await client.query<{ id: string }>(
     `INSERT INTO mission_series (account_id, title, recurrence_rule)
