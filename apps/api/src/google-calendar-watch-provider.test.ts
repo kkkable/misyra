@@ -57,7 +57,7 @@ describe('MTS-071 concrete Google watch provider', () => {
         connectionId,
         channelId: 'channel-1',
         channelToken: 'fixture-channel-value',
-        webhookAddress: 'https://example.test/v1/calendars/google/webhook',
+        webhookAddress: 'https://example.test/v1/webhooks/google-calendar',
       }),
     ).resolves.toEqual({
       resourceId: 'provider-resource-id',
@@ -72,10 +72,12 @@ describe('MTS-071 concrete Google watch provider', () => {
       authorization: 'Bearer fixture-access-value',
       'content-type': 'application/json',
     });
-    expect(JSON.parse(String(requestAt(requests, 1).init?.body))).toEqual({
+    const watchBody = requestAt(requests, 1).init?.body;
+    if (typeof watchBody !== 'string') throw new Error('expected string watch request body');
+    expect(JSON.parse(watchBody)).toEqual({
       id: 'channel-1',
       type: 'web_hook',
-      address: 'https://example.test/v1/calendars/google/webhook',
+      address: 'https://example.test/v1/webhooks/google-calendar',
       token: 'fixture-channel-value',
     });
   });
