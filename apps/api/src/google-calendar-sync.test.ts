@@ -4,13 +4,13 @@ import {
   ExternalCalendarAdapterError,
   type CalendarCommand,
   type CalendarCommandResult,
-  type ExternalCalendarAdapter,
-  type ImportBatch,
-  type ProviderChangeBatch,
+  type SynchronizedImportBatch,
+  type SynchronizedProviderChangeBatch,
 } from '@misyra/contracts';
 
 import {
   createGoogleCalendarSyncService,
+  type GoogleCalendarSynchronizationProvider,
   type GoogleCalendarSyncStore,
 } from './google-calendar-sync.js';
 
@@ -50,43 +50,63 @@ const createCommand: CalendarCommand = {
   },
 };
 
-function provider(overrides: Partial<ExternalCalendarAdapter> = {}): ExternalCalendarAdapter {
-  return {
-    connect: vi.fn(),
-    initialImport: vi.fn<(_connectionId: string) => Promise<ImportBatch>>().mockResolvedValue({
+function provider(overrides: Partial<GoogleCalendarSynchronizationProvider> = {}) {
+  const initialImport =
+    overrides.initialImport ??
+    vi.fn<(_connectionId: string) => Promise<SynchronizedImportBatch>>().mockResolvedValue({
       events: [providerEvent],
       cursor: 'sync-token-full',
-    }),
-    pullChanges: vi
-      .fn<(_connectionId: string) => Promise<ProviderChangeBatch>>()
-      .mockResolvedValue({
-        changes: [{ type: 'upsert', event: providerEvent }],
-        cursor: 'sync-token-next',
-      }),
-    applyCommands: vi
-      .fn<(_commands: CalendarCommand[]) => Promise<CalendarCommandResult[]>>()
+    });
+  const pullChanges =
+    overrides.pullChanges ??
+    vi.fn<(_connectionId: string) => Promise<SynchronizedProviderChangeBatch>>().mockResolvedValue({
+      changes: [{ type: 'upsert', event: providerEvent }],
+      cursor: 'sync-token-next',
+    });
+  const applyCommands =
+    overrides.applyCommands ??
+    vi
+      .fn<(_commands: readonly CalendarCommand[]) => Promise<readonly CalendarCommandResult[]>>()
       .mockResolvedValue([
         { commandId, status: 'applied', providerEventId: 'created-provider-event' },
-      ]),
-    restoreHiddenEvent: vi.fn(),
-    disconnect: vi.fn(),
-    ...overrides,
+      ]);
+  const value: GoogleCalendarSynchronizationProvider = {
+    initialImport,
+    pullChanges,
+    applyCommands,
   };
+  return { value, initialImport, pullChanges, applyCommands };
 }
 
-function store(overrides: Partial<GoogleCalendarSyncStore> = {}): GoogleCalendarSyncStore {
-  return {
-    getConnection: vi.fn().mockResolvedValue({
+function store(overrides: Partial<GoogleCalendarSyncStore> = {}) {
+  const getConnection =
+    overrides.getConnection ??
+    vi.fn().mockResolvedValue({
       id: connectionId,
       initialSyncDirection: 'external_to_misyra',
       state: 'connected',
-    }),
-    reconcileFullImport: vi.fn().mockResolvedValue(undefined),
-    applyProviderChanges: vi.fn().mockResolvedValue(undefined),
-    listPendingCommands: vi.fn().mockResolvedValue([]),
-    applyCommandResults: vi.fn().mockResolvedValue(undefined),
-    clearCursor: vi.fn().mockResolvedValue(undefined),
-    ...overrides,
+    });
+  const reconcileFullImport = overrides.reconcileFullImport ?? vi.fn().mockResolvedValue(undefined);
+  const applyProviderChanges = overrides.applyProviderChanges ?? vi.fn().mockResolvedValue(undefined);
+  const listPendingCommands = overrides.listPendingCommands ?? vi.fn().mockResolvedValue([]);
+  const applyCommandResults = overrides.applyCommandResults ?? vi.fn().mockResolvedValue(undefined);
+  const clearCursor = overrides.clearCursor ?? vi.fn().mockResolvedValue(undefined);
+  const value: GoogleCalendarSyncStore = {
+    getConnection,
+    reconcileFullImport,
+    applyProviderChanges,
+    listPendingCommands,
+    applyCommandResults,
+    clearCursor,
+  };
+  return {
+    value,
+    getConnection,
+    reconcileFullImport,
+    applyProviderChanges,
+    listPendingCommands,
+    applyCommandResults,
+    clearCursor,
   };
 }
 
@@ -95,8 +115,8 @@ describe('MTS-070 Google initial and incremental synchronization', () => {
     const calendarProvider = provider();
     const syncStore = store();
     const service = createGoogleCalendarSyncService({
-      provider: calendarProvider,
-      store: syncStore,
+      provider: calendarProvider.value,
+      store: syncStore.value,
     });
 
     await service.initialSync(connectionId);
@@ -120,8 +140,8 @@ describe('MTS-070 Google initial and incremental synchronization', () => {
       listPendingCommands: vi.fn().mockResolvedValue([{ occurrenceId, command: createCommand }]),
     });
     const service = createGoogleCalendarSyncService({
-      provider: calendarProvider,
-      store: syncStore,
+      provider: calendarProvider.value,
+      store: syncStore.value,
     });
 
     await service.initialSync(connectionId);
@@ -142,30 +162,33 @@ describe('MTS-070 Google initial and incremental synchronization', () => {
   it('applies provider changes before pushing still-pending local commands during incremental sync', async () => {
     const order: string[] = [];
     const calendarProvider = provider({
-      pullChanges: vi.fn(async () => {
+      pullChanges: vi.fn(() => {
         order.push('pull');
-        return {
+        return Promise.resolve({
           changes: [{ type: 'upsert' as const, event: providerEvent }],
           cursor: 'sync-token-next',
-        };
+        });
       }),
-      applyCommands: vi.fn(async () => {
+      applyCommands: vi.fn(() => {
         order.push('push');
-        return [{ commandId, status: 'applied' as const, providerEventId: 'event-1' }];
+        return Promise.resolve([
+          { commandId, status: 'applied' as const, providerEventId: 'event-1' },
+        ]);
       }),
     });
     const syncStore = store({
-      applyProviderChanges: vi.fn(async () => {
+      applyProviderChanges: vi.fn(() => {
         order.push('reconcile');
+        return Promise.resolve();
       }),
-      listPendingCommands: vi.fn(async () => {
+      listPendingCommands: vi.fn(() => {
         order.push('pending');
-        return [{ occurrenceId, command: createCommand }];
+        return Promise.resolve([{ occurrenceId, command: createCommand }]);
       }),
     });
     const service = createGoogleCalendarSyncService({
-      provider: calendarProvider,
-      store: syncStore,
+      provider: calendarProvider.value,
+      store: syncStore.value,
     });
 
     await service.incrementalSync(connectionId);
@@ -187,8 +210,8 @@ describe('MTS-070 Google initial and incremental synchronization', () => {
     });
     const syncStore = store();
     const service = createGoogleCalendarSyncService({
-      provider: calendarProvider,
-      store: syncStore,
+      provider: calendarProvider.value,
+      store: syncStore.value,
     });
 
     await service.incrementalSync(connectionId);
@@ -206,8 +229,8 @@ describe('MTS-070 Google initial and incremental synchronization', () => {
     const calendarProvider = provider({ pullChanges: vi.fn().mockRejectedValue(failure) });
     const syncStore = store();
     const service = createGoogleCalendarSyncService({
-      provider: calendarProvider,
-      store: syncStore,
+      provider: calendarProvider.value,
+      store: syncStore.value,
     });
 
     await expect(service.incrementalSync(connectionId)).rejects.toBe(failure);
