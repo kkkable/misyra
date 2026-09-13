@@ -22,23 +22,46 @@ export type GoogleCalendarWatchChannelRegistration = Readonly<{
   expiresAt: Date;
 }>;
 
+export type GoogleCalendarWatchSchedulePullInput = Readonly<{
+  connectionId: string;
+  channelId: string;
+  messageNumber: string;
+  resourceState: string;
+}>;
+
+export type GoogleCalendarWatchRenewalQuery = Readonly<{
+  before: Date;
+  limit: number;
+}>;
+
+export type GoogleCalendarWatchRequest = Readonly<{
+  connectionId: string;
+  channelId: string;
+  channelToken: string;
+  webhookAddress: string;
+}>;
+
+export type GoogleCalendarWatchResponse = Readonly<{
+  resourceId: string;
+  expiresAt: Date;
+}>;
+
+export type GoogleCalendarWatchWebhookResult = Readonly<{
+  accepted: boolean;
+  scheduled: boolean;
+}>;
+
 export interface GoogleCalendarWatchStore {
   getChannel(channelId: string): Promise<GoogleCalendarWatchChannel | null>;
-  schedulePullOnce(input: Readonly<{
-    connectionId: string;
-    channelId: string;
-    messageNumber: string;
-    resourceState: string;
-  }>): Promise<boolean>;
+  schedulePullOnce(input: GoogleCalendarWatchSchedulePullInput): Promise<boolean>;
   hasCurrentChannel(connectionId: string): Promise<boolean>;
   saveChannel(
     connectionId: string,
     channel: GoogleCalendarWatchChannelRegistration,
   ): Promise<void>;
-  listChannelsDueForRenewal(input: Readonly<{
-    before: Date;
-    limit: number;
-  }>): Promise<readonly GoogleCalendarWatchChannel[]>;
+  listChannelsDueForRenewal(
+    input: GoogleCalendarWatchRenewalQuery,
+  ): Promise<readonly GoogleCalendarWatchChannel[]>;
   markRenewed(
     previousChannelId: string,
     replacement: GoogleCalendarWatchChannelRegistration,
@@ -46,24 +69,11 @@ export interface GoogleCalendarWatchStore {
 }
 
 export interface GoogleCalendarWatchProvider {
-  watchEvents(input: Readonly<{
-    connectionId: string;
-    channelId: string;
-    channelToken: string;
-    webhookAddress: string;
-  }>): Promise<Readonly<{
-    resourceId: string;
-    expiresAt: Date;
-  }>>;
+  watchEvents(input: GoogleCalendarWatchRequest): Promise<GoogleCalendarWatchResponse>;
 }
 
 export interface GoogleCalendarWatchService {
-  handleWebhook(message: GoogleCalendarWatchMessage): Promise<
-    Readonly<{
-      accepted: boolean;
-      scheduled: boolean;
-    }>
-  >;
+  handleWebhook(message: GoogleCalendarWatchMessage): Promise<GoogleCalendarWatchWebhookResult>;
   ensureChannel(connectionId: string): Promise<void>;
   renewDueChannels(limit?: number): Promise<number>;
 }
