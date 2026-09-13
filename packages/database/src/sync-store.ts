@@ -226,7 +226,9 @@ function assertExecutableMutationShape(mutation: StoredSyncMutation): void {
       );
     }
     if (mutation.baseVersion !== null) {
-      throw new SyncMutationValidationError('Mission personal-note update cannot provide a base version');
+      throw new SyncMutationValidationError(
+        'Mission personal-note update cannot provide a base version',
+      );
     }
     return;
   }
