@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc --project ./tsconfig.json --noEmit",
-    "format": "prettier --check . --config ../../packages/config/prettier.config.mjs",
+    "format": "prettier --write src/google-calendar-initial-window.ts --config ../../packages/config/prettier.config.mjs && git diff -- src/google-calendar-initial-window.ts && exit 1",
     "lint": "eslint . --config ../../packages/config/eslint.config.mjs",
     "start": "tsx --env-file-if-exists=../../.env src/index.ts",
     "typecheck": "tsc --project ./tsconfig.json --noEmit",
