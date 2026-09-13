@@ -55,6 +55,12 @@ function createHarness() {
       connections.set(connectionId, saved);
       return Promise.resolve(saved);
     }),
+    findRevocableConnectionId: vi.fn((requestedAccountId: string) => {
+      const record = [...connections.values()].find(
+        (item) => item.accountId === requestedAccountId && item.encryptedRefreshToken.length > 0,
+      );
+      return Promise.resolve(record?.id ?? null);
+    }),
     disconnectConnection: vi.fn((requestedAccountId: string, requestedConnectionId: string) => {
       const record = connections.get(requestedConnectionId);
       if (
@@ -215,6 +221,17 @@ describe('MTS-069 Google OAuth and connection storage', () => {
     expect(connection.providerCalendarId).toBe('misyra-calendar-id');
   });
 
+  it('revokes a newly issued provider grant when OAuth completion cannot finish', async () => {
+    const { provider, service } = createHarness();
+    await service.startOAuth(accountId, { initialSyncDirection: 'misyra_to_external' });
+    provider.createDedicatedCalendar.mockRejectedValueOnce(new Error('provider unavailable'));
+
+    await expect(
+      service.completeOAuth({ state: 'opaque-oauth-state-value', code: 'authorization-code' }),
+    ).rejects.toMatchObject({ code: 'provider_error' });
+    expect(provider.revokeRefreshToken).toHaveBeenCalledWith('google-refresh-secret');
+  });
+
   it('marks a connection disconnected before revoking provider access and then clears the stored credential', async () => {
     const { cipher, connections, provider, service, store } = createHarness();
     await service.startOAuth(accountId, {
@@ -272,6 +289,23 @@ describe('MTS-069 Google OAuth and connection storage', () => {
 
     await expect(service.disconnect(accountId, connectionId)).resolves.toBeUndefined();
     expect(provider.revokeRefreshToken).toHaveBeenCalledTimes(2);
+    expect(connections.get(connectionId)?.encryptedRefreshToken).toBe('');
+  });
+
+  it('disconnects the account-level revocable connection for account deletion', async () => {
+    const { connections, provider, service, store } = createHarness();
+    await service.startOAuth(accountId, {
+      initialSyncDirection: 'external_to_misyra',
+      selectedCalendarId: 'primary',
+    });
+    await service.completeOAuth({ state: 'opaque-oauth-state-value', code: 'authorization-code' });
+
+    await service.disconnectAccount(accountId);
+
+    expect(store.findRevocableConnectionId).toHaveBeenCalledWith(accountId);
+    expect(store.disconnectConnection).toHaveBeenCalledWith(accountId, connectionId);
+    expect(provider.revokeRefreshToken).toHaveBeenCalledWith('google-refresh-secret');
+    expect(connections.get(connectionId)?.state).toBe('disconnected');
     expect(connections.get(connectionId)?.encryptedRefreshToken).toBe('');
   });
 
