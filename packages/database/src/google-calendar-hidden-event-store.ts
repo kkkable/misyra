@@ -4,9 +4,7 @@ import { appendAccountChange } from './account-change-log.js';
 
 type Ownership = 'app_owned' | 'organizer_controlled';
 export type HiddenExternalEventRecurrenceScope =
-  | 'this_occurrence'
-  | 'this_and_future'
-  | 'entire_series';
+  'this_occurrence' | 'this_and_future' | 'entire_series';
 
 type CalendarRecurrence = Readonly<Record<string, unknown>>;
 
