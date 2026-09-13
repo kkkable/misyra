@@ -164,19 +164,28 @@ export function createPostgresGoogleCalendarWatchStore(
   ): Promise<readonly GoogleCalendarWatchChannelRecord[]> {
     requirePositiveLimit(input.limit);
     const result = await pool.query<WatchChannelRow>(
-      `SELECT w.connection_id AS "connectionId",
-              w.channel_id AS "channelId",
-              w.resource_id AS "resourceId",
-              w.token_hash AS "tokenHash",
-              w.expires_at AS "expiresAt"
-         FROM misyra_internal.google_calendar_watch_channels w
-         JOIN external_calendar_connections c ON c.id = w.connection_id
-        WHERE w.superseded_at IS NULL
-          AND w.expires_at <= $1
-          AND c.provider = 'google'
-          AND c.connection_state = 'connected'
-        ORDER BY w.expires_at ASC, w.channel_id ASC
-        LIMIT $2`,
+      `WITH due AS (
+         SELECT w.channel_id
+           FROM misyra_internal.google_calendar_watch_channels w
+           JOIN external_calendar_connections c ON c.id = w.connection_id
+          WHERE w.superseded_at IS NULL
+            AND w.expires_at <= $1
+            AND (w.renewal_claimed_until IS NULL OR w.renewal_claimed_until <= CURRENT_TIMESTAMP)
+            AND c.provider = 'google'
+            AND c.connection_state = 'connected'
+          ORDER BY w.expires_at ASC, w.channel_id ASC
+          LIMIT $2
+          FOR UPDATE OF w SKIP LOCKED
+       )
+       UPDATE misyra_internal.google_calendar_watch_channels w
+          SET renewal_claimed_until = CURRENT_TIMESTAMP + INTERVAL '15 minutes'
+         FROM due
+        WHERE w.channel_id = due.channel_id
+       RETURNING w.connection_id AS "connectionId",
+                 w.channel_id AS "channelId",
+                 w.resource_id AS "resourceId",
+                 w.token_hash AS "tokenHash",
+                 w.expires_at AS "expiresAt"`,
       [input.before, input.limit],
     );
     return result.rows;
