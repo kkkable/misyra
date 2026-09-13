@@ -119,7 +119,7 @@ export function createGoogleCalendarRoutes(
   if (watchService !== undefined) {
     routes.push({
       method: 'POST',
-      path: '/calendars/google/webhook',
+      path: '/webhooks/google-calendar',
       public: true,
       handler: (request) =>
         watchService.handleWebhook({
