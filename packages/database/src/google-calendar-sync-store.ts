@@ -5,11 +5,7 @@ import type { Pool, PoolClient } from 'pg';
 import { appendAccountChange } from './account-change-log.js';
 
 type InitialSyncDirection = 'external_to_misyra' | 'misyra_to_external';
-type ConnectionState =
-  | 'connected'
-  | 'permission_revoked'
-  | 'provider_unavailable'
-  | 'disconnected';
+type ConnectionState = 'connected' | 'permission_revoked' | 'provider_unavailable' | 'disconnected';
 type Ownership = 'app_owned' | 'organizer_controlled';
 type RecurrenceScope = 'this_occurrence' | 'this_and_future' | 'entire_series';
 
@@ -128,10 +124,7 @@ export type GoogleCalendarEncryptedSyncSession = Readonly<{
 export interface PostgresGoogleCalendarSyncStore {
   getConnection(connectionId: string): Promise<GoogleCalendarSyncConnection | null>;
   reconcileFullImport(connectionId: string, batch: SynchronizedImportBatch): Promise<void>;
-  applyProviderChanges(
-    connectionId: string,
-    batch: SynchronizedProviderChangeBatch,
-  ): Promise<void>;
+  applyProviderChanges(connectionId: string, batch: SynchronizedProviderChangeBatch): Promise<void>;
   listPendingCommands(connectionId: string): Promise<readonly PendingCalendarCommand[]>;
   applyCommandResults(
     connectionId: string,
@@ -166,7 +159,10 @@ type StoreOptions = Readonly<{
 
 const IMPORTED_ALL_DAY_EFFORT_MINUTES = 30;
 
-async function withTransaction<T>(pool: Pool, work: (client: PoolClient) => Promise<T>): Promise<T> {
+async function withTransaction<T>(
+  pool: Pool,
+  work: (client: PoolClient) => Promise<T>,
+): Promise<T> {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -213,7 +209,10 @@ function requiredConnectedContext(context: ConnectionContext | null): Connection
   return context;
 }
 
-function dateParts(instant: string, timeZone: string): Readonly<{
+function dateParts(
+  instant: string,
+  timeZone: string,
+): Readonly<{
   localDate: string;
   localDateTime: string;
 }> {
@@ -371,7 +370,10 @@ async function hiddenEvent(
   return result.rowCount === 1;
 }
 
-function providerIsNewerThanLocal(event: SynchronizedProviderEvent, mission: LinkedMission): boolean {
+function providerIsNewerThanLocal(
+  event: SynchronizedProviderEvent,
+  mission: LinkedMission,
+): boolean {
   if (mission.synchronizationState !== 'pending' || mission.latestLocalEffectiveTime === null) {
     return true;
   }
@@ -630,7 +632,9 @@ async function saveCursor(
   cursor: string | null,
 ): Promise<void> {
   if (cursor === null) {
-    await client.query('DELETE FROM calendar_sync_cursors WHERE connection_id = $1', [connectionId]);
+    await client.query('DELETE FROM calendar_sync_cursors WHERE connection_id = $1', [
+      connectionId,
+    ]);
     return;
   }
   await client.query(
@@ -642,16 +646,18 @@ async function saveCursor(
   );
 }
 
-function commandSchedule(row: Readonly<{
-  allDay: boolean;
-  localDate: string;
-  localStart: string;
-  localFinish: string;
-  startInstant: Date;
-  finishInstant: Date;
-  timeZone: string;
-  timeBehavior: 'local_time' | 'fixed_instant';
-}>): ProviderSchedule {
+function commandSchedule(
+  row: Readonly<{
+    allDay: boolean;
+    localDate: string;
+    localStart: string;
+    localFinish: string;
+    startInstant: Date;
+    finishInstant: Date;
+    timeZone: string;
+    timeBehavior: 'local_time' | 'fixed_instant';
+  }>,
+): ProviderSchedule {
   if (row.allDay) {
     return {
       type: 'all_day',
@@ -687,10 +693,7 @@ export function createPostgresGoogleCalendarSyncStore(
           };
     },
 
-    async reconcileFullImport(
-      connectionId: string,
-      batch: SynchronizedImportBatch,
-    ): Promise<void> {
+    async reconcileFullImport(connectionId: string, batch: SynchronizedImportBatch): Promise<void> {
       await withTransaction(pool, async (client) => {
         const context = requiredConnectedContext(await connectionContext(client, connectionId));
         for (const event of batch.events) {
@@ -844,7 +847,9 @@ export function createPostgresGoogleCalendarSyncStore(
     },
 
     async clearCursor(connectionId: string): Promise<void> {
-      await pool.query('DELETE FROM calendar_sync_cursors WHERE connection_id = $1', [connectionId]);
+      await pool.query('DELETE FROM calendar_sync_cursors WHERE connection_id = $1', [
+        connectionId,
+      ]);
     },
 
     async loadEncryptedSession(
