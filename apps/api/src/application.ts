@@ -6,6 +6,7 @@ import {
   createPostgresDeviceSettingsStore,
   createPostgresGoogleCalendarConnectionStore,
   createPostgresGoogleCalendarSyncStore,
+  createPostgresGoogleCalendarWatchStore,
   deleteAccountTransaction,
   type PostgresGoogleCalendarSyncStore,
 } from '@misyra/database';
@@ -35,6 +36,11 @@ import {
 import { createGoogleCalendarSyncProvider } from './google-calendar-sync-provider.js';
 import { createGoogleCalendarTokenCipher } from './google-calendar-token-cipher.js';
 import {
+  createGoogleCalendarWatchService,
+  type GoogleCalendarWatchService,
+} from './google-calendar-watch.js';
+import { createGoogleCalendarWatchProvider } from './google-calendar-watch-provider.js';
+import {
   createApiServer,
   type ApiAuditLog,
   type AuthenticateRequest,
@@ -48,6 +54,7 @@ type GoogleCalendarApplicationDependencies = Readonly<{
   provider: GoogleCalendarOAuthGateway;
   cipher: GoogleCalendarTokenCipher;
   syncProvider?: GoogleCalendarSynchronizationProvider;
+  watchService?: GoogleCalendarWatchService;
 }>;
 
 type AuthApplicationOptions = {
@@ -78,8 +85,10 @@ const LOCAL_GOOGLE_CALENDAR_DEFAULTS = {
   clientId: 'fixture-google-calendar-client-id',
   clientSecret: 'fixture-google-calendar-client-secret',
   redirectUri: 'http://127.0.0.1:3000/v1/calendars/google/callback',
+  webhookAddress: 'http://127.0.0.1:3000/v1/webhooks/google-calendar',
   encryptionKey: 'BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc',
 } as const;
+const GOOGLE_WATCH_RENEWAL_INTERVAL_MS = 60 * 60 * 1_000;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export function createGoogleCalendarSyncSessionLoader(
@@ -95,6 +104,24 @@ export function createGoogleCalendarSyncSessionLoader(
       cursor: session.cursor,
       timeZone: session.timeZone,
     };
+  };
+}
+
+export function startGoogleCalendarWatchRenewal(
+  service: Pick<GoogleCalendarWatchService, 'renewDueChannels'>,
+  onError: () => void,
+): () => void {
+  const renew = () => {
+    void service.renewDueChannels().catch(() => {
+      onError();
+    });
+  };
+
+  renew();
+  const renewalTimer = setInterval(renew, GOOGLE_WATCH_RENEWAL_INTERVAL_MS);
+  renewalTimer.unref();
+  return () => {
+    clearInterval(renewalTimer);
   };
 }
 
@@ -148,7 +175,11 @@ export function createApiApplication(options: AuthApplicationOptions) {
   const googleCalendarRoutes =
     googleCalendarService === undefined
       ? []
-      : createGoogleCalendarRoutes(googleCalendarService, googleCalendarSyncService);
+      : createGoogleCalendarRoutes(
+          googleCalendarService,
+          googleCalendarSyncService,
+          options.googleCalendar?.watchService,
+        );
 
   return createApiServer({
     routes: [
@@ -208,6 +239,11 @@ export function resolveGoogleCalendarStartupConfiguration(env: NodeJS.ProcessEnv
     'GOOGLE_CALENDAR_REDIRECT_URI',
     LOCAL_GOOGLE_CALENDAR_DEFAULTS.redirectUri,
   );
+  const webhookAddress = localOrRequiredEnv(
+    env,
+    'GOOGLE_CALENDAR_WEBHOOK_ADDRESS',
+    LOCAL_GOOGLE_CALENDAR_DEFAULTS.webhookAddress,
+  );
   const encodedEncryptionKey = localOrRequiredEnv(
     env,
     'GOOGLE_CALENDAR_TOKEN_ENCRYPTION_KEY',
@@ -221,11 +257,21 @@ export function resolveGoogleCalendarStartupConfiguration(env: NodeJS.ProcessEnv
   ) {
     throw new Error('GOOGLE_CALENDAR_TOKEN_ENCRYPTION_KEY must be a 32-byte base64url value');
   }
+  let webhookUrl: URL;
+  try {
+    webhookUrl = new URL(webhookAddress);
+  } catch {
+    throw new Error('GOOGLE_CALENDAR_WEBHOOK_ADDRESS must be an absolute URL');
+  }
+  if (env.NODE_ENV === 'production' && webhookUrl.protocol !== 'https:') {
+    throw new Error('GOOGLE_CALENDAR_WEBHOOK_ADDRESS must use HTTPS in production');
+  }
 
   return {
     clientId,
     clientSecret,
     redirectUri,
+    webhookAddress,
     encryptionKey,
   };
 }
@@ -327,13 +373,24 @@ export async function startApiApplication(env: NodeJS.ProcessEnv = process.env) 
     googleCalendarConfiguration.encryptionKey,
   );
   const googleCalendarSyncStore = createPostgresGoogleCalendarSyncStore(pool);
+  const loadGoogleCalendarSession = createGoogleCalendarSyncSessionLoader(
+    googleCalendarSyncStore,
+    googleCalendarCipher,
+  );
   const googleCalendarSyncProvider = createGoogleCalendarSyncProvider({
     clientId: googleCalendarConfiguration.clientId,
     clientSecret: googleCalendarConfiguration.clientSecret,
-    loadSession: createGoogleCalendarSyncSessionLoader(
-      googleCalendarSyncStore,
-      googleCalendarCipher,
-    ),
+    loadSession: loadGoogleCalendarSession,
+  });
+  const googleCalendarWatchProvider = createGoogleCalendarWatchProvider({
+    clientId: googleCalendarConfiguration.clientId,
+    clientSecret: googleCalendarConfiguration.clientSecret,
+    loadSession: loadGoogleCalendarSession,
+  });
+  const googleCalendarWatchService = createGoogleCalendarWatchService({
+    store: createPostgresGoogleCalendarWatchStore(pool),
+    provider: googleCalendarWatchProvider,
+    webhookAddress: googleCalendarConfiguration.webhookAddress,
   });
   const server = createApiApplication({
     pool,
@@ -353,14 +410,20 @@ export async function startApiApplication(env: NodeJS.ProcessEnv = process.env) 
       }),
       cipher: googleCalendarCipher,
       syncProvider: googleCalendarSyncProvider,
+      watchService: googleCalendarWatchService,
     },
   });
+  const stopWatchRenewal = startGoogleCalendarWatchRenewal(googleCalendarWatchService, () => {
+    server.log.error('Google Calendar watch renewal failed');
+  });
   server.addHook('onClose', async () => {
+    stopWatchRenewal();
     await pool.end();
   });
   try {
     await server.listen({ host: '127.0.0.1', port: 3000 });
   } catch (error) {
+    stopWatchRenewal();
     await pool.end();
     throw error;
   }
