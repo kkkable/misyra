@@ -630,6 +630,7 @@ async function saveCursor(
   client: PoolClient,
   connectionId: string,
   cursor: string | null,
+  updatedAt: Date,
 ): Promise<void> {
   if (cursor === null) {
     await client.query('DELETE FROM calendar_sync_cursors WHERE connection_id = $1', [
@@ -639,10 +640,10 @@ async function saveCursor(
   }
   await client.query(
     `INSERT INTO calendar_sync_cursors (connection_id, cursor, updated_at)
-     VALUES ($1, $2, now())
+     VALUES ($1, $2, $3)
      ON CONFLICT (connection_id)
-     DO UPDATE SET cursor = EXCLUDED.cursor, updated_at = now()`,
-    [connectionId, cursor],
+     DO UPDATE SET cursor = EXCLUDED.cursor, updated_at = EXCLUDED.updated_at`,
+    [connectionId, cursor, updatedAt],
   );
 }
 
@@ -699,7 +700,7 @@ export function createPostgresGoogleCalendarSyncStore(
         for (const event of batch.events) {
           await reconcileUpsert(client, context, event);
         }
-        await saveCursor(client, connectionId, batch.cursor);
+        await saveCursor(client, connectionId, batch.cursor, now());
       });
     },
 
@@ -721,7 +722,7 @@ export function createPostgresGoogleCalendarSyncStore(
             );
           }
         }
-        await saveCursor(client, connectionId, batch.cursor);
+        await saveCursor(client, connectionId, batch.cursor, now());
       });
     },
 
