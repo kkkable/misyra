@@ -1,12 +1,14 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
+import type { AuthProvider } from '@misyra/contracts';
 import {
   createPostgresAuthStore,
   createPostgresDeviceSettingsStore,
   createPostgresGoogleCalendarConnectionStore,
+  createPostgresGoogleCalendarSyncStore,
   deleteAccountTransaction,
+  type PostgresGoogleCalendarSyncStore,
 } from '@misyra/database';
-import type { AuthProvider } from '@misyra/contracts';
 import { Pool } from 'pg';
 
 import {
@@ -26,6 +28,11 @@ import {
 } from './google-calendar-connection.js';
 import { createGoogleCalendarOAuthGateway } from './google-calendar-oauth-gateway.js';
 import { createGoogleCalendarRoutes } from './google-calendar-routes.js';
+import {
+  createGoogleCalendarSyncService,
+  type GoogleCalendarSynchronizationProvider,
+} from './google-calendar-sync.js';
+import { createGoogleCalendarSyncProvider } from './google-calendar-sync-provider.js';
 import { createGoogleCalendarTokenCipher } from './google-calendar-token-cipher.js';
 import {
   createApiServer,
@@ -40,6 +47,7 @@ import { createPostgresSyncService } from './sync-service.js';
 type GoogleCalendarApplicationDependencies = Readonly<{
   provider: GoogleCalendarOAuthGateway;
   cipher: GoogleCalendarTokenCipher;
+  syncProvider?: GoogleCalendarSynchronizationProvider;
 }>;
 
 type AuthApplicationOptions = {
@@ -74,6 +82,22 @@ const LOCAL_GOOGLE_CALENDAR_DEFAULTS = {
 } as const;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+export function createGoogleCalendarSyncSessionLoader(
+  store: Pick<PostgresGoogleCalendarSyncStore, 'loadEncryptedSession'>,
+  cipher: GoogleCalendarTokenCipher,
+) {
+  return async (connectionId: string) => {
+    const session = await store.loadEncryptedSession(connectionId);
+    if (session === null) return null;
+    return {
+      providerCalendarId: session.providerCalendarId,
+      refreshToken: await cipher.decrypt(session.encryptedRefreshToken),
+      cursor: session.cursor,
+      timeZone: session.timeZone,
+    };
+  };
+}
+
 export function createApiApplication(options: AuthApplicationOptions) {
   const authStore = createPostgresAuthStore(options.pool);
   const deviceSettingsStore = createPostgresDeviceSettingsStore(options.pool);
@@ -89,6 +113,13 @@ export function createApiApplication(options: AuthApplicationOptions) {
           provider: options.googleCalendar.provider,
           cipher: options.googleCalendar.cipher,
           ...(options.now === undefined ? {} : { now: options.now }),
+        });
+  const googleCalendarSyncService =
+    options.googleCalendar?.syncProvider === undefined
+      ? undefined
+      : createGoogleCalendarSyncService({
+          store: createPostgresGoogleCalendarSyncStore(options.pool),
+          provider: options.googleCalendar.syncProvider,
         });
   const authService = createAuthService({
     store: authStore,
@@ -115,7 +146,9 @@ export function createApiApplication(options: AuthApplicationOptions) {
   const deviceSettingsService = createDeviceSettingsService(deviceSettingsStore);
   const syncService = createPostgresSyncService(options.pool);
   const googleCalendarRoutes =
-    googleCalendarService === undefined ? [] : createGoogleCalendarRoutes(googleCalendarService);
+    googleCalendarService === undefined
+      ? []
+      : createGoogleCalendarRoutes(googleCalendarService, googleCalendarSyncService);
 
   return createApiServer({
     routes: [
@@ -290,6 +323,18 @@ export async function startApiApplication(env: NodeJS.ProcessEnv = process.env) 
   const authConfiguration = resolveAuthStartupConfiguration(env);
   const googleCalendarConfiguration = resolveGoogleCalendarStartupConfiguration(env);
   const authStore = createPostgresAuthStore(pool);
+  const googleCalendarCipher = createGoogleCalendarTokenCipher(
+    googleCalendarConfiguration.encryptionKey,
+  );
+  const googleCalendarSyncStore = createPostgresGoogleCalendarSyncStore(pool);
+  const googleCalendarSyncProvider = createGoogleCalendarSyncProvider({
+    clientId: googleCalendarConfiguration.clientId,
+    clientSecret: googleCalendarConfiguration.clientSecret,
+    loadSession: createGoogleCalendarSyncSessionLoader(
+      googleCalendarSyncStore,
+      googleCalendarCipher,
+    ),
+  });
   const server = createApiApplication({
     pool,
     expectedAudience: authConfiguration.expectedAudience,
@@ -306,7 +351,8 @@ export async function startApiApplication(env: NodeJS.ProcessEnv = process.env) 
         clientSecret: googleCalendarConfiguration.clientSecret,
         redirectUri: googleCalendarConfiguration.redirectUri,
       }),
-      cipher: createGoogleCalendarTokenCipher(googleCalendarConfiguration.encryptionKey),
+      cipher: googleCalendarCipher,
+      syncProvider: googleCalendarSyncProvider,
     },
   });
   server.addHook('onClose', async () => {

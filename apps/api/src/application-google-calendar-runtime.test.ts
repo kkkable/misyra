@@ -1,7 +1,11 @@
 import type { Pool } from 'pg';
 import { describe, expect, it, vi } from 'vitest';
 
-import { createApiApplication, resolveGoogleCalendarStartupConfiguration } from './application.js';
+import {
+  createApiApplication,
+  createGoogleCalendarSyncSessionLoader,
+  resolveGoogleCalendarStartupConfiguration,
+} from './application.js';
 import type {
   GoogleCalendarOAuthGateway,
   GoogleCalendarTokenCipher,
@@ -79,5 +83,37 @@ describe('MTS-069 executable Google calendar composition', () => {
     expect(() => resolveGoogleCalendarStartupConfiguration({ NODE_ENV: 'production' })).toThrow(
       'Missing required environment variable: GOOGLE_CALENDAR_CLIENT_ID',
     );
+  });
+});
+
+describe('MTS-070 executable Google calendar synchronization composition', () => {
+  it('decrypts only the stored refresh token when materializing a provider sync session', async () => {
+    const loadEncryptedSession = vi.fn(() =>
+      Promise.resolve({
+        providerCalendarId: 'calendar-123',
+        encryptedRefreshToken: 'encrypted-refresh-token',
+        cursor: 'sync-token-9',
+        timeZone: 'Asia/Hong_Kong',
+      }),
+    );
+    const decrypt = vi.fn((ciphertext: string) =>
+      Promise.resolve(ciphertext === 'encrypted-refresh-token' ? 'plain-refresh-token' : 'wrong'),
+    );
+    const loadSession = createGoogleCalendarSyncSessionLoader(
+      { loadEncryptedSession },
+      {
+        encrypt: vi.fn(() => Promise.reject(new Error('not used'))),
+        decrypt,
+      },
+    );
+
+    await expect(loadSession(connectionId)).resolves.toEqual({
+      providerCalendarId: 'calendar-123',
+      refreshToken: 'plain-refresh-token',
+      cursor: 'sync-token-9',
+      timeZone: 'Asia/Hong_Kong',
+    });
+    expect(loadEncryptedSession).toHaveBeenCalledWith(connectionId);
+    expect(decrypt).toHaveBeenCalledWith('encrypted-refresh-token');
   });
 });
