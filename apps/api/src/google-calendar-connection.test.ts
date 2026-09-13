@@ -57,7 +57,11 @@ function createHarness() {
     }),
     disconnectConnection: vi.fn((requestedAccountId: string, requestedConnectionId: string) => {
       const record = connections.get(requestedConnectionId);
-      if (!record || record.accountId !== requestedAccountId || record.state === 'disconnected') {
+      if (
+        !record ||
+        record.accountId !== requestedAccountId ||
+        record.encryptedRefreshToken.length === 0
+      ) {
         return Promise.resolve(null);
       }
       record.state = 'disconnected';
@@ -68,8 +72,10 @@ function createHarness() {
     }),
     clearDisconnectedRefreshToken: vi.fn(
       (requestedAccountId: string, requestedConnectionId: string) => {
-        void requestedAccountId;
-        void requestedConnectionId;
+        const record = connections.get(requestedConnectionId);
+        if (record?.accountId === requestedAccountId && record.state === 'disconnected') {
+          record.encryptedRefreshToken = '';
+        }
         return Promise.resolve();
       },
     ),
@@ -227,8 +233,10 @@ describe('MTS-069 Google OAuth and connection storage', () => {
     });
     store.clearDisconnectedRefreshToken.mockImplementation(
       (requestedAccountId, requestedConnectionId) => {
-        void requestedAccountId;
-        void requestedConnectionId;
+        const record = connections.get(requestedConnectionId);
+        if (record?.accountId === requestedAccountId && record.state === 'disconnected') {
+          record.encryptedRefreshToken = '';
+        }
         callOrder.push('clear');
         return Promise.resolve();
       },
@@ -264,6 +272,7 @@ describe('MTS-069 Google OAuth and connection storage', () => {
 
     await expect(service.disconnect(accountId, connectionId)).resolves.toBeUndefined();
     expect(provider.revokeRefreshToken).toHaveBeenCalledTimes(2);
+    expect(connections.get(connectionId)?.encryptedRefreshToken).toBe('');
   });
 
   it('never exposes a refresh token in provider-facing failure messages', async () => {
