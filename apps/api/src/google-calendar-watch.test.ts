@@ -18,9 +18,7 @@ function tokenHash(token: string) {
   return createHash('sha256').update(token).digest('hex');
 }
 
-function channel(
-  overrides: Partial<GoogleCalendarWatchChannel> = {},
-): GoogleCalendarWatchChannel {
+function channel(overrides: Partial<GoogleCalendarWatchChannel> = {}): GoogleCalendarWatchChannel {
   return {
     connectionId: CONNECTION_ID,
     channelId: 'channel-old',
@@ -211,7 +209,9 @@ describe('MTS-071 Google Calendar watch lifecycle', () => {
   it('rejects an unbounded renewal batch size', async () => {
     const { service } = createHarness();
 
-    await expect(service.renewDueChannels(0)).rejects.toThrow('google_calendar_watch_limit_invalid');
+    await expect(service.renewDueChannels(0)).rejects.toThrow(
+      'google_calendar_watch_limit_invalid',
+    );
     await expect(service.renewDueChannels(501)).rejects.toThrow(
       'google_calendar_watch_limit_invalid',
     );
