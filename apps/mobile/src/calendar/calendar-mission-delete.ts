@@ -106,7 +106,8 @@ async function deleteSingleCalendarMission({
     throw new Error('Mission deletion target is already deleted.');
   }
   const isOrganizerControlledImport =
-    occurrence.calendarSource === 'external' && occurrence.fieldOwnership === 'organizer_controlled';
+    occurrence.calendarSource === 'external' &&
+    occurrence.fieldOwnership === 'organizer_controlled';
   if (hiddenDismissalScope !== undefined && !isOrganizerControlledImport) {
     throw new Error('Hidden dismissal scope requires an organizer-controlled imported mission.');
   }
@@ -282,7 +283,9 @@ export async function deleteCalendarMission({
         deviceId,
         occurrenceId: targetOccurrenceId,
         hiddenDismissalScope:
-          selectedIsOrganizerControlledImport && targetOccurrenceId === occurrenceId ? scope : undefined,
+          selectedIsOrganizerControlledImport && targetOccurrenceId === occurrenceId
+            ? scope
+            : undefined,
         now,
         generateId,
       }),
