@@ -1,8 +1,8 @@
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 
 const DEFAULT_RENEWAL_LEAD_MS = 6 * 60 * 60 * 1_000;
-const DEFAULT_RENEWAL_BATCH_LIMIT = 100;
-const MAX_RENEWAL_BATCH_LIMIT = 500;
+const DEFAULT_MAINTENANCE_BATCH_LIMIT = 100;
+const MAX_MAINTENANCE_BATCH_LIMIT = 500;
 const TOKEN_HASH_PATTERN = /^[0-9a-f]{64}$/;
 const MESSAGE_NUMBER_PATTERN = /^\d+$/;
 
@@ -74,6 +74,7 @@ export interface GoogleCalendarWatchStore {
   schedulePullOnce(input: GoogleCalendarPullSignal): Promise<boolean>;
   hasCurrentChannel(connectionId: string): Promise<boolean>;
   saveChannel(input: GoogleCalendarSaveChannel): Promise<void>;
+  claimConnectionMissingChannel(): Promise<string | null>;
   listChannelsDueForRenewal(
     input: GoogleCalendarRenewalQuery,
   ): Promise<readonly GoogleCalendarWatchChannel[]>;
@@ -87,6 +88,7 @@ export interface GoogleCalendarWatchProvider {
 export interface GoogleCalendarWatchService {
   handleWebhook(message: GoogleCalendarWatchMessage): Promise<GoogleCalendarWatchResult>;
   ensureChannel(connectionId: string): Promise<void>;
+  repairMissingChannels(limit?: number): Promise<number>;
   renewDueChannels(limit?: number): Promise<number>;
 }
 
@@ -119,6 +121,12 @@ function isValidWebhookMessage(message: GoogleCalendarWatchMessage): boolean {
     MESSAGE_NUMBER_PATTERN.test(message.messageNumber) &&
     message.resourceState.length > 0
   );
+}
+
+function requireMaintenanceLimit(limit: number): void {
+  if (!Number.isInteger(limit) || limit < 1 || limit > MAX_MAINTENANCE_BATCH_LIMIT) {
+    throw new Error('google_calendar_watch_limit_invalid');
+  }
 }
 
 function registrationFromProvider(
@@ -194,10 +202,22 @@ export function createGoogleCalendarWatchService(
     await dependencies.store.saveChannel({ connectionId, channel });
   }
 
-  async function renewDueChannels(limit = DEFAULT_RENEWAL_BATCH_LIMIT): Promise<number> {
-    if (!Number.isInteger(limit) || limit < 1 || limit > MAX_RENEWAL_BATCH_LIMIT) {
-      throw new Error('google_calendar_watch_limit_invalid');
+  async function repairMissingChannels(
+    limit = DEFAULT_MAINTENANCE_BATCH_LIMIT,
+  ): Promise<number> {
+    requireMaintenanceLimit(limit);
+    let repaired = 0;
+    while (repaired < limit) {
+      const connectionId = await dependencies.store.claimConnectionMissingChannel();
+      if (connectionId === null) break;
+      await ensureChannel(connectionId);
+      repaired += 1;
     }
+    return repaired;
+  }
+
+  async function renewDueChannels(limit = DEFAULT_MAINTENANCE_BATCH_LIMIT): Promise<number> {
+    requireMaintenanceLimit(limit);
     if (!Number.isFinite(renewalLeadMs) || renewalLeadMs < 0) {
       throw new Error('google_calendar_watch_renewal_lead_invalid');
     }
@@ -220,5 +240,5 @@ export function createGoogleCalendarWatchService(
     return renewed;
   }
 
-  return Object.freeze({ handleWebhook, ensureChannel, renewDueChannels });
+  return Object.freeze({ handleWebhook, ensureChannel, repairMissingChannels, renewDueChannels });
 }
