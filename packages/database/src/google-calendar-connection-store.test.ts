@@ -158,7 +158,7 @@ describe('MTS-069 PostgreSQL Google calendar connection store', () => {
     ).rejects.toThrow('connection_exists');
   });
 
-  it('durably stops synchronization before returning the token needed for revocation', async () => {
+  it('durably stops synchronization while retaining revocation retries until credential cleanup', async () => {
     const store = createPostgresGoogleCalendarConnectionStore(pool);
     const accountId = await createAccount();
     await prepareConsumedOAuthState(store, {
@@ -176,18 +176,41 @@ describe('MTS-069 PostgreSQL Google calendar connection store', () => {
       state: 'connected',
     });
 
-    await expect(store.disconnectConnection(accountId, connection.id)).resolves.toEqual({
+    const revocationRecord = {
       id: connection.id,
       encryptedRefreshToken: 'encrypted-revoke-token',
-    });
+    };
+    await expect(store.disconnectConnection(accountId, connection.id)).resolves.toEqual(
+      revocationRecord,
+    );
 
-    const persisted = await pool.query<{ connectionState: string }>(
-      `SELECT connection_state AS "connectionState"
+    const disconnected = await pool.query<{
+      connectionState: string;
+      encryptedRefreshToken: string | null;
+    }>(
+      `SELECT connection_state AS "connectionState",
+              encrypted_refresh_token AS "encryptedRefreshToken"
          FROM external_calendar_connections
         WHERE id = $1`,
       [connection.id],
     );
-    expect(persisted.rows[0]?.connectionState).toBe('disconnected');
+    expect(disconnected.rows[0]).toEqual({
+      connectionState: 'disconnected',
+      encryptedRefreshToken: 'encrypted-revoke-token',
+    });
+
+    await expect(store.disconnectConnection(accountId, connection.id)).resolves.toEqual(
+      revocationRecord,
+    );
+    await store.clearDisconnectedRefreshToken(accountId, connection.id);
+
+    const cleaned = await pool.query<{ encryptedRefreshToken: string | null }>(
+      `SELECT encrypted_refresh_token AS "encryptedRefreshToken"
+         FROM external_calendar_connections
+        WHERE id = $1`,
+      [connection.id],
+    );
+    expect(cleaned.rows[0]?.encryptedRefreshToken).toBeNull();
     await expect(store.disconnectConnection(accountId, connection.id)).resolves.toBeNull();
   });
 });
