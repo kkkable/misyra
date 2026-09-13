@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import type { NormalizedProviderEvent } from '@misyra/contracts';
+import type { SynchronizedProviderEvent } from '@misyra/contracts';
 
 import { createGoogleCalendarSyncProvider } from './google-calendar-sync-provider.js';
 
@@ -10,11 +10,13 @@ type FetchInput = Parameters<typeof fetch>[0];
 type FetchInit = Parameters<typeof fetch>[1];
 type RestoringProvider = ReturnType<typeof createGoogleCalendarSyncProvider> &
   Readonly<{
-    restoreHiddenEvent(input: Readonly<{
-      connectionId: string;
-      providerEventId: string;
-      recurrenceScope: 'this_occurrence' | 'this_and_future' | 'entire_series';
-    }>): Promise<NormalizedProviderEvent>;
+    restoreHiddenEvent(
+      input: Readonly<{
+        connectionId: string;
+        providerEventId: string;
+        recurrenceScope: 'this_occurrence' | 'this_and_future' | 'entire_series';
+      }>,
+    ): Promise<SynchronizedProviderEvent>;
   }>;
 
 function requestUrl(input: FetchInput): string {
@@ -80,6 +82,7 @@ describe('MTS-073 Google hidden-event restoration', () => {
     ).resolves.toEqual({
       providerCalendarId: 'calendar-1',
       providerEventId: 'provider-event-1',
+      providerUpdatedAt: '2026-09-13T11:30:00.000Z',
       title: 'Current provider title',
       schedule: {
         type: 'timed',
