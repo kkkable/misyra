@@ -220,7 +220,7 @@ function weeklyCandidate(
   const targetDay = Math.max(anchorDay, localDateEpochDay(targetLocalDate));
   const anchorWeekOffset = (weekdayForLocalDate(anchorLocalDate) - recurrence.weekStartsOn + 7) % 7;
   const anchorWeekStart = anchorDay - anchorWeekOffset;
-  const offsets = [...recurrence.weekdays]
+  const offsets = [...new Set(recurrence.weekdays)]
     .map((weekday) => (weekday - recurrence.weekStartsOn + 7) % 7)
     .sort((left, right) => left - right);
   const firstBlockOffsets = offsets.filter((offset) => anchorWeekStart + offset >= anchorDay);
