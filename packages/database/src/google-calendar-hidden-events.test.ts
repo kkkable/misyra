@@ -127,6 +127,62 @@ describe('MTS-073 PostgreSQL hidden external-event restoration', () => {
     });
   });
 
+  it('suppresses only the occurrence covered by a this-occurrence effective range', async () => {
+    const { accountId, connectionId } = await createAccountAndConnection();
+    const syncStore = createPostgresGoogleCalendarSyncStore(pool);
+
+    await pool.query(
+      `INSERT INTO hidden_external_events (
+         account_id, connection_id, provider, provider_calendar_id,
+         provider_event_id, recurrence_scope, effective_start, effective_end
+       ) VALUES ($1, $2, 'google', 'calendar-1', 'provider-event-1',
+                 'this_occurrence', $3, $4)`,
+      [
+        accountId,
+        connectionId,
+        new Date('2026-09-20T01:00:00.000Z'),
+        new Date('2026-09-20T02:00:00.000Z'),
+      ],
+    );
+
+    await syncStore.reconcileFullImport(connectionId, {
+      events: [currentProviderEvent()],
+      cursor: 'sync-token-hidden-occurrence',
+    });
+    const hiddenLink = await pool.query(
+      `SELECT 1
+         FROM external_event_links
+        WHERE connection_id = $1 AND provider_event_id = 'provider-event-1'`,
+      [connectionId],
+    );
+    expect(hiddenLink.rowCount).toBe(0);
+
+    const laterEvent = {
+      ...currentProviderEvent(),
+      providerUpdatedAt: '2026-09-13T12:05:00.000Z',
+      schedule: {
+        ...currentProviderEvent().schedule,
+        startInstant: '2026-09-27T01:00:00.000Z',
+        finishInstant: '2026-09-27T02:00:00.000Z',
+      },
+    };
+    await syncStore.reconcileFullImport(connectionId, {
+      events: [laterEvent],
+      cursor: 'sync-token-outside-hidden-range',
+    });
+
+    const reimported = await pool.query<{ startInstant: Date }>(
+      `SELECT occurrence.start_instant AS "startInstant"
+         FROM external_event_links link
+         JOIN mission_occurrences occurrence ON occurrence.id = link.occurrence_id
+        WHERE link.connection_id = $1 AND link.provider_event_id = 'provider-event-1'`,
+      [connectionId],
+    );
+    expect(reimported.rows).toEqual([
+      { startInstant: new Date('2026-09-27T01:00:00.000Z') },
+    ]);
+  });
+
   it('removes only the matching dismissal and reimports current details as a fresh active mission', async () => {
     const { accountId, connectionId } = await createAccountAndConnection();
     const syncStore = createPostgresGoogleCalendarSyncStore(pool);
