@@ -39,7 +39,11 @@ function requiredString(value: unknown, field: string): string {
   return candidate;
 }
 
-async function providerJson(fetchImpl: typeof fetch, url: string, init: RequestInit): Promise<unknown> {
+async function providerJson(
+  fetchImpl: typeof fetch,
+  url: string,
+  init: RequestInit,
+): Promise<unknown> {
   let response: Response;
   try {
     response = await fetchImpl(url, {
