@@ -32,6 +32,7 @@ export type AccountLifecycleServiceOptions = Readonly<{
   expectedIssuer?: Record<AuthProvider, string | readonly string[]>;
   issueReauthenticationProof(claims: ReauthenticationProofClaims): string;
   verifyReauthenticationProof(proof: string): ReauthenticationProofClaims | null;
+  beforeDeleteAccount?(accountId: string): Promise<void>;
   deleteAccount(accountId: string): Promise<{ deleted: true }>;
   now?: () => Date;
 }>;
@@ -47,6 +48,13 @@ export class AccountLifecycleSecurityError extends Error {
   constructor() {
     super('invalid_reauthentication');
     this.name = 'AccountLifecycleSecurityError';
+  }
+}
+
+export class AccountLifecycleDependencyError extends Error {
+  constructor() {
+    super('account_lifecycle_dependency_unavailable');
+    this.name = 'AccountLifecycleDependencyError';
   }
 }
 
@@ -200,6 +208,13 @@ export function createAccountLifecycleService(options: AccountLifecycleServiceOp
         claims.expiresAt.getTime() <= now().getTime()
       ) {
         throw new AccountLifecycleSecurityError();
+      }
+      if (options.beforeDeleteAccount) {
+        try {
+          await options.beforeDeleteAccount(accountId);
+        } catch {
+          throw new AccountLifecycleDependencyError();
+        }
       }
       return options.deleteAccount(accountId);
     },

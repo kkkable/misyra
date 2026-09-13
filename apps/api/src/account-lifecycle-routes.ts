@@ -8,7 +8,10 @@ import {
   type AuthReauthenticateResponse,
 } from '@misyra/contracts';
 
-import { AccountLifecycleSecurityError } from './account-lifecycle.js';
+import {
+  AccountLifecycleDependencyError,
+  AccountLifecycleSecurityError,
+} from './account-lifecycle.js';
 import { ApiError, type ApiRouteDefinition } from './index.js';
 
 export type AccountLifecycleRouteService = {
@@ -36,6 +39,9 @@ async function runLifecycleOperation<T>(operation: () => Promise<T>) {
     return await operation();
   } catch (error) {
     if (error instanceof AccountLifecycleSecurityError) throw new ApiError('unauthorized');
+    if (error instanceof AccountLifecycleDependencyError) {
+      throw new ApiError('temporarily_unavailable');
+    }
     throw error;
   }
 }
