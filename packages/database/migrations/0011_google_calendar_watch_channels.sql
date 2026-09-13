@@ -1,6 +1,8 @@
-CREATE TABLE google_calendar_watch_channels (
+CREATE SCHEMA IF NOT EXISTS misyra_internal;
+
+CREATE TABLE misyra_internal.google_calendar_watch_channels (
   channel_id text PRIMARY KEY,
-  connection_id uuid NOT NULL REFERENCES external_calendar_connections(id) ON DELETE CASCADE,
+  connection_id uuid NOT NULL REFERENCES public.external_calendar_connections(id) ON DELETE CASCADE,
   resource_id text NOT NULL,
   token_hash text NOT NULL,
   expires_at timestamptz NOT NULL,
@@ -11,15 +13,16 @@ CREATE TABLE google_calendar_watch_channels (
 );
 
 CREATE UNIQUE INDEX google_calendar_watch_channels_current_connection_uidx
-  ON google_calendar_watch_channels (connection_id)
+  ON misyra_internal.google_calendar_watch_channels (connection_id)
   WHERE superseded_at IS NULL;
 
 CREATE INDEX google_calendar_watch_channels_renewal_idx
-  ON google_calendar_watch_channels (expires_at, connection_id)
+  ON misyra_internal.google_calendar_watch_channels (expires_at, connection_id)
   WHERE superseded_at IS NULL;
 
-CREATE TABLE google_calendar_watch_signals (
-  channel_id text NOT NULL REFERENCES google_calendar_watch_channels(channel_id) ON DELETE CASCADE,
+CREATE TABLE misyra_internal.google_calendar_watch_signals (
+  channel_id text NOT NULL
+    REFERENCES misyra_internal.google_calendar_watch_channels(channel_id) ON DELETE CASCADE,
   message_number text NOT NULL,
   resource_state text NOT NULL,
   received_at timestamptz NOT NULL DEFAULT now(),
