@@ -343,12 +343,7 @@ export function createPostgresGoogleCalendarHiddenEventStore(
               AND provider_event_id = $3
               AND recurrence_scope = $4
           RETURNING id`,
-          [
-            connectionId,
-            context.accountId,
-            input.event.providerEventId,
-            input.recurrenceScope,
-          ],
+          [connectionId, context.accountId, input.event.providerEventId, input.recurrenceScope],
         );
         if (dismissal.rowCount !== 1) {
           throw new Error('calendar_hidden_event_not_found');
