@@ -9,12 +9,15 @@ import {
   GoogleCalendarOAuthError,
   type GoogleCalendarConnectionService,
 } from './google-calendar-connection.js';
+import type { GoogleCalendarSyncService } from './google-calendar-sync.js';
 import { ApiError, type ApiRouteDefinition } from './index.js';
 
 export type GoogleCalendarRouteService = Pick<
   GoogleCalendarConnectionService,
   'startOAuth' | 'completeOAuth' | 'disconnect'
 >;
+
+export type GoogleCalendarRouteSyncService = Pick<GoogleCalendarSyncService, 'initialSync'>;
 
 function validationFailed(): never {
   throw new ApiError('validation_failed');
@@ -61,6 +64,7 @@ async function runGoogleCalendarOperation<T>(operation: () => Promise<T>): Promi
 
 export function createGoogleCalendarRoutes(
   service: GoogleCalendarRouteService,
+  syncService?: GoogleCalendarRouteSyncService,
 ): ApiRouteDefinition[] {
   return [
     {
@@ -78,6 +82,7 @@ export function createGoogleCalendarRoutes(
       handler: async (request) => {
         const query = parseCallbackQuery(request.query);
         const connection = await runGoogleCalendarOperation(() => service.completeOAuth(query));
+        await syncService?.initialSync(connection.id);
         return calendarConnectionSchema.parse({
           id: connection.id,
           provider: connection.provider,
