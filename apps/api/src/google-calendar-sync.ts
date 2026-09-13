@@ -2,11 +2,10 @@ import {
   ExternalCalendarAdapterError,
   type CalendarCommand,
   type CalendarCommandResult,
-  type ExternalCalendarAdapter,
   type ExternalCalendarConnectionState,
   type ExternalCalendarInitialSyncDirection,
-  type ImportBatch,
-  type ProviderChangeBatch,
+  type SynchronizedImportBatch,
+  type SynchronizedProviderChangeBatch,
 } from '@misyra/contracts';
 
 export interface GoogleCalendarSyncConnection {
@@ -20,10 +19,27 @@ export interface PendingCalendarCommand {
   readonly command: CalendarCommand;
 }
 
+export interface GoogleCalendarSynchronizationProvider {
+  initialImport(this: void, connectionId: string): Promise<SynchronizedImportBatch>;
+  pullChanges(this: void, connectionId: string): Promise<SynchronizedProviderChangeBatch>;
+  applyCommands(
+    this: void,
+    commands: readonly CalendarCommand[],
+  ): Promise<readonly CalendarCommandResult[]>;
+}
+
 export interface GoogleCalendarSyncStore {
   getConnection(this: void, connectionId: string): Promise<GoogleCalendarSyncConnection | null>;
-  reconcileFullImport(this: void, connectionId: string, batch: ImportBatch): Promise<void>;
-  applyProviderChanges(this: void, connectionId: string, batch: ProviderChangeBatch): Promise<void>;
+  reconcileFullImport(
+    this: void,
+    connectionId: string,
+    batch: SynchronizedImportBatch,
+  ): Promise<void>;
+  applyProviderChanges(
+    this: void,
+    connectionId: string,
+    batch: SynchronizedProviderChangeBatch,
+  ): Promise<void>;
   listPendingCommands(this: void, connectionId: string): Promise<readonly PendingCalendarCommand[]>;
   applyCommandResults(
     this: void,
@@ -40,7 +56,7 @@ export interface GoogleCalendarSyncService {
 }
 
 export interface GoogleCalendarSyncServiceDependencies {
-  readonly provider: ExternalCalendarAdapter;
+  readonly provider: GoogleCalendarSynchronizationProvider;
   readonly store: GoogleCalendarSyncStore;
 }
 
@@ -53,7 +69,7 @@ function assertConnected(
 }
 
 async function pushPendingCommands(
-  provider: ExternalCalendarAdapter,
+  provider: GoogleCalendarSynchronizationProvider,
   store: GoogleCalendarSyncStore,
   connectionId: string,
 ): Promise<void> {
@@ -65,7 +81,7 @@ async function pushPendingCommands(
 }
 
 async function fullImport(
-  provider: ExternalCalendarAdapter,
+  provider: GoogleCalendarSynchronizationProvider,
   store: GoogleCalendarSyncStore,
   connectionId: string,
 ): Promise<void> {
