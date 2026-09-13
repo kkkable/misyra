@@ -4,9 +4,14 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   createGoogleCalendarWatchService,
+  type GoogleCalendarPullSignal,
+  type GoogleCalendarRenewalQuery,
+  type GoogleCalendarRenewedChannel,
+  type GoogleCalendarSaveChannel,
   type GoogleCalendarWatchChannel,
   type GoogleCalendarWatchProvider,
   type GoogleCalendarWatchRegistration,
+  type GoogleCalendarWatchRequest,
   type GoogleCalendarWatchStore,
 } from './google-calendar-watch.js';
 
@@ -41,31 +46,50 @@ function createHarness(
   const savedChannels: GoogleCalendarWatchRegistration[] = [];
   const renewedChannels: GoogleCalendarWatchRegistration[] = [];
 
+  const getChannel = vi.fn((channelId: string) => {
+    void channelId;
+    return Promise.resolve(input.storedChannel ?? channel());
+  });
+  const schedulePullOnce = vi.fn((signal: GoogleCalendarPullSignal) => {
+    const key = `${signal.channelId}:${signal.messageNumber}`;
+    if (seen.has(key)) return Promise.resolve(false);
+    seen.add(key);
+    scheduledWork.push(signal.connectionId);
+    return Promise.resolve(true);
+  });
+  const hasCurrentChannel = vi.fn((connectionId: string) => {
+    void connectionId;
+    return Promise.resolve(input.hasCurrentChannel ?? false);
+  });
+  const saveChannel = vi.fn((saved: GoogleCalendarSaveChannel) => {
+    savedChannels.push(saved.channel);
+    return Promise.resolve();
+  });
+  const listChannelsDueForRenewal = vi.fn((query: GoogleCalendarRenewalQuery) => {
+    void query;
+    return Promise.resolve(input.dueChannels ?? []);
+  });
+  const markRenewed = vi.fn((renewed: GoogleCalendarRenewedChannel) => {
+    renewedChannels.push(renewed.replacement);
+    return Promise.resolve();
+  });
+
   const store: GoogleCalendarWatchStore = {
-    getChannel: vi.fn(async () => input.storedChannel ?? channel()),
-    schedulePullOnce: vi.fn(async ({ connectionId, channelId, messageNumber }) => {
-      const key = `${channelId}:${messageNumber}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      scheduledWork.push(connectionId);
-      return true;
-    }),
-    hasCurrentChannel: vi.fn(async () => input.hasCurrentChannel ?? false),
-    saveChannel: vi.fn(async ({ channel: saved }) => {
-      savedChannels.push(saved);
-    }),
-    listChannelsDueForRenewal: vi.fn(async () => input.dueChannels ?? []),
-    markRenewed: vi.fn(async ({ replacement }) => {
-      renewedChannels.push(replacement);
-    }),
+    getChannel,
+    schedulePullOnce,
+    hasCurrentChannel,
+    saveChannel,
+    listChannelsDueForRenewal,
+    markRenewed,
   };
 
-  const provider: GoogleCalendarWatchProvider = {
-    watchEvents: vi.fn(async ({ channelId }) => ({
-      resourceId: `resource-for-${channelId}`,
+  const watchEvents = vi.fn((request: GoogleCalendarWatchRequest) =>
+    Promise.resolve({
+      resourceId: `resource-for-${request.channelId}`,
       expiresAt: new Date('2026-09-20T07:00:00.000Z'),
-    })),
-  };
+    }),
+  );
+  const provider: GoogleCalendarWatchProvider = { watchEvents };
 
   const service = createGoogleCalendarWatchService({
     store,
@@ -77,12 +101,20 @@ function createHarness(
     renewalLeadMs: 6 * 60 * 60 * 1_000,
   });
 
-  return { service, store, provider, scheduledWork, savedChannels, renewedChannels };
+  return {
+    service,
+    scheduledWork,
+    savedChannels,
+    renewedChannels,
+    schedulePullOnce,
+    watchEvents,
+    listChannelsDueForRenewal,
+  };
 }
 
 describe('MTS-071 Google Calendar webhook', () => {
   it('uses verified headers and ignores the body', async () => {
-    const { service, store, scheduledWork } = createHarness();
+    const { service, schedulePullOnce, scheduledWork } = createHarness();
 
     await expect(
       service.handleWebhook({
@@ -95,7 +127,7 @@ describe('MTS-071 Google Calendar webhook', () => {
       }),
     ).resolves.toEqual({ accepted: true, scheduled: true });
 
-    expect(store.schedulePullOnce).toHaveBeenCalledWith({
+    expect(schedulePullOnce).toHaveBeenCalledWith({
       connectionId: CONNECTION_ID,
       channelId: 'channel-old',
       messageNumber: '42',
@@ -137,7 +169,7 @@ describe('MTS-071 Google Calendar webhook', () => {
       'secret-token',
     ],
   ])('rejects %s safely', async (_name, stored, resourceId, channelToken) => {
-    const { service, store, scheduledWork } = createHarness({ storedChannel: stored });
+    const { service, schedulePullOnce, scheduledWork } = createHarness({ storedChannel: stored });
 
     await expect(
       service.handleWebhook({
@@ -148,18 +180,18 @@ describe('MTS-071 Google Calendar webhook', () => {
         resourceState: 'exists',
       }),
     ).resolves.toEqual({ accepted: false, scheduled: false });
-    expect(store.schedulePullOnce).not.toHaveBeenCalled();
+    expect(schedulePullOnce).not.toHaveBeenCalled();
     expect(scheduledWork).toEqual([]);
   });
 });
 
 describe('MTS-071 Google Calendar watch lifecycle', () => {
   it('creates a channel with a hashed token', async () => {
-    const { service, provider, savedChannels } = createHarness();
+    const { service, watchEvents, savedChannels } = createHarness();
 
     await service.ensureChannel(CONNECTION_ID);
 
-    expect(provider.watchEvents).toHaveBeenCalledWith({
+    expect(watchEvents).toHaveBeenCalledWith({
       connectionId: CONNECTION_ID,
       channelId: 'channel-new',
       channelToken: 'new-secret-token',
@@ -176,26 +208,26 @@ describe('MTS-071 Google Calendar watch lifecycle', () => {
   });
 
   it('does not create a duplicate current channel', async () => {
-    const { service, provider } = createHarness({ hasCurrentChannel: true });
+    const { service, watchEvents } = createHarness({ hasCurrentChannel: true });
 
     await service.ensureChannel(CONNECTION_ID);
 
-    expect(provider.watchEvents).not.toHaveBeenCalled();
+    expect(watchEvents).not.toHaveBeenCalled();
   });
 
   it('renews before expiry in bounded batches', async () => {
     const oldChannel = channel({ expiresAt: new Date('2026-09-13T12:00:00.000Z') });
-    const { service, store, provider, renewedChannels } = createHarness({
+    const { service, listChannelsDueForRenewal, watchEvents, renewedChannels } = createHarness({
       dueChannels: [oldChannel],
     });
 
     await expect(service.renewDueChannels(25)).resolves.toBe(1);
 
-    expect(store.listChannelsDueForRenewal).toHaveBeenCalledWith({
+    expect(listChannelsDueForRenewal).toHaveBeenCalledWith({
       before: new Date('2026-09-13T13:00:00.000Z'),
       limit: 25,
     });
-    expect(provider.watchEvents).toHaveBeenCalledTimes(1);
+    expect(watchEvents).toHaveBeenCalledTimes(1);
     expect(renewedChannels).toEqual([
       {
         channelId: 'channel-new',
