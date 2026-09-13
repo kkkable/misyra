@@ -96,7 +96,10 @@ async function providerResponse(
       signal: init.signal ?? AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
   } catch {
-    throw new ExternalCalendarAdapterError('provider_unavailable', 'google_calendar_request_failed');
+    throw new ExternalCalendarAdapterError(
+      'provider_unavailable',
+      'google_calendar_request_failed',
+    );
   }
 
   if (options.invalidCursorOnGone === true && response.status === 410) {
