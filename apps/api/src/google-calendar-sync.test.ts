@@ -37,6 +37,16 @@ const providerEvent = {
   ownership: 'app_owned' as const,
 };
 
+const historicalProviderEvent = {
+  ...providerEvent,
+  providerEventId: 'historical-event-1',
+  schedule: {
+    ...providerEvent.schedule,
+    startInstant: '2026-09-12T01:00:00.000Z',
+    finishInstant: '2026-09-12T02:00:00.000Z',
+  },
+};
+
 const createCommand: CalendarCommand = {
   commandId,
   connectionId,
@@ -201,18 +211,23 @@ describe('MTS-070 Google initial and incremental synchronization', () => {
     });
   });
 
-  it('recovers an invalid Google sync token with one controlled full resync', async () => {
+  it('recovers an invalid Google sync token with one controlled full resync without applying initial-only filtering', async () => {
     const calendarProvider = provider({
       pullChanges: vi
         .fn()
         .mockRejectedValue(
           new ExternalCalendarAdapterError('invalid_sync_cursor', 'invalid_sync_cursor'),
         ),
+      initialImport: vi.fn().mockResolvedValue({
+        events: [historicalProviderEvent],
+        cursor: 'sync-token-recovered',
+      }),
     });
     const syncStore = store();
     const service = createGoogleCalendarSyncService({
       provider: calendarProvider.value,
       store: syncStore.value,
+      now: () => new Date('2026-09-13T03:00:00.000Z'),
     });
 
     await service.incrementalSync(connectionId);
@@ -220,6 +235,10 @@ describe('MTS-070 Google initial and incremental synchronization', () => {
     expect(syncStore.clearCursor).toHaveBeenCalledWith(connectionId);
     expect(calendarProvider.initialImport).toHaveBeenCalledTimes(1);
     expect(syncStore.reconcileFullImport).toHaveBeenCalledTimes(1);
+    expect(syncStore.reconcileFullImport).toHaveBeenCalledWith(connectionId, {
+      events: [historicalProviderEvent],
+      cursor: 'sync-token-recovered',
+    });
   });
 
   it('does not convert unrelated provider failures into destructive full resyncs', async () => {
