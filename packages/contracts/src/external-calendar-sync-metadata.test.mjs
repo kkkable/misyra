@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { normalizedProviderEventSchema, providerChangeBatchSchema } from './external-calendar.js';
+import {
+  synchronizedProviderChangeBatchSchema,
+  synchronizedProviderEventSchema,
+} from './external-calendar-sync.js';
 
 const timedSchedule = {
   type: 'timed',
@@ -24,11 +27,11 @@ const providerEvent = {
 };
 
 describe('MTS-070 provider edit timestamp contract', () => {
-  it('requires a provider update instant on normalized events', () => {
-    expect(normalizedProviderEventSchema.parse(providerEvent)).toEqual(providerEvent);
+  it('requires a provider update instant on synchronized events', () => {
+    expect(synchronizedProviderEventSchema.parse(providerEvent)).toEqual(providerEvent);
 
     const { providerUpdatedAt: _providerUpdatedAt, ...missingTimestamp } = providerEvent;
-    expect(() => normalizedProviderEventSchema.parse(missingTimestamp)).toThrow();
+    expect(() => synchronizedProviderEventSchema.parse(missingTimestamp)).toThrow();
   });
 
   it('carries the provider update instant on delete changes for latest-valid ordering', () => {
@@ -44,6 +47,6 @@ describe('MTS-070 provider edit timestamp contract', () => {
       cursor: 'sync-token-next',
     };
 
-    expect(providerChangeBatchSchema.parse(batch)).toEqual(batch);
+    expect(synchronizedProviderChangeBatchSchema.parse(batch)).toEqual(batch);
   });
 });
