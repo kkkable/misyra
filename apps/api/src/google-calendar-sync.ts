@@ -20,39 +20,30 @@ export interface PendingCalendarCommand {
 }
 
 export interface GoogleCalendarSynchronizationProvider {
-  initialImport(this: void, connectionId: string): Promise<SynchronizedImportBatch>;
-  pullChanges(this: void, connectionId: string): Promise<SynchronizedProviderChangeBatch>;
-  applyCommands(
-    this: void,
-    commands: readonly CalendarCommand[],
-  ): Promise<readonly CalendarCommandResult[]>;
+  initialImport(connectionId: string): Promise<SynchronizedImportBatch>;
+  pullChanges(connectionId: string): Promise<SynchronizedProviderChangeBatch>;
+  applyCommands(commands: readonly CalendarCommand[]): Promise<readonly CalendarCommandResult[]>;
 }
 
 export interface GoogleCalendarSyncStore {
-  getConnection(this: void, connectionId: string): Promise<GoogleCalendarSyncConnection | null>;
-  reconcileFullImport(
-    this: void,
-    connectionId: string,
-    batch: SynchronizedImportBatch,
-  ): Promise<void>;
+  getConnection(connectionId: string): Promise<GoogleCalendarSyncConnection | null>;
+  reconcileFullImport(connectionId: string, batch: SynchronizedImportBatch): Promise<void>;
   applyProviderChanges(
-    this: void,
     connectionId: string,
     batch: SynchronizedProviderChangeBatch,
   ): Promise<void>;
-  listPendingCommands(this: void, connectionId: string): Promise<readonly PendingCalendarCommand[]>;
+  listPendingCommands(connectionId: string): Promise<readonly PendingCalendarCommand[]>;
   applyCommandResults(
-    this: void,
     connectionId: string,
     pending: readonly PendingCalendarCommand[],
     results: readonly CalendarCommandResult[],
   ): Promise<void>;
-  clearCursor(this: void, connectionId: string): Promise<void>;
+  clearCursor(connectionId: string): Promise<void>;
 }
 
 export interface GoogleCalendarSyncService {
-  initialSync(this: void, connectionId: string): Promise<void>;
-  incrementalSync(this: void, connectionId: string): Promise<void>;
+  initialSync(connectionId: string): Promise<void>;
+  incrementalSync(connectionId: string): Promise<void>;
 }
 
 export interface GoogleCalendarSyncServiceDependencies {
