@@ -85,7 +85,7 @@ const LOCAL_GOOGLE_CALENDAR_DEFAULTS = {
   clientId: 'fixture-google-calendar-client-id',
   clientSecret: 'fixture-google-calendar-client-secret',
   redirectUri: 'http://127.0.0.1:3000/v1/calendars/google/callback',
-  webhookAddress: 'http://127.0.0.1:3000/v1/calendars/google/webhook',
+  webhookAddress: 'http://127.0.0.1:3000/v1/webhooks/google-calendar',
   encryptionKey: 'BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc',
 } as const;
 const GOOGLE_WATCH_RENEWAL_INTERVAL_MS = 60 * 60 * 1_000;
