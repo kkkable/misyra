@@ -120,7 +120,9 @@ export function startGoogleCalendarWatchRenewal(
   renew();
   const renewalTimer = setInterval(renew, GOOGLE_WATCH_RENEWAL_INTERVAL_MS);
   renewalTimer.unref();
-  return () => clearInterval(renewalTimer);
+  return () => {
+    clearInterval(renewalTimer);
+  };
 }
 
 export function createApiApplication(options: AuthApplicationOptions) {
