@@ -87,7 +87,8 @@ function store(overrides: Partial<GoogleCalendarSyncStore> = {}) {
       state: 'connected',
     });
   const reconcileFullImport = overrides.reconcileFullImport ?? vi.fn().mockResolvedValue(undefined);
-  const applyProviderChanges = overrides.applyProviderChanges ?? vi.fn().mockResolvedValue(undefined);
+  const applyProviderChanges =
+    overrides.applyProviderChanges ?? vi.fn().mockResolvedValue(undefined);
   const listPendingCommands = overrides.listPendingCommands ?? vi.fn().mockResolvedValue([]);
   const applyCommandResults = overrides.applyCommandResults ?? vi.fn().mockResolvedValue(undefined);
   const clearCursor = overrides.clearCursor ?? vi.fn().mockResolvedValue(undefined);
