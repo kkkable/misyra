@@ -12,8 +12,7 @@ const postgresPassword = process.env.POSTGRES_PASSWORD ?? 'misyra-local-only';
 const postgresPort = process.env.POSTGRES_PORT ?? '5432';
 const databaseName = `misyra_mts075_${randomUUID().replaceAll('-', '')}`;
 const databaseUrl =
-  `postgresql://${postgresUser}:${postgresPassword}` +
-  `@127.0.0.1:${postgresPort}/${databaseName}`;
+  `postgresql://${postgresUser}:${postgresPassword}` + `@127.0.0.1:${postgresPort}/${databaseName}`;
 const adminUrl =
   `postgresql://${postgresUser}:${postgresPassword}` + `@127.0.0.1:${postgresPort}/postgres`;
 let pool: Pool;
@@ -55,10 +54,7 @@ async function connectCalendar(accountId: string, stateHash: string) {
     initialSyncDirection: 'external_to_misyra',
     selectedCalendarId: 'calendar-1',
   });
-  const consumed = await store.consumeOAuthState(
-    stateHash,
-    new Date('2026-09-14T13:00:00.000Z'),
-  );
+  const consumed = await store.consumeOAuthState(stateHash, new Date('2026-09-14T13:00:00.000Z'));
   if (consumed === null) throw new Error('OAuth state was not consumable');
   return store.createConnection({
     accountId,
