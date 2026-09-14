@@ -40,6 +40,11 @@ type DeleteCalendarMissionOptions = Readonly<{
   generateId: () => string;
 }>;
 
+type DeleteSingleCalendarMissionOptions = Omit<DeleteCalendarMissionOptions, 'scope'> &
+  Readonly<{
+    hiddenDismissalScope?: RecurringSeriesScope | undefined;
+  }>;
+
 type CachedOccurrenceRow = Readonly<{
   occurrence_id: string;
   payload_json: string;
@@ -81,9 +86,10 @@ async function deleteSingleCalendarMission({
   accountId,
   deviceId,
   occurrenceId,
+  hiddenDismissalScope,
   now,
   generateId,
-}: Omit<DeleteCalendarMissionOptions, 'scope'>): Promise<CalendarMissionDeletionEntry> {
+}: DeleteSingleCalendarMissionOptions): Promise<CalendarMissionDeletionEntry> {
   const cached = await database.getFirstAsync<CachedOccurrenceRow>(
     `SELECT occurrence_id, payload_json, server_version, updated_at
        FROM cached_mission_occurrences
@@ -98,6 +104,12 @@ async function deleteSingleCalendarMission({
   );
   if (occurrence.deletionState !== 'active') {
     throw new Error('Mission deletion target is already deleted.');
+  }
+  const isOrganizerControlledImport =
+    occurrence.calendarSource === 'external' &&
+    occurrence.fieldOwnership === 'organizer_controlled';
+  if (hiddenDismissalScope !== undefined && !isOrganizerControlledImport) {
+    throw new Error('Hidden dismissal scope requires an organizer-controlled imported mission.');
   }
   const baseVersion = resolveDeleteBaseVersion(
     cached.server_version,
@@ -136,7 +148,8 @@ async function deleteSingleCalendarMission({
       operation: 'delete',
       baseVersion,
       clientOccurredAt: occurredAt,
-      payload: null,
+      payload:
+        hiddenDismissalScope === undefined ? null : { recurrenceScope: hiddenDismissalScope },
     },
     destination: { kind: 'server' },
     applyLocal: async (transaction) => {
@@ -256,6 +269,9 @@ export async function deleteCalendarMission({
     throw new Error('Recurring mission scope contains no unfinished occurrence to delete.');
   }
 
+  const selectedIsOrganizerControlledImport =
+    selectedOccurrence.calendarSource === 'external' &&
+    selectedOccurrence.fieldOwnership === 'organizer_controlled';
   const deletions: CalendarMissionDeletionEntry[] = [];
   for (const targetOccurrenceId of plan.affectedOccurrenceIds) {
     deletions.push(
@@ -264,6 +280,10 @@ export async function deleteCalendarMission({
         accountId,
         deviceId,
         occurrenceId: targetOccurrenceId,
+        hiddenDismissalScope:
+          selectedIsOrganizerControlledImport && targetOccurrenceId === occurrenceId
+            ? scope
+            : undefined,
         now,
         generateId,
       }),

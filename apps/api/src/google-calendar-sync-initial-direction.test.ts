@@ -56,6 +56,7 @@ function dependencies(direction: 'external_to_misyra' | 'misyra_to_external') {
   const provider = {
     initialImport: vi.fn(() => Promise.resolve({ events: [], cursor: 'initial-cursor' })),
     pullChanges: vi.fn(() => Promise.resolve({ changes: [], cursor: 'incremental-cursor' })),
+    restoreHiddenEvent: vi.fn(() => Promise.reject(new Error('unexpected restore'))),
     applyCommands: vi.fn((commands: readonly CalendarCommand[]) =>
       Promise.resolve(
         commands.map((command) => ({

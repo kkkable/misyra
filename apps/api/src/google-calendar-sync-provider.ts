@@ -7,6 +7,7 @@ import {
   type CalendarCommandResult,
   type ExternalCalendarErrorCode,
   type NormalizedCalendarRecurrence,
+  type RestoreHiddenEventInput,
   type SynchronizedImportBatch,
   type SynchronizedProviderChange,
   type SynchronizedProviderChangeBatch,
@@ -660,6 +661,23 @@ export function createGoogleCalendarSyncProvider(
         ),
       );
       return synchronizedProviderChangeBatchSchema.parse({ changes, cursor: listed.cursor });
+    },
+
+    async restoreHiddenEvent(input: RestoreHiddenEventInput): Promise<SynchronizedProviderEvent> {
+      const context = await contextForConnection(fetchImpl, options, input.connectionId);
+      const payload = await providerJson(
+        fetchImpl,
+        eventEndpoint(context.session.providerCalendarId, input.providerEventId),
+        { headers: { Authorization: `Bearer ${context.accessToken}` } },
+      );
+      if (optionalString(payload, 'status') === 'cancelled') {
+        throw new ExternalCalendarAdapterError('not_found', 'google_calendar_event_cancelled');
+      }
+      return normalizeEvent(
+        payload,
+        context.session.providerCalendarId,
+        context.session.timeZone ?? 'UTC',
+      );
     },
 
     async applyCommands(

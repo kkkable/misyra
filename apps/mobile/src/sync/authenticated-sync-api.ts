@@ -6,6 +6,8 @@ import {
   completeMissionResultSchema,
   deviceRegistrationRequestSchema,
   deviceRegistrationResponseSchema,
+  externalCalendarRecurrenceScopeSchema,
+  normalizedProviderScheduleSchema,
   syncPullResponseSchema,
   syncPushRequestSchema,
   syncPushResponseSchema,
@@ -18,6 +20,8 @@ import {
   type CompleteMissionResult,
   type DeviceRegistrationRequest,
   type DeviceRegistrationResponse,
+  type ExternalCalendarRecurrenceScope,
+  type NormalizedProviderSchedule,
   type SyncConflictOutcomeContract,
   type SyncMutationContract,
   type SyncPullResponseContract,
@@ -27,6 +31,20 @@ import {
 type SyncPushResponse = Readonly<{
   acceptedMutationIds: string[];
   conflicts: SyncConflictOutcomeContract[];
+}>;
+
+export type HiddenCalendarEvent = Readonly<{
+  id: string;
+  connectionId: string;
+  providerEventId: string;
+  recurrenceScope: ExternalCalendarRecurrenceScope;
+  title: string | null;
+  schedule: NormalizedProviderSchedule;
+  isRecurring: boolean;
+}>;
+
+export type RestoreHiddenCalendarEventInput = Readonly<{
+  recurrenceScope: ExternalCalendarRecurrenceScope;
 }>;
 
 export type CompletionMutationSettlement =
@@ -49,6 +67,11 @@ export type AuthenticatedSyncApi = Readonly<{
   registerDevice(input: DeviceRegistrationRequest): Promise<DeviceRegistrationResponse>;
   getAccountSettings(): Promise<AccountSettings>;
   updateAccountSettings(input: AccountSettingsUpdate): Promise<AccountSettings>;
+  listHiddenCalendarEvents(): Promise<readonly HiddenCalendarEvent[]>;
+  restoreHiddenCalendarEvent(
+    hiddenEventId: string,
+    input: RestoreHiddenCalendarEventInput,
+  ): Promise<Readonly<{ occurrenceId: string }>>;
   completeMission(
     occurrenceId: string,
     input: CompleteMissionRequest,
@@ -108,6 +131,47 @@ function payloadFromEnvelope(value: unknown): unknown {
     throw new Error('sync_request_failed');
   }
   return value.payload;
+}
+
+function parseHiddenCalendarEvent(value: unknown): HiddenCalendarEvent {
+  if (!isRecord(value)) throw new Error('hidden_calendar_event_invalid');
+  const id = uuidSchema.safeParse(value.id);
+  const connectionId = uuidSchema.safeParse(value.connectionId);
+  const recurrenceScope = externalCalendarRecurrenceScopeSchema.safeParse(value.recurrenceScope);
+  const schedule = normalizedProviderScheduleSchema.safeParse(value.schedule);
+  if (
+    !id.success ||
+    !connectionId.success ||
+    !recurrenceScope.success ||
+    !schedule.success ||
+    typeof value.providerEventId !== 'string' ||
+    value.providerEventId.length === 0 ||
+    (value.title !== null && typeof value.title !== 'string') ||
+    typeof value.isRecurring !== 'boolean'
+  ) {
+    throw new Error('hidden_calendar_event_invalid');
+  }
+  return {
+    id: id.data,
+    connectionId: connectionId.data,
+    providerEventId: value.providerEventId,
+    recurrenceScope: recurrenceScope.data,
+    title: value.title,
+    schedule: schedule.data,
+    isRecurring: value.isRecurring,
+  };
+}
+
+function parseHiddenCalendarEvents(value: unknown): readonly HiddenCalendarEvent[] {
+  if (!Array.isArray(value)) throw new Error('hidden_calendar_events_invalid');
+  return value.map(parseHiddenCalendarEvent);
+}
+
+function parseRestoredOccurrence(value: unknown): Readonly<{ occurrenceId: string }> {
+  if (!isRecord(value)) throw new Error('hidden_calendar_restore_invalid');
+  const occurrenceId = uuidSchema.safeParse(value.occurrenceId);
+  if (!occurrenceId.success) throw new Error('hidden_calendar_restore_invalid');
+  return { occurrenceId: occurrenceId.data };
 }
 
 function completionRequestFromMutation(
@@ -306,6 +370,20 @@ export function createAuthenticatedSyncApi({
     async updateAccountSettings(input) {
       const settings = accountSettingsUpdateSchema.parse(input);
       return accountSettingsSchema.parse(await request('/v1/account/settings', 'PATCH', settings));
+    },
+
+    async listHiddenCalendarEvents() {
+      return parseHiddenCalendarEvents(await request('/v1/calendars/hidden-events', 'GET'));
+    },
+
+    async restoreHiddenCalendarEvent(hiddenEventId, input) {
+      const id = uuidSchema.parse(hiddenEventId);
+      const recurrenceScope = externalCalendarRecurrenceScopeSchema.parse(input.recurrenceScope);
+      return parseRestoredOccurrence(
+        await request(`/v1/calendars/hidden-events/${encodeURIComponent(id)}/restore`, 'POST', {
+          recurrenceScope,
+        }),
+      );
     },
 
     completeMission,

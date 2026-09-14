@@ -87,7 +87,9 @@ interface MissionUpdateRow extends QueryResultRow {
 }
 
 interface MissionDeleteRow extends QueryResultRow {
+  calendarSource: string;
   deletionState: string;
+  fieldOwnership: string;
   version: number;
 }
 
@@ -98,6 +100,10 @@ type SettingsPatch = Readonly<{
 
 type MissionPersonalNotePayload = Readonly<{
   note: string;
+}>;
+
+type MissionDeletePayload = Readonly<{
+  recurrenceScope: 'this_occurrence' | 'this_and_future' | 'entire_series';
 }>;
 
 type MissionScheduleBase = Readonly<{
@@ -262,9 +268,7 @@ function assertExecutableMutationShape(mutation: StoredSyncMutation): void {
           'Mission delete requires a positive integer base version',
         );
       }
-      if (mutation.payload !== null) {
-        throw new SyncMutationValidationError('Mission delete payload must be null');
-      }
+      parseMissionDeletePayload(mutation.payload);
       return;
     }
     throw new SyncMutationValidationError(
@@ -340,6 +344,25 @@ function requireLiteral<T extends string>(
     throw new SyncMutationValidationError(`${label} is invalid`);
   }
   return value as T;
+}
+
+function parseMissionDeletePayload(payload: unknown): MissionDeletePayload | null {
+  if (payload === null) return null;
+  const source = asRecord(payload, 'Mission delete payload');
+  const keys = Object.keys(source);
+  if (keys.length !== 1 || keys[0] !== 'recurrenceScope') {
+    throw new SyncMutationValidationError(
+      'Mission delete payload may contain only recurrenceScope',
+    );
+  }
+  return {
+    recurrenceScope: requireLiteral(
+      source,
+      'recurrenceScope',
+      ['this_occurrence', 'this_and_future', 'entire_series'] as const,
+      'Mission delete recurrence scope',
+    ),
+  };
 }
 
 function parseSettingsPatch(payload: unknown): SettingsPatch {
@@ -1136,8 +1159,12 @@ async function applyMissionDeleteMutation(
   mutation: StoredSyncMutation,
   effectiveTime: Date,
 ): Promise<null> {
+  const deletePayload = parseMissionDeletePayload(mutation.payload);
   const currentResult = await client.query<MissionDeleteRow>(
-    `SELECT deletion_state AS "deletionState", version
+    `SELECT calendar_source AS "calendarSource",
+            deletion_state AS "deletionState",
+            field_ownership AS "fieldOwnership",
+            version
        FROM mission_occurrences
       WHERE id = $1 AND account_id = $2
       FOR UPDATE`,
@@ -1149,6 +1176,31 @@ async function applyMissionDeleteMutation(
   }
   if (current.deletionState === 'deleted') {
     throw new SyncMutationConflictError('Mission occurrence is permanently deleted');
+  }
+
+  if (deletePayload !== null) {
+    if (
+      current.calendarSource !== 'external' ||
+      current.fieldOwnership !== 'organizer_controlled'
+    ) {
+      throw new SyncMutationValidationError(
+        'Hidden dismissal scope requires an organizer-controlled imported mission',
+      );
+    }
+    const scopedLink = await client.query(
+      `UPDATE external_event_links links
+          SET recurrence_scope = $3
+         FROM external_calendar_connections connections
+        WHERE links.occurrence_id = $1
+          AND connections.id = links.connection_id
+          AND connections.account_id = $2`,
+      [mutation.entityId, mutation.accountId, deletePayload.recurrenceScope],
+    );
+    if (scopedLink.rowCount !== 1) {
+      throw new SyncMutationValidationError(
+        'Hidden dismissal scope requires one linked external event',
+      );
+    }
   }
 
   const nextVersion = current.version + 1;
