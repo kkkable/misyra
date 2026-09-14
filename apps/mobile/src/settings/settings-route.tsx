@@ -33,10 +33,7 @@ import {
 import { rootSyncRuntime } from '../sync/root-sync-runtime.js';
 import { createNotificationSettingsModel } from './notification-settings-model.js';
 
-function hiddenEventDateLabel(
-  event: HiddenCalendarEvent,
-  language: 'en' | 'zh-HK',
-): string {
+function hiddenEventDateLabel(event: HiddenCalendarEvent, language: 'en' | 'zh-HK'): string {
   if (event.schedule.type === 'all_day') return event.schedule.startLocalDate;
   return new Intl.DateTimeFormat(language === 'zh-HK' ? 'zh-HK' : 'en', {
     dateStyle: 'medium',
@@ -184,10 +181,7 @@ export function SettingsRouteScreen() {
             </Text>
           ) : (
             hiddenEvents.map((event) => (
-              <View
-                key={event.id}
-                style={[styles.hiddenEventRow, { borderColor: colors.border }]}
-              >
+              <View key={event.id} style={[styles.hiddenEventRow, { borderColor: colors.border }]}>
                 <View style={styles.hiddenEventText}>
                   <Text allowFontScaling style={[styles.label, { color: colors.textPrimary }]}>
                     {event.title ?? '—'}
