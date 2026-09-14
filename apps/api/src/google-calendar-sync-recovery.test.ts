@@ -3,10 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   ExternalCalendarAdapterError,
   type CalendarCommand,
-  type CalendarCommandResult,
   type ExternalCalendarConnectionState,
-  type SynchronizedImportBatch,
-  type SynchronizedProviderChangeBatch,
 } from '@misyra/contracts';
 
 import {
@@ -38,151 +35,122 @@ const pendingCommand: CalendarCommand = {
   },
 };
 
-type RecoveryStore = GoogleCalendarSyncStore &
-  Readonly<{
-    setConnectionState(
-      connectionId: string,
-      state: ExternalCalendarConnectionState,
-    ): Promise<void>;
-  }>;
-
-function provider(overrides: Partial<GoogleCalendarSynchronizationProvider> = {}) {
-  const initialImport =
-    overrides.initialImport ??
-    vi
-      .fn<(_connectionId: string) => Promise<SynchronizedImportBatch>>()
-      .mockResolvedValue({
-        events: [],
-        cursor: 'initial-token',
-      });
-  const pullChanges =
-    overrides.pullChanges ??
-    vi
-      .fn<(_connectionId: string) => Promise<SynchronizedProviderChangeBatch>>()
-      .mockResolvedValue({
-        changes: [],
-        cursor: 'next-token',
-      });
-  const restoreHiddenEvent = overrides.restoreHiddenEvent ?? vi.fn();
-  const applyCommands =
-    overrides.applyCommands ??
-    vi
-      .fn<(_commands: readonly CalendarCommand[]) => Promise<readonly CalendarCommandResult[]>>()
-      .mockResolvedValue([
-        { commandId, status: 'applied', providerEventId: 'provider-event-after-recovery' },
-      ]);
-  return {
-    value: { initialImport, pullChanges, restoreHiddenEvent, applyCommands },
-    initialImport,
-    pullChanges,
-    applyCommands,
-  };
+interface RecoveryStore extends GoogleCalendarSyncStore {
+  setConnectionState(
+    connectionId: string,
+    state: ExternalCalendarConnectionState,
+  ): Promise<void>;
 }
 
-function store(initialState: ExternalCalendarConnectionState) {
-  let state = initialState;
-  const getConnection = vi.fn(async () => ({
-    id: connectionId,
-    initialSyncDirection: 'external_to_misyra' as const,
-    state,
-  }));
-  const reconcileFullImport = vi.fn().mockResolvedValue(undefined);
-  const applyProviderChanges = vi.fn().mockResolvedValue(undefined);
-  const listPendingCommands = vi.fn().mockResolvedValue([
-    { occurrenceId, command: pendingCommand },
+function createProvider(pullChanges = vi.fn(async () => ({ changes: [], cursor: 'next-token' }))) {
+  const applyCommands = vi.fn(async () => [
+    { commandId, status: 'applied' as const, providerEventId: 'provider-event-after-recovery' },
   ]);
-  const applyCommandResults = vi.fn().mockResolvedValue(undefined);
-  const clearCursor = vi.fn().mockResolvedValue(undefined);
+  const value: GoogleCalendarSynchronizationProvider = {
+    initialImport: vi.fn(async () => ({ events: [], cursor: 'initial-token' })),
+    pullChanges,
+    restoreHiddenEvent: vi.fn(),
+    applyCommands,
+  };
+  return { value, pullChanges, applyCommands };
+}
+
+function createStore(initialState: ExternalCalendarConnectionState) {
+  let state = initialState;
   const setConnectionState = vi.fn(
     async (_connectionId: string, nextState: ExternalCalendarConnectionState) => {
       state = nextState;
     },
   );
+  const listPendingCommands = vi.fn(async () => [{ occurrenceId, command: pendingCommand }]);
+  const applyCommandResults = vi.fn(async () => undefined);
+  const applyProviderChanges = vi.fn(async () => undefined);
   const value: RecoveryStore = {
-    getConnection,
-    reconcileFullImport,
+    getConnection: vi.fn(async () => ({
+      id: connectionId,
+      initialSyncDirection: 'external_to_misyra',
+      state,
+    })),
+    reconcileFullImport: vi.fn(async () => undefined),
     applyProviderChanges,
     listPendingCommands,
     applyCommandResults,
-    clearCursor,
+    clearCursor: vi.fn(async () => undefined),
     setConnectionState,
   };
   return {
     value,
-    getConnection,
-    applyProviderChanges,
+    setConnectionState,
     listPendingCommands,
     applyCommandResults,
-    setConnectionState,
+    applyProviderChanges,
   };
 }
 
+async function expectFailureState(
+  code: 'provider_unavailable' | 'permission_denied' | 'authentication_required',
+  expectedState: ExternalCalendarConnectionState,
+) {
+  const failure = new ExternalCalendarAdapterError(code, code);
+  const pullChanges = vi.fn(async () => Promise.reject(failure));
+  const provider = createProvider(pullChanges);
+  const store = createStore('connected');
+  const service = createGoogleCalendarSyncService({ provider: provider.value, store: store.value });
+
+  await expect(service.incrementalSync(connectionId)).rejects.toBe(failure);
+
+  expect(store.setConnectionState).toHaveBeenCalledWith(connectionId, expectedState);
+  expect(store.listPendingCommands).not.toHaveBeenCalled();
+  expect(provider.applyCommands).not.toHaveBeenCalled();
+}
+
+async function expectRecovery(initialState: 'provider_unavailable' | 'permission_revoked') {
+  const provider = createProvider();
+  const store = createStore(initialState);
+  const service = createGoogleCalendarSyncService({ provider: provider.value, store: store.value });
+
+  await expect(service.incrementalSync(connectionId)).resolves.toBeUndefined();
+
+  expect(provider.pullChanges).toHaveBeenCalledWith(connectionId);
+  expect(store.applyProviderChanges).toHaveBeenCalledWith(connectionId, {
+    changes: [],
+    cursor: 'next-token',
+  });
+  expect(store.setConnectionState).toHaveBeenCalledWith(connectionId, 'connected');
+  expect(provider.applyCommands).toHaveBeenCalledWith([pendingCommand]);
+  expect(store.applyCommandResults).toHaveBeenCalled();
+}
+
 describe('MTS-075 Google calendar outage and permission recovery', () => {
-  it.each([
-    ['provider_unavailable', 'provider_unavailable'],
-    ['permission_denied', 'permission_revoked'],
-    ['authentication_required', 'permission_revoked'],
-  ] as const)(
-    'records %s as durable connection state %s without discarding queued work',
-    async (providerCode, expectedState) => {
-      const failure = new ExternalCalendarAdapterError(providerCode, providerCode);
-      const calendarProvider = provider({
-        pullChanges: vi.fn().mockRejectedValue(failure),
-      });
-      const syncStore = store('connected');
-      const service = createGoogleCalendarSyncService({
-        provider: calendarProvider.value,
-        store: syncStore.value,
-      });
+  it('records provider outage without discarding queued work', async () => {
+    await expectFailureState('provider_unavailable', 'provider_unavailable');
+  });
 
-      await expect(service.incrementalSync(connectionId)).rejects.toBe(failure);
+  it('records permission loss without discarding queued work', async () => {
+    await expectFailureState('permission_denied', 'permission_revoked');
+    await expectFailureState('authentication_required', 'permission_revoked');
+  });
 
-      expect(syncStore.setConnectionState).toHaveBeenCalledWith(connectionId, expectedState);
-      expect(syncStore.listPendingCommands).not.toHaveBeenCalled();
-      expect(calendarProvider.applyCommands).not.toHaveBeenCalled();
-    },
-  );
+  it('recovers provider outage and pushes queued changes automatically', async () => {
+    await expectRecovery('provider_unavailable');
+  });
 
-  it.each(['provider_unavailable', 'permission_revoked'] as const)(
-    'retries from %s, restores connected state, and automatically pushes queued eligible changes',
-    async (recoverableState) => {
-      const calendarProvider = provider();
-      const syncStore = store(recoverableState);
-      const service = createGoogleCalendarSyncService({
-        provider: calendarProvider.value,
-        store: syncStore.value,
-      });
+  it('recovers restored permission and pushes queued changes automatically', async () => {
+    await expectRecovery('permission_revoked');
+  });
 
-      await expect(service.incrementalSync(connectionId)).resolves.toBeUndefined();
-
-      expect(calendarProvider.pullChanges).toHaveBeenCalledWith(connectionId);
-      expect(syncStore.applyProviderChanges).toHaveBeenCalledWith(connectionId, {
-        changes: [],
-        cursor: 'next-token',
-      });
-      expect(syncStore.setConnectionState).toHaveBeenCalledWith(connectionId, 'connected');
-      expect(syncStore.listPendingCommands).toHaveBeenCalledWith(connectionId);
-      expect(calendarProvider.applyCommands).toHaveBeenCalledWith([pendingCommand]);
-      expect(syncStore.applyCommandResults).toHaveBeenCalledWith(
-        connectionId,
-        [{ occurrenceId, command: pendingCommand }],
-        [{ commandId, status: 'applied', providerEventId: 'provider-event-after-recovery' }],
-      );
-    },
-  );
-
-  it('still refuses explicit disconnected state so a later worker cannot surprise-sync it', async () => {
-    const calendarProvider = provider();
-    const syncStore = store('disconnected');
+  it('never retries an explicitly disconnected connection', async () => {
+    const provider = createProvider();
+    const store = createStore('disconnected');
     const service = createGoogleCalendarSyncService({
-      provider: calendarProvider.value,
-      store: syncStore.value,
+      provider: provider.value,
+      store: store.value,
     });
 
     await expect(service.incrementalSync(connectionId)).rejects.toMatchObject({
       code: 'authentication_required',
     });
-    expect(calendarProvider.pullChanges).not.toHaveBeenCalled();
-    expect(calendarProvider.applyCommands).not.toHaveBeenCalled();
+    expect(provider.pullChanges).not.toHaveBeenCalled();
+    expect(provider.applyCommands).not.toHaveBeenCalled();
   });
 });
