@@ -171,7 +171,9 @@ export function createGoogleCalendarRoutes(
       method: 'GET',
       path: '/calendars/connection',
       handler: async (_request, _reply, auth) => {
-        const connection = await runGoogleCalendarOperation(() => service.getStatus!(auth.accountId));
+        const connection = await runGoogleCalendarOperation(() =>
+          service.getStatus!(auth.accountId),
+        );
         return {
           connection:
             connection === null

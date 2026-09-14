@@ -36,10 +36,7 @@ export interface GoogleCalendarSynchronizationProvider {
 
 export interface GoogleCalendarSyncStore {
   getConnection(connectionId: string): Promise<GoogleCalendarSyncConnection | null>;
-  setConnectionState?(
-    connectionId: string,
-    state: ExternalCalendarConnectionState,
-  ): Promise<void>;
+  setConnectionState?(connectionId: string, state: ExternalCalendarConnectionState): Promise<void>;
   reconcileFullImport(connectionId: string, batch: SynchronizedImportBatch): Promise<void>;
   applyProviderChanges(connectionId: string, batch: SynchronizedProviderChangeBatch): Promise<void>;
   listPendingCommands(connectionId: string): Promise<readonly PendingCalendarCommand[]>;

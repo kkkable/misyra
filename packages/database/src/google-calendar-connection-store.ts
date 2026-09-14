@@ -2,10 +2,7 @@ import type { Pool } from 'pg';
 
 export type GoogleCalendarInitialSyncDirection = 'external_to_misyra' | 'misyra_to_external';
 export type GoogleCalendarConnectionState =
-  | 'connected'
-  | 'permission_revoked'
-  | 'provider_unavailable'
-  | 'disconnected';
+  'connected' | 'permission_revoked' | 'provider_unavailable' | 'disconnected';
 
 export type GoogleCalendarOAuthStateRecord = Readonly<{
   accountId: string;
