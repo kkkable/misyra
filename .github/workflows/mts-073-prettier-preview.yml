@@ -6,17 +6,15 @@ on:
       - verify/mts-073-prettier-preview-20260914
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   preview:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - name: Checkout verification branch
         uses: actions/checkout@v4
-        with:
-          persist-credentials: false
 
       - name: Install pinned pnpm
         uses: pnpm/action-setup@v4
@@ -24,7 +22,7 @@ jobs:
           version: 10.34.5
           run_install: false
 
-      - name: Set up pinned Node with pnpm cache
+      - name: Set up pinned Node
         uses: actions/setup-node@v4
         with:
           node-version: 24.19.0
@@ -34,7 +32,7 @@ jobs:
       - name: Install from lockfile
         run: pnpm install --frozen-lockfile
 
-      - name: Print exact Prettier patch
+      - name: Apply exact Prettier rewrite
         run: |
           pnpm exec prettier --write \
             apps/api/src/google-calendar-hidden-events-routes.test.ts \
@@ -47,8 +45,23 @@ jobs:
             apps/api/src/google-calendar-hidden-events.test.ts \
             apps/api/src/google-calendar-routes.ts \
             packages/database/src/google-calendar-hidden-event-store.ts
-          test -n "$(git status --short -- \
+
+      - name: Commit formatter output on verification branch
+        run: |
+          if git diff --quiet -- \
             apps/api/src/google-calendar-hidden-events-routes.test.ts \
             apps/api/src/google-calendar-hidden-events.test.ts \
             apps/api/src/google-calendar-routes.ts \
-            packages/database/src/google-calendar-hidden-event-store.ts)"
+            packages/database/src/google-calendar-hidden-event-store.ts; then
+            echo "No formatter changes to commit."
+            exit 0
+          fi
+          git config user.name "Misyra Verification"
+          git config user.email "actions@users.noreply.github.com"
+          git add \
+            apps/api/src/google-calendar-hidden-events-routes.test.ts \
+            apps/api/src/google-calendar-hidden-events.test.ts \
+            apps/api/src/google-calendar-routes.ts \
+            packages/database/src/google-calendar-hidden-event-store.ts
+          git commit -m "chore: materialize MTS-073 formatter output"
+          git push origin HEAD:verify/mts-073-prettier-preview-20260914
