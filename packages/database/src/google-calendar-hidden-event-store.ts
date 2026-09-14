@@ -524,7 +524,7 @@ async function restoreSelectedHiddenEvent(
 export function createPostgresGoogleCalendarHiddenEventStore(
   pool: Pool,
 ): PostgresGoogleCalendarHiddenEventStore {
-  return Object.freeze({
+  const store: PostgresGoogleCalendarHiddenEventStore = {
     async listHiddenEvents(accountId) {
       const result = await pool.query<{
         id: string;
@@ -595,5 +595,6 @@ export function createPostgresGoogleCalendarHiddenEventStore(
         return restoreSelectedHiddenEvent(client, dismissal, input);
       });
     },
-  });
+  };
+  return Object.freeze(store);
 }
