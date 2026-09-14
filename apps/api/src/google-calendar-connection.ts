@@ -1,6 +1,9 @@
 import { createHash, randomBytes } from 'node:crypto';
 
-import type { ExternalCalendarInitialSyncDirection } from '@misyra/contracts';
+import type {
+  ExternalCalendarConnectionState,
+  ExternalCalendarInitialSyncDirection,
+} from '@misyra/contracts';
 
 const DEFAULT_STATE_TTL_MS = 10 * 60 * 1000;
 
@@ -20,7 +23,15 @@ export type GoogleCalendarConnectionRecord = Readonly<{
   providerCalendarId: string;
   initialSyncDirection: ExternalCalendarInitialSyncDirection;
   encryptedRefreshToken: string;
-  state: 'connected' | 'disconnected';
+  state: ExternalCalendarConnectionState;
+}>;
+
+export type GoogleCalendarConnectionStatus = Readonly<{
+  id: string;
+  provider: 'google';
+  providerCalendarId: string;
+  initialSyncDirection: ExternalCalendarInitialSyncDirection;
+  state: ExternalCalendarConnectionState;
 }>;
 
 export type GoogleCalendarConnectionStore = Readonly<{
@@ -32,6 +43,7 @@ export type GoogleCalendarConnectionStore = Readonly<{
   createConnection(
     record: Omit<GoogleCalendarConnectionRecord, 'id'>,
   ): Promise<GoogleCalendarConnectionRecord>;
+  getConnectionStatus?(accountId: string): Promise<GoogleCalendarConnectionStatus | null>;
   findRevocableConnectionId(accountId: string): Promise<string | null>;
   disconnectConnection(
     accountId: string,
@@ -76,6 +88,7 @@ export type GoogleCalendarConnectionService = Readonly<{
   completeOAuth(
     input: Readonly<{ state: string; code: string }>,
   ): Promise<GoogleCalendarConnectionRecord>;
+  getStatus(accountId: string): Promise<GoogleCalendarConnectionStatus | null>;
   disconnect(accountId: string, connectionId: string): Promise<void>;
   disconnectAccount(accountId: string): Promise<void>;
 }>;
@@ -212,6 +225,10 @@ export function createGoogleCalendarConnectionService(input: {
         }
         throw providerError();
       }
+    },
+
+    async getStatus(accountId) {
+      return input.store.getConnectionStatus?.(accountId) ?? null;
     },
 
     disconnect: disconnectConnection,

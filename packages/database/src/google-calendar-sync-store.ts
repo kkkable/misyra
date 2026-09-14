@@ -123,6 +123,7 @@ export type GoogleCalendarEncryptedSyncSession = Readonly<{
 
 export interface PostgresGoogleCalendarSyncStore {
   getConnection(connectionId: string): Promise<GoogleCalendarSyncConnection | null>;
+  setConnectionState(connectionId: string, state: ConnectionState): Promise<void>;
   reconcileFullImport(connectionId: string, batch: SynchronizedImportBatch): Promise<void>;
   applyProviderChanges(connectionId: string, batch: SynchronizedProviderChangeBatch): Promise<void>;
   listPendingCommands(connectionId: string): Promise<readonly PendingCalendarCommand[]>;
@@ -141,6 +142,7 @@ type ConnectionContext = Readonly<{
   initialSyncDirection: InitialSyncDirection;
   state: ConnectionState;
   providerCalendarId: string;
+  providerCommandCutoffAt: Date | null;
 }>;
 
 type LinkedMission = Readonly<{
@@ -188,12 +190,14 @@ async function connectionContext(
     initialSyncDirection: InitialSyncDirection;
     state: ConnectionState;
     providerCalendarId: string | null;
+    providerCommandCutoffAt: Date | null;
   }>(
     `SELECT id,
             account_id AS "accountId",
             sync_direction AS "initialSyncDirection",
             connection_state AS state,
-            provider_calendar_id AS "providerCalendarId"
+            provider_calendar_id AS "providerCalendarId",
+            provider_command_cutoff_at AS "providerCommandCutoffAt"
        FROM external_calendar_connections
       WHERE id = $1 AND provider = 'google'`,
     [connectionId],
@@ -835,6 +839,18 @@ export function createPostgresGoogleCalendarSyncStore(
           };
     },
 
+    async setConnectionState(connectionId: string, state: ConnectionState): Promise<void> {
+      await pool.query(
+        `UPDATE external_calendar_connections
+            SET connection_state = $2,
+                updated_at = now()
+          WHERE id = $1
+            AND provider = 'google'
+            AND connection_state <> 'disconnected'`,
+        [connectionId, state],
+      );
+    },
+
     async reconcileFullImport(connectionId: string, batch: SynchronizedImportBatch): Promise<void> {
       await withTransaction(pool, async (client) => {
         const context = requiredConnectedContext(await connectionContext(client, connectionId));
@@ -912,12 +928,13 @@ export function createPostgresGoogleCalendarSyncStore(
             AND mo.completion_state = 'incomplete'
             AND mo.schedule_state = 'scheduled'
             AND mo.deletion_state = 'active'
+            AND ($3::timestamptz IS NULL OR mo.updated_at > $3)
             AND (
               (mo.calendar_source = 'internal' AND eel.provider_event_id IS NULL)
               OR (eel.provider_event_id IS NOT NULL AND mo.synchronization_state = 'pending')
             )
           ORDER BY mo.start_instant ASC, mo.id ASC`,
-        [context.accountId, connectionId],
+        [context.accountId, connectionId, context.providerCommandCutoffAt],
       );
 
       return result.rows.map((row) => {

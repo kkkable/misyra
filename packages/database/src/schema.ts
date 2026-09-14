@@ -442,6 +442,7 @@ export const externalCalendarConnections = pgTable(
     providerCalendarId: text('provider_calendar_id'),
     encryptedRefreshToken: text('encrypted_refresh_token'),
     connectionState: text('connection_state').notNull().default('connected'),
+    providerCommandCutoffAt: timestamp('provider_command_cutoff_at', { withTimezone: true }),
     oauthStateHash: text('oauth_state_hash'),
     oauthStateExpiresAt: timestamp('oauth_state_expires_at', { withTimezone: true }),
     oauthStateConsumedAt: timestamp('oauth_state_consumed_at', { withTimezone: true }),
