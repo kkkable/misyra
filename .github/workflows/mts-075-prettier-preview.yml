@@ -1,0 +1,61 @@
+name: MTS-075 Prettier Preview
+
+on:
+  push:
+    branches:
+      - verify/mts-075-prettier-preview-20260914
+
+permissions:
+  contents: write
+
+jobs:
+  format-preview:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout verification branch
+        uses: actions/checkout@v4
+        with:
+          ref: verify/mts-075-prettier-preview-20260914
+
+      - name: Install pinned pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.5
+          run_install: false
+
+      - name: Set up pinned Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install from lockfile
+        run: pnpm install --frozen-lockfile
+
+      - name: Apply exact repository Prettier output
+        run: >-
+          pnpm exec prettier --write
+          packages/database/src/google-calendar-connection-store.ts
+          apps/api/src/google-calendar-routes.ts
+          apps/api/src/google-calendar-sync.ts
+          --config packages/config/prettier.config.mjs
+
+      - name: Commit preview result
+        shell: bash
+        run: |
+          set -euo pipefail
+          paths=(
+            packages/database/src/google-calendar-connection-store.ts
+            apps/api/src/google-calendar-routes.ts
+            apps/api/src/google-calendar-sync.ts
+          )
+          if git diff --quiet -- "${paths[@]}"; then
+            echo "No formatter changes required."
+            exit 0
+          fi
+          git config user.name "Misyra Verification"
+          git config user.email "actions@users.noreply.github.com"
+          git add -- "${paths[@]}"
+          git commit -m "chore(verify): preview MTS-075 prettier output"
+          git push origin HEAD:verify/mts-075-prettier-preview-20260914
