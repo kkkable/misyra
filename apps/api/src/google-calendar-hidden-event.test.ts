@@ -113,19 +113,19 @@ describe('MTS-073 Google hidden-event restoration', () => {
     ]);
   });
 
-  it('loads the recurring master rule so a hidden recurring instance remains scope-aware', async () => {
+  it('keeps the current recurring master rule so restore remains scope-aware', async () => {
     const requests: string[] = [];
     const provider = createProvider(
       [
         accessTokenResponse(),
         new Response(
           JSON.stringify({
-            id: 'provider-instance-1',
-            recurringEventId: 'provider-series-1',
+            id: 'provider-series-1',
             status: 'confirmed',
             updated: '2026-09-13T11:30:00.000Z',
             summary: 'Current recurring title',
             organizer: { self: false },
+            recurrence: ['RRULE:FREQ=WEEKLY;INTERVAL=1;BYDAY=SU;WKST=MO'],
             start: {
               dateTime: '2026-09-20T09:00:00+08:00',
               timeZone: 'Asia/Hong_Kong',
@@ -137,21 +137,13 @@ describe('MTS-073 Google hidden-event restoration', () => {
           }),
           { status: 200, headers: { 'content-type': 'application/json' } },
         ),
-        new Response(
-          JSON.stringify({
-            id: 'provider-series-1',
-            status: 'confirmed',
-            recurrence: ['RRULE:FREQ=WEEKLY;INTERVAL=1;BYDAY=SU;WKST=MO'],
-          }),
-          { status: 200, headers: { 'content-type': 'application/json' } },
-        ),
       ],
       requests,
     );
 
     const restored = await provider.restoreHiddenEvent({
       connectionId,
-      providerEventId: 'provider-instance-1',
+      providerEventId: 'provider-series-1',
       recurrenceScope: 'this_occurrence',
     });
 
@@ -165,7 +157,6 @@ describe('MTS-073 Google hidden-event restoration', () => {
     });
     expect(requests).toEqual([
       'https://oauth2.googleapis.com/token',
-      'https://www.googleapis.com/calendar/v3/calendars/calendar-1/events/provider-instance-1',
       'https://www.googleapis.com/calendar/v3/calendars/calendar-1/events/provider-series-1',
     ]);
   });

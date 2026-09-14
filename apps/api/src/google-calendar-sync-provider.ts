@@ -1,30 +1,39 @@
-import type {
-  CalendarCommand,
-  CalendarCommandResult,
-  ExternalCalendarErrorCode,
-  NormalizedCalendarRecurrence,
-  RestoreHiddenEventInput,
-  SynchronizedImportBatch,
-  SynchronizedProviderChange,
-  SynchronizedProviderChangeBatch,
-  SynchronizedProviderEvent,
-} from '@misyra/contracts';
 import {
   ExternalCalendarAdapterError,
   synchronizedImportBatchSchema,
   synchronizedProviderChangeBatchSchema,
   synchronizedProviderEventSchema,
+  type CalendarCommand,
+  type CalendarCommandResult,
+  type ExternalCalendarErrorCode,
+  type NormalizedCalendarRecurrence,
+  type RestoreHiddenEventInput,
+  type SynchronizedImportBatch,
+  type SynchronizedProviderChange,
+  type SynchronizedProviderChangeBatch,
+  type SynchronizedProviderEvent,
 } from '@misyra/contracts';
 
-import type {
-  GoogleCalendarSynchronizationProvider,
-  GoogleCalendarSyncSession,
-} from './google-calendar-sync.js';
+import type { GoogleCalendarSynchronizationProvider } from './google-calendar-sync.js';
 
-export type GoogleCalendarSyncProviderOptions = Readonly<{
+const TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
+const CALENDAR_API_BASE = 'https://www.googleapis.com/calendar/v3';
+const REQUEST_TIMEOUT_MS = 10_000;
+const DEFAULT_MAX_PAGES = 20;
+const PAGE_SIZE = '250';
+const GOOGLE_WEEKDAYS = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'] as const;
+
+type GoogleCalendarSyncSession = Readonly<{
+  providerCalendarId: string;
+  refreshToken: string;
+  cursor: string | null;
+  timeZone?: string;
+}>;
+
+type GoogleCalendarSyncProviderOptions = Readonly<{
   clientId: string;
   clientSecret: string;
-  loadSession(connectionId: string): Promise<GoogleCalendarSyncSession | null>;
+  loadSession: (connectionId: string) => Promise<GoogleCalendarSyncSession | null>;
   fetchImpl?: typeof fetch;
   maxPages?: number;
 }>;
@@ -34,44 +43,42 @@ type GoogleProviderContext = Readonly<{
   accessToken: string;
 }>;
 
-const GOOGLE_TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
-const GOOGLE_CALENDAR_API_ROOT = 'https://www.googleapis.com/calendar/v3';
-const DEFAULT_MAX_PAGES = 100;
-const GOOGLE_WEEKDAYS = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'] as const;
-
-function optionalRecord(value: unknown, key: string): Record<string, unknown> | null {
+function asRecord(value: unknown): Record<string, unknown> | null {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
-  const entry = (value as Record<string, unknown>)[key];
-  return typeof entry === 'object' && entry !== null && !Array.isArray(entry)
-    ? (entry as Record<string, unknown>)
-    : null;
+  return value as Record<string, unknown>;
 }
 
-function optionalString(value: unknown, key: string): string | null {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
-  const entry = (value as Record<string, unknown>)[key];
-  return typeof entry === 'string' && entry.length > 0 ? entry : null;
-}
-
-function requiredString(value: unknown, key: string): string {
-  const result = optionalString(value, key);
-  if (result === null) {
+function requiredString(value: unknown, field: string): string {
+  const record = asRecord(value);
+  const candidate = record?.[field];
+  if (typeof candidate !== 'string' || candidate.length === 0) {
     throw new ExternalCalendarAdapterError('unknown', 'google_calendar_payload_invalid');
   }
-  return result;
+  return candidate;
 }
 
-function optionalArray(value: unknown, key: string): readonly unknown[] {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return [];
-  const entry = (value as Record<string, unknown>)[key];
-  return Array.isArray(entry) ? entry : [];
+function optionalString(value: unknown, field: string): string | null {
+  const record = asRecord(value);
+  const candidate = record?.[field];
+  return typeof candidate === 'string' ? candidate : null;
 }
 
-function googleErrorCode(status: number): ExternalCalendarErrorCode {
+function optionalRecord(value: unknown, field: string): Record<string, unknown> | null {
+  const record = asRecord(value);
+  return asRecord(record?.[field]);
+}
+
+function optionalArray(value: unknown, field: string): readonly unknown[] {
+  const record = asRecord(value);
+  const candidate = record?.[field];
+  return Array.isArray(candidate) ? candidate : [];
+}
+
+function mapHttpError(status: number): ExternalCalendarErrorCode {
   if (status === 401) return 'authentication_required';
   if (status === 403) return 'permission_denied';
   if (status === 404) return 'not_found';
-  if (status === 409 || status === 412) return 'conflict';
+  if (status === 409) return 'conflict';
   if (status === 429) return 'rate_limited';
   if (status >= 500) return 'provider_unavailable';
   return 'unknown';
@@ -79,59 +86,73 @@ function googleErrorCode(status: number): ExternalCalendarErrorCode {
 
 async function providerResponse(
   fetchImpl: typeof fetch,
-  input: RequestInfo | URL,
-  init?: RequestInit,
+  url: string,
+  init: RequestInit,
   options: Readonly<{ invalidCursorOnGone?: boolean }> = {},
 ): Promise<Response> {
   let response: Response;
   try {
-    response = await fetchImpl(input, init);
+    response = await fetchImpl(url, {
+      ...init,
+      signal: init.signal ?? AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
   } catch {
-    throw new ExternalCalendarAdapterError('provider_unavailable', 'google_calendar_unavailable');
+    throw new ExternalCalendarAdapterError(
+      'provider_unavailable',
+      'google_calendar_request_failed',
+    );
   }
-  if (response.ok) return response;
+
   if (options.invalidCursorOnGone === true && response.status === 410) {
-    throw new ExternalCalendarAdapterError('invalid_sync_cursor', 'google_calendar_sync_token_gone');
+    throw new ExternalCalendarAdapterError('invalid_sync_cursor', 'invalid_sync_cursor');
   }
-  throw new ExternalCalendarAdapterError(googleErrorCode(response.status), 'google_calendar_error');
+  if (!response.ok) {
+    throw new ExternalCalendarAdapterError(
+      mapHttpError(response.status),
+      'google_calendar_request_failed',
+    );
+  }
+  return response;
 }
 
 async function providerJson(
   fetchImpl: typeof fetch,
-  input: RequestInfo | URL,
-  init?: RequestInit,
+  url: string,
+  init: RequestInit,
   options?: Readonly<{ invalidCursorOnGone?: boolean }>,
 ): Promise<unknown> {
-  const response = await providerResponse(fetchImpl, input, init, options);
+  const response = await providerResponse(fetchImpl, url, init, options);
   try {
     return await response.json();
   } catch {
-    throw new ExternalCalendarAdapterError('unknown', 'google_calendar_response_invalid');
+    throw new ExternalCalendarAdapterError('unknown', 'google_calendar_payload_invalid');
   }
+}
+
+function formBody(values: Readonly<Record<string, string>>): URLSearchParams {
+  return new URLSearchParams(values);
 }
 
 async function refreshAccessToken(
   fetchImpl: typeof fetch,
-  options: Pick<GoogleCalendarSyncProviderOptions, 'clientId' | 'clientSecret'>,
+  options: GoogleCalendarSyncProviderOptions,
   refreshToken: string,
 ): Promise<string> {
-  const body = new URLSearchParams({
-    client_id: options.clientId,
-    client_secret: options.clientSecret,
-    refresh_token: refreshToken,
-    grant_type: 'refresh_token',
-  });
-  const payload = await providerJson(fetchImpl, GOOGLE_TOKEN_ENDPOINT, {
+  const payload = await providerJson(fetchImpl, TOKEN_ENDPOINT, {
     method: 'POST',
     headers: { 'content-type': 'application/x-www-form-urlencoded' },
-    body: body.toString(),
+    body: formBody({
+      client_id: options.clientId,
+      client_secret: options.clientSecret,
+      refresh_token: refreshToken,
+      grant_type: 'refresh_token',
+    }),
   });
-  const accessToken = requiredString(payload, 'access_token');
-  return accessToken;
+  return requiredString(payload, 'access_token');
 }
 
 function eventsEndpoint(calendarId: string): string {
-  return `${GOOGLE_CALENDAR_API_ROOT}/calendars/${encodeURIComponent(calendarId)}/events`;
+  return `${CALENDAR_API_BASE}/calendars/${encodeURIComponent(calendarId)}/events`;
 }
 
 function eventEndpoint(calendarId: string, eventId: string): string {
@@ -140,20 +161,20 @@ function eventEndpoint(calendarId: string, eventId: string): string {
 
 function googleListUrl(
   calendarId: string,
-  input: Readonly<{ pageToken?: string; syncToken?: string }>,
+  input: Readonly<{ syncToken?: string; pageToken?: string }>,
 ): string {
   const url = new URL(eventsEndpoint(calendarId));
-  url.searchParams.set('singleEvents', 'true');
   url.searchParams.set('showDeleted', 'true');
-  url.searchParams.set('maxResults', '2500');
-  if (input.pageToken !== undefined) url.searchParams.set('pageToken', input.pageToken);
+  url.searchParams.set('singleEvents', 'false');
+  url.searchParams.set('maxResults', PAGE_SIZE);
   if (input.syncToken !== undefined) url.searchParams.set('syncToken', input.syncToken);
+  if (input.pageToken !== undefined) url.searchParams.set('pageToken', input.pageToken);
   return url.toString();
 }
 
 function toIsoInstant(value: string): string {
   const date = new Date(value);
-  if (!Number.isFinite(date.getTime())) {
+  if (Number.isNaN(date.getTime())) {
     throw new ExternalCalendarAdapterError('unknown', 'google_calendar_payload_invalid');
   }
   return date.toISOString();
@@ -652,27 +673,11 @@ export function createGoogleCalendarSyncProvider(
       if (optionalString(payload, 'status') === 'cancelled') {
         throw new ExternalCalendarAdapterError('not_found', 'google_calendar_event_cancelled');
       }
-      const event = normalizeEvent(
+      return normalizeEvent(
         payload,
         context.session.providerCalendarId,
         context.session.timeZone ?? 'UTC',
       );
-      const recurringEventId = optionalString(payload, 'recurringEventId');
-      if (recurringEventId === null || event.recurrence !== null) return event;
-
-      const recurringMaster = await providerJson(
-        fetchImpl,
-        eventEndpoint(context.session.providerCalendarId, recurringEventId),
-        { headers: { Authorization: `Bearer ${context.accessToken}` } },
-      );
-      if (optionalString(recurringMaster, 'status') === 'cancelled') {
-        throw new ExternalCalendarAdapterError('not_found', 'google_calendar_event_cancelled');
-      }
-      const recurrence = parseGoogleRecurrence(recurringMaster);
-      if (recurrence === null) {
-        throw new ExternalCalendarAdapterError('unknown', 'google_calendar_recurrence_missing');
-      }
-      return synchronizedProviderEventSchema.parse({ ...event, recurrence });
     },
 
     async applyCommands(
