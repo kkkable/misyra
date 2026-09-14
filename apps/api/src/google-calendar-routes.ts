@@ -166,14 +166,13 @@ export function createGoogleCalendarRoutes(
     },
   ];
 
-  if (service.getStatus !== undefined) {
+  const getStatus = service.getStatus;
+  if (getStatus !== undefined) {
     routes.push({
       method: 'GET',
       path: '/calendars/connection',
       handler: async (_request, _reply, auth) => {
-        const connection = await runGoogleCalendarOperation(() =>
-          service.getStatus!(auth.accountId),
-        );
+        const connection = await runGoogleCalendarOperation(() => getStatus(auth.accountId));
         return {
           connection:
             connection === null
