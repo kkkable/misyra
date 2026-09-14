@@ -246,7 +246,9 @@ describe('MTS-075 disconnect queue discard and same-calendar reconnect', () => {
     );
 
     const pendingAfterNewChanges = await syncStore.listPendingCommands(connection.id);
-    const queuedOccurrenceIds = new Set(pendingAfterNewChanges.map((item) => item.occurrenceId));
+    const queuedOccurrenceIds = new Set(
+      pendingAfterNewChanges.map((item) => item.occurrenceId),
+    );
     expect(queuedOccurrenceIds).toContain(linkedOccurrenceId);
     expect(queuedOccurrenceIds).toContain(postReconnectOccurrenceId);
     expect(queuedOccurrenceIds).not.toContain(disconnectedOccurrenceId);
