@@ -12,7 +12,9 @@ const hiddenEventId = '00000000-0000-4000-8000-000000000273';
 
 function connectionService(): GoogleCalendarRouteService {
   return {
-    startOAuth: vi.fn(() => Promise.resolve({ authorizationUrl: 'https://accounts.google.test/oauth' })),
+    startOAuth: vi.fn(() =>
+      Promise.resolve({ authorizationUrl: 'https://accounts.google.test/oauth' }),
+    ),
     completeOAuth: vi.fn(() =>
       Promise.resolve({
         id: connectionId,
@@ -76,7 +78,10 @@ describe('MTS-073 hidden calendar event routes', () => {
       authenticate: () => ({ accountId }),
     });
 
-    const response = await server.inject({ method: 'GET', url: '/v1/calendars/hidden-events' });
+    const response = await server.inject({
+      method: 'GET',
+      url: '/v1/calendars/hidden-events',
+    });
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
@@ -92,7 +97,10 @@ describe('MTS-073 hidden calendar event routes', () => {
       Promise.resolve({ occurrenceId: '00000000-0000-4000-8000-000000000373' }),
     );
     const server = createApiServer({
-      routes: routesWithHiddenService({ listHiddenEvents: vi.fn(() => Promise.resolve([])), restoreHiddenEvent }),
+      routes: routesWithHiddenService({
+        listHiddenEvents: vi.fn(() => Promise.resolve([])),
+        restoreHiddenEvent,
+      }),
       authenticate: () => ({ accountId }),
     });
 
@@ -107,7 +115,11 @@ describe('MTS-073 hidden calendar event routes', () => {
       ok: true,
       payload: { occurrenceId: '00000000-0000-4000-8000-000000000373' },
     });
-    expect(restoreHiddenEvent).toHaveBeenCalledWith(accountId, hiddenEventId, 'this_and_future');
+    expect(restoreHiddenEvent).toHaveBeenCalledWith(
+      accountId,
+      hiddenEventId,
+      'this_and_future',
+    );
     await server.close();
   });
 });
