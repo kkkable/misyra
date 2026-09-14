@@ -36,6 +36,10 @@ export interface GoogleCalendarSynchronizationProvider {
 
 export interface GoogleCalendarSyncStore {
   getConnection(connectionId: string): Promise<GoogleCalendarSyncConnection | null>;
+  setConnectionState(
+    connectionId: string,
+    state: ExternalCalendarConnectionState,
+  ): Promise<void>;
   reconcileFullImport(connectionId: string, batch: SynchronizedImportBatch): Promise<void>;
   applyProviderChanges(connectionId: string, batch: SynchronizedProviderChangeBatch): Promise<void>;
   listPendingCommands(connectionId: string): Promise<readonly PendingCalendarCommand[]>;
@@ -58,12 +62,30 @@ export interface GoogleCalendarSyncServiceDependencies {
   readonly now?: () => Date;
 }
 
-function assertConnected(
+function assertSynchronizable(
   connection: GoogleCalendarSyncConnection | null,
 ): asserts connection is GoogleCalendarSyncConnection {
-  if (connection === null || connection.state !== 'connected') {
+  if (connection === null || connection.state === 'disconnected') {
     throw new ExternalCalendarAdapterError('authentication_required', 'calendar_not_connected');
   }
+}
+
+function recoveryStateForError(error: unknown): ExternalCalendarConnectionState | null {
+  if (!(error instanceof ExternalCalendarAdapterError)) return null;
+  if (error.code === 'provider_unavailable') return 'provider_unavailable';
+  if (error.code === 'permission_denied' || error.code === 'authentication_required') {
+    return 'permission_revoked';
+  }
+  return null;
+}
+
+async function persistProviderFailure(
+  store: GoogleCalendarSyncStore,
+  connectionId: string,
+  error: unknown,
+): Promise<void> {
+  const state = recoveryStateForError(error);
+  if (state !== null) await store.setConnectionState(connectionId, state);
 }
 
 async function pushPendingCommands(
@@ -110,36 +132,54 @@ export function createGoogleCalendarSyncService(
   return Object.freeze({
     async initialSync(connectionId: string): Promise<void> {
       const connection = await store.getConnection(connectionId);
-      assertConnected(connection);
+      assertSynchronizable(connection);
       const currentTime = now();
 
-      if (connection.initialSyncDirection === 'misyra_to_external') {
-        await pushPendingCommands(provider, store, connectionId, true, currentTime);
+      if (connection.state !== 'connected') {
+        await store.setConnectionState(connectionId, 'connected');
       }
 
-      await fullImport(provider, store, connectionId, true, currentTime);
+      try {
+        if (connection.initialSyncDirection === 'misyra_to_external') {
+          await pushPendingCommands(provider, store, connectionId, true, currentTime);
+        }
+
+        await fullImport(provider, store, connectionId, true, currentTime);
+      } catch (error) {
+        await persistProviderFailure(store, connectionId, error);
+        throw error;
+      }
     },
 
     async incrementalSync(connectionId: string): Promise<void> {
       const connection = await store.getConnection(connectionId);
-      assertConnected(connection);
+      assertSynchronizable(connection);
 
-      try {
-        const batch = await provider.pullChanges(connectionId);
-        await store.applyProviderChanges(connectionId, batch);
-      } catch (error) {
-        if (
-          !(error instanceof ExternalCalendarAdapterError) ||
-          error.code !== 'invalid_sync_cursor'
-        ) {
-          throw error;
-        }
-
-        await store.clearCursor(connectionId);
-        await fullImport(provider, store, connectionId, false, now());
+      if (connection.state !== 'connected') {
+        await store.setConnectionState(connectionId, 'connected');
       }
 
-      await pushPendingCommands(provider, store, connectionId, false, now());
+      try {
+        try {
+          const batch = await provider.pullChanges(connectionId);
+          await store.applyProviderChanges(connectionId, batch);
+        } catch (error) {
+          if (
+            !(error instanceof ExternalCalendarAdapterError) ||
+            error.code !== 'invalid_sync_cursor'
+          ) {
+            throw error;
+          }
+
+          await store.clearCursor(connectionId);
+          await fullImport(provider, store, connectionId, false, now());
+        }
+
+        await pushPendingCommands(provider, store, connectionId, false, now());
+      } catch (error) {
+        await persistProviderFailure(store, connectionId, error);
+        throw error;
+      }
     },
   });
 }
