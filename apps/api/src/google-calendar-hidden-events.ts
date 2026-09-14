@@ -4,6 +4,7 @@ import type {
   HiddenExternalEventRecurrenceScope,
   PostgresGoogleCalendarHiddenEventStore,
 } from '@misyra/database';
+import { expandRecurrenceDates } from '@misyra/domain';
 
 import type { GoogleCalendarSynchronizationProvider } from './google-calendar-sync.js';
 
@@ -54,11 +55,48 @@ function localDateAt(instant: Date, timeZone: string): string {
   return `${value('year')}-${value('month')}-${value('day')}`;
 }
 
+function recurringEventHasUpcomingDate(
+  event: Awaited<ReturnType<HiddenEventProvider['restoreHiddenEvent']>>,
+  now: Date,
+): boolean {
+  const recurrence = event.recurrence;
+  if (recurrence === null) return false;
+
+  const anchorLocalDate =
+    event.schedule.type === 'all_day'
+      ? event.schedule.startLocalDate
+      : localDateAt(new Date(event.schedule.startInstant), event.schedule.timeZone);
+  const today = localDateAt(now, event.schedule.timeZone);
+  if (today < anchorLocalDate) return true;
+  if (recurrence.end.type === 'never') return true;
+
+  if (recurrence.end.type === 'date') {
+    if (recurrence.end.inclusiveLocalDate < today) return false;
+    return (
+      expandRecurrenceDates({
+        anchorLocalDate,
+        recurrence,
+        windowStartLocalDate: today,
+        windowEndLocalDate: recurrence.end.inclusiveLocalDate,
+      }).length > 0
+    );
+  }
+
+  const occurrencesThroughToday = expandRecurrenceDates({
+    anchorLocalDate,
+    recurrence,
+    windowStartLocalDate: anchorLocalDate,
+    windowEndLocalDate: today,
+  });
+  if (occurrencesThroughToday.length < recurrence.end.occurrenceCount) return true;
+  return occurrencesThroughToday.at(-1) === today;
+}
+
 function eventIsUpcoming(
   event: Awaited<ReturnType<HiddenEventProvider['restoreHiddenEvent']>>,
   now: Date,
 ): boolean {
-  if (event.recurrence !== null) return true;
+  if (event.recurrence !== null) return recurringEventHasUpcomingDate(event, now);
   if (event.schedule.type === 'timed') {
     return new Date(event.schedule.finishInstant).getTime() > now.getTime();
   }
