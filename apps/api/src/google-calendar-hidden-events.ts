@@ -56,7 +56,9 @@ function localDateTimeAt(instant: Date, timeZone: string): string {
   }).formatToParts(instant);
   const value = (type: Intl.DateTimeFormatPartTypes) =>
     parts.find((part) => part.type === type)?.value ?? '';
-  return `${value('year')}-${value('month')}-${value('day')}T${value('hour')}:${value('minute')}:${value('second')}`;
+  const localDate = `${value('year')}-${value('month')}-${value('day')}`;
+  const localTime = `${value('hour')}:${value('minute')}:${value('second')}`;
+  return `${localDate}T${localTime}`;
 }
 
 function localDateAt(instant: Date, timeZone: string): string {
@@ -75,9 +77,8 @@ function localDateEpoch(localDate: string): number {
 }
 
 function daysBetweenLocalDates(startLocalDate: string, finishLocalDate: string): number {
-  return Math.round(
-    (localDateEpoch(finishLocalDate) - localDateEpoch(startLocalDate)) / 86_400_000,
-  );
+  const milliseconds = localDateEpoch(finishLocalDate) - localDateEpoch(startLocalDate);
+  return Math.round(milliseconds / 86_400_000);
 }
 
 function addLocalDays(localDate: string, days: number): string {
@@ -94,26 +95,21 @@ function occurrenceHasNotEnded(
       event.schedule.startLocalDate,
       event.schedule.endLocalDateExclusive,
     );
-    return (
-      addLocalDays(occurrenceLocalDate, durationDays) >
-      localDateAt(now, event.schedule.timeZone)
-    );
+    const occurrenceEndDate = addLocalDays(occurrenceLocalDate, durationDays);
+    const today = localDateAt(now, event.schedule.timeZone);
+    return occurrenceEndDate > today;
   }
 
-  const anchorStart = localDateTimeAt(
-    new Date(event.schedule.startInstant),
-    event.schedule.timeZone,
-  );
-  const anchorFinish = localDateTimeAt(
-    new Date(event.schedule.finishInstant),
-    event.schedule.timeZone,
-  );
-  const finishDateOffset = daysBetweenLocalDates(
-    anchorStart.slice(0, 10),
-    anchorFinish.slice(0, 10),
-  );
-  const occurrenceFinish = `${addLocalDays(occurrenceLocalDate, finishDateOffset)}T${anchorFinish.slice(11)}`;
-  return occurrenceFinish > localDateTimeAt(now, event.schedule.timeZone);
+  const { timeZone } = event.schedule;
+  const anchorStart = localDateTimeAt(new Date(event.schedule.startInstant), timeZone);
+  const anchorFinish = localDateTimeAt(new Date(event.schedule.finishInstant), timeZone);
+  const anchorStartDate = anchorStart.slice(0, 10);
+  const anchorFinishDate = anchorFinish.slice(0, 10);
+  const finishDateOffset = daysBetweenLocalDates(anchorStartDate, anchorFinishDate);
+  const occurrenceFinishDate = addLocalDays(occurrenceLocalDate, finishDateOffset);
+  const occurrenceFinishTime = anchorFinish.slice(11);
+  const occurrenceFinish = `${occurrenceFinishDate}T${occurrenceFinishTime}`;
+  return occurrenceFinish > localDateTimeAt(now, timeZone);
 }
 
 function recurringEventHasUpcomingDate(
@@ -149,12 +145,14 @@ function recurringEventHasUpcomingDate(
       if (startsFromToday.some((localDate) => localDate > today)) return true;
     }
     const latestStart = occurrencesThroughToday.at(-1);
-    return latestStart === undefined ? false : occurrenceHasNotEnded(event, latestStart, now);
+    if (latestStart === undefined) return false;
+    return occurrenceHasNotEnded(event, latestStart, now);
   }
 
   if (occurrencesThroughToday.length < recurrence.end.occurrenceCount) return true;
   const latestStart = occurrencesThroughToday.at(-1);
-  return latestStart === undefined ? false : occurrenceHasNotEnded(event, latestStart, now);
+  if (latestStart === undefined) return false;
+  return occurrenceHasNotEnded(event, latestStart, now);
 }
 
 function eventIsUpcoming(
