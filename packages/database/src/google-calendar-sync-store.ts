@@ -146,6 +146,7 @@ type ConnectionContext = Readonly<{
 type LinkedMission = Readonly<{
   occurrenceId: string;
   seriesId: string;
+  startInstant: Date;
   completionState: string;
   synchronizationState: string;
   version: number;
@@ -324,6 +325,7 @@ async function linkedMission(
   const result = await client.query<{
     occurrenceId: string;
     seriesId: string;
+    startInstant: Date;
     completionState: string;
     synchronizationState: string;
     version: number;
@@ -332,6 +334,7 @@ async function linkedMission(
   }>(
     `SELECT mo.id AS "occurrenceId",
             mo.series_id AS "seriesId",
+            mo.start_instant AS "startInstant",
             mo.completion_state AS "completionState",
             mo.synchronization_state AS "synchronizationState",
             mo.version,
@@ -452,6 +455,104 @@ function missionChangePayload(
     },
     location: event.location,
     notes: event.providerNotes,
+  };
+}
+
+async function persistedMissionChangePayload(
+  client: PoolClient,
+  context: ConnectionContext,
+  occurrenceId: string,
+): Promise<unknown> {
+  const result = await client.query<{
+    version: number;
+    seriesId: string;
+    title: string;
+    recurrence: CalendarRecurrence | null;
+    localStart: string;
+    localFinish: string;
+    startInstant: Date;
+    finishInstant: Date;
+    timeZone: string;
+    timeBehavior: 'local_time' | 'fixed_instant';
+    allDay: boolean;
+    estimatedEffortMinutes: number | null;
+    scheduleState: string;
+    completionState: string;
+    evidenceState: string;
+    rewardEligibility: string;
+    rewardIssuance: string;
+    calendarSource: string;
+    fieldOwnership: string;
+    synchronizationState: string;
+    storyState: string;
+    deletionState: string;
+    location: string | null;
+    notes: string | null;
+  }>(
+    `SELECT mo.version,
+            mo.series_id AS "seriesId",
+            ms.title,
+            ms.recurrence_rule AS recurrence,
+            mo.local_start AS "localStart",
+            mo.local_finish AS "localFinish",
+            mo.start_instant AS "startInstant",
+            mo.finish_instant AS "finishInstant",
+            mo.time_zone AS "timeZone",
+            mo.time_behavior AS "timeBehavior",
+            mo.all_day AS "allDay",
+            mo.estimated_effort_minutes AS "estimatedEffortMinutes",
+            mo.schedule_state AS "scheduleState",
+            mo.completion_state AS "completionState",
+            mo.evidence_state AS "evidenceState",
+            mo.reward_eligibility AS "rewardEligibility",
+            mo.reward_issuance AS "rewardIssuance",
+            mo.calendar_source AS "calendarSource",
+            mo.field_ownership AS "fieldOwnership",
+            mo.synchronization_state AS "synchronizationState",
+            mo.story_state AS "storyState",
+            mo.deletion_state AS "deletionState",
+            mo.location,
+            mo.notes
+       FROM mission_occurrences mo
+       JOIN mission_series ms ON ms.id = mo.series_id AND ms.account_id = mo.account_id
+      WHERE mo.id = $1 AND mo.account_id = $2`,
+    [occurrenceId, context.accountId],
+  );
+  const row = result.rows[0];
+  if (row === undefined) throw new Error('calendar_mission_projection_missing');
+  return {
+    version: row.version,
+    series: {
+      id: row.seriesId,
+      title: row.title,
+      recurrence: row.recurrence,
+    },
+    occurrence: {
+      id: occurrenceId,
+      seriesId: row.seriesId,
+      schedule: {
+        localStart: row.localStart,
+        localFinish: row.localFinish,
+        startInstant: row.startInstant.toISOString(),
+        finishInstant: row.finishInstant.toISOString(),
+        timeZone: row.timeZone,
+        timeBehavior: row.timeBehavior,
+        allDay: row.allDay,
+        estimatedEffortMinutes: row.estimatedEffortMinutes,
+      },
+      scheduleState: row.scheduleState,
+      completionState: row.completionState,
+      evidenceState: row.evidenceState,
+      rewardEligibility: row.rewardEligibility,
+      rewardIssuance: row.rewardIssuance,
+      calendarSource: row.calendarSource,
+      fieldOwnership: row.fieldOwnership,
+      synchronizationState: row.synchronizationState,
+      storyState: row.storyState,
+      deletionState: row.deletionState,
+    },
+    location: row.location,
+    notes: row.notes,
   };
 }
 
@@ -607,6 +708,7 @@ async function reconcileDelete(
   context: ConnectionContext,
   providerEventId: string,
   providerUpdatedAt: string,
+  currentTime: Date,
 ): Promise<void> {
   const mission = await linkedMission(client, context.id, providerEventId);
   if (mission === null || mission.completionState === 'completed') return;
@@ -619,6 +721,35 @@ async function reconcileDelete(
   }
 
   const nextVersion = mission.version + 1;
+  if (mission.startInstant.getTime() > currentTime.getTime()) {
+    await client.query('DELETE FROM external_event_links WHERE occurrence_id = $1', [
+      mission.occurrenceId,
+    ]);
+    await client.query(
+      `INSERT INTO mission_occurrence_tombstones
+         (occurrence_id, account_id, deleted_at, reason)
+       VALUES ($1, $2, $3, 'provider_cancelled')
+       ON CONFLICT (occurrence_id) DO NOTHING`,
+      [mission.occurrenceId, context.accountId, currentTime],
+    );
+    await client.query(
+      `UPDATE mission_occurrences
+          SET deletion_state = 'deleted',
+              synchronization_state = 'synced',
+              version = $3,
+              updated_at = now()
+        WHERE id = $1 AND account_id = $2`,
+      [mission.occurrenceId, context.accountId, nextVersion],
+    );
+    await appendMissionChange(client, {
+      accountId: context.accountId,
+      occurrenceId: mission.occurrenceId,
+      operation: 'delete',
+      payload: null,
+    });
+    return;
+  }
+
   await client.query(
     `UPDATE mission_occurrences
         SET schedule_state = 'cancelled',
@@ -632,11 +763,7 @@ async function reconcileDelete(
     accountId: context.accountId,
     occurrenceId: mission.occurrenceId,
     operation: 'upsert',
-    payload: {
-      version: nextVersion,
-      scheduleState: 'cancelled',
-      synchronizationState: 'synced',
-    },
+    payload: await persistedMissionChangePayload(client, context, mission.occurrenceId),
   });
 }
 
@@ -724,6 +851,7 @@ export function createPostgresGoogleCalendarSyncStore(
     ): Promise<void> {
       await withTransaction(pool, async (client) => {
         const context = requiredConnectedContext(await connectionContext(client, connectionId));
+        const currentTime = now();
         for (const change of batch.changes) {
           if (change.type === 'upsert') {
             await reconcileUpsert(client, context, change.event);
@@ -733,10 +861,11 @@ export function createPostgresGoogleCalendarSyncStore(
               context,
               change.providerEventId,
               change.providerUpdatedAt,
+              currentTime,
             );
           }
         }
-        await saveCursor(client, connectionId, batch.cursor, now());
+        await saveCursor(client, connectionId, batch.cursor, currentTime);
       });
     },
 
