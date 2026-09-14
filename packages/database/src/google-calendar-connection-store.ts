@@ -182,10 +182,7 @@ export function createPostgresGoogleCalendarConnectionStore(pool: Pool) {
                 provider_calendar_id = $4,
                 encrypted_refresh_token = $5,
                 connection_state = $6,
-                provider_command_cutoff_at = CASE
-                  WHEN provider_command_cutoff_at IS NULL THEN NULL
-                  ELSE now()
-                END,
+                provider_command_cutoff_at = now(),
                 oauth_state_hash = NULL,
                 oauth_state_expires_at = NULL,
                 oauth_state_consumed_at = NULL,
