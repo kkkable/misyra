@@ -43,16 +43,72 @@ type GoogleCalendarHiddenEventServiceOptions = Readonly<{
   now?: () => Date;
 }>;
 
-function localDateAt(instant: Date, timeZone: string): string {
+function localDateTimeAt(instant: Date, timeZone: string): string {
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
   }).formatToParts(instant);
   const value = (type: Intl.DateTimeFormatPartTypes) =>
     parts.find((part) => part.type === type)?.value ?? '';
-  return `${value('year')}-${value('month')}-${value('day')}`;
+  return `${value('year')}-${value('month')}-${value('day')}T${value('hour')}:${value('minute')}:${value('second')}`;
+}
+
+function localDateAt(instant: Date, timeZone: string): string {
+  return localDateTimeAt(instant, timeZone).slice(0, 10);
+}
+
+function localDateEpoch(localDate: string): number {
+  const [yearText, monthText, dayText] = localDate.split('-');
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const day = Number(dayText);
+  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) {
+    throw new Error('invalid_local_date');
+  }
+  return Date.UTC(year, month - 1, day);
+}
+
+function daysBetweenLocalDates(startLocalDate: string, finishLocalDate: string): number {
+  return Math.round((localDateEpoch(finishLocalDate) - localDateEpoch(startLocalDate)) / 86_400_000);
+}
+
+function addLocalDays(localDate: string, days: number): string {
+  return new Date(localDateEpoch(localDate) + days * 86_400_000).toISOString().slice(0, 10);
+}
+
+function occurrenceHasNotEnded(
+  event: Awaited<ReturnType<HiddenEventProvider['restoreHiddenEvent']>>,
+  occurrenceLocalDate: string,
+  now: Date,
+): boolean {
+  if (event.schedule.type === 'all_day') {
+    const durationDays = daysBetweenLocalDates(
+      event.schedule.startLocalDate,
+      event.schedule.endLocalDateExclusive,
+    );
+    return (
+      addLocalDays(occurrenceLocalDate, durationDays) >
+      localDateAt(now, event.schedule.timeZone)
+    );
+  }
+
+  const anchorStart = localDateTimeAt(
+    new Date(event.schedule.startInstant),
+    event.schedule.timeZone,
+  );
+  const anchorFinish = localDateTimeAt(
+    new Date(event.schedule.finishInstant),
+    event.schedule.timeZone,
+  );
+  const finishDateOffset = daysBetweenLocalDates(anchorStart.slice(0, 10), anchorFinish.slice(0, 10));
+  const occurrenceFinish = `${addLocalDays(occurrenceLocalDate, finishDateOffset)}T${anchorFinish.slice(11)}`;
+  return occurrenceFinish > localDateTimeAt(now, event.schedule.timeZone);
 }
 
 function recurringEventHasUpcomingDate(
@@ -70,26 +126,30 @@ function recurringEventHasUpcomingDate(
   if (today < anchorLocalDate) return true;
   if (recurrence.end.type === 'never') return true;
 
-  if (recurrence.end.type === 'date') {
-    if (recurrence.end.inclusiveLocalDate < today) return false;
-    return (
-      expandRecurrenceDates({
-        anchorLocalDate,
-        recurrence,
-        windowStartLocalDate: today,
-        windowEndLocalDate: recurrence.end.inclusiveLocalDate,
-      }).length > 0
-    );
-  }
-
   const occurrencesThroughToday = expandRecurrenceDates({
     anchorLocalDate,
     recurrence,
     windowStartLocalDate: anchorLocalDate,
     windowEndLocalDate: today,
   });
+
+  if (recurrence.end.type === 'date') {
+    if (recurrence.end.inclusiveLocalDate >= today) {
+      const startsFromToday = expandRecurrenceDates({
+        anchorLocalDate,
+        recurrence,
+        windowStartLocalDate: today,
+        windowEndLocalDate: recurrence.end.inclusiveLocalDate,
+      });
+      if (startsFromToday.some((localDate) => localDate > today)) return true;
+    }
+    const latestStart = occurrencesThroughToday.at(-1);
+    return latestStart === undefined ? false : occurrenceHasNotEnded(event, latestStart, now);
+  }
+
   if (occurrencesThroughToday.length < recurrence.end.occurrenceCount) return true;
-  return occurrencesThroughToday.at(-1) === today;
+  const latestStart = occurrencesThroughToday.at(-1);
+  return latestStart === undefined ? false : occurrenceHasNotEnded(event, latestStart, now);
 }
 
 function eventIsUpcoming(
