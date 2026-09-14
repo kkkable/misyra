@@ -64,12 +64,12 @@ BEGIN
         ELSE links.recurrence_scope
       END,
       CASE
-        WHEN links.recurrence_scope IN ('event', 'this_occurrence', 'this_and_future')
+        WHEN links.recurrence_scope IN ('this_occurrence', 'this_and_future')
           THEN OLD.start_instant
         ELSE NULL
       END,
       CASE
-        WHEN links.recurrence_scope IN ('event', 'this_occurrence') THEN OLD.finish_instant
+        WHEN links.recurrence_scope = 'this_occurrence' THEN OLD.finish_instant
         ELSE NULL
       END,
       now()
