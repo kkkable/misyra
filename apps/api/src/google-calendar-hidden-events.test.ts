@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import type { NormalizedCalendarRecurrence } from '@misyra/contracts';
+
 import { createGoogleCalendarHiddenEventService } from './google-calendar-hidden-events.js';
 
 const accountId = '00000000-0000-4000-8000-000000000073';
@@ -22,7 +24,12 @@ function dismissal(id: string, providerEventId: string) {
   };
 }
 
-function providerEvent(providerEventId: string, startInstant: string, finishInstant: string) {
+function providerEvent(
+  providerEventId: string,
+  startInstant: string,
+  finishInstant: string,
+  recurrence: NormalizedCalendarRecurrence | null = null,
+) {
   return {
     providerCalendarId: 'calendar-1',
     providerEventId,
@@ -35,7 +42,7 @@ function providerEvent(providerEventId: string, startInstant: string, finishInst
       timeZone: 'Asia/Hong_Kong',
       timeBehavior: 'fixed_instant' as const,
     },
-    recurrence: null,
+    recurrence,
     location: null,
     providerNotes: null,
     status: 'confirmed' as const,
@@ -81,6 +88,35 @@ describe('MTS-073 hidden calendar event service', () => {
         isRecurring: false,
       },
     ]);
+  });
+
+  it('omits a finite recurring dismissal after its final occurrence date', async () => {
+    const expired = dismissal(pastHiddenId, 'expired-recurring-event');
+    const store = {
+      listHiddenEvents: vi.fn().mockResolvedValue([expired]),
+      getHiddenEvent: vi.fn(),
+      restoreHiddenEventById: vi.fn(),
+    };
+    const provider = {
+      restoreHiddenEvent: vi.fn().mockResolvedValue(
+        providerEvent(
+          'expired-recurring-event',
+          '2026-09-01T01:00:00.000Z',
+          '2026-09-01T02:00:00.000Z',
+          {
+            pattern: { type: 'daily', interval: 1 },
+            end: { type: 'count', occurrenceCount: 2 },
+          },
+        ),
+      ),
+    };
+    const service = createGoogleCalendarHiddenEventService({
+      store,
+      provider,
+      now: () => new Date('2026-09-14T00:00:00.000Z'),
+    });
+
+    await expect(service.listHiddenEvents(accountId)).resolves.toEqual([]);
   });
 
   it('fetches current provider details before restoring the selected dismissal', async () => {
