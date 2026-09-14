@@ -9,6 +9,9 @@ export type NotificationSettingsCatalog = Readonly<{
   unavailable: string;
   enable: string;
   openSettings: string;
+  hiddenCalendarEvents: string;
+  noHiddenCalendarEvents: string;
+  restoreHiddenCalendarEvent: string;
 }>;
 
 export const notificationSettingsCatalogs: Readonly<
@@ -23,6 +26,9 @@ export const notificationSettingsCatalogs: Readonly<
     unavailable: 'Unavailable',
     enable: 'Enable notifications',
     openSettings: 'Open system settings',
+    hiddenCalendarEvents: 'Hidden calendar events',
+    noHiddenCalendarEvents: 'No upcoming hidden events',
+    restoreHiddenCalendarEvent: 'Restore',
   }),
   'zh-HK': Object.freeze({
     title: '設定',
@@ -33,5 +39,8 @@ export const notificationSettingsCatalogs: Readonly<
     unavailable: '無法使用',
     enable: '啟用通知',
     openSettings: '開啟系統設定',
+    hiddenCalendarEvents: '已隱藏日曆活動',
+    noHiddenCalendarEvents: '沒有即將到來的已隱藏活動',
+    restoreHiddenCalendarEvent: '還原',
   }),
 });
