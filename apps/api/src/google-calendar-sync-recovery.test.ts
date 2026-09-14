@@ -39,12 +39,16 @@ interface RecoveryStore extends GoogleCalendarSyncStore {
   setConnectionState(connectionId: string, state: ExternalCalendarConnectionState): Promise<void>;
 }
 
-function createProvider(pullChanges = vi.fn(async () => ({ changes: [], cursor: 'next-token' }))) {
-  const applyCommands = vi.fn(async () => [
-    { commandId, status: 'applied' as const, providerEventId: 'provider-event-after-recovery' },
-  ]);
+function createProvider(
+  pullChanges = vi.fn(() => Promise.resolve({ changes: [], cursor: 'next-token' })),
+) {
+  const applyCommands = vi.fn(() =>
+    Promise.resolve([
+      { commandId, status: 'applied' as const, providerEventId: 'provider-event-after-recovery' },
+    ]),
+  );
   const value: GoogleCalendarSynchronizationProvider = {
-    initialImport: vi.fn(async () => ({ events: [], cursor: 'initial-token' })),
+    initialImport: vi.fn(() => Promise.resolve({ events: [], cursor: 'initial-token' })),
     pullChanges,
     restoreHiddenEvent: vi.fn(),
     applyCommands,
@@ -55,24 +59,29 @@ function createProvider(pullChanges = vi.fn(async () => ({ changes: [], cursor: 
 function createStore(initialState: ExternalCalendarConnectionState) {
   let state = initialState;
   const setConnectionState = vi.fn(
-    async (_connectionId: string, nextState: ExternalCalendarConnectionState) => {
+    (_connectionId: string, nextState: ExternalCalendarConnectionState) => {
       state = nextState;
+      return Promise.resolve();
     },
   );
-  const listPendingCommands = vi.fn(async () => [{ occurrenceId, command: pendingCommand }]);
-  const applyCommandResults = vi.fn(async () => undefined);
-  const applyProviderChanges = vi.fn(async () => undefined);
+  const listPendingCommands = vi.fn(() =>
+    Promise.resolve([{ occurrenceId, command: pendingCommand }]),
+  );
+  const applyCommandResults = vi.fn(() => Promise.resolve());
+  const applyProviderChanges = vi.fn(() => Promise.resolve());
   const value: RecoveryStore = {
-    getConnection: vi.fn(async () => ({
-      id: connectionId,
-      initialSyncDirection: 'external_to_misyra',
-      state,
-    })),
-    reconcileFullImport: vi.fn(async () => undefined),
+    getConnection: vi.fn(() =>
+      Promise.resolve({
+        id: connectionId,
+        initialSyncDirection: 'external_to_misyra',
+        state,
+      }),
+    ),
+    reconcileFullImport: vi.fn(() => Promise.resolve()),
     applyProviderChanges,
     listPendingCommands,
     applyCommandResults,
-    clearCursor: vi.fn(async () => undefined),
+    clearCursor: vi.fn(() => Promise.resolve()),
     setConnectionState,
   };
   return {
@@ -89,7 +98,7 @@ async function expectFailureState(
   expectedState: ExternalCalendarConnectionState,
 ) {
   const failure = new ExternalCalendarAdapterError(code, code);
-  const pullChanges = vi.fn(async () => Promise.reject(failure));
+  const pullChanges = vi.fn(() => Promise.reject(failure));
   const provider = createProvider(pullChanges);
   const store = createStore('connected');
   const service = createGoogleCalendarSyncService({ provider: provider.value, store: store.value });
