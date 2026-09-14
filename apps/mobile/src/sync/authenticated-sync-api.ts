@@ -2,6 +2,7 @@ import {
   accountSettingsSchema,
   accountSettingsUpdateSchema,
   apiResponseEnvelopeSchema,
+  calendarConnectionSchema,
   completeMissionRequestSchema,
   completeMissionResultSchema,
   deviceRegistrationRequestSchema,
@@ -15,6 +16,7 @@ import {
   uuidSchema,
   type AccountSettings,
   type AccountSettingsUpdate,
+  type CalendarConnection,
   type ClientActionError,
   type CompleteMissionRequest,
   type CompleteMissionResult,
@@ -67,6 +69,7 @@ export type AuthenticatedSyncApi = Readonly<{
   registerDevice(input: DeviceRegistrationRequest): Promise<DeviceRegistrationResponse>;
   getAccountSettings(): Promise<AccountSettings>;
   updateAccountSettings(input: AccountSettingsUpdate): Promise<AccountSettings>;
+  getConnectedCalendarStatus(): Promise<CalendarConnection | null>;
   listHiddenCalendarEvents(): Promise<readonly HiddenCalendarEvent[]>;
   restoreHiddenCalendarEvent(
     hiddenEventId: string,
@@ -131,6 +134,14 @@ function payloadFromEnvelope(value: unknown): unknown {
     throw new Error('sync_request_failed');
   }
   return value.payload;
+}
+
+function parseConnectedCalendarStatus(value: unknown): CalendarConnection | null {
+  if (!isRecord(value) || !Object.hasOwn(value, 'connection')) {
+    throw new Error('calendar_connection_status_invalid');
+  }
+  if (value.connection === null) return null;
+  return calendarConnectionSchema.parse(value.connection);
 }
 
 function parseHiddenCalendarEvent(value: unknown): HiddenCalendarEvent {
@@ -370,6 +381,10 @@ export function createAuthenticatedSyncApi({
     async updateAccountSettings(input) {
       const settings = accountSettingsUpdateSchema.parse(input);
       return accountSettingsSchema.parse(await request('/v1/account/settings', 'PATCH', settings));
+    },
+
+    async getConnectedCalendarStatus() {
+      return parseConnectedCalendarStatus(await request('/v1/calendars/connection', 'GET'));
     },
 
     async listHiddenCalendarEvents() {
