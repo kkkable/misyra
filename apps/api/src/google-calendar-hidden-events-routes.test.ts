@@ -92,37 +92,30 @@ describe('MTS-073 hidden calendar event routes', () => {
     await server.close();
   });
 
-  it(
-    'restores one hidden event with the selected recurrence scope and authenticated account',
-    async () => {
-      const restoreHiddenEvent = vi.fn(() =>
-        Promise.resolve({ occurrenceId: '00000000-0000-4000-8000-000000000373' }),
-      );
-      const server = createApiServer({
-        routes: routesWithHiddenService({
-          listHiddenEvents: vi.fn(() => Promise.resolve([])),
-          restoreHiddenEvent,
-        }),
-        authenticate: () => ({ accountId }),
-      });
+  it('restores one hidden event with the selected recurrence scope and authenticated account', async () => {
+    const restoreHiddenEvent = vi.fn(() =>
+      Promise.resolve({ occurrenceId: '00000000-0000-4000-8000-000000000373' }),
+    );
+    const server = createApiServer({
+      routes: routesWithHiddenService({
+        listHiddenEvents: vi.fn(() => Promise.resolve([])),
+        restoreHiddenEvent,
+      }),
+      authenticate: () => ({ accountId }),
+    });
 
-      const response = await server.inject({
-        method: 'POST',
-        url: `/v1/calendars/hidden-events/${hiddenEventId}/restore`,
-        payload: { recurrenceScope: 'this_and_future' },
-      });
+    const response = await server.inject({
+      method: 'POST',
+      url: `/v1/calendars/hidden-events/${hiddenEventId}/restore`,
+      payload: { recurrenceScope: 'this_and_future' },
+    });
 
-      expect(response.statusCode).toBe(200);
-      expect(response.json()).toMatchObject({
-        ok: true,
-        payload: { occurrenceId: '00000000-0000-4000-8000-000000000373' },
-      });
-      expect(restoreHiddenEvent).toHaveBeenCalledWith(
-        accountId,
-        hiddenEventId,
-        'this_and_future',
-      );
-      await server.close();
-    },
-  );
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      ok: true,
+      payload: { occurrenceId: '00000000-0000-4000-8000-000000000373' },
+    });
+    expect(restoreHiddenEvent).toHaveBeenCalledWith(accountId, hiddenEventId, 'this_and_future');
+    await server.close();
+  });
 });
