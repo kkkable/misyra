@@ -182,11 +182,7 @@ export function createGoogleCalendarRoutes(
           const hiddenId = parseHiddenEventId(request.params);
           const recurrenceScope = parseRestoreBody(request.body);
           return runHiddenEventOperation(() =>
-            hiddenEventService.restoreHiddenEvent(
-              auth.accountId,
-              hiddenId,
-              recurrenceScope,
-            ),
+            hiddenEventService.restoreHiddenEvent(auth.accountId, hiddenId, recurrenceScope),
           );
         },
       },
