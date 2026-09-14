@@ -36,10 +36,7 @@ const pendingCommand: CalendarCommand = {
 };
 
 interface RecoveryStore extends GoogleCalendarSyncStore {
-  setConnectionState(
-    connectionId: string,
-    state: ExternalCalendarConnectionState,
-  ): Promise<void>;
+  setConnectionState(connectionId: string, state: ExternalCalendarConnectionState): Promise<void>;
 }
 
 function createProvider(pullChanges = vi.fn(async () => ({ changes: [], cursor: 'next-token' }))) {
