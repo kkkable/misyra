@@ -374,11 +374,8 @@ async function hiddenEvent(
           )
           OR (
             recurrence_scope IN ('event', 'this_occurrence')
-            AND (
-              effective_start IS NULL
-              OR effective_end IS NULL
-              OR (effective_start <= $3 AND $3 < effective_end)
-            )
+            AND (effective_start IS NULL OR effective_start <= $3)
+            AND (effective_end IS NULL OR $3 < effective_end)
           )
         )
       LIMIT 1`,
