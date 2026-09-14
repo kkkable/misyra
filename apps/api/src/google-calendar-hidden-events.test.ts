@@ -52,9 +52,9 @@ describe('MTS-073 hidden calendar event service', () => {
       getHiddenEvent: vi.fn(),
       restoreHiddenEventById: vi.fn(),
     };
-    const provider = {
-      restoreHiddenEvent: vi.fn(({ providerEventId }: { providerEventId: string }) =>
-        Promise.resolve(
+    const restoreHiddenEvent = vi.fn(
+      ({ providerEventId }: { providerEventId: string }) => {
+        const event =
           providerEventId === 'future-event'
             ? providerEvent(
                 providerEventId,
@@ -65,10 +65,11 @@ describe('MTS-073 hidden calendar event service', () => {
                 providerEventId,
                 '2026-09-10T01:00:00.000Z',
                 '2026-09-10T02:00:00.000Z',
-              ),
-        ),
-      ),
-    };
+              );
+        return Promise.resolve(event);
+      },
+    );
+    const provider = { restoreHiddenEvent };
     const service = createGoogleCalendarHiddenEventService({
       store,
       provider,
