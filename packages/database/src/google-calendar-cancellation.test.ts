@@ -95,7 +95,7 @@ async function occurrenceId(connectionId: string, providerEventId: string): Prom
 }
 
 describe('MTS-074 external cancellation and completed freeze', () => {
-  it('applies the future, past, and completed cancellation state matrix without reversing rewards', async () => {
+  it('applies the cancellation matrix, syncs cancelled history, and freezes completed rewards/details', async () => {
     const accountId = await createAccount();
     const connectionId = await createConnection(accountId);
     const store = createPostgresGoogleCalendarSyncStore(pool, {
@@ -173,6 +173,22 @@ describe('MTS-074 external cancellation and completed freeze', () => {
       cursor: 'after-cancellation',
     });
 
+    await store.applyProviderChanges(connectionId, {
+      changes: [
+        {
+          type: 'upsert',
+          event: providerEvent({
+            providerEventId: 'completed-event',
+            title: 'Organizer changed completed history',
+            startInstant: '2026-09-16T14:00:00.000Z',
+            finishInstant: '2026-09-16T15:00:00.000Z',
+            providerUpdatedAt: '2026-09-14T12:10:00.000Z',
+          }),
+        },
+      ],
+      cursor: 'after-completed-edit',
+    });
+
     const states = await pool.query<{
       id: string;
       scheduleState: string;
@@ -246,7 +262,57 @@ describe('MTS-074 external cancellation and completed freeze', () => {
     );
     expect(pastChange.rows[0]).toMatchObject({
       operation: 'upsert',
-      payload: { occurrence: { scheduleState: 'cancelled' } },
+      payload: {
+        version: 2,
+        series: {
+          title: 'Past invitation',
+          recurrence: null,
+        },
+        occurrence: {
+          id: pastId,
+          schedule: {
+            localStart: '2026-09-13T09:00:00',
+            localFinish: '2026-09-13T10:00:00',
+            startInstant: '2026-09-13T09:00:00.000Z',
+            finishInstant: '2026-09-13T10:00:00.000Z',
+            timeZone: 'UTC',
+            timeBehavior: 'fixed_instant',
+            allDay: false,
+            estimatedEffortMinutes: null,
+          },
+          scheduleState: 'cancelled',
+          completionState: 'incomplete',
+          evidenceState: 'not_submitted',
+          rewardEligibility: 'undetermined',
+          rewardIssuance: 'not_issued',
+          calendarSource: 'external',
+          fieldOwnership: 'organizer_controlled',
+          synchronizationState: 'synced',
+          storyState: 'none',
+          deletionState: 'active',
+        },
+        location: null,
+        notes: null,
+      },
+    });
+
+    const completedHistory = await pool.query<{
+      title: string;
+      startInstant: Date;
+      finishInstant: Date;
+    }>(
+      `SELECT ms.title,
+              mo.start_instant AS "startInstant",
+              mo.finish_instant AS "finishInstant"
+         FROM mission_occurrences mo
+         JOIN mission_series ms ON ms.id = mo.series_id AND ms.account_id = mo.account_id
+        WHERE mo.id = $1 AND mo.account_id = $2`,
+      [completedId, accountId],
+    );
+    expect(completedHistory.rows[0]).toMatchObject({
+      title: 'Completed invitation',
+      startInstant: new Date('2026-09-13T11:00:00.000Z'),
+      finishInstant: new Date('2026-09-13T12:00:00.000Z'),
     });
 
     const reward = await pool.query<{
