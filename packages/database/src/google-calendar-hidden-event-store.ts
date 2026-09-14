@@ -60,7 +60,10 @@ export type RestoreHiddenExternalEventInput = Readonly<{
 
 export interface PostgresGoogleCalendarHiddenEventStore {
   listHiddenEvents(accountId: string): Promise<readonly HiddenExternalEventRecord[]>;
-  getHiddenEvent(accountId: string, hiddenEventId: string): Promise<HiddenExternalEventRecord | null>;
+  getHiddenEvent(
+    accountId: string,
+    hiddenEventId: string,
+  ): Promise<HiddenExternalEventRecord | null>;
   restoreHiddenEvent(
     connectionId: string,
     input: RestoreHiddenExternalEventInput,
