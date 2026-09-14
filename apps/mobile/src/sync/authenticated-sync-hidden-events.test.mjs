@@ -46,7 +46,7 @@ test('MTS-073 authenticated API lists and individually restores hidden calendar 
   };
   const api = createAuthenticatedSyncApi({
     baseUrl: 'https://api.example.test',
-    accessToken: 'access-token',
+    accessToken: 'fixture-access-token',
     fetcher,
   });
 
