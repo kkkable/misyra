@@ -38,12 +38,14 @@ jobs:
             apps/api/src/google-calendar-hidden-events-routes.test.ts \
             apps/api/src/google-calendar-hidden-events.test.ts \
             apps/api/src/google-calendar-routes.ts \
+            apps/mobile/src/settings/settings-route.tsx \
             packages/database/src/google-calendar-hidden-event-store.ts \
             --config packages/config/prettier.config.mjs
           git diff -- \
             apps/api/src/google-calendar-hidden-events-routes.test.ts \
             apps/api/src/google-calendar-hidden-events.test.ts \
             apps/api/src/google-calendar-routes.ts \
+            apps/mobile/src/settings/settings-route.tsx \
             packages/database/src/google-calendar-hidden-event-store.ts
 
       - name: Commit formatter output on verification branch
@@ -52,6 +54,7 @@ jobs:
             apps/api/src/google-calendar-hidden-events-routes.test.ts \
             apps/api/src/google-calendar-hidden-events.test.ts \
             apps/api/src/google-calendar-routes.ts \
+            apps/mobile/src/settings/settings-route.tsx \
             packages/database/src/google-calendar-hidden-event-store.ts; then
             echo "No formatter changes to commit."
             exit 0
@@ -62,6 +65,7 @@ jobs:
             apps/api/src/google-calendar-hidden-events-routes.test.ts \
             apps/api/src/google-calendar-hidden-events.test.ts \
             apps/api/src/google-calendar-routes.ts \
+            apps/mobile/src/settings/settings-route.tsx \
             packages/database/src/google-calendar-hidden-event-store.ts
           git commit -m "chore: materialize MTS-073 formatter output"
           git push origin HEAD:verify/mts-073-prettier-preview-20260914
