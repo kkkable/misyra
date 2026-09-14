@@ -1,8 +1,10 @@
 import {
   calendarConnectionSchema,
   disconnectCalendarRequestSchema,
+  externalCalendarRecurrenceScopeSchema,
   googleCalendarCallbackQuerySchema,
   googleCalendarConnectRequestSchema,
+  uuidSchema,
 } from '@misyra/contracts';
 
 import {
@@ -24,8 +26,21 @@ export type GoogleCalendarRouteWatchService = Pick<
   'handleWebhook' | 'ensureChannel'
 >;
 
+export type GoogleCalendarHiddenEventRouteService = Readonly<{
+  listHiddenEvents(accountId: string): Promise<readonly unknown[]>;
+  restoreHiddenEvent(
+    accountId: string,
+    hiddenId: string,
+    recurrenceScope: 'this_occurrence' | 'this_and_future' | 'entire_series',
+  ): Promise<Readonly<{ occurrenceId: string }>>;
+}>;
+
 function validationFailed(): never {
   throw new ApiError('validation_failed');
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function parseConnectBody(value: unknown) {
@@ -40,6 +55,20 @@ function parseCallbackQuery(value: unknown) {
 
 function parseDisconnectBody(value: unknown) {
   const parsed = disconnectCalendarRequestSchema.safeParse(value);
+  return parsed.success ? parsed.data : validationFailed();
+}
+
+function parseHiddenEventId(value: unknown): string {
+  if (!isRecord(value)) return validationFailed();
+  const parsed = uuidSchema.safeParse(value.hiddenId);
+  return parsed.success ? parsed.data : validationFailed();
+}
+
+function parseRestoreBody(
+  value: unknown,
+): 'this_occurrence' | 'this_and_future' | 'entire_series' {
+  if (!isRecord(value) || Object.keys(value).length !== 1) return validationFailed();
+  const parsed = externalCalendarRecurrenceScopeSchema.safeParse(value.recurrenceScope);
   return parsed.success ? parsed.data : validationFailed();
 }
 
@@ -79,6 +108,7 @@ export function createGoogleCalendarRoutes(
   service: GoogleCalendarRouteService,
   syncService?: GoogleCalendarRouteSyncService,
   watchService?: GoogleCalendarRouteWatchService,
+  hiddenEventService?: GoogleCalendarHiddenEventRouteService,
 ): ApiRouteDefinition[] {
   const routes: ApiRouteDefinition[] = [
     {
@@ -123,6 +153,29 @@ export function createGoogleCalendarRoutes(
       },
     },
   ];
+
+  if (hiddenEventService !== undefined) {
+    routes.push(
+      {
+        method: 'GET',
+        path: '/calendars/hidden-events',
+        handler: (_request, _reply, auth) => hiddenEventService.listHiddenEvents(auth.accountId),
+      },
+      {
+        method: 'POST',
+        path: '/calendars/hidden-events/:hiddenId/restore',
+        handler: (request, _reply, auth) => {
+          const hiddenId = parseHiddenEventId(request.params);
+          const recurrenceScope = parseRestoreBody(request.body);
+          return hiddenEventService.restoreHiddenEvent(
+            auth.accountId,
+            hiddenId,
+            recurrenceScope,
+          );
+        },
+      },
+    );
+  }
 
   if (watchService !== undefined) {
     routes.push({
