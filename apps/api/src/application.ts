@@ -5,6 +5,7 @@ import {
   createPostgresAuthStore,
   createPostgresDeviceSettingsStore,
   createPostgresGoogleCalendarConnectionStore,
+  createPostgresGoogleCalendarHiddenEventStore,
   createPostgresGoogleCalendarSyncStore,
   createPostgresGoogleCalendarWatchStore,
   deleteAccountTransaction,
@@ -27,6 +28,7 @@ import {
   type GoogleCalendarOAuthGateway,
   type GoogleCalendarTokenCipher,
 } from './google-calendar-connection.js';
+import { createGoogleCalendarHiddenEventService } from './google-calendar-hidden-events.js';
 import { createGoogleCalendarOAuthGateway } from './google-calendar-oauth-gateway.js';
 import { createGoogleCalendarRoutes } from './google-calendar-routes.js';
 import {
@@ -148,6 +150,14 @@ export function createApiApplication(options: AuthApplicationOptions) {
           store: createPostgresGoogleCalendarSyncStore(options.pool),
           provider: options.googleCalendar.syncProvider,
         });
+  const googleCalendarHiddenEventService =
+    options.googleCalendar?.syncProvider === undefined
+      ? undefined
+      : createGoogleCalendarHiddenEventService({
+          store: createPostgresGoogleCalendarHiddenEventStore(options.pool),
+          provider: options.googleCalendar.syncProvider,
+          ...(options.now === undefined ? {} : { now: options.now }),
+        });
   const authService = createAuthService({
     store: authStore,
     verifier,
@@ -179,6 +189,7 @@ export function createApiApplication(options: AuthApplicationOptions) {
           googleCalendarService,
           googleCalendarSyncService,
           options.googleCalendar?.watchService,
+          googleCalendarHiddenEventService,
         );
 
   return createApiServer({
