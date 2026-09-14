@@ -73,7 +73,7 @@ function createStore(initialState: ExternalCalendarConnectionState) {
     getConnection: vi.fn(() =>
       Promise.resolve({
         id: connectionId,
-        initialSyncDirection: 'external_to_misyra',
+        initialSyncDirection: 'external_to_misyra' as const,
         state,
       }),
     ),
