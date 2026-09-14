@@ -75,7 +75,7 @@ function currentProviderEvent() {
 }
 
 describe('MTS-073 PostgreSQL hidden external-event restoration', () => {
-  it('persists provider identity, canonical scope, and effective range when an import is dismissed', async () => {
+  it('keeps a dismissed non-recurring provider event hidden after the organizer reschedules it', async () => {
     const { accountId, connectionId } = await createAccountAndConnection();
     const syncStore = createPostgresGoogleCalendarSyncStore(pool);
 
@@ -122,9 +122,31 @@ describe('MTS-073 PostgreSQL hidden external-event restoration', () => {
       providerCalendarId: 'calendar-1',
       providerEventId: 'provider-event-1',
       recurrenceScope: 'this_occurrence',
-      effectiveStart: new Date('2026-09-20T01:00:00.000Z'),
-      effectiveEnd: new Date('2026-09-20T02:00:00.000Z'),
+      effectiveStart: null,
+      effectiveEnd: null,
     });
+
+    const rescheduledEvent = {
+      ...currentProviderEvent(),
+      providerUpdatedAt: '2026-09-13T12:05:00.000Z',
+      schedule: {
+        ...currentProviderEvent().schedule,
+        startInstant: '2026-09-27T01:00:00.000Z',
+        finishInstant: '2026-09-27T02:00:00.000Z',
+      },
+    };
+    await syncStore.reconcileFullImport(connectionId, {
+      events: [rescheduledEvent],
+      cursor: 'sync-token-rescheduled-dismissed-event',
+    });
+
+    const reimported = await pool.query(
+      `SELECT 1
+         FROM external_event_links
+        WHERE connection_id = $1 AND provider_event_id = 'provider-event-1'`,
+      [connectionId],
+    );
+    expect(reimported.rowCount).toBe(0);
   });
 
   it('suppresses only the occurrence covered by a this-occurrence effective range', async () => {
