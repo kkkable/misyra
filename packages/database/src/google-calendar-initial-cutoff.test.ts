@@ -32,47 +32,59 @@ afterAll(async () => {
 });
 
 describe('MTS-075 initial connection cutoff', () => {
-  it('keeps the command cutoff empty on a first connection so initial app-owned missions stay eligible', async () => {
-    const account = await pool.query<{ id: string }>(
-      `INSERT INTO accounts (provider, provider_subject)
-       VALUES ('google', $1)
-       RETURNING id`,
-      [`mts075-initial-${randomUUID()}`],
-    );
-    const accountId = account.rows[0]?.id;
-    if (accountId === undefined) throw new Error('account insert returned no id');
+  it(
+    'keeps the command cutoff empty on a first connection so initial app-owned missions stay eligible',
+    async () => {
+      const account = await pool.query<{ id: string }>(
+        `INSERT INTO accounts (provider, provider_subject)
+         VALUES ('google', $1)
+         RETURNING id`,
+        [`mts075-initial-${randomUUID()}`],
+      );
+      const accountId = account.rows[0]?.id;
+      if (accountId === undefined) throw new Error('account insert returned no id');
 
-    const store = createPostgresGoogleCalendarConnectionStore(pool);
-    const stateHash = '1'.repeat(64);
-    await store.saveOAuthState({
-      accountId,
-      stateHash,
-      expiresAt: new Date('2026-09-14T14:00:00.000Z'),
-      consumedAt: null,
-      initialSyncDirection: 'misyra_to_external',
-      selectedCalendarId: 'calendar-1',
-    });
-    const consumed = await store.consumeOAuthState(
-      stateHash,
-      new Date('2026-09-14T13:00:00.000Z'),
-    );
-    expect(consumed).not.toBeNull();
+      const store = createPostgresGoogleCalendarConnectionStore(pool);
+      await store.saveOAuthState({
+        accountId,
+        stateHash: '1'.repeat(64),
+        expiresAt: new Date('2026-09-14T14:00:00.000Z'),
+        consumedAt: null,
+        initialSyncDirection: 'misyra_to_external',
+        selectedCalendarId: 'calendar-1',
+      });
 
-    await store.createConnection({
-      accountId,
-      provider: 'google',
-      providerCalendarId: 'calendar-1',
-      initialSyncDirection: 'misyra_to_external',
-      encryptedRefreshToken: 'encrypted-initial',
-      state: 'connected',
-    });
+      const stateHash = '2'.repeat(64);
+      await store.saveOAuthState({
+        accountId,
+        stateHash,
+        expiresAt: new Date('2026-09-14T14:00:00.000Z'),
+        consumedAt: null,
+        initialSyncDirection: 'misyra_to_external',
+        selectedCalendarId: 'calendar-1',
+      });
+      const consumed = await store.consumeOAuthState(
+        stateHash,
+        new Date('2026-09-14T13:00:00.000Z'),
+      );
+      expect(consumed).not.toBeNull();
 
-    const cutoff = await pool.query<{ providerCommandCutoffAt: Date | null }>(
-      `SELECT provider_command_cutoff_at AS "providerCommandCutoffAt"
-         FROM external_calendar_connections
-        WHERE account_id = $1`,
-      [accountId],
-    );
-    expect(cutoff.rows[0]?.providerCommandCutoffAt).toBeNull();
-  });
+      await store.createConnection({
+        accountId,
+        provider: 'google',
+        providerCalendarId: 'calendar-1',
+        initialSyncDirection: 'misyra_to_external',
+        encryptedRefreshToken: 'encrypted-initial',
+        state: 'connected',
+      });
+
+      const cutoff = await pool.query<{ providerCommandCutoffAt: Date | null }>(
+        `SELECT provider_command_cutoff_at AS "providerCommandCutoffAt"
+           FROM external_calendar_connections
+          WHERE account_id = $1`,
+        [accountId],
+      );
+      expect(cutoff.rows[0]?.providerCommandCutoffAt).toBeNull();
+    },
+  );
 });
