@@ -500,8 +500,12 @@ export const hiddenExternalEvents = pgTable(
     connectionId: uuid('connection_id')
       .notNull()
       .references(() => externalCalendarConnections.id, { onDelete: 'cascade' }),
+    provider: text('provider'),
+    providerCalendarId: text('provider_calendar_id'),
     providerEventId: text('provider_event_id').notNull(),
-    recurrenceScope: text('recurrence_scope').notNull().default('event'),
+    recurrenceScope: text('recurrence_scope').notNull().default('this_occurrence'),
+    effectiveStart: timestamp('effective_start', { withTimezone: true }),
+    effectiveEnd: timestamp('effective_end', { withTimezone: true }),
     hiddenAt: timestamp('hidden_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
