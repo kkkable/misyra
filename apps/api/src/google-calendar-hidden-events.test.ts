@@ -119,6 +119,35 @@ describe('MTS-073 hidden calendar event service', () => {
     await expect(service.listHiddenEvents(accountId)).resolves.toEqual([]);
   });
 
+  it('omits a finite recurring dismissal once its final timed occurrence today has ended', async () => {
+    const expired = dismissal(pastHiddenId, 'ended-today-recurring-event');
+    const store = {
+      listHiddenEvents: vi.fn().mockResolvedValue([expired]),
+      getHiddenEvent: vi.fn(),
+      restoreHiddenEventById: vi.fn(),
+    };
+    const provider = {
+      restoreHiddenEvent: vi.fn().mockResolvedValue(
+        providerEvent(
+          'ended-today-recurring-event',
+          '2026-09-13T01:00:00.000Z',
+          '2026-09-13T02:00:00.000Z',
+          {
+            pattern: { type: 'daily', interval: 1 },
+            end: { type: 'count', occurrenceCount: 2 },
+          },
+        ),
+      ),
+    };
+    const service = createGoogleCalendarHiddenEventService({
+      store,
+      provider,
+      now: () => new Date('2026-09-14T03:00:00.000Z'),
+    });
+
+    await expect(service.listHiddenEvents(accountId)).resolves.toEqual([]);
+  });
+
   it('fetches current provider details before restoring the selected dismissal', async () => {
     const hidden = dismissal(futureHiddenId, 'future-event');
     const current = providerEvent(
