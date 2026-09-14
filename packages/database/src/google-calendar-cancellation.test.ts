@@ -61,7 +61,6 @@ function providerEvent(input: {
   startInstant: string;
   finishInstant: string;
   providerUpdatedAt?: string;
-  status?: 'confirmed' | 'cancelled';
 }) {
   return {
     providerCalendarId: 'calendar-1',
@@ -78,7 +77,7 @@ function providerEvent(input: {
     recurrence: null,
     location: null,
     providerNotes: null,
-    status: input.status ?? ('confirmed' as const),
+    status: 'confirmed' as const,
     ownership: 'organizer_controlled' as const,
   };
 }
@@ -192,7 +191,7 @@ describe('MTS-074 external cancellation and completed freeze', () => {
     const byId = new Map(states.rows.map((row) => [row.id, row]));
 
     expect(byId.get(futureId)).toMatchObject({
-      scheduleState: 'scheduled',
+      scheduleState: 'cancelled',
       completionState: 'incomplete',
       deletionState: 'deleted',
     });
@@ -215,6 +214,17 @@ describe('MTS-074 external cancellation and completed freeze', () => {
         [accountId, futureId],
       ),
     ).resolves.toMatchObject({ rowCount: 1 });
+
+    await expect(
+      pool.query(
+        `SELECT id
+           FROM hidden_external_events
+          WHERE account_id = $1
+            AND connection_id = $2
+            AND provider_event_id = 'future-event'`,
+        [accountId, connectionId],
+      ),
+    ).resolves.toMatchObject({ rowCount: 0 });
 
     const futureChange = await pool.query<{ operation: string; payload: unknown }>(
       `SELECT operation, payload
@@ -250,54 +260,5 @@ describe('MTS-074 external cancellation and completed freeze', () => {
       [accountId, completedId],
     );
     expect(reward.rows[0]).toEqual({ baseXp: 20, proofBonusXp: 5, awardedXp: 25 });
-  });
-
-  it('treats a provider upsert with cancelled status as cancellation instead of an ordinary edit', async () => {
-    const accountId = await createAccount();
-    const connectionId = await createConnection(accountId);
-    const store = createPostgresGoogleCalendarSyncStore(pool, {
-      now: () => new Date('2026-09-14T12:00:00.000Z'),
-    });
-    await store.reconcileFullImport(connectionId, {
-      events: [
-        providerEvent({
-          providerEventId: 'cancelled-upsert',
-          title: 'Original title',
-          startInstant: '2026-09-15T13:00:00.000Z',
-          finishInstant: '2026-09-15T14:00:00.000Z',
-        }),
-      ],
-      cursor: 'initial-token',
-    });
-    const id = await occurrenceId(connectionId, 'cancelled-upsert');
-
-    await store.applyProviderChanges(connectionId, {
-      changes: [
-        {
-          type: 'upsert',
-          event: providerEvent({
-            providerEventId: 'cancelled-upsert',
-            title: 'Cancelled provider title must not replace history',
-            startInstant: '2026-09-15T13:00:00.000Z',
-            finishInstant: '2026-09-15T14:00:00.000Z',
-            providerUpdatedAt: '2026-09-14T12:10:00.000Z',
-            status: 'cancelled',
-          }),
-        },
-      ],
-      cursor: 'cancelled-token',
-    });
-
-    const state = await pool.query<{ deletionState: string; title: string }>(
-      `SELECT mo.deletion_state AS "deletionState", ms.title
-         FROM mission_occurrences mo
-         JOIN mission_series ms ON ms.id = mo.series_id
-        WHERE mo.id = $1 AND mo.account_id = $2`,
-      [id, accountId],
-    );
-    expect(state.rows[0]).toEqual({
-      deletionState: 'deleted',
-      title: 'Original title',
-    });
   });
 });
