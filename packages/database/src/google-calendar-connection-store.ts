@@ -118,6 +118,11 @@ export function createPostgresGoogleCalendarConnectionStore(pool: Pool) {
                  provider_calendar_id = EXCLUDED.provider_calendar_id,
                  encrypted_refresh_token = NULL,
                  connection_state = 'disconnected',
+                 provider_command_cutoff_at = CASE
+                   WHEN external_calendar_connections.oauth_state_hash IS NULL
+                     THEN COALESCE(external_calendar_connections.provider_command_cutoff_at, now())
+                   ELSE external_calendar_connections.provider_command_cutoff_at
+                 END,
                  oauth_state_hash = EXCLUDED.oauth_state_hash,
                  oauth_state_expires_at = EXCLUDED.oauth_state_expires_at,
                  oauth_state_consumed_at = EXCLUDED.oauth_state_consumed_at,
@@ -182,7 +187,10 @@ export function createPostgresGoogleCalendarConnectionStore(pool: Pool) {
                 provider_calendar_id = $4,
                 encrypted_refresh_token = $5,
                 connection_state = $6,
-                provider_command_cutoff_at = now(),
+                provider_command_cutoff_at = CASE
+                  WHEN provider_command_cutoff_at IS NULL THEN NULL
+                  ELSE now()
+                END,
                 oauth_state_hash = NULL,
                 oauth_state_expires_at = NULL,
                 oauth_state_consumed_at = NULL,
