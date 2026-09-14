@@ -49,16 +49,20 @@ type RecoveryStore = GoogleCalendarSyncStore &
 function provider(overrides: Partial<GoogleCalendarSynchronizationProvider> = {}) {
   const initialImport =
     overrides.initialImport ??
-    vi.fn<(_connectionId: string) => Promise<SynchronizedImportBatch>>().mockResolvedValue({
-      events: [],
-      cursor: 'initial-token',
-    });
+    vi
+      .fn<(_connectionId: string) => Promise<SynchronizedImportBatch>>()
+      .mockResolvedValue({
+        events: [],
+        cursor: 'initial-token',
+      });
   const pullChanges =
     overrides.pullChanges ??
-    vi.fn<(_connectionId: string) => Promise<SynchronizedProviderChangeBatch>>().mockResolvedValue({
-      changes: [],
-      cursor: 'next-token',
-    });
+    vi
+      .fn<(_connectionId: string) => Promise<SynchronizedProviderChangeBatch>>()
+      .mockResolvedValue({
+        changes: [],
+        cursor: 'next-token',
+      });
   const restoreHiddenEvent = overrides.restoreHiddenEvent ?? vi.fn();
   const applyCommands =
     overrides.applyCommands ??
@@ -89,9 +93,11 @@ function store(initialState: ExternalCalendarConnectionState) {
   ]);
   const applyCommandResults = vi.fn().mockResolvedValue(undefined);
   const clearCursor = vi.fn().mockResolvedValue(undefined);
-  const setConnectionState = vi.fn(async (_connectionId, nextState) => {
-    state = nextState;
-  });
+  const setConnectionState = vi.fn(
+    async (_connectionId: string, nextState: ExternalCalendarConnectionState) => {
+      state = nextState;
+    },
+  );
   const value: RecoveryStore = {
     getConnection,
     reconcileFullImport,
