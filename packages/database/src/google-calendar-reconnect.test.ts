@@ -11,8 +11,11 @@ const postgresUser = process.env.POSTGRES_USER ?? 'misyra';
 const postgresPassword = process.env.POSTGRES_PASSWORD ?? 'misyra-local-only';
 const postgresPort = process.env.POSTGRES_PORT ?? '5432';
 const databaseName = `misyra_mts075_${randomUUID().replaceAll('-', '')}`;
-const databaseUrl = `postgresql://${postgresUser}:${postgresPassword}@127.0.0.1:${postgresPort}/${databaseName}`;
-const adminUrl = `postgresql://${postgresUser}:${postgresPassword}@127.0.0.1:${postgresPort}/postgres`;
+const databaseUrl =
+  `postgresql://${postgresUser}:${postgresPassword}` +
+  `@127.0.0.1:${postgresPort}/${databaseName}`;
+const adminUrl =
+  `postgresql://${postgresUser}:${postgresPassword}` + `@127.0.0.1:${postgresPort}/postgres`;
 let pool: Pool;
 
 beforeAll(async () => {
@@ -67,19 +70,18 @@ async function connectCalendar(accountId: string, stateHash: string) {
   });
 }
 
-async function insertTimedMission(input: {
-  accountId: string;
-  title: string;
-  startInstant: string;
-  finishInstant: string;
-  synchronizationState?: 'synced' | 'pending';
-}): Promise<string> {
+async function insertTimedMission(
+  accountId: string,
+  title: string,
+  startInstant: string,
+  synchronizationState: 'synced' | 'pending' = 'synced',
+): Promise<string> {
   const seriesId = randomUUID();
   const occurrenceId = randomUUID();
   await pool.query(
     `INSERT INTO mission_series (id, account_id, title)
      VALUES ($1, $2, $3)`,
-    [seriesId, input.accountId, input.title],
+    [seriesId, accountId, title],
   );
   await pool.query(
     `INSERT INTO mission_occurrences (
@@ -89,28 +91,27 @@ async function insertTimedMission(input: {
      ) VALUES (
        $1, $2, $3, ($4::timestamptz AT TIME ZONE 'Asia/Hong_Kong')::date,
        to_char($4::timestamptz AT TIME ZONE 'Asia/Hong_Kong', 'YYYY-MM-DD"T"HH24:MI:SS'),
-       to_char($5::timestamptz AT TIME ZONE 'Asia/Hong_Kong', 'YYYY-MM-DD"T"HH24:MI:SS'),
-       $4, $5, 'Asia/Hong_Kong', 'fixed_instant', false,
-       'internal', 'app_owned', $6
+       to_char(($4::timestamptz + interval '1 hour') AT TIME ZONE 'Asia/Hong_Kong',
+               'YYYY-MM-DD"T"HH24:MI:SS'),
+       $4, $4::timestamptz + interval '1 hour', 'Asia/Hong_Kong', 'fixed_instant', false,
+       'internal', 'app_owned', $5
      )`,
-    [
-      occurrenceId,
-      input.accountId,
-      seriesId,
-      input.startInstant,
-      input.finishInstant,
-      input.synchronizationState ?? 'synced',
-    ],
+    [occurrenceId, accountId, seriesId, startInstant, synchronizationState],
   );
   return occurrenceId;
 }
 
-function providerEvent(providerEventId: string, title: string) {
+async function rowCount(sql: string, values: readonly unknown[]): Promise<number> {
+  const result = await pool.query(sql, [...values]);
+  return result.rowCount ?? 0;
+}
+
+function providerEvent() {
   return {
     providerCalendarId: 'calendar-1',
-    providerEventId,
+    providerEventId: 'provider-linked-event',
     providerUpdatedAt: '2026-09-14T13:30:00.000Z',
-    title,
+    title: 'Provider title after reconnect',
     schedule: {
       type: 'timed' as const,
       startInstant: '2026-09-16T01:00:00.000Z',
@@ -127,22 +128,21 @@ function providerEvent(providerEventId: string, title: string) {
 }
 
 describe('MTS-075 disconnect queue discard and same-calendar reconnect', () => {
-  it('keeps internal data and retained provider ids while discarding all delayed provider work', async () => {
+  it('discards delayed provider work without deleting missions or retained provider ids', async () => {
     const accountId = await createAccount();
     const connectionStore = createPostgresGoogleCalendarConnectionStore(pool);
     const connection = await connectCalendar(accountId, 'a'.repeat(64));
-    const linkedOccurrenceId = await insertTimedMission({
+    const linkedId = await insertTimedMission(
       accountId,
-      title: 'Linked pending edit',
-      startInstant: '2026-09-16T01:00:00.000Z',
-      finishInstant: '2026-09-16T02:00:00.000Z',
-      synchronizationState: 'pending',
-    });
+      'Linked pending edit',
+      '2026-09-16T01:00:00.000Z',
+      'pending',
+    );
     await pool.query(
       `INSERT INTO external_event_links
          (connection_id, occurrence_id, provider_event_id, recurrence_scope)
        VALUES ($1, $2, 'provider-linked-event', 'event')`,
-      [connection.id, linkedOccurrenceId],
+      [connection.id, linkedId],
     );
     await pool.query(
       `INSERT INTO calendar_sync_cursors (connection_id, cursor)
@@ -152,77 +152,84 @@ describe('MTS-075 disconnect queue discard and same-calendar reconnect', () => {
     await pool.query(
       `INSERT INTO misyra_internal.google_calendar_watch_channels
          (channel_id, connection_id, resource_id, token_hash, expires_at)
-       VALUES ('channel-before-disconnect', $1, 'resource-1', $2, '2026-09-15T00:00:00.000Z')`,
+       VALUES ('channel-before-disconnect', $1, 'resource-1', $2,
+               '2026-09-15T00:00:00.000Z')`,
       [connection.id, 'a'.repeat(64)],
     );
 
     await connectionStore.disconnectConnection(accountId, connection.id);
 
-    const disconnected = await pool.query<{ state: string }>(
+    const state = await pool.query<{ state: string }>(
       `SELECT connection_state AS state
          FROM external_calendar_connections
         WHERE id = $1`,
       [connection.id],
     );
-    expect(disconnected.rows[0]?.state).toBe('disconnected');
-    await expect(
-      pool.query(`SELECT id FROM mission_occurrences WHERE id = $1`, [linkedOccurrenceId]),
-    ).resolves.toMatchObject({ rowCount: 1 });
-    await expect(
-      pool.query(
+    expect(state.rows[0]?.state).toBe('disconnected');
+    expect(await rowCount('SELECT id FROM mission_occurrences WHERE id = $1', [linkedId])).toBe(1);
+    expect(
+      await rowCount(
         `SELECT provider_event_id
            FROM external_event_links
           WHERE connection_id = $1 AND occurrence_id = $2`,
-        [connection.id, linkedOccurrenceId],
+        [connection.id, linkedId],
       ),
-    ).resolves.toMatchObject({ rowCount: 1 });
-    await expect(
-      pool.query(`SELECT cursor FROM calendar_sync_cursors WHERE connection_id = $1`, [
+    ).toBe(1);
+    expect(
+      await rowCount('SELECT cursor FROM calendar_sync_cursors WHERE connection_id = $1', [
         connection.id,
       ]),
-    ).resolves.toMatchObject({ rowCount: 0 });
-    await expect(
-      pool.query(
+    ).toBe(0);
+    expect(
+      await rowCount(
         `SELECT channel_id
            FROM misyra_internal.google_calendar_watch_channels
           WHERE connection_id = $1`,
         [connection.id],
       ),
-    ).resolves.toMatchObject({ rowCount: 0 });
+    ).toBe(0);
+  });
 
-    await connectionStore.clearDisconnectedRefreshToken(accountId, connection.id);
-
-    const disconnectedOccurrenceId = await insertTimedMission({
+  it('reuses retained identity without replaying disconnected-period changes or duplicating imports', async () => {
+    const accountId = await createAccount();
+    const connectionStore = createPostgresGoogleCalendarConnectionStore(pool);
+    const first = await connectCalendar(accountId, 'c'.repeat(64));
+    const linkedId = await insertTimedMission(
       accountId,
-      title: 'Created while disconnected',
-      startInstant: '2026-09-17T01:00:00.000Z',
-      finishInstant: '2026-09-17T02:00:00.000Z',
-    });
+      'Linked pending edit',
+      '2026-09-16T01:00:00.000Z',
+      'pending',
+    );
+    await pool.query(
+      `INSERT INTO external_event_links
+         (connection_id, occurrence_id, provider_event_id, recurrence_scope)
+       VALUES ($1, $2, 'provider-linked-event', 'event')`,
+      [first.id, linkedId],
+    );
 
-    const reconnected = await connectCalendar(accountId, 'b'.repeat(64));
-    expect(reconnected.id).toBe(connection.id);
+    await connectionStore.disconnectConnection(accountId, first.id);
+    await connectionStore.clearDisconnectedRefreshToken(accountId, first.id);
+    const disconnectedId = await insertTimedMission(
+      accountId,
+      'Created while disconnected',
+      '2026-09-17T01:00:00.000Z',
+    );
+
+    const second = await connectCalendar(accountId, 'd'.repeat(64));
+    expect(second.id).toBe(first.id);
 
     const syncStore = createPostgresGoogleCalendarSyncStore(pool);
-    const pendingAfterReconnect = await syncStore.listPendingCommands(connection.id);
-    expect(pendingAfterReconnect).toEqual([]);
+    expect(await syncStore.listPendingCommands(first.id)).toEqual([]);
 
-    const retained = await pool.query<{ providerEventId: string }>(
-      `SELECT provider_event_id AS "providerEventId"
-         FROM external_event_links
-        WHERE connection_id = $1 AND occurrence_id = $2`,
-      [connection.id, linkedOccurrenceId],
-    );
-    expect(retained.rows[0]?.providerEventId).toBe('provider-linked-event');
-
-    await syncStore.reconcileFullImport(connection.id, {
-      events: [providerEvent('provider-linked-event', 'Provider title after reconnect')],
+    await syncStore.reconcileFullImport(first.id, {
+      events: [providerEvent()],
       cursor: 'cursor-after-reconnect',
     });
     const counts = await pool.query<{ occurrences: string; links: string }>(
       `SELECT
          (SELECT count(*) FROM mission_occurrences WHERE account_id = $1)::text AS occurrences,
          (SELECT count(*) FROM external_event_links WHERE connection_id = $2)::text AS links`,
-      [accountId, connection.id],
+      [accountId, first.id],
     );
     expect(counts.rows[0]).toEqual({ occurrences: '2', links: '1' });
 
@@ -230,27 +237,24 @@ describe('MTS-075 disconnect queue discard and same-calendar reconnect', () => {
       `UPDATE mission_occurrences
           SET synchronization_state = 'pending', updated_at = now() + interval '1 minute'
         WHERE id = $1`,
-      [linkedOccurrenceId],
+      [linkedId],
     );
-    const postReconnectOccurrenceId = await insertTimedMission({
+    const newId = await insertTimedMission(
       accountId,
-      title: 'Created after reconnect',
-      startInstant: '2026-09-18T01:00:00.000Z',
-      finishInstant: '2026-09-18T02:00:00.000Z',
-    });
+      'Created after reconnect',
+      '2026-09-18T01:00:00.000Z',
+    );
     await pool.query(
       `UPDATE mission_occurrences
           SET updated_at = now() + interval '2 minutes'
         WHERE id = $1`,
-      [postReconnectOccurrenceId],
+      [newId],
     );
 
-    const pendingAfterNewChanges = await syncStore.listPendingCommands(connection.id);
-    const queuedOccurrenceIds = new Set(
-      pendingAfterNewChanges.map((item) => item.occurrenceId),
-    );
-    expect(queuedOccurrenceIds).toContain(linkedOccurrenceId);
-    expect(queuedOccurrenceIds).toContain(postReconnectOccurrenceId);
-    expect(queuedOccurrenceIds).not.toContain(disconnectedOccurrenceId);
+    const pending = await syncStore.listPendingCommands(first.id);
+    const ids = new Set(pending.map((item) => item.occurrenceId));
+    expect(ids).toContain(linkedId);
+    expect(ids).toContain(newId);
+    expect(ids).not.toContain(disconnectedId);
   });
 });
