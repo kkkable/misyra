@@ -1,0 +1,27 @@
+name: MTS-075 Schema RED
+
+on:
+  push:
+    branches:
+      - verify/mts-075-schema-red-20260914
+
+permissions:
+  contents: read
+
+jobs:
+  schema-red:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.5
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - name: Prove recovery schema contract is red
+        run: pnpm --filter @misyra/database test -- src/google-calendar-recovery-schema.test.ts
