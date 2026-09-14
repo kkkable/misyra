@@ -36,7 +36,7 @@ export interface GoogleCalendarSynchronizationProvider {
 
 export interface GoogleCalendarSyncStore {
   getConnection(connectionId: string): Promise<GoogleCalendarSyncConnection | null>;
-  setConnectionState(
+  setConnectionState?(
     connectionId: string,
     state: ExternalCalendarConnectionState,
   ): Promise<void>;
@@ -79,13 +79,21 @@ function recoveryStateForError(error: unknown): ExternalCalendarConnectionState 
   return null;
 }
 
+async function setConnectionState(
+  store: GoogleCalendarSyncStore,
+  connectionId: string,
+  state: ExternalCalendarConnectionState,
+): Promise<void> {
+  await store.setConnectionState?.(connectionId, state);
+}
+
 async function persistProviderFailure(
   store: GoogleCalendarSyncStore,
   connectionId: string,
   error: unknown,
 ): Promise<void> {
   const state = recoveryStateForError(error);
-  if (state !== null) await store.setConnectionState(connectionId, state);
+  if (state !== null) await setConnectionState(store, connectionId, state);
 }
 
 async function pushPendingCommands(
@@ -136,7 +144,7 @@ export function createGoogleCalendarSyncService(
       const currentTime = now();
 
       if (connection.state !== 'connected') {
-        await store.setConnectionState(connectionId, 'connected');
+        await setConnectionState(store, connectionId, 'connected');
       }
 
       try {
@@ -156,7 +164,7 @@ export function createGoogleCalendarSyncService(
       assertSynchronizable(connection);
 
       if (connection.state !== 'connected') {
-        await store.setConnectionState(connectionId, 'connected');
+        await setConnectionState(store, connectionId, 'connected');
       }
 
       try {
