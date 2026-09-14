@@ -11,6 +11,7 @@ import {
   GoogleCalendarOAuthError,
   type GoogleCalendarConnectionService,
 } from './google-calendar-connection.js';
+import { GoogleCalendarHiddenEventError } from './google-calendar-hidden-events.js';
 import type { GoogleCalendarSyncService } from './google-calendar-sync.js';
 import type { GoogleCalendarWatchService } from './google-calendar-watch.js';
 import { ApiError, type ApiRouteDefinition } from './index.js';
@@ -96,6 +97,18 @@ async function runGoogleCalendarOperation<T>(operation: () => Promise<T>): Promi
   }
 }
 
+async function runHiddenEventOperation<T>(operation: () => Promise<T>): Promise<T> {
+  try {
+    return await operation();
+  } catch (error) {
+    if (error instanceof GoogleCalendarHiddenEventError) {
+      if (error.code === 'not_found') throw new ApiError('not_found');
+      throw new ApiError('temporarily_unavailable');
+    }
+    throw error;
+  }
+}
+
 function header(
   headers: Readonly<Record<string, string | readonly string[] | undefined>>,
   name: string,
@@ -159,7 +172,8 @@ export function createGoogleCalendarRoutes(
       {
         method: 'GET',
         path: '/calendars/hidden-events',
-        handler: (_request, _reply, auth) => hiddenEventService.listHiddenEvents(auth.accountId),
+        handler: (_request, _reply, auth) =>
+          runHiddenEventOperation(() => hiddenEventService.listHiddenEvents(auth.accountId)),
       },
       {
         method: 'POST',
@@ -167,10 +181,12 @@ export function createGoogleCalendarRoutes(
         handler: (request, _reply, auth) => {
           const hiddenId = parseHiddenEventId(request.params);
           const recurrenceScope = parseRestoreBody(request.body);
-          return hiddenEventService.restoreHiddenEvent(
-            auth.accountId,
-            hiddenId,
-            recurrenceScope,
+          return runHiddenEventOperation(() =>
+            hiddenEventService.restoreHiddenEvent(
+              auth.accountId,
+              hiddenId,
+              recurrenceScope,
+            ),
           );
         },
       },
