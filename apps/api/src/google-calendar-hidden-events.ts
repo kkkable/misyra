@@ -74,12 +74,19 @@ function localDateEpoch(localDate: string): number {
   return Date.UTC(year, month - 1, day);
 }
 
-function daysBetweenLocalDates(startLocalDate: string, finishLocalDate: string): number {
-  return Math.round((localDateEpoch(finishLocalDate) - localDateEpoch(startLocalDate)) / 86_400_000);
+function daysBetweenLocalDates(
+  startLocalDate: string,
+  finishLocalDate: string,
+): number {
+  return Math.round(
+    (localDateEpoch(finishLocalDate) - localDateEpoch(startLocalDate)) / 86_400_000,
+  );
 }
 
 function addLocalDays(localDate: string, days: number): string {
-  return new Date(localDateEpoch(localDate) + days * 86_400_000).toISOString().slice(0, 10);
+  return new Date(localDateEpoch(localDate) + days * 86_400_000)
+    .toISOString()
+    .slice(0, 10);
 }
 
 function occurrenceHasNotEnded(
@@ -106,7 +113,10 @@ function occurrenceHasNotEnded(
     new Date(event.schedule.finishInstant),
     event.schedule.timeZone,
   );
-  const finishDateOffset = daysBetweenLocalDates(anchorStart.slice(0, 10), anchorFinish.slice(0, 10));
+  const finishDateOffset = daysBetweenLocalDates(
+    anchorStart.slice(0, 10),
+    anchorFinish.slice(0, 10),
+  );
   const occurrenceFinish = `${addLocalDays(occurrenceLocalDate, finishDateOffset)}T${anchorFinish.slice(11)}`;
   return occurrenceFinish > localDateTimeAt(now, event.schedule.timeZone);
 }
@@ -144,7 +154,9 @@ function recurringEventHasUpcomingDate(
       if (startsFromToday.some((localDate) => localDate > today)) return true;
     }
     const latestStart = occurrencesThroughToday.at(-1);
-    return latestStart === undefined ? false : occurrenceHasNotEnded(event, latestStart, now);
+    return latestStart === undefined
+      ? false
+      : occurrenceHasNotEnded(event, latestStart, now);
   }
 
   if (occurrencesThroughToday.length < recurrence.end.occurrenceCount) return true;
