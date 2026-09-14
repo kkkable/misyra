@@ -65,9 +65,7 @@ function parseHiddenEventId(value: unknown): string {
   return parsed.success ? parsed.data : validationFailed();
 }
 
-function parseRestoreBody(
-  value: unknown,
-): 'this_occurrence' | 'this_and_future' | 'entire_series' {
+function parseRestoreBody(value: unknown): 'this_occurrence' | 'this_and_future' | 'entire_series' {
   if (!isRecord(value) || Object.keys(value).length !== 1) return validationFailed();
   const parsed = externalCalendarRecurrenceScopeSchema.safeParse(value.recurrenceScope);
   return parsed.success ? parsed.data : validationFailed();
