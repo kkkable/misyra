@@ -1,0 +1,54 @@
+name: MTS-073 Prettier Preview
+
+on:
+  push:
+    branches:
+      - verify/mts-073-prettier-preview-20260914
+
+permissions:
+  contents: read
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout verification branch
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install pinned pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.5
+          run_install: false
+
+      - name: Set up pinned Node with pnpm cache
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install from lockfile
+        run: pnpm install --frozen-lockfile
+
+      - name: Print exact Prettier patch
+        run: |
+          pnpm exec prettier --write \
+            apps/api/src/google-calendar-hidden-events-routes.test.ts \
+            apps/api/src/google-calendar-hidden-events.test.ts \
+            apps/api/src/google-calendar-routes.ts \
+            packages/database/src/google-calendar-hidden-event-store.ts \
+            --config packages/config/prettier.config.mjs
+          git diff -- \
+            apps/api/src/google-calendar-hidden-events-routes.test.ts \
+            apps/api/src/google-calendar-hidden-events.test.ts \
+            apps/api/src/google-calendar-routes.ts \
+            packages/database/src/google-calendar-hidden-event-store.ts
+          test -n "$(git status --short -- \
+            apps/api/src/google-calendar-hidden-events-routes.test.ts \
+            apps/api/src/google-calendar-hidden-events.test.ts \
+            apps/api/src/google-calendar-routes.ts \
+            packages/database/src/google-calendar-hidden-event-store.ts)"
