@@ -26,6 +26,42 @@ final class AppleCalendarNativeTests: XCTestCase {
     XCTAssertEqual(types, ["daily", "monthly-date"])
   }
 
+  func testUnsetProviderWeekStartUsesPhoneRegionFallback() {
+    XCTAssertEqual(
+      AppleCalendarRecurrenceMapper.canonicalWeekStart(
+        firstDayOfTheWeek: 0,
+        defaultWeekStartsOn: 1
+      ),
+      1
+    )
+    XCTAssertEqual(
+      AppleCalendarRecurrenceMapper.canonicalWeekStart(
+        firstDayOfTheWeek: 7,
+        defaultWeekStartsOn: 1
+      ),
+      6
+    )
+  }
+
+  func testRejectsLossyWeeklyWeekStartMapping() {
+    let canonical: [String: Any] = [
+      "pattern": [
+        "type": "weekly",
+        "interval": 2,
+        "weekdays": [1, 3],
+        "weekStartsOn": 1,
+      ] as [String: Any],
+      "end": ["type": "never"] as [String: Any],
+    ]
+
+    XCTAssertThrowsError(try AppleCalendarRecurrenceMapper.eventKitRule(from: canonical)) { error in
+      XCTAssertEqual(
+        (error as? AppleCalendarRecurrenceError)?.errorDescription,
+        "unsupported_week_start"
+      )
+    }
+  }
+
   func testWritePayloadContainsProviderOwnedFieldsOnly() {
     XCTAssertEqual(
       Set(AppleCalendarEventPayload.providerOwnedFieldNames),

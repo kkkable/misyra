@@ -12,7 +12,11 @@ enum AppleCalendarRecurrenceMapper {
 
     case .weekly:
       let weekdays = (rule.daysOfTheWeek ?? []).map { canonicalWeekday($0.dayOfTheWeek) }
-      let firstDay = rule.firstDayOfTheWeek == 0 ? 0 : rule.firstDayOfTheWeek - 1
+      let defaultWeekStartsOn = normalizedPhoneRegionWeekStart()
+      let firstDay = canonicalWeekStart(
+        firstDayOfTheWeek: rule.firstDayOfTheWeek,
+        defaultWeekStartsOn: defaultWeekStartsOn
+      )
       pattern = [
         "type": "weekly",
         "interval": rule.interval,
@@ -85,9 +89,22 @@ enum AppleCalendarRecurrenceMapper {
       return EKRecurrenceRule(recurrenceWith: .daily, interval: interval, end: end)
 
     case "weekly":
-      guard let weekdays = pattern["weekdays"] as? [Int], !weekdays.isEmpty else {
+      guard
+        let weekdays = pattern["weekdays"] as? [Int],
+        !weekdays.isEmpty,
+        weekdays.allSatisfy({ (0...6).contains($0) }),
+        let weekStartsOn = pattern["weekStartsOn"] as? Int,
+        (0...6).contains(weekStartsOn)
+      else {
         throw AppleCalendarRecurrenceError.invalidCanonical
       }
+
+      // EventKit exposes firstDayOfTheWeek as read-only, so it cannot encode Misyra's
+      // explicit every-N-weeks phase when N > 1 without risking a semantic shift.
+      if interval > 1 {
+        throw AppleCalendarRecurrenceError.unsupportedWeekStart
+      }
+
       return EKRecurrenceRule(
         recurrenceWith: .weekly,
         interval: interval,
@@ -173,6 +190,17 @@ enum AppleCalendarRecurrenceMapper {
     }
   }
 
+  static func canonicalWeekStart(firstDayOfTheWeek: Int, defaultWeekStartsOn: Int) -> Int {
+    guard firstDayOfTheWeek != 0 else { return defaultWeekStartsOn }
+    let canonical = firstDayOfTheWeek - 1
+    return (0...6).contains(canonical) ? canonical : defaultWeekStartsOn
+  }
+
+  private static func normalizedPhoneRegionWeekStart() -> Int {
+    let canonical = Calendar.autoupdatingCurrent.firstWeekday - 1
+    return (0...6).contains(canonical) ? canonical : 1
+  }
+
   private static func ordinalRule(
     frequency: EKRecurrenceFrequency,
     interval: Int,
@@ -256,6 +284,7 @@ enum AppleCalendarRecurrenceMapper {
 enum AppleCalendarRecurrenceError: LocalizedError {
   case invalidCanonical
   case unsupportedRule(String)
+  case unsupportedWeekStart
 
   var errorDescription: String? {
     switch self {
@@ -263,6 +292,8 @@ enum AppleCalendarRecurrenceError: LocalizedError {
       return "Invalid canonical recurrence"
     case .unsupportedRule(let rule):
       return "Unsupported EventKit recurrence: \(rule)"
+    case .unsupportedWeekStart:
+      return "unsupported_week_start"
     }
   }
 }
