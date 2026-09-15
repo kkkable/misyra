@@ -75,6 +75,30 @@ final class AppleCalendarNativeTests: XCTestCase {
     XCTAssertThrowsError(try AppleCalendarRecurrenceMapper.canonical(from: rule))
   }
 
+  func testYearlyDateUsesEventStartDayInsteadOfInvalidYearlyMonthDayFilter() throws {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+    let start = calendar.date(from: DateComponents(year: 2026, month: 9, day: 15))!
+    let canonical: [String: Any] = [
+      "pattern": [
+        "type": "yearly-date",
+        "interval": 1,
+        "month": 9,
+        "day": 15,
+      ] as [String: Any],
+      "end": ["type": "never"] as [String: Any],
+    ]
+
+    let rule = try AppleCalendarRecurrenceMapper.eventKitRule(
+      from: canonical,
+      eventStart: start,
+      eventTimeZone: calendar.timeZone
+    )
+
+    XCTAssertEqual(rule.monthsOfTheYear, [9])
+    XCTAssertNil(rule.daysOfTheMonth)
+  }
+
   func testUnsetProviderWeekStartUsesPhoneRegionFallback() {
     XCTAssertEqual(
       AppleCalendarRecurrenceMapper.canonicalWeekStart(
