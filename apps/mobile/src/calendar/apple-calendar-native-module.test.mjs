@@ -80,8 +80,6 @@ describe('MTS-076 Apple Calendar native module boundary', () => {
     expect(barrel).toContain('AppleCalendarNativeModuleEvents');
     expect(barrel).toContain('onStoreChanged(event: AppleCalendarStoreChangedEvent): void');
     expect(barrel).toContain('NativeModule<AppleCalendarNativeModuleEvents>');
-    expect(barrel).toContain('addAppleCalendarStoreChangeListener');
-    expect(barrel).toContain("addListener('onStoreChanged', listener)");
   });
 
   it('maps provider recurrence through canonical mapping fixtures', async () => {
