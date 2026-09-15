@@ -1,4 +1,4 @@
-import { requireOptionalNativeModule } from 'expo';
+import { NativeModule, requireOptionalNativeModule } from 'expo';
 
 export type AppleCalendarAuthorizationStatus =
   'not_determined' | 'restricted' | 'denied' | 'write_only' | 'full_access';
@@ -29,7 +29,15 @@ export type AppleCalendarEventWrite = {
   providerNotes: string | null;
 };
 
-export type AppleCalendarNativeModule = {
+export type AppleCalendarStoreChangedEvent = {
+  changed: boolean;
+};
+
+export type AppleCalendarNativeModuleEvents = {
+  onStoreChanged(event: AppleCalendarStoreChangedEvent): void;
+};
+
+export type AppleCalendarNativeModule = NativeModule<AppleCalendarNativeModuleEvents> & {
   getAuthorizationStatus(): Promise<AppleCalendarAuthorizationStatus>;
   requestFullAccess(userSelectedAppleCalendar: boolean): Promise<boolean>;
   listCalendars(): Promise<AppleCalendarInfo[]>;
@@ -54,3 +62,9 @@ export const AppleCalendarNativeModule =
   requireOptionalNativeModule<AppleCalendarNativeModule>('AppleCalendar');
 
 export const isAppleCalendarNativeModuleAvailable = AppleCalendarNativeModule !== null;
+
+export function addAppleCalendarStoreChangeListener(
+  listener: (event: AppleCalendarStoreChangedEvent) => void,
+) {
+  return AppleCalendarNativeModule?.addListener('onStoreChanged', listener) ?? null;
+}
