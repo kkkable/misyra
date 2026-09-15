@@ -119,6 +119,22 @@ describe('MTS-076 Apple Calendar native module boundary', () => {
     }
   });
 
+  it('maps basic EventKit recurrence from event-start context and rejects lossy provider rules', async () => {
+    const [mapper, harness, module] = await Promise.all([
+      source('ios/AppleCalendarRecurrenceMapper.swift'),
+      source('ios/Tests/AppleCalendarNativeTests.swift'),
+      source('ios/AppleCalendarModule.swift'),
+    ]);
+
+    expect(mapper).toContain('eventStart: Date? = nil');
+    expect(mapper).toContain('eventTimeZone: TimeZone? = nil');
+    expect(mapper).toContain('unsupportedRule("monthly-multiple-days")');
+    expect(module).toContain('eventStart: event.startDate');
+    expect(module).toContain('eventTimeZone: event.timeZone');
+    expect(harness).toContain('testBasicProviderRecurrenceUsesEventStartContext');
+    expect(harness).toContain('testRejectsLossyProviderRecurrenceInsteadOfTakingFirstValue');
+  });
+
   it('preserves canonical weekly phase semantics instead of silently dropping weekStartsOn', async () => {
     const [mapper, harness] = await Promise.all([
       source('ios/AppleCalendarRecurrenceMapper.swift'),
