@@ -1,7 +1,11 @@
 import type { ConfigContext } from 'expo/config';
 
 const ANDROID_EXACT_ALARM_PERMISSION = 'android.permission.SCHEDULE_EXACT_ALARM';
-const eventKitPermissionCopy = process.env.MISYRA_EVENTKIT_PERMISSION_COPY?.trim();
+const rawEventKitPermissionCopy: unknown = process.env.MISYRA_EVENTKIT_PERMISSION_COPY;
+const eventKitPermissionCopy =
+  typeof rawEventKitPermissionCopy === 'string' && rawEventKitPermissionCopy.trim().length > 0
+    ? rawEventKitPermissionCopy.trim()
+    : null;
 
 const eventKitInfoPlist = eventKitPermissionCopy
   ? {
