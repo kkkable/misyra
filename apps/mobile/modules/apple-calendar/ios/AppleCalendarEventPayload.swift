@@ -29,7 +29,13 @@ enum AppleCalendarEventPayload {
     try applySchedule(schedule, to: event)
 
     if let canonical = payload["recurrence"] as? [String: Any] {
-      event.recurrenceRules = [try recurrenceMapper.eventKitRule(from: canonical)]
+      event.recurrenceRules = [
+        try recurrenceMapper.eventKitRule(
+          from: canonical,
+          eventStart: event.startDate,
+          eventTimeZone: event.timeZone
+        )
+      ]
     } else {
       event.recurrenceRules = nil
     }
@@ -51,12 +57,16 @@ enum AppleCalendarEventPayload {
       else {
         throw AppleCalendarPayloadError.invalidField("schedule")
       }
+      guard
+        let zoneName = schedule["timeZone"] as? String,
+        let zone = TimeZone(identifier: zoneName)
+      else {
+        throw AppleCalendarPayloadError.invalidField("schedule.timeZone")
+      }
       event.isAllDay = false
       event.startDate = start
       event.endDate = finish
-      if let zoneName = schedule["timeZone"] as? String {
-        event.timeZone = TimeZone(identifier: zoneName)
-      }
+      event.timeZone = zone
 
     case "all_day":
       guard
