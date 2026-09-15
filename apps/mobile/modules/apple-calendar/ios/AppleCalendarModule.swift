@@ -179,6 +179,7 @@ public final class AppleCalendarModule: Module {
       "startDate": AppleCalendarDateCodec.instantString(event.startDate),
       "endDate": AppleCalendarDateCodec.instantString(event.endDate),
       "isAllDay": event.isAllDay,
+      "timeZone": event.timeZone?.identifier,
       "location": event.location,
       "providerNotes": event.notes,
       "recurrence": recurrence,
