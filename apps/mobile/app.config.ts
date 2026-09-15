@@ -1,6 +1,14 @@
 import type { ConfigContext } from 'expo/config';
 
 const ANDROID_EXACT_ALARM_PERMISSION = 'android.permission.SCHEDULE_EXACT_ALARM';
+const eventKitPermissionCopy = process.env.MISYRA_EVENTKIT_PERMISSION_COPY?.trim();
+
+const eventKitInfoPlist = eventKitPermissionCopy
+  ? {
+      NSCalendarsUsageDescription: eventKitPermissionCopy,
+      NSCalendarsFullAccessUsageDescription: eventKitPermissionCopy,
+    }
+  : {};
 
 export default ({ config }: ConfigContext) => ({
   ...config,
@@ -9,5 +17,12 @@ export default ({ config }: ConfigContext) => ({
     permissions: Array.from(
       new Set([...(config.android?.permissions ?? []), ANDROID_EXACT_ALARM_PERMISSION]),
     ),
+  },
+  ios: {
+    ...config.ios,
+    infoPlist: {
+      ...config.ios?.infoPlist,
+      ...eventKitInfoPlist,
+    },
   },
 });
