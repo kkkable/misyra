@@ -62,9 +62,3 @@ export const AppleCalendarNativeModule =
   requireOptionalNativeModule<AppleCalendarNativeModule>('AppleCalendar');
 
 export const isAppleCalendarNativeModuleAvailable = AppleCalendarNativeModule !== null;
-
-export function addAppleCalendarStoreChangeListener(
-  listener: (event: AppleCalendarStoreChangedEvent) => void,
-) {
-  return AppleCalendarNativeModule?.addListener('onStoreChanged', listener) ?? null;
-}
