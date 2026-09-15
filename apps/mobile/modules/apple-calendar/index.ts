@@ -16,6 +16,7 @@ export type AppleCalendarNativeEvent = {
   startDate: string;
   endDate: string;
   isAllDay: boolean;
+  timeZone: string | null;
   location: string | null;
   providerNotes: string | null;
   recurrence: Record<string, unknown> | null;
