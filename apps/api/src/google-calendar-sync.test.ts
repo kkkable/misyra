@@ -17,6 +17,7 @@ import {
 const connectionId = '11111111-1111-4111-8111-111111111111';
 const commandId = '22222222-2222-4222-8222-222222222222';
 const occurrenceId = '33333333-3333-4333-8333-333333333333';
+const initialSyncNow = () => new Date('2026-09-14T00:00:00.000Z');
 
 const providerEvent = {
   providerCalendarId: 'calendar-1',
@@ -131,6 +132,7 @@ describe('MTS-070 Google initial and incremental synchronization', () => {
     const service = createGoogleCalendarSyncService({
       provider: calendarProvider.value,
       store: syncStore.value,
+      now: initialSyncNow,
     });
 
     await service.initialSync(connectionId);
@@ -156,6 +158,7 @@ describe('MTS-070 Google initial and incremental synchronization', () => {
     const service = createGoogleCalendarSyncService({
       provider: calendarProvider.value,
       store: syncStore.value,
+      now: initialSyncNow,
     });
 
     await service.initialSync(connectionId);
