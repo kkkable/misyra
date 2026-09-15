@@ -1,0 +1,122 @@
+import { readFile } from 'node:fs/promises';
+import { URL } from 'node:url';
+
+import { describe, expect, it } from 'vitest';
+
+const moduleRoot = new URL('../../modules/apple-calendar/', import.meta.url);
+
+async function source(path) {
+  return readFile(new URL(path, moduleRoot), 'utf8');
+}
+
+async function json(path) {
+  return JSON.parse(await source(path));
+}
+
+describe('MTS-076 Apple Calendar native module boundary', () => {
+  it('is an Apple-only Expo local module and remains cleanly unavailable on Android', async () => {
+    const [config, barrel] = await Promise.all([
+      json('expo-module.config.json'),
+      source('index.ts'),
+    ]);
+
+    expect(config.platforms).toEqual(['apple']);
+    expect(config.apple?.modules).toEqual(['AppleCalendarModule']);
+    expect(config.android).toBeUndefined();
+    expect(barrel).toContain("requireOptionalNativeModule<AppleCalendarNativeModule>('AppleCalendar')");
+    expect(barrel).toContain('isAppleCalendarNativeModuleAvailable');
+  });
+
+  it('gates full-access permission behind an explicit Apple Calendar choice', async () => {
+    const swift = await source('ios/AppleCalendarModule.swift');
+
+    expect(swift).toContain('userSelectedAppleCalendar');
+    expect(swift).toContain('apple_calendar_choice_required');
+    expect(swift).toContain('requestFullAccessToEvents');
+    expect(swift).toContain('#available(iOS 17.0, *)');
+  });
+
+  it('exposes calendar selection/creation, event CRUD, identifiers, and store-change notifications', async () => {
+    const swift = await source('ios/AppleCalendarModule.swift');
+
+    for (const functionName of [
+      'getAuthorizationStatus',
+      'requestFullAccess',
+      'listCalendars',
+      'createDedicatedCalendar',
+      'fetchEvents',
+      'createEvent',
+      'updateEvent',
+      'deleteEvent',
+    ]) {
+      expect(swift).toContain(`\"${functionName}\"`);
+    }
+
+    expect(swift).toContain('Events("onStoreChanged")');
+    expect(swift).toContain('EKEventStoreChanged');
+    expect(swift).toContain('eventIdentifier');
+    expect(swift).toContain('calendarIdentifier');
+  });
+
+  it('maps provider recurrence through canonical mapping fixtures', async () => {
+    const [mapper, fixtures] = await Promise.all([
+      source('ios/AppleCalendarRecurrenceMapper.swift'),
+      json('fixtures/canonical-recurrence.json'),
+    ]);
+
+    expect(fixtures.map((fixture) => fixture.canonical.pattern.type).sort()).toEqual([
+      'daily',
+      'monthly-date',
+      'monthly-ordinal',
+      'weekly',
+      'yearly-date',
+      'yearly-ordinal',
+    ]);
+
+    for (const token of [
+      'daily',
+      'weekly',
+      'monthly-date',
+      'monthly-ordinal',
+      'yearly-date',
+      'yearly-ordinal',
+    ]) {
+      expect(mapper).toContain(token);
+    }
+  });
+
+  it('keeps app-only mission state out of EventKit write payloads', async () => {
+    const payload = await source('ios/AppleCalendarEventPayload.swift');
+
+    for (const allowed of ['title', 'schedule', 'recurrence', 'location', 'providerNotes']) {
+      expect(payload).toContain(allowed);
+    }
+
+    for (const forbidden of [
+      'completion',
+      'evidence',
+      'xp',
+      'streak',
+      'privacy',
+      'personalNote',
+      'story',
+      'internalMissionType',
+    ]) {
+      expect(payload).not.toContain(forbidden);
+    }
+  });
+
+  it('includes Swift harness and simulator permission regression coverage', async () => {
+    const [harness, simulator] = await Promise.all([
+      source('ios/Tests/AppleCalendarNativeTests.swift'),
+      source('ios/Tests/AppleCalendarPermissionSimulatorTests.swift'),
+    ]);
+
+    expect(harness).toContain('XCTestCase');
+    expect(harness).toContain('testRecurrenceFixturesMapToCanonicalRules');
+    expect(harness).toContain('testWritePayloadContainsProviderOwnedFieldsOnly');
+    expect(simulator).toContain('XCTestCase');
+    expect(simulator).toContain('testPermissionRequestRequiresAppleCalendarChoice');
+    expect(simulator).toContain('testFullAccessRequestUsesEventStore');
+  });
+});
