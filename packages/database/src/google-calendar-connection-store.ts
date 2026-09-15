@@ -1,6 +1,8 @@
 import type { Pool } from 'pg';
 
 export type GoogleCalendarInitialSyncDirection = 'external_to_misyra' | 'misyra_to_external';
+export type GoogleCalendarConnectionState =
+  'connected' | 'permission_revoked' | 'provider_unavailable' | 'disconnected';
 
 export type GoogleCalendarOAuthStateRecord = Readonly<{
   accountId: string;
@@ -18,7 +20,15 @@ export type GoogleCalendarConnectionRecord = Readonly<{
   providerCalendarId: string;
   initialSyncDirection: GoogleCalendarInitialSyncDirection;
   encryptedRefreshToken: string;
-  state: 'connected' | 'disconnected';
+  state: GoogleCalendarConnectionState;
+}>;
+
+export type GoogleCalendarConnectionStatusRecord = Readonly<{
+  id: string;
+  provider: 'google';
+  providerCalendarId: string;
+  initialSyncDirection: GoogleCalendarInitialSyncDirection;
+  state: GoogleCalendarConnectionState;
 }>;
 
 type OAuthStateRow = Readonly<{
@@ -37,7 +47,15 @@ type ConnectionRow = Readonly<{
   provider_calendar_id: string;
   sync_direction: GoogleCalendarInitialSyncDirection;
   encrypted_refresh_token: string;
-  connection_state: 'connected' | 'disconnected';
+  connection_state: GoogleCalendarConnectionState;
+}>;
+
+type ConnectionStatusRow = Readonly<{
+  id: string;
+  provider: 'google';
+  provider_calendar_id: string;
+  sync_direction: GoogleCalendarInitialSyncDirection;
+  connection_state: GoogleCalendarConnectionState;
 }>;
 
 type DisconnectedConnectionRow = Readonly<{
@@ -68,6 +86,16 @@ function mapConnection(row: ConnectionRow): GoogleCalendarConnectionRecord {
   };
 }
 
+function mapConnectionStatus(row: ConnectionStatusRow): GoogleCalendarConnectionStatusRecord {
+  return {
+    id: row.id,
+    provider: row.provider,
+    providerCalendarId: row.provider_calendar_id,
+    initialSyncDirection: row.sync_direction,
+    state: row.connection_state,
+  };
+}
+
 export function createPostgresGoogleCalendarConnectionStore(pool: Pool) {
   return {
     async saveOAuthState(record: GoogleCalendarOAuthStateRecord): Promise<void> {
@@ -90,6 +118,11 @@ export function createPostgresGoogleCalendarConnectionStore(pool: Pool) {
                  provider_calendar_id = EXCLUDED.provider_calendar_id,
                  encrypted_refresh_token = NULL,
                  connection_state = 'disconnected',
+                 provider_command_cutoff_at = CASE
+                   WHEN external_calendar_connections.oauth_state_hash IS NULL
+                     THEN COALESCE(external_calendar_connections.provider_command_cutoff_at, now())
+                   ELSE external_calendar_connections.provider_command_cutoff_at
+                 END,
                  oauth_state_hash = EXCLUDED.oauth_state_hash,
                  oauth_state_expires_at = EXCLUDED.oauth_state_expires_at,
                  oauth_state_consumed_at = EXCLUDED.oauth_state_consumed_at,
@@ -154,6 +187,10 @@ export function createPostgresGoogleCalendarConnectionStore(pool: Pool) {
                 provider_calendar_id = $4,
                 encrypted_refresh_token = $5,
                 connection_state = $6,
+                provider_command_cutoff_at = CASE
+                  WHEN provider_command_cutoff_at IS NULL THEN NULL
+                  ELSE now()
+                END,
                 oauth_state_hash = NULL,
                 oauth_state_expires_at = NULL,
                 oauth_state_consumed_at = NULL,
@@ -187,10 +224,30 @@ export function createPostgresGoogleCalendarConnectionStore(pool: Pool) {
           WHERE account_id = $1`,
         [record.accountId],
       );
-      if (existing.rows[0]?.connection_state === 'connected') {
+      if (existing.rows[0] && existing.rows[0].connection_state !== 'disconnected') {
         throw new Error('connection_exists');
       }
       throw new Error('connection_state_missing');
+    },
+
+    async getConnectionStatus(
+      accountId: string,
+    ): Promise<GoogleCalendarConnectionStatusRecord | null> {
+      const result = await pool.query<ConnectionStatusRow>(
+        `SELECT id,
+                provider,
+                provider_calendar_id,
+                sync_direction,
+                connection_state
+           FROM external_calendar_connections
+          WHERE account_id = $1
+            AND provider = 'google'
+            AND provider_calendar_id IS NOT NULL
+          LIMIT 1`,
+        [accountId],
+      );
+      const row = result.rows[0];
+      return row ? mapConnectionStatus(row) : null;
     },
 
     async findRevocableConnectionId(accountId: string): Promise<string | null> {
@@ -211,19 +268,39 @@ export function createPostgresGoogleCalendarConnectionStore(pool: Pool) {
       connectionId: string,
     ): Promise<Pick<GoogleCalendarConnectionRecord, 'id' | 'encryptedRefreshToken'> | null> {
       const result = await pool.query<DisconnectedConnectionRow>(
-        `UPDATE external_calendar_connections
-            SET connection_state = 'disconnected',
-                updated_at = CASE
-                  WHEN connection_state = 'connected' THEN now()
-                  ELSE updated_at
-                END
-          WHERE id = $1
-            AND account_id = $2
-            AND provider = 'google'
-            AND connection_state IN ('connected', 'disconnected')
-            AND encrypted_refresh_token IS NOT NULL
-        RETURNING id,
-                  encrypted_refresh_token`,
+        `WITH disconnected AS (
+           UPDATE external_calendar_connections
+              SET connection_state = 'disconnected',
+                  provider_command_cutoff_at = CASE
+                    WHEN connection_state <> 'disconnected' THEN now()
+                    ELSE provider_command_cutoff_at
+                  END,
+                  updated_at = CASE
+                    WHEN connection_state <> 'disconnected' THEN now()
+                    ELSE updated_at
+                  END
+            WHERE id = $1
+              AND account_id = $2
+              AND provider = 'google'
+              AND connection_state IN (
+                'connected',
+                'permission_revoked',
+                'provider_unavailable',
+                'disconnected'
+              )
+              AND encrypted_refresh_token IS NOT NULL
+          RETURNING id, encrypted_refresh_token
+         ), deleted_cursor AS (
+           DELETE FROM calendar_sync_cursors AS cursor
+            USING disconnected
+            WHERE cursor.connection_id = disconnected.id
+         ), deleted_watch AS (
+           DELETE FROM misyra_internal.google_calendar_watch_channels AS watch
+            USING disconnected
+            WHERE watch.connection_id = disconnected.id
+         )
+         SELECT id, encrypted_refresh_token
+           FROM disconnected`,
         [connectionId, accountId],
       );
       const row = result.rows[0];

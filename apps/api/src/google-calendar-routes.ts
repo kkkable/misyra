@@ -19,7 +19,8 @@ import { ApiError, type ApiRouteDefinition } from './index.js';
 export type GoogleCalendarRouteService = Pick<
   GoogleCalendarConnectionService,
   'startOAuth' | 'completeOAuth' | 'disconnect'
->;
+> &
+  Partial<Pick<GoogleCalendarConnectionService, 'getStatus'>>;
 
 export type GoogleCalendarRouteSyncService = Pick<GoogleCalendarSyncService, 'initialSync'>;
 export type GoogleCalendarRouteWatchService = Pick<
@@ -164,6 +165,29 @@ export function createGoogleCalendarRoutes(
       },
     },
   ];
+
+  const getStatus = service.getStatus;
+  if (getStatus !== undefined) {
+    routes.push({
+      method: 'GET',
+      path: '/calendars/connection',
+      handler: async (_request, _reply, auth) => {
+        const connection = await runGoogleCalendarOperation(() => getStatus(auth.accountId));
+        return {
+          connection:
+            connection === null
+              ? null
+              : calendarConnectionSchema.parse({
+                  id: connection.id,
+                  provider: connection.provider,
+                  providerCalendarId: connection.providerCalendarId,
+                  initialSyncDirection: connection.initialSyncDirection,
+                  state: connection.state,
+                }),
+        };
+      },
+    });
+  }
 
   if (hiddenEventService !== undefined) {
     routes.push(
