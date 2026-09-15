@@ -26,6 +26,55 @@ final class AppleCalendarNativeTests: XCTestCase {
     XCTAssertEqual(types, ["daily", "monthly-date"])
   }
 
+  func testBasicProviderRecurrenceUsesEventStartContext() throws {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+    let start = calendar.date(from: DateComponents(year: 2026, month: 9, day: 15))!
+
+    let weekly = try AppleCalendarRecurrenceMapper.canonical(
+      from: EKRecurrenceRule(recurrenceWith: .weekly, interval: 1, end: nil),
+      eventStart: start,
+      eventTimeZone: calendar.timeZone
+    )
+    let monthly = try AppleCalendarRecurrenceMapper.canonical(
+      from: EKRecurrenceRule(recurrenceWith: .monthly, interval: 1, end: nil),
+      eventStart: start,
+      eventTimeZone: calendar.timeZone
+    )
+    let yearly = try AppleCalendarRecurrenceMapper.canonical(
+      from: EKRecurrenceRule(recurrenceWith: .yearly, interval: 1, end: nil),
+      eventStart: start,
+      eventTimeZone: calendar.timeZone
+    )
+
+    XCTAssertEqual(
+      (weekly["pattern"] as? [String: Any])?["weekdays"] as? [Int],
+      [2]
+    )
+    XCTAssertEqual(
+      (monthly["pattern"] as? [String: Any])?["dayOfMonth"] as? Int,
+      15
+    )
+    XCTAssertEqual((yearly["pattern"] as? [String: Any])?["month"] as? Int, 9)
+    XCTAssertEqual((yearly["pattern"] as? [String: Any])?["day"] as? Int, 15)
+  }
+
+  func testRejectsLossyProviderRecurrenceInsteadOfTakingFirstValue() {
+    let rule = EKRecurrenceRule(
+      recurrenceWith: .monthly,
+      interval: 1,
+      daysOfTheWeek: nil,
+      daysOfTheMonth: [1, 15],
+      monthsOfTheYear: nil,
+      weeksOfTheYear: nil,
+      daysOfTheYear: nil,
+      setPositions: nil,
+      end: nil
+    )
+
+    XCTAssertThrowsError(try AppleCalendarRecurrenceMapper.canonical(from: rule))
+  }
+
   func testUnsetProviderWeekStartUsesPhoneRegionFallback() {
     XCTAssertEqual(
       AppleCalendarRecurrenceMapper.canonicalWeekStart(
