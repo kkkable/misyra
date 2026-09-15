@@ -4,9 +4,14 @@ import { URL } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 const moduleRoot = new URL('../../modules/apple-calendar/', import.meta.url);
+const mobileRoot = new URL('../../', import.meta.url);
 
 async function source(path) {
   return readFile(new URL(path, moduleRoot), 'utf8');
+}
+
+async function mobileSource(path) {
+  return readFile(new URL(path, mobileRoot), 'utf8');
 }
 
 async function json(path) {
@@ -38,6 +43,14 @@ describe('MTS-076 Apple Calendar native module boundary', () => {
     expect(swift).toContain('#available(iOS 17.0, *)');
   });
 
+  it('declares both legacy and full-access iOS calendar permission metadata without inventing GATE-B copy', async () => {
+    const appConfig = await mobileSource('app.config.ts');
+
+    expect(appConfig).toContain('NSCalendarsUsageDescription');
+    expect(appConfig).toContain('NSCalendarsFullAccessUsageDescription');
+    expect(appConfig).toContain('MISYRA_EVENTKIT_PERMISSION_COPY');
+  });
+
   it('exposes calendar selection/creation, event CRUD, identifiers, and store-change notifications', async () => {
     const swift = await source('ios/AppleCalendarModule.swift');
 
@@ -58,6 +71,17 @@ describe('MTS-076 Apple Calendar native module boundary', () => {
     expect(swift).toContain('EKEventStoreChanged');
     expect(swift).toContain('eventIdentifier');
     expect(swift).toContain('calendarIdentifier');
+  });
+
+  it('exposes a typed TypeScript store-change event surface', async () => {
+    const barrel = await source('index.ts');
+
+    expect(barrel).toContain('AppleCalendarStoreChangedEvent');
+    expect(barrel).toContain('AppleCalendarNativeModuleEvents');
+    expect(barrel).toContain('onStoreChanged(event: AppleCalendarStoreChangedEvent): void');
+    expect(barrel).toContain('NativeModule<AppleCalendarNativeModuleEvents>');
+    expect(barrel).toContain('addAppleCalendarStoreChangeListener');
+    expect(barrel).toContain("addListener('onStoreChanged', listener)");
   });
 
   it('maps provider recurrence through canonical mapping fixtures', async () => {
