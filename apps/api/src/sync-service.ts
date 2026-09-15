@@ -2,7 +2,7 @@ import {
   SyncDeviceOwnershipError,
   SyncMutationConflictError,
   SyncMutationValidationError,
-  createPostgresSyncStore,
+  createPostgresEventKitSyncStore,
   type PostgresSyncStore,
 } from '@misyra/database';
 import type { Pool } from 'pg';
@@ -103,5 +103,5 @@ export function createSyncService(store: PostgresSyncStore): SyncRouteServices {
 }
 
 export function createPostgresSyncService(pool: Pool) {
-  return createSyncService(createPostgresSyncStore(pool));
+  return createSyncService(createPostgresEventKitSyncStore(pool));
 }
