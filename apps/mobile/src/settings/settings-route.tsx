@@ -9,6 +9,7 @@ import {
   useColorScheme,
 } from 'react-native';
 
+import type { CalendarConnection } from '@misyra/contracts';
 import { space, typography } from '@misyra/design-tokens';
 import type { RecurringSeriesScope } from '@misyra/domain';
 import { notificationSettingsCatalogs } from '@misyra/localization';
@@ -56,9 +57,23 @@ export function SettingsRouteScreen() {
     [catalog.notifications],
   );
   const [permission, setPermission] = useState<NotificationPermissionStatus | null>(null);
+  const [connectedCalendar, setConnectedCalendar] = useState<CalendarConnection | null>(null);
   const [hiddenEvents, setHiddenEvents] = useState<readonly HiddenCalendarEvent[]>([]);
   const [selectedHiddenEvent, setSelectedHiddenEvent] = useState<HiddenCalendarEvent | null>(null);
   const [restoringHiddenEventId, setRestoringHiddenEventId] = useState<string | null>(null);
+
+  const loadConnectedCalendar = useCallback(async () => {
+    const authState = await rootAuthController.restore();
+    if (authState.status !== 'signed_in') {
+      setConnectedCalendar(null);
+      return;
+    }
+    const api = createAuthenticatedSyncApi({
+      baseUrl: getAuthApiBaseUrl(),
+      accessToken: authState.session.accessToken,
+    });
+    setConnectedCalendar(await api.getConnectedCalendarStatus());
+  }, []);
 
   const loadHiddenEvents = useCallback(async () => {
     const authState = await rootAuthController.restore();
@@ -76,10 +91,11 @@ export function SettingsRouteScreen() {
   const refresh = useCallback(async () => {
     const [nextPermission] = await Promise.all([
       permissionService.getStatus(),
+      loadConnectedCalendar().catch(() => undefined),
       loadHiddenEvents().catch(() => undefined),
     ]);
     setPermission(nextPermission);
-  }, [loadHiddenEvents, permissionService]);
+  }, [loadConnectedCalendar, loadHiddenEvents, permissionService]);
 
   useEffect(() => {
     void refresh();
@@ -100,6 +116,21 @@ export function SettingsRouteScreen() {
         : createNotificationSettingsModel({ messages: catalog, permission }),
     [catalog, permission],
   );
+
+  const connectedCalendarStatus = useMemo(() => {
+    switch (connectedCalendar?.state) {
+      case 'connected':
+        return catalog.calendarConnected;
+      case 'permission_revoked':
+        return catalog.calendarPermissionRevoked;
+      case 'provider_unavailable':
+        return catalog.calendarProviderUnavailable;
+      case 'disconnected':
+        return catalog.calendarDisconnected;
+      case undefined:
+        return null;
+    }
+  }, [catalog, connectedCalendar?.state]);
 
   const runAction = useCallback(async () => {
     if (model?.action === undefined || model.action === null) return;
@@ -167,6 +198,27 @@ export function SettingsRouteScreen() {
             />
           )}
         </View>
+
+        {connectedCalendar === null ? null : (
+          <View
+            style={[styles.section, { borderColor: colors.border }]}
+            testID="settings-connected-calendar"
+          >
+            <View style={styles.row}>
+              <Text allowFontScaling style={[styles.label, { color: colors.textPrimary }]}>
+                {catalog.connectedCalendar}
+              </Text>
+              <Text
+                accessibilityLiveRegion="polite"
+                allowFontScaling
+                style={[styles.status, { color: colors.textSecondary }]}
+                testID="settings-connected-calendar-status"
+              >
+                {connectedCalendarStatus}
+              </Text>
+            </View>
+          </View>
+        )}
 
         <View
           style={[styles.section, { borderColor: colors.border }]}
