@@ -139,7 +139,9 @@ describe('MTS-076 Apple Calendar native module boundary', () => {
     expect(payload).toContain('eventTimeZone: event.timeZone');
     expect(harness).toContain('testBasicProviderRecurrenceUsesEventStartContext');
     expect(harness).toContain('testRejectsLossyProviderRecurrenceInsteadOfTakingFirstValue');
-    expect(harness).toContain('testYearlyDateUsesEventStartDayInsteadOfInvalidYearlyMonthDayFilter');
+    expect(harness).toContain(
+      'testYearlyDateUsesEventStartDayInsteadOfInvalidYearlyMonthDayFilter',
+    );
   });
 
   it('preserves canonical weekly phase semantics instead of silently dropping weekStartsOn', async () => {
