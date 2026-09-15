@@ -1,11 +1,7 @@
 import { requireOptionalNativeModule } from 'expo';
 
 export type AppleCalendarAuthorizationStatus =
-  | 'not_determined'
-  | 'restricted'
-  | 'denied'
-  | 'write_only'
-  | 'full_access';
+  'not_determined' | 'restricted' | 'denied' | 'write_only' | 'full_access';
 
 export type AppleCalendarInfo = {
   calendarIdentifier: string;

@@ -23,7 +23,9 @@ describe('MTS-076 Apple Calendar native module boundary', () => {
     expect(config.platforms).toEqual(['apple']);
     expect(config.apple?.modules).toEqual(['AppleCalendarModule']);
     expect(config.android).toBeUndefined();
-    expect(barrel).toContain("requireOptionalNativeModule<AppleCalendarNativeModule>('AppleCalendar')");
+    expect(barrel).toContain(
+      "requireOptionalNativeModule<AppleCalendarNativeModule>('AppleCalendar')",
+    );
     expect(barrel).toContain('isAppleCalendarNativeModuleAvailable');
   });
 
@@ -49,7 +51,7 @@ describe('MTS-076 Apple Calendar native module boundary', () => {
       'updateEvent',
       'deleteEvent',
     ]) {
-      expect(swift).toContain(`\"${functionName}\"`);
+      expect(swift).toContain(`"${functionName}"`);
     }
 
     expect(swift).toContain('Events("onStoreChanged")');
