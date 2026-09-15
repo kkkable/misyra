@@ -87,6 +87,19 @@ describe('MTS-076 Apple Calendar native module boundary', () => {
     }
   });
 
+  it('preserves canonical weekly phase semantics instead of silently dropping weekStartsOn', async () => {
+    const [mapper, harness] = await Promise.all([
+      source('ios/AppleCalendarRecurrenceMapper.swift'),
+      source('ios/Tests/AppleCalendarNativeTests.swift'),
+    ]);
+
+    expect(mapper).toContain('defaultWeekStartsOn');
+    expect(mapper).toContain('unsupported_week_start');
+    expect(mapper).toContain('interval > 1');
+    expect(harness).toContain('testUnsetProviderWeekStartUsesPhoneRegionFallback');
+    expect(harness).toContain('testRejectsLossyWeeklyWeekStartMapping');
+  });
+
   it('keeps app-only mission state out of EventKit write payloads', async () => {
     const payload = await source('ios/AppleCalendarEventPayload.swift');
 
