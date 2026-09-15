@@ -73,6 +73,16 @@ describe('MTS-076 Apple Calendar native module boundary', () => {
     expect(swift).toContain('calendarIdentifier');
   });
 
+  it('preserves EventKit time-zone identity in native event readback', async () => {
+    const [barrel, swift] = await Promise.all([
+      source('index.ts'),
+      source('ios/AppleCalendarModule.swift'),
+    ]);
+
+    expect(barrel).toContain('timeZone: string | null;');
+    expect(swift).toContain('"timeZone": event.timeZone?.identifier');
+  });
+
   it('exposes a typed TypeScript store-change event surface', async () => {
     const barrel = await source('index.ts');
 
