@@ -171,7 +171,13 @@ public final class AppleCalendarModule: Module {
   }
 
   private func eventDictionary(_ event: EKEvent) throws -> [String: Any?] {
-    let recurrence = try event.recurrenceRules?.first.map(AppleCalendarRecurrenceMapper.canonical)
+    let recurrence = try event.recurrenceRules?.first.map {
+      try AppleCalendarRecurrenceMapper.canonical(
+        from: $0,
+        eventStart: event.startDate,
+        eventTimeZone: event.timeZone
+      )
+    }
     return [
       "eventIdentifier": event.eventIdentifier,
       "calendarIdentifier": event.calendar.calendarIdentifier,
