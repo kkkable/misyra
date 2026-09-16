@@ -4,7 +4,8 @@ import { calendarConnectionSchema, type CalendarConnection } from '@misyra/contr
 
 const APPLE_CONNECTION_CACHE_KEY_PREFIX = 'misyra.apple-calendar-connection.v1:';
 
-type AppleCalendarConnection = Extract<CalendarConnection, { provider: 'apple' }>;
+type AppleCalendarConnection = Omit<CalendarConnection, 'provider'> &
+  Readonly<{ provider: 'apple' }>;
 
 function cacheKey(accountId: string) {
   return `${APPLE_CONNECTION_CACHE_KEY_PREFIX}${accountId}`;
@@ -15,7 +16,7 @@ function parseAppleConnection(value: string | null): AppleCalendarConnection | n
   try {
     const parsed = calendarConnectionSchema.safeParse(JSON.parse(value) as unknown);
     if (!parsed.success || parsed.data.provider !== 'apple') return null;
-    return parsed.data;
+    return { ...parsed.data, provider: 'apple' };
   } catch {
     return null;
   }
