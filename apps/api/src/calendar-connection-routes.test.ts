@@ -36,7 +36,9 @@ describe('provider-neutral calendar connection routes', () => {
     const response = await server.inject({ method: 'GET', url: '/v1/calendars/connection' });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({
+    expect(response.json()).toMatchObject({
+      version: 1,
+      requestId: expect.any(String),
       ok: true,
       payload: {
         connection: {
@@ -66,7 +68,12 @@ describe('provider-neutral calendar connection routes', () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({ ok: true, payload: { disconnected: true } });
+    expect(response.json()).toMatchObject({
+      version: 1,
+      requestId: expect.any(String),
+      ok: true,
+      payload: { disconnected: true },
+    });
     expect(harness.disconnect).toHaveBeenCalledWith(accountId, connectionId);
     await server.close();
   });
@@ -86,7 +93,12 @@ describe('provider-neutral calendar connection routes', () => {
     });
 
     expect(response.statusCode).toBe(404);
-    expect(response.json()).toMatchObject({ ok: false, error: { code: 'not_found' } });
+    expect(response.json()).toMatchObject({
+      version: 1,
+      requestId: expect.any(String),
+      ok: false,
+      error: { code: 'not_found' },
+    });
     await server.close();
   });
 });
