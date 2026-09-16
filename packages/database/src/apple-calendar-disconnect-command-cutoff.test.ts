@@ -53,7 +53,8 @@ async function queueDelete(input: {
        event_type,
        aggregate_type,
        aggregate_id,
-       payload
+       payload,
+       available_at
      )
      VALUES (
        $1,
@@ -64,7 +65,8 @@ async function queueDelete(input: {
          'connectionId', $3::text,
          'providerEventId', $4::text,
          'recurrenceScope', 'entire_series'
-       )
+       ),
+       now() - interval '1 second'
      )
      RETURNING id`,
     [input.accountId, randomUUID(), input.connectionId, input.providerEventId],
