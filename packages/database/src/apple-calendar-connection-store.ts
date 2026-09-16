@@ -121,5 +121,31 @@ export function createPostgresAppleCalendarConnectionStore(pool: Pool) {
       const row = result.rows[0];
       return row === undefined ? null : mapStatus(row);
     },
+
+    async disconnectConnection(accountId: string, connectionId: string): Promise<boolean> {
+      const result = await pool.query(
+        `UPDATE external_calendar_connections
+            SET connection_state = 'disconnected',
+                provider_command_cutoff_at = CASE
+                  WHEN connection_state <> 'disconnected' THEN now()
+                  ELSE provider_command_cutoff_at
+                END,
+                updated_at = CASE
+                  WHEN connection_state <> 'disconnected' THEN now()
+                  ELSE updated_at
+                END
+          WHERE id = $1
+            AND account_id = $2
+            AND provider = 'apple'
+            AND connection_state IN (
+              'connected',
+              'permission_revoked',
+              'provider_unavailable',
+              'disconnected'
+            )`,
+        [connectionId, accountId],
+      );
+      return result.rowCount === 1;
+    },
   });
 }
