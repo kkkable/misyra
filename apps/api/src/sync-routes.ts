@@ -34,9 +34,7 @@ export type SyncRouteServices = Readonly<{
     input: Readonly<{ cursor: number; limit: number }>,
   ) => Promise<SyncPullResponseContract>;
   snapshot: (accountId: string) => Promise<SyncSnapshotResponseContract>;
-  claimAppleCalendarCommand?: (
-    accountId: string,
-  ) => Promise<AppleCalendarCommandClaim | null>;
+  claimAppleCalendarCommand?: (accountId: string) => Promise<AppleCalendarCommandClaim | null>;
   settleAppleCalendarCommand?: (
     accountId: string,
     claimToken: string,
@@ -107,7 +105,11 @@ export function createSyncRoutes(services: SyncRouteServices): ApiRouteDefinitio
           if (claim === undefined || claim === null) return { claim: null };
           const claimToken = uuidSchema.safeParse(claim.claimToken);
           const occurrenceId = uuidSchema.safeParse(claim.occurrenceId);
-          if (!claimToken.success || !occurrenceId.success || claim.providerCalendarId.length === 0) {
+          if (
+            !claimToken.success ||
+            !occurrenceId.success ||
+            claim.providerCalendarId.length === 0
+          ) {
             throw new Error('Invalid Apple calendar command claim from store');
           }
           return {
