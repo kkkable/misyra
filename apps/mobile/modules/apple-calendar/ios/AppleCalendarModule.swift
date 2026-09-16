@@ -69,7 +69,7 @@ public final class AppleCalendarModule: Module {
     }
 
     AsyncFunction("listCalendars") { () -> [[String: Any]] in
-      self.eventStore.calendars(for: .event).map(self.calendarDictionary)
+      self.eventStore.calars(for: .event).map(self.calendarDictionary)
     }
 
     AsyncFunction("createDedicatedCalendar") { (title: String) throws -> [String: Any] in
@@ -88,18 +88,12 @@ public final class AppleCalendarModule: Module {
     }
 
     AsyncFunction("fetchEvents") {
-      (calendarIdentifier: String, startInstant: String, endInstant: String) throws -> [[String: Any?]] in
+      (calendarIdentifier: String, startDate: String, endDate: String) throws -> [[String: Any?]] in
       guard let calendar = self.eventStore.calendar(withIdentifier: calendarIdentifier) else {
         throw AppleCalendarNativeError.calendarNotFound
       }
-      guard
-        let start = AppleCalendarDateCodec.instant(startInstant),
-        let end = AppleCalendarDateCodec.instant(endInstant),
-        end > start
-      else {
-        throw AppleCalendarPayloadError.invalidField("fetch_range")
-      }
-
+      let start = try AppleCalendarDateCodec.instant(startDate)
+      let end = try AppleCalendarDateCodec.instant(endDate)
       let predicate = self.eventStore.predicateForEvents(
         withStart: start,
         end: end,
@@ -134,7 +128,7 @@ public final class AppleCalendarModule: Module {
 
     AsyncFunction("deleteEvent") { (eventIdentifier: String) throws in
       guard let event = self.eventStore.event(withIdentifier: eventIdentifier) else {
-        throw AppleCalendarNativeError.eventNotFound
+        return
       }
       try self.eventStore.remove(event, span: .thisEvent, commit: true)
     }
