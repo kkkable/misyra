@@ -98,7 +98,7 @@ function appCreateMutation(input: { accountId: string; deviceId: string }) {
 }
 
 describe('MTS-077 durable Apple device commands', () => {
-  it('atomically queues an app-owned mission for one iOS claimant and settles the returned provider identifier authoritatively', async () => {
+  it('claims and settles one app-owned Apple command with its provider identifier', async () => {
     const fixtureValue = await fixture('create');
     const mutation = appCreateMutation(fixtureValue);
     const syncStore = createPostgresEventKitSyncStore(
