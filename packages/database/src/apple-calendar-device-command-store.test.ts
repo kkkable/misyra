@@ -130,13 +130,19 @@ describe('MTS-077 durable Apple device commands', () => {
       [fixtureValue.accountId, mutation.entityId],
     );
     expect(queued.rows).toHaveLength(1);
-    expect(queued.rows[0]).toMatchObject({
+    const queuedCommand = queued.rows[0];
+    if (queuedCommand === undefined) throw new Error('expected queued Apple command');
+    expect(queuedCommand).toMatchObject({
       eventType: 'external_calendar.event.upsert_requested',
       payload: { connectionId: fixtureValue.connectionId },
       processedAt: null,
     });
-    expect(JSON.stringify(queued.rows[0]?.payload)).not.toContain('Device mediated export');
-    expect(JSON.stringify(queued.rows[0]?.payload)).not.toContain('Provider-safe note');
+    expect(JSON.stringify(queuedCommand.payload)).not.toContain('Device mediated export');
+    expect(JSON.stringify(queuedCommand.payload)).not.toContain('Provider-safe note');
+    await pool.query('UPDATE outbox_events SET available_at = $2 WHERE id = $1', [
+      queuedCommand.id,
+      new Date('2026-09-16T08:00:30.000Z'),
+    ]);
 
     const commandStore = createPostgresAppleCalendarDeviceCommandStore(pool, {
       now: () => new Date('2026-09-16T08:01:00.000Z'),
@@ -146,7 +152,7 @@ describe('MTS-077 durable Apple device commands', () => {
       occurrenceId: mutation.entityId,
       providerCalendarId: 'apple-calendar-1',
       command: {
-        commandId: queued.rows[0]?.id,
+        commandId: queuedCommand.id,
         connectionId: fixtureValue.connectionId,
         operation: 'create',
         event: {
