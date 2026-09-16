@@ -126,7 +126,11 @@ async function settleFailed(
     errorCode: stableErrorCode(error),
   };
   await api.settle(claim.claimToken, result);
-  return { status: 'failed' as const, operation: claim.command.operation, errorCode: result.errorCode };
+  return {
+    status: 'failed' as const,
+    operation: claim.command.operation,
+    errorCode: result.errorCode,
+  };
 }
 
 export function createAppleCalendarRemoteCommandExecutor({
@@ -166,7 +170,8 @@ export function createAppleCalendarRemoteCommandExecutor({
             providerWrite(command.event),
           );
           providerEventId = created.eventIdentifier;
-          if (providerEventId.length === 0) throw new Error('apple_calendar_created_identifier_missing');
+          if (providerEventId.length === 0)
+            throw new Error('apple_calendar_created_identifier_missing');
           await linkStore.save({
             occurrenceId: claim.occurrenceId,
             connectionId: connection.id,
@@ -182,7 +187,8 @@ export function createAppleCalendarRemoteCommandExecutor({
           command.recurrenceScope,
         );
         providerEventId = updated.eventIdentifier;
-        if (providerEventId.length === 0) throw new Error('apple_calendar_updated_identifier_missing');
+        if (providerEventId.length === 0)
+          throw new Error('apple_calendar_updated_identifier_missing');
         await linkStore.save({
           occurrenceId: claim.occurrenceId,
           connectionId: connection.id,
