@@ -3,13 +3,11 @@ import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { createPostgresEventKitSyncStore } from './apple-eventkit-sync-store.js';
 import { createPostgresAuthStore } from './auth-store.js';
 import { createPostgresDeviceSettingsStore } from './device-settings-store.js';
 import { applyMigrations } from './migrations.js';
-import {
-  SyncMutationValidationError,
-  createPostgresSyncStore,
-} from './sync-store.js';
+import { SyncMutationValidationError } from './sync-store.js';
 
 const postgresUser = process.env.POSTGRES_USER ?? 'misyra';
 const postgresPassword = process.env.POSTGRES_PASSWORD ?? 'misyra-local-only';
@@ -126,7 +124,10 @@ describe('MTS-077 Apple EventKit normal mobile sync projector', () => {
       deviceId,
       connectionId,
     });
-    const store = createPostgresSyncStore(pool, () => new Date('2026-09-16T01:00:01.000Z'));
+    const store = createPostgresEventKitSyncStore(
+      pool,
+      () => new Date('2026-09-16T01:00:01.000Z'),
+    );
 
     await expect(store.push(account.id, [mutation])).resolves.toEqual({
       acceptedMutationIds: [mutation.mutationId],
@@ -188,7 +189,7 @@ describe('MTS-077 Apple EventKit normal mobile sync projector', () => {
     });
   });
 
-  it('accepts reconnect/provider refresh against the retained occurrence but never overwrites a completed imported mission', async () => {
+  it('relinks provider identifiers but keeps a completed imported mission and its app-only state frozen', async () => {
     const { account, deviceId, connectionId } = await fixture('freeze');
     const occurrenceId = randomUUID();
     const seriesId = randomUUID();
@@ -201,11 +202,18 @@ describe('MTS-077 Apple EventKit normal mobile sync projector', () => {
       seriesId,
       providerEventId,
     });
-    const store = createPostgresSyncStore(pool, () => new Date('2026-09-16T01:00:01.000Z'));
+    const store = createPostgresEventKitSyncStore(
+      pool,
+      () => new Date('2026-09-16T01:00:01.000Z'),
+    );
     await store.push(account.id, [create]);
     await pool.query(
       `UPDATE mission_occurrences
-          SET completion_state = 'completed'
+          SET completion_state = 'completed',
+              evidence_state = 'accepted',
+              reward_eligibility = 'ineligible',
+              reward_issuance = 'issued',
+              story_state = 'ready'
         WHERE account_id = $1 AND id = $2`,
       [account.id, occurrenceId],
     );
@@ -243,11 +251,19 @@ describe('MTS-077 Apple EventKit normal mobile sync projector', () => {
     const frozen = await pool.query<{
       title: string;
       completionState: string;
+      evidenceState: string;
+      rewardEligibility: string;
+      rewardIssuance: string;
+      storyState: string;
       location: string | null;
       notes: string | null;
     }>(
       `SELECT ms.title,
               mo.completion_state AS "completionState",
+              mo.evidence_state AS "evidenceState",
+              mo.reward_eligibility AS "rewardEligibility",
+              mo.reward_issuance AS "rewardIssuance",
+              mo.story_state AS "storyState",
               mo.location,
               mo.notes
          FROM mission_occurrences mo
@@ -259,10 +275,40 @@ describe('MTS-077 Apple EventKit normal mobile sync projector', () => {
       {
         title: 'EventKit import',
         completionState: 'completed',
+        evidenceState: 'accepted',
+        rewardEligibility: 'ineligible',
+        rewardIssuance: 'issued',
+        storyState: 'ready',
         location: 'Tokyo',
         notes: 'Provider notes',
       },
     ]);
+
+    const pulled = await store.pull(account.id, { cursor: 1, limit: 25 });
+    expect(pulled.kind).toBe('incremental');
+    if (pulled.kind !== 'incremental') return;
+    expect(pulled.changes).toHaveLength(1);
+    expect(pulled.changes[0]).toMatchObject({
+      entityType: 'mission',
+      entityId: occurrenceId,
+      operation: 'upsert',
+      payload: {
+        occurrence: {
+          completionState: 'completed',
+          evidenceState: 'accepted',
+          rewardEligibility: 'ineligible',
+          rewardIssuance: 'issued',
+          storyState: 'ready',
+          calendarSource: 'external',
+          fieldOwnership: 'organizer_controlled',
+          synchronizationState: 'synced',
+        },
+        providerLink: {
+          connectionId,
+          providerEventId,
+        },
+      },
+    });
   });
 
   it('rejects an EventKit mutation that tries to attach a provider link owned by another account', async () => {
@@ -274,7 +320,7 @@ describe('MTS-077 Apple EventKit normal mobile sync projector', () => {
       connectionId: second.connectionId,
       providerEventId: `foreign-${randomUUID()}`,
     });
-    const store = createPostgresSyncStore(pool);
+    const store = createPostgresEventKitSyncStore(pool);
 
     await expect(store.push(first.account.id, [mutation])).rejects.toBeInstanceOf(
       SyncMutationValidationError,
