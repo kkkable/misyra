@@ -47,8 +47,8 @@ describe('MTS-077 Apple provider recurrence scope normalization', () => {
     );
     await pool.query(
       `INSERT INTO outbox_events
-        (account_id, event_type, aggregate_type, aggregate_id, payload)
-       VALUES ($1, 'external_calendar.event.delete_requested', 'mission_occurrence', $2, $3::jsonb)`,
+        (account_id, event_type, aggregate_type, aggregate_id, payload, available_at)
+       VALUES ($1, 'external_calendar.event.delete_requested', 'mission_occurrence', $2, $3::jsonb, $4)`,
       [
         accountId,
         occurrenceId,
@@ -57,6 +57,7 @@ describe('MTS-077 Apple provider recurrence scope normalization', () => {
           providerEventId: 'eventkit-series-1',
           recurrenceScope: 'event',
         }),
+        new Date('2026-09-16T08:00:00.000Z'),
       ],
     );
 
