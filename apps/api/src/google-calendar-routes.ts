@@ -121,6 +121,7 @@ export function createGoogleCalendarRoutes(
   syncService?: GoogleCalendarRouteSyncService,
   watchService?: GoogleCalendarRouteWatchService,
   hiddenEventService?: GoogleCalendarHiddenEventRouteService,
+  includeConnectionRoutes = true,
 ): ApiRouteDefinition[] {
   const routes: ApiRouteDefinition[] = [
     {
@@ -153,7 +154,10 @@ export function createGoogleCalendarRoutes(
         });
       },
     },
-    {
+  ];
+
+  if (includeConnectionRoutes) {
+    routes.push({
       method: 'POST',
       path: '/calendars/disconnect',
       handler: async (request, _reply, auth) => {
@@ -163,11 +167,11 @@ export function createGoogleCalendarRoutes(
         );
         return { disconnected: true as const };
       },
-    },
-  ];
+    });
+  }
 
   const getStatus = service.getStatus;
-  if (getStatus !== undefined) {
+  if (includeConnectionRoutes && getStatus !== undefined) {
     routes.push({
       method: 'GET',
       path: '/calendars/connection',
