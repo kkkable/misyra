@@ -9,14 +9,16 @@ export type AppleCalendarRouteService = Readonly<{
       providerCalendarId: string;
       initialSyncDirection: 'external_to_misyra' | 'misyra_to_external';
     }>,
-  ): Promise<Readonly<{
-    id: string;
-    accountId: string;
-    provider: 'apple';
-    providerCalendarId: string;
-    initialSyncDirection: 'external_to_misyra' | 'misyra_to_external';
-    state: 'connected' | 'permission_revoked' | 'provider_unavailable' | 'disconnected';
-  }>>;
+  ): Promise<
+    Readonly<{
+      id: string;
+      accountId: string;
+      provider: 'apple';
+      providerCalendarId: string;
+      initialSyncDirection: 'external_to_misyra' | 'misyra_to_external';
+      state: 'connected' | 'permission_revoked' | 'provider_unavailable' | 'disconnected';
+    }>
+  >;
 }>;
 
 export class AppleCalendarConnectionError extends Error {
@@ -54,7 +56,9 @@ async function runAppleCalendarOperation<T>(operation: () => Promise<T>): Promis
   }
 }
 
-export function createAppleCalendarRoutes(service: AppleCalendarRouteService): ApiRouteDefinition[] {
+export function createAppleCalendarRoutes(
+  service: AppleCalendarRouteService,
+): ApiRouteDefinition[] {
   return [
     {
       method: 'POST',
