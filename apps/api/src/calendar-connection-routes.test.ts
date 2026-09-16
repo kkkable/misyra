@@ -1,3 +1,4 @@
+import { apiResponseEnvelopeSchema } from '@misyra/contracts';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
@@ -36,9 +37,9 @@ describe('provider-neutral calendar connection routes', () => {
     const response = await server.inject({ method: 'GET', url: '/v1/calendars/connection' });
 
     expect(response.statusCode).toBe(200);
+    expect(() => apiResponseEnvelopeSchema.parse(response.json())).not.toThrow();
     expect(response.json()).toMatchObject({
       version: 1,
-      requestId: expect.any(String),
       ok: true,
       payload: {
         connection: {
@@ -68,9 +69,9 @@ describe('provider-neutral calendar connection routes', () => {
     });
 
     expect(response.statusCode).toBe(200);
+    expect(() => apiResponseEnvelopeSchema.parse(response.json())).not.toThrow();
     expect(response.json()).toMatchObject({
       version: 1,
-      requestId: expect.any(String),
       ok: true,
       payload: { disconnected: true },
     });
@@ -93,9 +94,9 @@ describe('provider-neutral calendar connection routes', () => {
     });
 
     expect(response.statusCode).toBe(404);
+    expect(() => apiResponseEnvelopeSchema.parse(response.json())).not.toThrow();
     expect(response.json()).toMatchObject({
       version: 1,
-      requestId: expect.any(String),
       ok: false,
       error: { code: 'not_found' },
     });
