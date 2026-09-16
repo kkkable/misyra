@@ -2,10 +2,7 @@ import type { Pool, QueryResultRow } from 'pg';
 
 export type AppleCalendarInitialSyncDirection = 'external_to_misyra' | 'misyra_to_external';
 export type AppleCalendarConnectionState =
-  | 'connected'
-  | 'permission_revoked'
-  | 'provider_unavailable'
-  | 'disconnected';
+  'connected' | 'permission_revoked' | 'provider_unavailable' | 'disconnected';
 
 export type AppleCalendarConnectionRecord = Readonly<{
   id: string;
