@@ -36,12 +36,8 @@ function linkStore() {
 
 function nativeModule() {
   return {
-    createEvent: vi.fn(() =>
-      Promise.resolve({ eventIdentifier: 'eventkit-created-1' }),
-    ),
-    updateEvent: vi.fn(() =>
-      Promise.resolve({ eventIdentifier: 'eventkit-updated-1' }),
-    ),
+    createEvent: vi.fn(() => Promise.resolve({ eventIdentifier: 'eventkit-created-1' })),
+    updateEvent: vi.fn(() => Promise.resolve({ eventIdentifier: 'eventkit-updated-1' })),
     deleteEvent: vi.fn(() => Promise.resolve()),
   };
 }
