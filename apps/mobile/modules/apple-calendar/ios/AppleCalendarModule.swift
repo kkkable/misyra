@@ -103,6 +103,13 @@ public final class AppleCalendarModule: Module {
       return try self.eventStore.events(matching: predicate).map(self.eventDictionary)
     }
 
+    AsyncFunction("fetchEvent") { (eventIdentifier: String) throws -> [String: Any?]? in
+      guard let event = self.eventStore.event(withIdentifier: eventIdentifier) else {
+        return nil
+      }
+      return try self.eventDictionary(event)
+    }
+
     AsyncFunction("createEvent") {
       (calendarIdentifier: String, payload: [String: Any]) throws -> [String: Any?] in
       guard let calendar = self.eventStore.calendar(withIdentifier: calendarIdentifier) else {
