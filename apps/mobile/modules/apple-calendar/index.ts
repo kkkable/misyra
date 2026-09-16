@@ -41,7 +41,18 @@ export type AppleCalendarNativeModuleEvents = {
   onStoreChanged(event: AppleCalendarStoreChangedEvent): void;
 };
 
-export type AppleCalendarNativeModule = NativeModule<AppleCalendarNativeModuleEvents> & {
+export type AppleCalendarNativeSubscription = Readonly<{
+  remove(): void;
+}>;
+
+export type AppleCalendarNativeModule = Omit<
+  NativeModule<AppleCalendarNativeModuleEvents>,
+  'addListener'
+> & {
+  addListener(
+    eventName: 'onStoreChanged',
+    listener: (event: AppleCalendarStoreChangedEvent) => void,
+  ): AppleCalendarNativeSubscription;
   getAuthorizationStatus(): Promise<AppleCalendarAuthorizationStatus>;
   requestFullAccess(userSelectedAppleCalendar: boolean): Promise<boolean>;
   listCalendars(): Promise<AppleCalendarInfo[]>;
