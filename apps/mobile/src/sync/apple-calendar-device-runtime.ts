@@ -1,6 +1,8 @@
 import type { CalendarConnection } from '@misyra/contracts';
 
-import type { AppleCalendarNativeModule as AppleCalendarNativeModuleType } from '../../modules/apple-calendar/index.js';
+import type {
+  AppleCalendarNativeModule as AppleCalendarNativeModuleType,
+} from '../../modules/apple-calendar/index.js';
 import { createMutationQueue } from '../storage/mutation-queue.js';
 import type { AppleCalendarCommandApi } from './apple-calendar-command-api.js';
 import {
@@ -13,7 +15,8 @@ import {
   createAppleCalendarRemoteCommandLinkStore,
 } from './apple-calendar-remote-command-executor.js';
 
-type AppleCalendarConnection = Omit<CalendarConnection, 'provider'> & Readonly<{ provider: 'apple' }>;
+type AppleCalendarConnection = Omit<CalendarConnection, 'provider'> &
+  Readonly<{ provider: 'apple' }>;
 
 type ConnectionCache = Readonly<{
   read(accountId: string): Promise<AppleCalendarConnection | null>;
@@ -69,7 +72,13 @@ function connectedApple(value: CalendarConnection | null): AppleCalendarConnecti
 }
 
 function providerChangesQueued(result: unknown): number {
-  if (typeof result !== 'object' || result === null || !('providerChangesQueued' in result)) return 0;
+  if (
+    typeof result !== 'object' ||
+    result === null ||
+    !('providerChangesQueued' in result)
+  ) {
+    return 0;
+  }
   const value = result.providerChangesQueued;
   return typeof value === 'number' && Number.isSafeInteger(value) && value > 0 ? value : 0;
 }
