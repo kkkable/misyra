@@ -1,3 +1,29 @@
+CREATE OR REPLACE FUNCTION misyra_normalize_apple_calendar_delete_scope()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF NEW.event_type = 'external_calendar.event.delete_requested'
+     AND NEW.payload->>'recurrenceScope' = 'event'
+     AND EXISTS (
+       SELECT 1
+         FROM external_calendar_connections connection
+        WHERE connection.account_id = NEW.account_id
+          AND connection.id::text = NEW.payload->>'connectionId'
+          AND connection.provider = 'apple'
+     ) THEN
+    NEW.payload := jsonb_set(NEW.payload, '{recurrenceScope}', '"entire_series"'::jsonb);
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS outbox_events_normalize_apple_delete_scope ON outbox_events;
+CREATE TRIGGER outbox_events_normalize_apple_delete_scope
+BEFORE INSERT ON outbox_events
+FOR EACH ROW
+EXECUTE FUNCTION misyra_normalize_apple_calendar_delete_scope();
+
 CREATE OR REPLACE FUNCTION misyra_queue_apple_calendar_upsert()
 RETURNS trigger
 LANGUAGE plpgsql
