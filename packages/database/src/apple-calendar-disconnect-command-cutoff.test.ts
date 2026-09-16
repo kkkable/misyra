@@ -151,7 +151,10 @@ describe('MTS-077 Apple disconnect command cutoff', () => {
       }),
     ).rejects.toThrow('apple_calendar_command_claim_not_found');
 
-    const stale = await pool.query<{ processedAt: Date | null; claimToken: string | null }>(
+    const stale = await pool.query<{
+      processedAt: Date | null;
+      claimToken: string | null;
+    }>(
       `SELECT processed_at AS "processedAt", claim_token AS "claimToken"
          FROM outbox_events
         WHERE id = $1`,
