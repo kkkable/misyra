@@ -1,11 +1,7 @@
 import { NativeModule, requireOptionalNativeModule } from 'expo';
 
 export type AppleCalendarAuthorizationStatus =
-  | 'not_determined'
-  | 'restricted'
-  | 'denied'
-  | 'write_only'
-  | 'full_access';
+  'not_determined' | 'restricted' | 'denied' | 'write_only' | 'full_access';
 
 export type AppleCalendarInfo = {
   calendarIdentifier: string;
@@ -35,9 +31,7 @@ export type AppleCalendarEventWrite = {
 };
 
 export type AppleCalendarRecurrenceMutationScope =
-  | 'this_occurrence'
-  | 'this_and_future'
-  | 'entire_series';
+  'this_occurrence' | 'this_and_future' | 'entire_series';
 
 export type AppleCalendarStoreChangedEvent = {
   changed: boolean;
