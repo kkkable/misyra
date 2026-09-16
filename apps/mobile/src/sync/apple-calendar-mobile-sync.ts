@@ -1,4 +1,9 @@
-import type { MissionOccurrenceInput, MissionSeriesInput } from '@misyra/domain';
+import {
+  DEFAULT_IMPORTED_ALL_DAY_EFFORT_MINUTES,
+  resolveLocalDateTimeInstant,
+  type MissionOccurrenceInput,
+  type MissionSeriesInput,
+} from '@misyra/domain';
 
 import type {
   AppleCalendarEventWrite,
@@ -9,7 +14,6 @@ import type { MutationQueue, PendingMutation } from '../storage/mutation-queue.j
 import type { MigrationDatabase, SqlBindValue } from '../storage/schema.js';
 
 const FUTURE_SYNC_WINDOW_MS = 365 * 24 * 60 * 60 * 1000;
-const IMPORTED_ALL_DAY_EFFORT_MINUTES = 30;
 
 type AppleCalendarConnection = Readonly<{
   id: string;
@@ -306,7 +310,7 @@ export function createAppleCalendarMobileSync({
         frozenProviderEvents += 1;
         continue;
       }
-      if (mission === null) continue;
+      if (mission === null || mission.serverVersion === null) continue;
       await store.enqueueProviderMutation({
         destination: { kind: 'server' },
         operation: 'update',
@@ -425,18 +429,17 @@ function missionSchedule(event: ProviderWritableEvent): MissionOccurrenceInput['
       estimatedEffortMinutes: null,
     };
   }
-  const zone = event.schedule.timeZone;
-  const start = new Date(`${event.schedule.startLocalDate}T00:00:00.000Z`);
-  const end = new Date(`${event.schedule.endLocalDateExclusive}T00:00:00.000Z`);
+  const localStart = `${event.schedule.startLocalDate}T00:00:00`;
+  const localFinish = `${event.schedule.endLocalDateExclusive}T00:00:00`;
   return {
-    localStart: `${event.schedule.startLocalDate}T00:00:00`,
-    localFinish: `${event.schedule.endLocalDateExclusive}T00:00:00`,
-    startInstant: start.toISOString(),
-    finishInstant: end.toISOString(),
-    timeZone: zone,
+    localStart,
+    localFinish,
+    startInstant: resolveLocalDateTimeInstant(localStart, event.schedule.timeZone),
+    finishInstant: resolveLocalDateTimeInstant(localFinish, event.schedule.timeZone),
+    timeZone: event.schedule.timeZone,
     timeBehavior: 'local_time',
     allDay: true,
-    estimatedEffortMinutes: IMPORTED_ALL_DAY_EFFORT_MINUTES,
+    estimatedEffortMinutes: DEFAULT_IMPORTED_ALL_DAY_EFFORT_MINUTES,
   };
 }
 
@@ -470,6 +473,25 @@ function providerEventIdFromMutation(mutation: PendingMutation): string | null {
   const payload = mutation.mutation.payload;
   if (!isRecord(payload)) return null;
   return typeof payload.providerEventId === 'string' ? payload.providerEventId : null;
+}
+
+function missionStateFromRow(row: MissionStateRow): MissionSyncState {
+  const occurrence = JSON.parse(row.payload_json) as MissionOccurrenceInput;
+  return {
+    completionState: occurrence.completionState,
+    serverVersion: row.server_version,
+    calendarSource: occurrence.calendarSource,
+  };
+}
+
+function providerTextFields(occurrence: MissionOccurrenceInput, notes: string | null) {
+  const organizerControlled =
+    occurrence.calendarSource === 'external' &&
+    occurrence.fieldOwnership === 'organizer_controlled';
+  return {
+    providerText: organizerControlled ? notes : null,
+    generalNote: organizerControlled ? null : notes,
+  };
 }
 
 export function createAppleCalendarSqliteSyncStore({
@@ -517,13 +539,7 @@ export function createAppleCalendarSqliteSyncStore({
       accountId,
       occurrenceId,
     );
-    if (row === null) return null;
-    const occurrence = JSON.parse(row.payload_json) as MissionOccurrenceInput;
-    return {
-      completionState: occurrence.completionState,
-      serverVersion: row.server_version,
-      calendarSource: occurrence.calendarSource,
-    };
+    return row === null ? null : missionStateFromRow(row);
   };
 
   const relinkProviderEvent = async (input: ProviderRelinkInput): Promise<void> => {
@@ -535,6 +551,9 @@ export function createAppleCalendarSqliteSyncStore({
       input.providerEventId,
     );
     if (existing !== null) {
+      if (existing.occurrence_id !== input.occurrenceId) {
+        throw new Error('Apple provider event is linked to another local occurrence.');
+      }
       await database.runAsync(
         `UPDATE external_links
             SET payload_json = ?, updated_at = ?
@@ -569,21 +588,43 @@ export function createAppleCalendarSqliteSyncStore({
       title: input.event.title.trim().length === 0 ? 'Untitled event' : input.event.title,
       recurrence: input.event.recurrence as MissionSeriesInput['recurrence'],
     };
-    const occurrence: MissionOccurrenceInput = {
-      id: occurrenceId,
-      seriesId,
-      schedule,
-      scheduleState: 'scheduled',
-      completionState: 'incomplete',
-      evidenceState: 'not_submitted',
-      rewardEligibility: 'undetermined',
-      rewardIssuance: 'not_issued',
-      calendarSource: 'external',
-      fieldOwnership: input.ownership,
-      synchronizationState: 'pending',
-      storyState: 'none',
-      deletionState: 'active',
-    };
+    let occurrence: MissionOccurrenceInput;
+    if (input.operation === 'create') {
+      occurrence = {
+        id: occurrenceId,
+        seriesId,
+        schedule,
+        scheduleState: 'scheduled',
+        completionState: 'incomplete',
+        evidenceState: 'not_submitted',
+        rewardEligibility: 'undetermined',
+        rewardIssuance: 'not_issued',
+        calendarSource: 'external',
+        fieldOwnership: 'organizer_controlled',
+        synchronizationState: 'pending',
+        storyState: 'none',
+        deletionState: 'active',
+      };
+    } else {
+      const currentRow = await database.getFirstAsync<MissionStateRow>(
+        `SELECT payload_json, server_version
+           FROM cached_mission_occurrences
+          WHERE account_id = ? AND occurrence_id = ?`,
+        accountId,
+        occurrenceId,
+      );
+      if (currentRow === null) throw new Error('Apple provider update target is not cached.');
+      const current = JSON.parse(currentRow.payload_json) as MissionOccurrenceInput;
+      if (current.fieldOwnership !== input.ownership) {
+        throw new Error('Apple provider ownership does not match the cached mission.');
+      }
+      occurrence = {
+        ...current,
+        seriesId,
+        schedule,
+        synchronizationState: 'pending',
+      };
+    }
     const providerLink = {
       connectionId: input.connectionId,
       provider: 'apple' as const,
@@ -608,6 +649,7 @@ export function createAppleCalendarSqliteSyncStore({
             notes: input.event.providerNotes,
             providerLink,
           };
+    const text = providerTextFields(occurrence, input.event.providerNotes);
 
     await mutationQueue.enqueue({
       mutation: {
@@ -660,8 +702,8 @@ export function createAppleCalendarSqliteSyncStore({
             occurrenceId,
             series.title,
             input.event.location,
-            input.event.providerNotes,
-            input.event.providerNotes,
+            text.providerText,
+            text.generalNote,
             actionInstant,
           );
         } else {
@@ -696,8 +738,8 @@ export function createAppleCalendarSqliteSyncStore({
               WHERE account_id = ? AND occurrence_id = ?`,
             series.title,
             input.event.location,
-            input.event.providerNotes,
-            input.event.providerNotes,
+            text.providerText,
+            text.generalNote,
             actionInstant,
             accountId,
             occurrenceId,
@@ -707,7 +749,8 @@ export function createAppleCalendarSqliteSyncStore({
           `INSERT INTO external_links
             (account_id, occurrence_id, provider, external_event_id, payload_json, updated_at)
            VALUES (?, ?, 'apple', ?, ?, ?)
-           ON CONFLICT(account_id, provider, external_event_id) DO UPDATE SET
+           ON CONFLICT(account_id, occurrence_id, provider) DO UPDATE SET
+             external_event_id = excluded.external_event_id,
              payload_json = excluded.payload_json,
              updated_at = excluded.updated_at`,
           accountId,
@@ -797,7 +840,14 @@ export function createAppleCalendarSqliteSyncStore({
           input.occurrenceId,
         );
       } else {
-        const state = await getMissionSyncState(input.occurrenceId);
+        const stateRow = await transaction.getFirstAsync<MissionStateRow>(
+          `SELECT payload_json, server_version
+             FROM cached_mission_occurrences
+            WHERE account_id = ? AND occurrence_id = ?`,
+          accountId,
+          input.occurrenceId,
+        );
+        const state = stateRow === null ? null : missionStateFromRow(stateRow);
         const ownership: 'app_owned' | 'organizer_controlled' =
           state?.calendarSource === 'internal' ? 'app_owned' : 'organizer_controlled';
         await transaction.runAsync(
