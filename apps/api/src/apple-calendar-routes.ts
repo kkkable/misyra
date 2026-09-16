@@ -42,7 +42,7 @@ function parseConnectBody(value: unknown) {
 }
 
 function mapAppleCalendarError(error: unknown): never {
-  if (error instanceof AppleCalendarConnectionError && error.code === 'connection_exists') {
+  if (error instanceof AppleCalendarConnectionError) {
     throw new ApiError('conflict');
   }
   throw error;
