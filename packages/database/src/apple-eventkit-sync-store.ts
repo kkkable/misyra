@@ -11,8 +11,7 @@ import {
   type StoredSyncPushResult,
 } from './sync-store.js';
 
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const LOCAL_DATE_TIME_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/;
 
 type ProviderOwnership = 'app_owned' | 'organizer_controlled';
@@ -226,7 +225,9 @@ function parseSchedule(value: unknown): EventKitSchedule {
   const localStart = requireString(source, 'localStart', 'EventKit local start');
   const localFinish = requireString(source, 'localFinish', 'EventKit local finish');
   if (!LOCAL_DATE_TIME_PATTERN.test(localStart) || !LOCAL_DATE_TIME_PATTERN.test(localFinish)) {
-    throw new SyncMutationValidationError('EventKit local times must use ISO local date-time format');
+    throw new SyncMutationValidationError(
+      'EventKit local times must use ISO local date-time format',
+    );
   }
   const startInstant = requireString(source, 'startInstant', 'EventKit start instant');
   const finishInstant = requireString(source, 'finishInstant', 'EventKit finish instant');
@@ -346,12 +347,7 @@ function parseOccurrence(value: unknown, entityId: string): EventKitOccurrence {
       ['pending', 'synced'] as const,
       'EventKit synchronization state',
     ),
-    storyState: requireLiteral(
-      source,
-      'storyState',
-      ['none'] as const,
-      'EventKit story state',
-    ),
+    storyState: requireLiteral(source, 'storyState', ['none'] as const, 'EventKit story state'),
     deletionState: requireLiteral(
       source,
       'deletionState',
@@ -424,7 +420,8 @@ function parseAppleMutation(mutation: StoredSyncMutation): EventKitMissionMutati
   }
   if (
     mutation.operation === 'create' &&
-    (occurrence.calendarSource !== 'external' || occurrence.fieldOwnership !== 'organizer_controlled')
+    (occurrence.calendarSource !== 'external' ||
+      occurrence.fieldOwnership !== 'organizer_controlled')
   ) {
     throw new SyncMutationValidationError(
       'New EventKit imports must be organizer-controlled external missions',
@@ -461,10 +458,10 @@ async function requireDeviceOwnership(
   accountId: string,
   deviceId: string,
 ): Promise<void> {
-  const result = await client.query(
-    'SELECT 1 FROM devices WHERE id = $1 AND account_id = $2',
-    [deviceId, accountId],
-  );
+  const result = await client.query('SELECT 1 FROM devices WHERE id = $1 AND account_id = $2', [
+    deviceId,
+    accountId,
+  ]);
   if (result.rowCount !== 1) throw new SyncDeviceOwnershipError();
 }
 
@@ -699,11 +696,7 @@ async function persistLink(
   );
 }
 
-async function applyCreate(
-  client: PoolClient,
-  accountId: string,
-  input: EventKitMissionCreate,
-) {
+async function applyCreate(client: PoolClient, accountId: string, input: EventKitMissionCreate) {
   await requireAppleConnection(client, accountId, input.providerLink);
   await insertOrVerifySeries(client, accountId, input.series);
   const schedule = input.occurrence.schedule;
@@ -789,7 +782,8 @@ async function applyUpdate(
     throw new SyncMutationValidationError('Cancelled EventKit missions cannot be refreshed');
   }
 
-  const recurrence = input.series.recurrence === null ? null : JSON.stringify(input.series.recurrence);
+  const recurrence =
+    input.series.recurrence === null ? null : JSON.stringify(input.series.recurrence);
   const seriesUpdated = await client.query(
     `UPDATE mission_series
         SET title = $3,
