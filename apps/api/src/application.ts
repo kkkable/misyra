@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 
 import type { AuthProvider } from '@misyra/contracts';
 import {
+  createPostgresAppleCalendarConnectionStore,
   createPostgresAuthStore,
   createPostgresDeviceSettingsStore,
   createPostgresGoogleCalendarConnectionStore,
@@ -18,13 +19,22 @@ import {
   createHmacReauthenticationProofCodec,
 } from './account-lifecycle.js';
 import { createAccountLifecycleRoutes } from './account-lifecycle-routes.js';
+import {
+  AppleCalendarConnectionError,
+  createAppleCalendarRoutes,
+} from './apple-calendar-routes.js';
 import { createAuthRoutes } from './auth-routes.js';
 import { createAuthService, type AccessTokenInput, type ProviderProofVerifier } from './auth.js';
+import {
+  CalendarConnectionError,
+  createCalendarConnectionRoutes,
+} from './calendar-connection-routes.js';
 import { createCompletionRoutes } from './completion-routes.js';
 import { createDeviceSettingsRoutes } from './device-settings-routes.js';
 import { createDeviceSettingsService } from './device-settings.js';
 import {
   createGoogleCalendarConnectionService,
+  GoogleCalendarOAuthError,
   type GoogleCalendarOAuthGateway,
   type GoogleCalendarTokenCipher,
 } from './google-calendar-connection.js';
@@ -130,6 +140,8 @@ export function startGoogleCalendarWatchRenewal(
 export function createApiApplication(options: AuthApplicationOptions) {
   const authStore = createPostgresAuthStore(options.pool);
   const deviceSettingsStore = createPostgresDeviceSettingsStore(options.pool);
+  const appleCalendarStore = createPostgresAppleCalendarConnectionStore(options.pool);
+  const googleCalendarConnectionStore = createPostgresGoogleCalendarConnectionStore(options.pool);
   const verifier = options.verifier ?? createProviderProofVerifier();
   const reauthenticationProofCodec = createHmacReauthenticationProofCodec(
     options.reauthenticationProofSecret,
@@ -138,7 +150,7 @@ export function createApiApplication(options: AuthApplicationOptions) {
     options.googleCalendar === undefined
       ? undefined
       : createGoogleCalendarConnectionService({
-          store: createPostgresGoogleCalendarConnectionStore(options.pool),
+          store: googleCalendarConnectionStore,
           provider: options.googleCalendar.provider,
           cipher: options.googleCalendar.cipher,
           ...(options.now === undefined ? {} : { now: options.now }),
@@ -182,6 +194,50 @@ export function createApiApplication(options: AuthApplicationOptions) {
   });
   const deviceSettingsService = createDeviceSettingsService(deviceSettingsStore);
   const syncService = createPostgresSyncService(options.pool);
+  const appleCalendarRoutes = createAppleCalendarRoutes({
+    async connect(accountId, input) {
+      try {
+        return await appleCalendarStore.connect({ accountId, ...input });
+      } catch (error) {
+        if (error instanceof Error && error.message === 'connection_exists') {
+          throw new AppleCalendarConnectionError('connection_exists');
+        }
+        throw error;
+      }
+    },
+  });
+  const calendarConnectionRoutes = createCalendarConnectionRoutes({
+    async getStatus(accountId) {
+      const apple = await appleCalendarStore.getConnectionStatus(accountId);
+      if (apple !== null) return apple;
+      return googleCalendarConnectionStore.getConnectionStatus(accountId);
+    },
+    async disconnect(accountId, connectionId) {
+      const apple = await appleCalendarStore.getConnectionStatus(accountId);
+      if (apple?.id === connectionId) {
+        if (!(await appleCalendarStore.disconnectConnection(accountId, connectionId))) {
+          throw new CalendarConnectionError('not_found');
+        }
+        return;
+      }
+
+      const google = await googleCalendarConnectionStore.getConnectionStatus(accountId);
+      if (google?.id !== connectionId) throw new CalendarConnectionError('not_found');
+      if (googleCalendarService === undefined) {
+        throw new CalendarConnectionError('provider_error');
+      }
+      try {
+        await googleCalendarService.disconnect(accountId, connectionId);
+      } catch (error) {
+        if (error instanceof GoogleCalendarOAuthError) {
+          throw new CalendarConnectionError(
+            error.code === 'not_found' ? 'not_found' : 'provider_error',
+          );
+        }
+        throw error;
+      }
+    },
+  });
   const googleCalendarRoutes =
     googleCalendarService === undefined
       ? []
@@ -190,6 +246,7 @@ export function createApiApplication(options: AuthApplicationOptions) {
           googleCalendarSyncService,
           options.googleCalendar?.watchService,
           googleCalendarHiddenEventService,
+          false,
         );
 
   return createApiServer({
@@ -199,6 +256,8 @@ export function createApiApplication(options: AuthApplicationOptions) {
       ...createDeviceSettingsRoutes(deviceSettingsService),
       ...createCompletionRoutes(options.pool),
       ...createSyncRoutes(syncService),
+      ...calendarConnectionRoutes,
+      ...appleCalendarRoutes,
       ...googleCalendarRoutes,
     ],
     ...(options.readiness === undefined ? {} : { readiness: options.readiness }),
