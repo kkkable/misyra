@@ -45,4 +45,24 @@ export default tseslint.config(
     },
     rules: packageBoundaryRules,
   },
+  {
+    files: ['src/sync/apple-calendar-mobile-sync.ts'],
+    rules: {
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { varsIgnorePattern: '^_(?:accountId|deviceId)$' },
+      ],
+    },
+  },
+  {
+    files: [
+      'src/sync/apple-calendar-mobile-sync.test.mjs',
+      'src/sync/apple-calendar-mobile-sync-store.test.mjs',
+    ],
+    languageOptions: {
+      globals: {
+        crypto: 'readonly',
+      },
+    },
+  },
 );
