@@ -45,12 +45,13 @@ async function mapStoreErrors<T>(work: () => Promise<T>): Promise<T> {
 
 type AppleCommandService = Readonly<{
   claimNext(accountId: string): Promise<
-    Readonly<{
-      claimToken: string;
-      occurrenceId: string;
-      providerCalendarId: string;
-      command: unknown;
-    }> | null
+    | Readonly<{
+        claimToken: string;
+        occurrenceId: string;
+        providerCalendarId: string;
+        command: unknown;
+      }>
+    | null
   >;
   settle(
     accountId: string,
