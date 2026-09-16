@@ -1,8 +1,6 @@
 import type { CalendarConnection } from '@misyra/contracts';
 
-import type {
-  AppleCalendarNativeModule as AppleCalendarNativeModuleType,
-} from '../../modules/apple-calendar/index.js';
+import type { AppleCalendarNativeModule as AppleCalendarNativeModuleType } from '../../modules/apple-calendar/index.js';
 import { createMutationQueue } from '../storage/mutation-queue.js';
 import type { AppleCalendarCommandApi } from './apple-calendar-command-api.js';
 import {
