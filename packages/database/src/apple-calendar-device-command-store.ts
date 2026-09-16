@@ -9,7 +9,8 @@ const MAX_ATTEMPTS = 5;
 const APPLE_UPSERT_EVENT = 'external_calendar.event.upsert_requested';
 const EXTERNAL_DELETE_EVENT = 'external_calendar.event.delete_requested';
 
-type RecurrenceScope = 'event' | 'this_occurrence' | 'this_and_future' | 'entire_series';
+type StoredRecurrenceScope = 'event' | 'this_occurrence' | 'this_and_future' | 'entire_series';
+type ExecutableRecurrenceScope = 'this_occurrence' | 'this_and_future' | 'entire_series';
 type CalendarRecurrence = Readonly<Record<string, unknown>>;
 
 type ProviderSchedule =
@@ -55,7 +56,7 @@ export type AppleDeviceCalendarCommand =
       connectionId: string;
       operation: 'delete';
       providerEventId: string;
-      recurrenceScope: RecurrenceScope;
+      recurrenceScope: ExecutableRecurrenceScope;
     }>;
 
 export type AppleDeviceCalendarCommandClaim = Readonly<{
@@ -115,7 +116,7 @@ interface MissionCommandRow extends QueryResultRow {
   fieldOwnership: string;
   calendarSource: string;
   providerEventId: string | null;
-  recurrenceScope: RecurrenceScope | null;
+  recurrenceScope: StoredRecurrenceScope | null;
 }
 
 interface AuthoritativeMissionRow extends QueryResultRow {
@@ -157,6 +158,19 @@ function requiredPayloadString(payload: unknown, key: string): string {
   return payload[key];
 }
 
+function executableRecurrenceScope(value: string): ExecutableRecurrenceScope {
+  switch (value) {
+    case 'event':
+      return 'entire_series';
+    case 'this_occurrence':
+    case 'this_and_future':
+    case 'entire_series':
+      return value;
+    default:
+      throw new Error('Apple calendar command recurrence scope is invalid');
+  }
+}
+
 function commandSchedule(row: MissionCommandRow): ProviderSchedule {
   if (row.allDay) {
     return {
@@ -185,6 +199,31 @@ function writableEvent(row: MissionCommandRow): WritableEvent {
   };
 }
 
+async function discardCutoffOutboxRows(
+  client: PoolClient,
+  accountId: string,
+  processedAt: Date,
+): Promise<void> {
+  await client.query(
+    `UPDATE outbox_events event
+        SET processed_at = $2,
+            claimed_at = NULL,
+            claim_token = NULL,
+            last_failure_class = COALESCE(event.last_failure_class, 'connection_disconnected')
+       FROM external_calendar_connections connection
+      WHERE event.account_id = $1
+        AND event.event_type IN ($3, $4)
+        AND event.processed_at IS NULL
+        AND event.dead_lettered_at IS NULL
+        AND connection.account_id = event.account_id
+        AND connection.id::text = event.payload->>'connectionId'
+        AND connection.provider = 'apple'
+        AND connection.provider_command_cutoff_at IS NOT NULL
+        AND event.created_at <= connection.provider_command_cutoff_at`,
+    [accountId, processedAt, APPLE_UPSERT_EVENT, EXTERNAL_DELETE_EVENT],
+  );
+}
+
 async function claimOutboxRow(
   client: PoolClient,
   accountId: string,
@@ -193,6 +232,7 @@ async function claimOutboxRow(
   maxAttempts: number,
 ): Promise<ClaimedRow | null> {
   const staleBefore = new Date(now.getTime() - claimTimeoutMs);
+  await discardCutoffOutboxRows(client, accountId, now);
   await client.query(
     `UPDATE outbox_events
         SET dead_lettered_at = $2,
@@ -226,6 +266,10 @@ async function claimOutboxRow(
           AND connection.provider = 'apple'
           AND connection.connection_state = 'connected'
           AND connection.provider_calendar_id IS NOT NULL
+          AND (
+            connection.provider_command_cutoff_at IS NULL
+            OR event.created_at > connection.provider_command_cutoff_at
+          )
           AND NOT EXISTS (
             SELECT 1
               FROM outbox_events active_claim
@@ -443,10 +487,9 @@ export function createPostgresAppleCalendarDeviceCommandStore(
 
           if (claimed.eventType === EXTERNAL_DELETE_EVENT) {
             const providerEventId = requiredPayloadString(claimed.payload, 'providerEventId');
-            const recurrenceScope = requiredPayloadString(
-              claimed.payload,
-              'recurrenceScope',
-            ) as RecurrenceScope;
+            const recurrenceScope = executableRecurrenceScope(
+              requiredPayloadString(claimed.payload, 'recurrenceScope'),
+            );
             await client.query('COMMIT');
             return {
               claimToken: claimed.claimToken,
@@ -527,14 +570,24 @@ export function createPostgresAppleCalendarDeviceCommandStore(
           eventType: string;
           payload: unknown;
         }>(
-          `SELECT aggregate_id AS "aggregateId", event_type AS "eventType", payload
-             FROM outbox_events
-            WHERE id = $1
-              AND account_id = $2
-              AND claim_token = $3
-              AND processed_at IS NULL
-              AND dead_lettered_at IS NULL
-            FOR UPDATE`,
+          `SELECT event.aggregate_id AS "aggregateId",
+                  event.event_type AS "eventType",
+                  event.payload
+             FROM outbox_events event
+             JOIN external_calendar_connections connection
+               ON connection.account_id = event.account_id
+              AND connection.id::text = event.payload->>'connectionId'
+            WHERE event.id = $1
+              AND event.account_id = $2
+              AND event.claim_token = $3
+              AND event.processed_at IS NULL
+              AND event.dead_lettered_at IS NULL
+              AND connection.provider = 'apple'
+              AND (
+                connection.provider_command_cutoff_at IS NULL
+                OR event.created_at > connection.provider_command_cutoff_at
+              )
+            FOR UPDATE OF event, connection`,
           [settlement.commandId, accountId, settlement.claimToken],
         );
         const event = eventResult.rows[0];
