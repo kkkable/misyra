@@ -43,32 +43,30 @@ async function mapStoreErrors<T>(work: () => Promise<T>): Promise<T> {
   }
 }
 
+type AppleCommandClaim = Readonly<{
+  claimToken: string;
+  occurrenceId: string;
+  providerCalendarId: string;
+  command: unknown;
+}>;
+
+type AppleCommandSettlement =
+  | Readonly<{
+      commandId: string;
+      claimToken: string;
+      status: 'applied';
+      providerEventId: string;
+    }>
+  | Readonly<{
+      commandId: string;
+      claimToken: string;
+      status: 'failed';
+      errorCode: string;
+    }>;
+
 type AppleCommandService = Readonly<{
-  claimNext(accountId: string): Promise<
-    | Readonly<{
-        claimToken: string;
-        occurrenceId: string;
-        providerCalendarId: string;
-        command: unknown;
-      }>
-    | null
-  >;
-  settle(
-    accountId: string,
-    input:
-      | Readonly<{
-          commandId: string;
-          claimToken: string;
-          status: 'applied';
-          providerEventId: string;
-        }>
-      | Readonly<{
-          commandId: string;
-          claimToken: string;
-          status: 'failed';
-          errorCode: string;
-        }>,
-  ): Promise<void>;
+  claimNext(accountId: string): Promise<AppleCommandClaim | null>;
+  settle(accountId: string, input: AppleCommandSettlement): Promise<void>;
 }>;
 
 export function createSyncService(
