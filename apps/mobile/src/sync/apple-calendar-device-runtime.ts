@@ -1,8 +1,6 @@
 import type { CalendarConnection } from '@misyra/contracts';
 
-import type {
-  AppleCalendarNativeModule as AppleCalendarNativeModuleType,
-} from '../../modules/apple-calendar/index.js';
+import type { AppleCalendarNativeModule as AppleCalendarNativeModuleType } from '../../modules/apple-calendar/index.js';
 import { createMutationQueue } from '../storage/mutation-queue.js';
 import type { AppleCalendarCommandApi } from './apple-calendar-command-api.js';
 import {
@@ -72,11 +70,7 @@ function connectedApple(value: CalendarConnection | null): AppleCalendarConnecti
 }
 
 function providerChangesQueued(result: unknown): number {
-  if (
-    typeof result !== 'object' ||
-    result === null ||
-    !('providerChangesQueued' in result)
-  ) {
+  if (typeof result !== 'object' || result === null || !('providerChangesQueued' in result)) {
     return 0;
   }
   const value = result.providerChangesQueued;
