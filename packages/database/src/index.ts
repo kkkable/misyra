@@ -12,6 +12,7 @@ export * from './account-deletion.js';
 export * from './device-settings-store.js';
 export * from './sync-store.js';
 export * from './apple-calendar-connection-store.js';
+export * from './apple-calendar-device-command-store.js';
 export * from './apple-eventkit-sync-store.js';
 export * from './google-calendar-connection-store.js';
 export * from './google-calendar-sync-store.js';
