@@ -58,7 +58,9 @@ export function createCalendarConnectionRoutes(
       method: 'GET',
       path: '/calendars/connection',
       handler: async (_request, _reply, auth) => {
-        const connection = await runCalendarConnectionOperation(() => service.getStatus(auth.accountId));
+        const connection = await runCalendarConnectionOperation(() =>
+          service.getStatus(auth.accountId),
+        );
         return {
           connection: connection === null ? null : calendarConnectionSchema.parse(connection),
         };
