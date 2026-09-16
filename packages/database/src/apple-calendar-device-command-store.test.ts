@@ -200,23 +200,20 @@ describe('MTS-077 durable Apple device commands', () => {
     const changes = await syncStore.pull(fixtureValue.accountId, { cursor: 1, limit: 25 });
     expect(changes.kind).toBe('incremental');
     if (changes.kind !== 'incremental') throw new Error('expected incremental change page');
-    expect(changes.changes).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          entityType: 'mission',
-          entityId: mutation.entityId,
-          operation: 'upsert',
-          payload: expect.objectContaining({
-            providerLink: {
-              connectionId: fixtureValue.connectionId,
-              provider: 'apple',
-              providerCalendarId: 'apple-calendar-1',
-              providerEventId: 'eventkit-created-1',
-              ownership: 'app_owned',
-            },
-          }),
-        }),
-      ]),
+    const missionChange = changes.changes.find(
+      (change) =>
+        change.entityType === 'mission' &&
+        change.entityId === mutation.entityId &&
+        change.operation === 'upsert',
     );
+    expect(missionChange?.payload).toMatchObject({
+      providerLink: {
+        connectionId: fixtureValue.connectionId,
+        provider: 'apple',
+        providerCalendarId: 'apple-calendar-1',
+        providerEventId: 'eventkit-created-1',
+        ownership: 'app_owned',
+      },
+    });
   });
 });
