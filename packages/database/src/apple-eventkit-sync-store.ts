@@ -951,7 +951,11 @@ export function createPostgresEventKitSyncStore(
       }
       return { acceptedMutationIds };
     },
-    pull: generic.pull,
-    snapshot: generic.snapshot,
+    pull(accountId, input) {
+      return generic.pull(accountId, input);
+    },
+    snapshot(accountId) {
+      return generic.snapshot(accountId);
+    },
   };
 }
