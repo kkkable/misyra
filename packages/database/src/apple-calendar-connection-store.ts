@@ -32,6 +32,10 @@ interface ConnectionStatusRow extends QueryResultRow {
   connection_state: AppleCalendarConnectionState;
 }
 
+interface DisconnectRow extends QueryResultRow {
+  providerCommandCutoffAt: Date;
+}
+
 function mapConnection(row: ConnectionRow): AppleCalendarConnectionRecord {
   return {
     id: row.id,
@@ -120,29 +124,62 @@ export function createPostgresAppleCalendarConnectionStore(pool: Pool) {
     },
 
     async disconnectConnection(accountId: string, connectionId: string): Promise<boolean> {
-      const result = await pool.query(
-        `UPDATE external_calendar_connections
-            SET connection_state = 'disconnected',
-                provider_command_cutoff_at = CASE
-                  WHEN connection_state <> 'disconnected' THEN now()
-                  ELSE provider_command_cutoff_at
-                END,
-                updated_at = CASE
-                  WHEN connection_state <> 'disconnected' THEN now()
-                  ELSE updated_at
-                END
-          WHERE id = $1
-            AND account_id = $2
-            AND provider = 'apple'
-            AND connection_state IN (
-              'connected',
-              'permission_revoked',
-              'provider_unavailable',
-              'disconnected'
-            )`,
-        [connectionId, accountId],
-      );
-      return result.rowCount === 1;
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        const result = await client.query<DisconnectRow>(
+          `UPDATE external_calendar_connections
+              SET connection_state = 'disconnected',
+                  provider_command_cutoff_at = CASE
+                    WHEN connection_state <> 'disconnected' THEN now()
+                    ELSE provider_command_cutoff_at
+                  END,
+                  updated_at = CASE
+                    WHEN connection_state <> 'disconnected' THEN now()
+                    ELSE updated_at
+                  END
+            WHERE id = $1
+              AND account_id = $2
+              AND provider = 'apple'
+              AND connection_state IN (
+                'connected',
+                'permission_revoked',
+                'provider_unavailable',
+                'disconnected'
+              )
+          RETURNING provider_command_cutoff_at AS "providerCommandCutoffAt"`,
+          [connectionId, accountId],
+        );
+        const cutoff = result.rows[0]?.providerCommandCutoffAt;
+        if (cutoff === undefined) {
+          await client.query('COMMIT');
+          return false;
+        }
+
+        await client.query(
+          `UPDATE outbox_events
+              SET processed_at = COALESCE(processed_at, $3),
+                  claimed_at = NULL,
+                  claim_token = NULL,
+                  last_failure_class = COALESCE(last_failure_class, 'connection_disconnected')
+            WHERE account_id = $2
+              AND event_type IN (
+                'external_calendar.event.upsert_requested',
+                'external_calendar.event.delete_requested'
+              )
+              AND payload->>'connectionId' = $1
+              AND processed_at IS NULL
+              AND created_at <= $3`,
+          [connectionId, accountId, cutoff],
+        );
+        await client.query('COMMIT');
+        return true;
+      } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+      } finally {
+        client.release();
+      }
     },
   });
 }
