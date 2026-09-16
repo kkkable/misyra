@@ -1,8 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import {
-  createAppleCalendarRemoteCommandExecutor,
-} from './apple-calendar-remote-command-executor.js';
+import { createAppleCalendarRemoteCommandExecutor } from './apple-calendar-remote-command-executor.js';
 
 const connection = {
   id: '11111111-1111-4111-8111-111111111111',
@@ -133,11 +131,7 @@ describe('MTS-077 remote Apple Calendar command executor', () => {
     });
 
     await expect(executor.runOne()).resolves.toEqual({ status: 'applied', operation: 'update' });
-    expect(native.updateEvent).toHaveBeenCalledWith(
-      'eventkit-existing-1',
-      event,
-      'entire_series',
-    );
+    expect(native.updateEvent).toHaveBeenCalledWith('eventkit-existing-1', event, 'entire_series');
 
     await expect(executor.runOne()).resolves.toEqual({ status: 'applied', operation: 'delete' });
     expect(native.deleteEvent).toHaveBeenCalledWith('eventkit-updated-1', 'entire_series');
