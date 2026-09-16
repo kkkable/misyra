@@ -3,7 +3,9 @@ import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { createPostgresAppleCalendarDeviceCommandStore } from './apple-calendar-device-command-store.js';
+import {
+  createPostgresAppleCalendarDeviceCommandStore,
+} from './apple-calendar-device-command-store.js';
 import { createPostgresEventKitSyncStore } from './apple-eventkit-sync-store.js';
 import { createPostgresAuthStore } from './auth-store.js';
 import { createPostgresDeviceSettingsStore } from './device-settings-store.js';
@@ -35,7 +37,10 @@ afterAll(async () => {
 async function fixture(label: string) {
   const auth = createPostgresAuthStore(pool);
   const devices = createPostgresDeviceSettingsStore(pool);
-  const account = await auth.findOrCreateAccount('apple', `mts077-command-${label}-${randomUUID()}`);
+  const account = await auth.findOrCreateAccount(
+    'apple',
+    `mts077-command-${label}-${randomUUID()}`,
+  );
   const deviceId = await devices.registerDevice({
     accountId: account.id,
     installationId: `mts077-command-${label}`,
