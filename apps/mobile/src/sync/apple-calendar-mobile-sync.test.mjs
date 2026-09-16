@@ -104,7 +104,8 @@ function createHarness({
     nativeModule,
     store,
     emitStoreChanged: async () => {
-      if (storeChangedListener === null) throw new Error('store-change listener was not registered');
+      if (storeChangedListener === null)
+        throw new Error('store-change listener was not registered');
       storeChangedListener({ changed: true });
       await Promise.resolve();
       await Promise.resolve();
