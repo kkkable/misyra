@@ -6,6 +6,7 @@ import { AppleCalendarNativeModule } from '../../modules/apple-calendar/index.js
 import { getAuthApiBaseUrl, rootAuthController } from '../auth/auth-runtime.js';
 import { rootNotificationRebuildLifecycle } from '../notifications/root-notification-rebuild-runtime.js';
 import { openMobileDatabase } from '../storage/database.js';
+import { createAppleCalendarCommandApi } from './apple-calendar-command-api.js';
 import { createAuthenticatedSyncApi } from './authenticated-sync-api.js';
 import {
   createAuthenticatedSyncRuntime,
@@ -88,6 +89,17 @@ const authenticatedRootSyncRuntime = createAuthenticatedSyncRuntime({
   deviceMetadata,
 });
 
+async function runAuthenticatedSyncAndRebuildNotifications() {
+  const result = await authenticatedRootSyncRuntime.run();
+  if (result !== null) {
+    const timeZoneChanged = result.timeZoneNotice !== undefined && result.timeZoneNotice !== null;
+    await rootNotificationRebuildLifecycle
+      .afterSynchronization(timeZoneChanged)
+      .catch(() => undefined);
+  }
+  return result;
+}
+
 const rootAppleCalendarRuntime = createAppleCalendarDeviceRuntime({
   platform: Platform.OS,
   nativeModule: AppleCalendarNativeModule,
@@ -105,6 +117,17 @@ const rootAppleCalendarRuntime = createAppleCalendarDeviceRuntime({
       accessToken: authState.session.accessToken,
     }).getConnectedCalendarStatus();
   },
+  remoteCommandApiProvider: async (accountId) => {
+    const authState = await rootAuthController.restore();
+    if (authState.status !== 'signed_in' || authState.session.accountId !== accountId) return null;
+    return createAppleCalendarCommandApi({
+      baseUrl: getAuthApiBaseUrl(),
+      accessToken: authState.session.accessToken,
+    });
+  },
+  afterProviderChangesQueued: async () => {
+    await runAuthenticatedSyncAndRebuildNotifications();
+  },
   connectionCache: rootAppleCalendarConnectionCache,
   openDatabase: openMobileDatabase,
   generateId: generateUuid,
@@ -114,17 +137,13 @@ export const rootSyncRuntime = Object.freeze({
   async run() {
     let result;
     try {
-      result = await authenticatedRootSyncRuntime.run();
+      result = await runAuthenticatedSyncAndRebuildNotifications();
     } catch (error) {
       await rootAppleCalendarRuntime.runBestEffortBackground();
       throw error;
     }
 
     if (result !== null) {
-      const timeZoneChanged = result.timeZoneNotice !== undefined && result.timeZoneNotice !== null;
-      await rootNotificationRebuildLifecycle
-        .afterSynchronization(timeZoneChanged)
-        .catch(() => undefined);
       await rootAppleCalendarRuntime.runForeground().catch(() => undefined);
     }
     return result;
