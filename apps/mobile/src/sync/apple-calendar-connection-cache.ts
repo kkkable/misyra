@@ -1,6 +1,7 @@
 import { calendarConnectionSchema, type CalendarConnection } from '@misyra/contracts';
 
-type AppleCalendarConnection = Omit<CalendarConnection, 'provider'> & Readonly<{ provider: 'apple' }>;
+type AppleCalendarConnection = Omit<CalendarConnection, 'provider'> &
+  Readonly<{ provider: 'apple' }>;
 
 type KeyValueStore = Readonly<{
   getItem(key: string): Promise<string | null>;
