@@ -62,6 +62,7 @@ export type AppleCalendarNativeModule = Omit<
     startInstant: string,
     endInstant: string,
   ): Promise<AppleCalendarNativeEvent[]>;
+  fetchEvent(eventIdentifier: string): Promise<AppleCalendarNativeEvent | null>;
   createEvent(
     calendarIdentifier: string,
     event: AppleCalendarEventWrite,
