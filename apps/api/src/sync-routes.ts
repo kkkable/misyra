@@ -127,11 +127,7 @@ export function createSyncRoutes(services: SyncRouteServices): ApiRouteDefinitio
         path: '/sync/apple-calendar/commands/settle',
         handler: async (request, _reply, auth) => {
           const body = parseAppleSettlement(request.body);
-          await services.settleAppleCalendarCommand?.(
-            auth.accountId,
-            body.claimToken,
-            body.result,
-          );
+          await services.settleAppleCalendarCommand?.(auth.accountId, body.claimToken, body.result);
           return { settled: true as const };
         },
       },
