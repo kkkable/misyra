@@ -4,9 +4,7 @@ import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { createPostgresAppleCalendarConnectionStore } from './apple-calendar-connection-store.js';
-import {
-  createPostgresAppleCalendarDeviceCommandStore,
-} from './apple-calendar-device-command-store.js';
+import { createPostgresAppleCalendarDeviceCommandStore } from './apple-calendar-device-command-store.js';
 import { applyMigrations } from './migrations.js';
 
 const postgresUser = process.env.POSTGRES_USER ?? 'misyra';
