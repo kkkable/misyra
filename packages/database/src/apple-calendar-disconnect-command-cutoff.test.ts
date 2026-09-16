@@ -120,4 +120,46 @@ describe('MTS-077 Apple disconnect command cutoff', () => {
       },
     });
   });
+
+  it('invalidates an in-flight claim when disconnect happens before settlement', async () => {
+    const accountId = await insertAccount();
+    const connectionStore = createPostgresAppleCalendarConnectionStore(pool);
+    const connection = await connectionStore.connect({
+      accountId,
+      providerCalendarId: 'eventkit-calendar-claimed',
+      initialSyncDirection: 'misyra_to_external',
+    });
+    const staleCommandId = await queueDelete({
+      accountId,
+      connectionId: connection.id,
+      providerEventId: 'eventkit-stale-claimed-1',
+    });
+    const commandStore = createPostgresAppleCalendarDeviceCommandStore(pool);
+    const claim = await commandStore.claimNext(accountId);
+    expect(claim).toMatchObject({
+      command: { commandId: staleCommandId, operation: 'delete' },
+    });
+    if (claim === null) throw new Error('expected claimed Apple command');
+
+    await expect(
+      connectionStore.disconnectConnection(accountId, connection.id),
+    ).resolves.toBe(true);
+    await expect(
+      commandStore.settle(accountId, {
+        commandId: staleCommandId,
+        claimToken: claim.claimToken,
+        status: 'applied',
+        providerEventId: 'eventkit-stale-claimed-1',
+      }),
+    ).rejects.toThrow('apple_calendar_command_claim_not_found');
+
+    const stale = await pool.query<{ processedAt: Date | null; claimToken: string | null }>(
+      `SELECT processed_at AS "processedAt", claim_token AS "claimToken"
+         FROM outbox_events
+        WHERE id = $1`,
+      [staleCommandId],
+    );
+    expect(stale.rows[0]?.processedAt).toBeInstanceOf(Date);
+    expect(stale.rows[0]?.claimToken).toBeNull();
+  });
 });
