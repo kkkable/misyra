@@ -3,9 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import {
-  createPostgresAppleCalendarDeviceCommandStore,
-} from './apple-calendar-device-command-store.js';
+import { createPostgresAppleCalendarDeviceCommandStore } from './apple-calendar-device-command-store.js';
 import { createPostgresEventKitSyncStore } from './apple-eventkit-sync-store.js';
 import { createPostgresAuthStore } from './auth-store.js';
 import { createPostgresDeviceSettingsStore } from './device-settings-store.js';
