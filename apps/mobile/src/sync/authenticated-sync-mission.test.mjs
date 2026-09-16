@@ -70,7 +70,12 @@ function syncApi(change) {
   };
 }
 
-function timedOccurrence({ occurrenceId, seriesId, calendarSource = 'internal', fieldOwnership = 'app_owned' }) {
+function timedOccurrence({
+  occurrenceId,
+  seriesId,
+  calendarSource = 'internal',
+  fieldOwnership = 'app_owned',
+}) {
   return {
     id: occurrenceId,
     seriesId,
