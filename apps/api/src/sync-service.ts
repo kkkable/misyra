@@ -6,7 +6,7 @@ import {
   createPostgresEventKitSyncStore,
   type PostgresSyncStore,
 } from '@misyra/database';
-import type { CalendarCommandResult } from '@misyra/contracts';
+import { calendarCommandSchema, type CalendarCommandResult } from '@misyra/contracts';
 import type { Pool } from 'pg';
 
 import { ApiError } from './index.js';
@@ -135,7 +135,14 @@ export function createSyncService(
       ? {}
       : {
           claimAppleCalendarCommand: (accountId: string) =>
-            mapStoreErrors(() => appleCommands.claimNext(accountId)),
+            mapStoreErrors(async () => {
+              const claim = await appleCommands.claimNext(accountId);
+              if (claim === null) return null;
+              return {
+                ...claim,
+                command: calendarCommandSchema.parse(claim.command),
+              };
+            }),
           settleAppleCalendarCommand: (
             accountId: string,
             claimToken: string,
