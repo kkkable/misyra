@@ -2,11 +2,16 @@ import type { CalendarConnection } from '@misyra/contracts';
 
 import type { AppleCalendarNativeModule as AppleCalendarNativeModuleType } from '../../modules/apple-calendar/index.js';
 import { createMutationQueue } from '../storage/mutation-queue.js';
+import type { AppleCalendarCommandApi } from './apple-calendar-command-api.js';
 import {
   createAppleCalendarMobileSync,
   createAppleCalendarSqliteSyncStore,
   type AppleCalendarSyncDatabase,
 } from './apple-calendar-mobile-sync.js';
+import {
+  createAppleCalendarRemoteCommandExecutor,
+  createAppleCalendarRemoteCommandLinkStore,
+} from './apple-calendar-remote-command-executor.js';
 
 type AppleCalendarConnection = Omit<CalendarConnection, 'provider'> & Readonly<{ provider: 'apple' }>;
 
@@ -36,6 +41,8 @@ type DeviceRuntimeOptions = Readonly<{
   accountIdProvider: () => Promise<string | null>;
   registeredDeviceIdProvider: (accountId: string) => Promise<string | null>;
   remoteConnectionProvider: (accountId: string) => Promise<CalendarConnection | null>;
+  remoteCommandApiProvider?: (accountId: string) => Promise<AppleCalendarCommandApi | null>;
+  afterProviderChangesQueued?: () => Promise<void>;
   connectionCache: ConnectionCache;
   openDatabase: () => Promise<AppleCalendarSyncDatabase>;
   generateId: () => string;
@@ -56,7 +63,15 @@ type DeviceRuntimeInactive = Readonly<{
 }>;
 
 function connectedApple(value: CalendarConnection | null): AppleCalendarConnection | null {
-  return value?.provider === 'apple' && value.state === 'connected' ? { ...value, provider: 'apple' } : null;
+  return value?.provider === 'apple' && value.state === 'connected'
+    ? { ...value, provider: 'apple' }
+    : null;
+}
+
+function providerChangesQueued(result: unknown): number {
+  if (typeof result !== 'object' || result === null || !('providerChangesQueued' in result)) return 0;
+  const value = result.providerChangesQueued;
+  return typeof value === 'number' && Number.isSafeInteger(value) && value > 0 ? value : 0;
 }
 
 function defaultCreateSync(input: CreateSyncInput): DeviceSync {
@@ -119,7 +134,7 @@ export function createAppleCalendarDeviceRuntime(options: DeviceRuntimeOptions) 
     }
 
     const database = await options.openDatabase();
-    return createSync({
+    const sync = createSync({
       database,
       accountId,
       deviceId,
@@ -127,6 +142,41 @@ export function createAppleCalendarDeviceRuntime(options: DeviceRuntimeOptions) 
       nativeModule: options.nativeModule,
       generateId: options.generateId,
     });
+    const commandApi = await options.remoteCommandApiProvider?.(accountId);
+    const remoteExecutor =
+      commandApi === undefined || commandApi === null
+        ? null
+        : createAppleCalendarRemoteCommandExecutor({
+            api: commandApi,
+            nativeModule: options.nativeModule,
+            linkStore: createAppleCalendarRemoteCommandLinkStore({ database, accountId }),
+            connection: {
+              id: connection.id,
+              providerCalendarId: connection.providerCalendarId,
+            },
+          });
+
+    const runRemoteCommandsBestEffort = async () => {
+      if (remoteExecutor === null) return;
+      const authorization = await options.nativeModule?.getAuthorizationStatus();
+      if (authorization !== 'full_access') return;
+      await remoteExecutor.runUntilIdle().catch(() => undefined);
+    };
+
+    const runSync = async (mode: 'foreground' | 'background') => {
+      await runRemoteCommandsBestEffort();
+      const result =
+        mode === 'foreground' ? await sync.runForeground() : await sync.runBestEffortBackground();
+      if (providerChangesQueued(result) > 0) {
+        await options.afterProviderChangesQueued?.();
+      }
+      return result;
+    };
+
+    return {
+      runForeground: () => runSync('foreground'),
+      runBestEffortBackground: () => runSync('background'),
+    };
   };
 
   const runForeground = async () => {
