@@ -30,6 +30,11 @@ export type AppleCalendarEventWrite = {
   providerNotes: string | null;
 };
 
+export type AppleCalendarRecurrenceMutationScope =
+  | 'this_occurrence'
+  | 'this_and_future'
+  | 'entire_series';
+
 export type AppleCalendarStoreChangedEvent = {
   changed: boolean;
 };
@@ -55,8 +60,12 @@ export type AppleCalendarNativeModule = NativeModule<AppleCalendarNativeModuleEv
   updateEvent(
     eventIdentifier: string,
     event: AppleCalendarEventWrite,
+    recurrenceScope?: AppleCalendarRecurrenceMutationScope,
   ): Promise<AppleCalendarNativeEvent>;
-  deleteEvent(eventIdentifier: string): Promise<void>;
+  deleteEvent(
+    eventIdentifier: string,
+    recurrenceScope?: AppleCalendarRecurrenceMutationScope,
+  ): Promise<void>;
 };
 
 export const AppleCalendarNativeModule =
