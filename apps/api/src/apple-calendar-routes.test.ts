@@ -53,7 +53,9 @@ describe('MTS-077 Apple calendar metadata API route', () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({
+    expect(response.json()).toMatchObject({
+      version: 1,
+      requestId: expect.any(String),
       ok: true,
       payload: {
         id: connectionId,
@@ -102,6 +104,8 @@ describe('MTS-077 Apple calendar metadata API route', () => {
     });
     expect(conflict.statusCode).toBe(409);
     expect(conflict.json()).toMatchObject({
+      version: 1,
+      requestId: expect.any(String),
       ok: false,
       error: { code: 'conflict' },
     });
