@@ -119,15 +119,8 @@ function providerCreateMutation(input: {
 describe('MTS-077 Apple EventKit normal mobile sync projector', () => {
   it('accepts a device-originated EventKit import, persists provider linkage, and publishes it as an authoritative mission change', async () => {
     const { account, deviceId, connectionId } = await fixture('import');
-    const mutation = providerCreateMutation({
-      accountId: account.id,
-      deviceId,
-      connectionId,
-    });
-    const store = createPostgresEventKitSyncStore(
-      pool,
-      () => new Date('2026-09-16T01:00:01.000Z'),
-    );
+    const mutation = providerCreateMutation({ accountId: account.id, deviceId, connectionId });
+    const store = createPostgresEventKitSyncStore(pool, () => new Date('2026-09-16T01:00:01.000Z'));
 
     await expect(store.push(account.id, [mutation])).resolves.toEqual({
       acceptedMutationIds: [mutation.mutationId],
@@ -202,10 +195,7 @@ describe('MTS-077 Apple EventKit normal mobile sync projector', () => {
       seriesId,
       providerEventId,
     });
-    const store = createPostgresEventKitSyncStore(
-      pool,
-      () => new Date('2026-09-16T01:00:01.000Z'),
-    );
+    const store = createPostgresEventKitSyncStore(pool, () => new Date('2026-09-16T01:00:01.000Z'));
     await store.push(account.id, [create]);
     await pool.query(
       `UPDATE mission_occurrences
@@ -234,10 +224,7 @@ describe('MTS-077 Apple EventKit normal mobile sync projector', () => {
           title: 'Provider changed after completion',
           recurrence: null,
         },
-        occurrence: {
-          ...create.payload.occurrence,
-          synchronizationState: 'pending',
-        },
+        occurrence: { ...create.payload.occurrence, synchronizationState: 'pending' },
         location: 'Changed location',
         notes: 'Changed provider notes',
         providerLink: create.payload.providerLink,
@@ -303,10 +290,7 @@ describe('MTS-077 Apple EventKit normal mobile sync projector', () => {
           fieldOwnership: 'organizer_controlled',
           synchronizationState: 'synced',
         },
-        providerLink: {
-          connectionId,
-          providerEventId,
-        },
+        providerLink: { connectionId, providerEventId },
       },
     });
   });
