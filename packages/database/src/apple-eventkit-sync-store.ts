@@ -17,6 +17,13 @@ const LOCAL_DATE_TIME_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/;
 
 type ProviderOwnership = 'app_owned' | 'organizer_controlled';
 type CalendarSource = 'internal' | 'external';
+type ScheduleState = 'scheduled' | 'cancelled';
+type CompletionState = 'incomplete' | 'completed';
+type EvidenceState = 'not_submitted' | 'pending' | 'accepted' | 'rejected' | 'not_required';
+type RewardEligibility = 'undetermined' | 'eligible' | 'ineligible';
+type RewardIssuance = 'not_issued' | 'issued';
+type StoryState = 'none' | 'draft' | 'ready';
+type DeletionState = 'active' | 'deleted';
 
 type AppleProviderLink = Readonly<{
   connectionId: string;
@@ -50,13 +57,29 @@ type EventKitOccurrence = Readonly<{
   scheduleState: 'scheduled';
   completionState: 'incomplete';
   evidenceState: 'not_submitted' | 'not_required';
-  rewardEligibility: 'undetermined' | 'eligible' | 'ineligible';
+  rewardEligibility: RewardEligibility;
   rewardIssuance: 'not_issued';
   calendarSource: CalendarSource;
   fieldOwnership: ProviderOwnership;
   synchronizationState: 'pending' | 'synced';
   storyState: 'none';
   deletionState: 'active';
+}>;
+
+type AuthoritativeOccurrence = Readonly<{
+  id: string;
+  seriesId: string;
+  schedule: EventKitSchedule;
+  scheduleState: ScheduleState;
+  completionState: CompletionState;
+  evidenceState: EvidenceState;
+  rewardEligibility: RewardEligibility;
+  rewardIssuance: RewardIssuance;
+  calendarSource: CalendarSource;
+  fieldOwnership: ProviderOwnership;
+  synchronizationState: 'synced';
+  storyState: StoryState;
+  deletionState: DeletionState;
 }>;
 
 type EventKitMissionCreate = Readonly<{
@@ -95,15 +118,15 @@ interface CurrentMissionRow extends QueryResultRow {
   timeBehavior: 'local_time' | 'fixed_instant';
   allDay: boolean;
   estimatedEffortMinutes: number | null;
-  scheduleState: 'scheduled' | 'cancelled';
-  completionState: 'incomplete' | 'completed';
-  evidenceState: 'not_submitted' | 'pending' | 'accepted' | 'rejected' | 'not_required';
-  rewardEligibility: 'undetermined' | 'eligible' | 'ineligible';
-  rewardIssuance: 'not_issued' | 'issued';
+  scheduleState: ScheduleState;
+  completionState: CompletionState;
+  evidenceState: EvidenceState;
+  rewardEligibility: RewardEligibility;
+  rewardIssuance: RewardIssuance;
   calendarSource: CalendarSource;
   fieldOwnership: ProviderOwnership;
-  storyState: 'none' | 'draft' | 'ready';
-  deletionState: 'active' | 'deleted';
+  storyState: StoryState;
+  deletionState: DeletionState;
   location: string | null;
   notes: string | null;
   version: number;
@@ -503,20 +526,14 @@ async function requireAppleConnection(
   }
 }
 
-function authoritativePayload(
-  input: Readonly<{
-    series: EventKitSeries;
-    occurrence: Omit<EventKitOccurrence, 'completionState' | 'synchronizationState'> &
-      Readonly<{
-        completionState: 'incomplete' | 'completed';
-        synchronizationState: 'synced';
-      }>;
-    location: string | null;
-    notes: string | null;
-    providerLink: AppleProviderLink;
-    version: number;
-  }>,
-) {
+function authoritativePayload(input: {
+  series: EventKitSeries;
+  occurrence: AuthoritativeOccurrence;
+  location: string | null;
+  notes: string | null;
+  providerLink: AppleProviderLink;
+  version: number;
+}) {
   return {
     version: input.version,
     series: input.series,
@@ -552,16 +569,15 @@ function currentPayload(
         allDay: row.allDay,
         estimatedEffortMinutes: row.estimatedEffortMinutes,
       },
-      scheduleState: row.scheduleState === 'scheduled' ? 'scheduled' : 'scheduled',
+      scheduleState: row.scheduleState,
       completionState: row.completionState,
-      evidenceState:
-        row.evidenceState === 'not_required' ? 'not_required' : 'not_submitted',
+      evidenceState: row.evidenceState,
       rewardEligibility: row.rewardEligibility,
-      rewardIssuance: row.rewardIssuance === 'issued' ? 'not_issued' : 'not_issued',
+      rewardIssuance: row.rewardIssuance,
       calendarSource: row.calendarSource,
       fieldOwnership: row.fieldOwnership,
-      storyState: 'none',
-      deletionState: 'active',
+      storyState: row.storyState,
+      deletionState: row.deletionState,
       synchronizationState: 'synced',
     },
     location: row.location,
@@ -842,15 +858,19 @@ async function applyUpdate(
     version: nextVersion,
     series: input.series,
     occurrence: {
-      ...input.occurrence,
-      completionState: 'incomplete',
-      evidenceState:
-        current.evidenceState === 'not_required' ? 'not_required' : 'not_submitted',
+      id: input.occurrence.id,
+      seriesId: input.occurrence.seriesId,
+      schedule: input.occurrence.schedule,
+      scheduleState: current.scheduleState,
+      completionState: current.completionState,
+      evidenceState: current.evidenceState,
       rewardEligibility,
-      rewardIssuance: 'not_issued',
-      storyState: 'none',
-      deletionState: 'active',
+      rewardIssuance: current.rewardIssuance,
+      calendarSource: current.calendarSource,
+      fieldOwnership: current.fieldOwnership,
       synchronizationState: 'synced',
+      storyState: current.storyState,
+      deletionState: current.deletionState,
     },
     location: input.location,
     notes: input.notes,
