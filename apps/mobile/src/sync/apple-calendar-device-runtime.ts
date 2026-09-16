@@ -8,7 +8,7 @@ import {
   type AppleCalendarSyncDatabase,
 } from './apple-calendar-mobile-sync.js';
 
-type AppleCalendarConnection = Extract<CalendarConnection, { provider: 'apple' }>;
+type AppleCalendarConnection = Omit<CalendarConnection, 'provider'> & Readonly<{ provider: 'apple' }>;
 
 type ConnectionCache = Readonly<{
   read(accountId: string): Promise<AppleCalendarConnection | null>;
@@ -56,7 +56,7 @@ type DeviceRuntimeInactive = Readonly<{
 }>;
 
 function connectedApple(value: CalendarConnection | null): AppleCalendarConnection | null {
-  return value?.provider === 'apple' && value.state === 'connected' ? value : null;
+  return value?.provider === 'apple' && value.state === 'connected' ? { ...value, provider: 'apple' } : null;
 }
 
 function defaultCreateSync(input: CreateSyncInput): DeviceSync {
