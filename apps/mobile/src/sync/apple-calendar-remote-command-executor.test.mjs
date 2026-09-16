@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { createAppleCalendarRemoteCommandExecutor } from './apple-calendar-remote-command-executor.js';
+import {
+  createAppleCalendarRemoteCommandExecutor,
+} from './apple-calendar-remote-command-executor.js';
 
 const connection = {
   id: '11111111-1111-4111-8111-111111111111',
