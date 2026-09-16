@@ -52,13 +52,15 @@ type ProviderLink = Readonly<{
   ownership: 'app_owned' | 'organizer_controlled';
 }>;
 
+type LinkedProviderEvent = ProviderLink & Readonly<{ providerEventId: string }>;
+
 type MissionSyncState = Readonly<{
   completionState: 'incomplete' | 'completed';
   serverVersion: number | null;
   calendarSource: 'internal' | 'external';
 }>;
 
-type ProviderMutationInput = Readonly<{
+type ProviderUpsertMutationInput = Readonly<{
   destination: Readonly<{ kind: 'server' }>;
   operation: 'create' | 'update';
   provider: 'apple';
@@ -71,6 +73,21 @@ type ProviderMutationInput = Readonly<{
   seriesId?: string;
   baseVersion?: number | null;
 }>;
+
+type ProviderDeleteMutationInput = Readonly<{
+  destination: Readonly<{ kind: 'server' }>;
+  operation: 'delete';
+  provider: 'apple';
+  connectionId: string;
+  providerCalendarId: string;
+  providerEventId: string;
+  ownership: 'app_owned' | 'organizer_controlled';
+  occurrenceId: string;
+  seriesId: string;
+  baseVersion: number;
+}>;
+
+type ProviderMutationInput = ProviderUpsertMutationInput | ProviderDeleteMutationInput;
 
 type ProviderRelinkInput = Readonly<{
   occurrenceId: string;
@@ -116,6 +133,10 @@ export type AppleCalendarMobileSyncStore = Readonly<{
   getMissionSyncState(occurrenceId: string): Promise<MissionSyncState | null>;
   enqueueProviderMutation(input: ProviderMutationInput): Promise<void>;
   relinkProviderEvent(input: ProviderRelinkInput): Promise<void>;
+  listLinkedProviderEventsInWindow?(
+    startInstant: string,
+    endInstant: string,
+  ): Promise<readonly LinkedProviderEvent[]>;
   listPendingAppleCommands(): Promise<readonly PendingAppleCommand[]>;
   settleAppleCommand(input: SettleAppleCommandInput): Promise<void>;
 }>;
@@ -268,17 +289,23 @@ export function createAppleCalendarMobileSync({
 
     const start = now();
     const end = new Date(start.getTime() + FUTURE_SYNC_WINDOW_MS);
+    const startInstant = start.toISOString();
+    const endInstant = end.toISOString();
     const events = await nativeModule.fetchEvents(
       connection.providerCalendarId,
-      start.toISOString(),
-      end.toISOString(),
+      startInstant,
+      endInstant,
     );
     let providerChangesQueued = 0;
     let frozenProviderEvents = 0;
 
-    for (const event of events) {
+    const processProviderEvent = async (
+      event: AppleCalendarNativeEvent,
+      knownLink: ProviderLink | null = null,
+    ): Promise<void> => {
+      if (event.calendarIdentifier !== connection.providerCalendarId) return;
       const normalized = normalizedProviderEvent(event);
-      const link = await store.findLinkByProviderEventId(event.eventIdentifier);
+      const link = knownLink ?? (await store.findLinkByProviderEventId(event.eventIdentifier));
       if (link === null) {
         await store.enqueueProviderMutation({
           destination: { kind: 'server' },
@@ -291,7 +318,7 @@ export function createAppleCalendarMobileSync({
           event: normalized,
         });
         providerChangesQueued += 1;
-        continue;
+        return;
       }
 
       await store.relinkProviderEvent({
@@ -305,9 +332,9 @@ export function createAppleCalendarMobileSync({
       const mission = await store.getMissionSyncState(link.occurrenceId);
       if (mission?.completionState === 'completed') {
         frozenProviderEvents += 1;
-        continue;
+        return;
       }
-      if (mission === null || mission.serverVersion === null) continue;
+      if (mission === null || mission.serverVersion === null) return;
       await store.enqueueProviderMutation({
         destination: { kind: 'server' },
         operation: 'update',
@@ -317,6 +344,53 @@ export function createAppleCalendarMobileSync({
         providerEventId: event.eventIdentifier,
         ownership: link.ownership,
         event: normalized,
+        occurrenceId: link.occurrenceId,
+        seriesId: link.seriesId,
+        baseVersion: mission.serverVersion,
+      });
+      providerChangesQueued += 1;
+    };
+
+    const snapshotEventIds = new Set<string>();
+    for (const event of events) {
+      snapshotEventIds.add(event.eventIdentifier);
+      await processProviderEvent(event);
+    }
+
+    const linkedEvents =
+      (await store.listLinkedProviderEventsInWindow?.(startInstant, endInstant)) ?? [];
+    for (const link of linkedEvents) {
+      if (
+        link.connectionId !== connection.id ||
+        link.providerCalendarId !== connection.providerCalendarId ||
+        snapshotEventIds.has(link.providerEventId)
+      ) {
+        continue;
+      }
+      const retainedEvent = await nativeModule.fetchEvent(link.providerEventId);
+      if (
+        retainedEvent !== null &&
+        retainedEvent.calendarIdentifier === connection.providerCalendarId
+      ) {
+        snapshotEventIds.add(retainedEvent.eventIdentifier);
+        await processProviderEvent(retainedEvent, link);
+        continue;
+      }
+
+      const mission = await store.getMissionSyncState(link.occurrenceId);
+      if (mission?.completionState === 'completed') {
+        frozenProviderEvents += 1;
+        continue;
+      }
+      if (mission === null || mission.serverVersion === null) continue;
+      await store.enqueueProviderMutation({
+        destination: { kind: 'server' },
+        operation: 'delete',
+        provider: 'apple',
+        connectionId: connection.id,
+        providerCalendarId: connection.providerCalendarId,
+        providerEventId: link.providerEventId,
+        ownership: link.ownership,
         occurrenceId: link.occurrenceId,
         seriesId: link.seriesId,
         baseVersion: mission.serverVersion,
@@ -366,6 +440,14 @@ type LinkRow = Readonly<{
   occurrence_id: string;
   series_id: string;
   payload_json: string;
+}>;
+
+type LinkedWindowRow = Readonly<{
+  occurrence_id: string;
+  series_id: string;
+  external_event_id: string;
+  link_payload_json: string;
+  occurrence_payload_json: string;
 }>;
 
 type MissionStateRow = Readonly<{
@@ -530,6 +612,44 @@ export function createAppleCalendarSqliteSyncStore({
     };
   };
 
+  const listLinkedProviderEventsInWindow = async (
+    startInstant: string,
+    endInstant: string,
+  ): Promise<readonly LinkedProviderEvent[]> => {
+    const rows = await database.getAllAsync<LinkedWindowRow>(
+      `SELECT l.occurrence_id,
+              o.series_id,
+              l.external_event_id,
+              l.payload_json AS link_payload_json,
+              o.payload_json AS occurrence_payload_json
+         FROM external_links l
+         JOIN cached_mission_occurrences o
+           ON o.account_id = l.account_id
+          AND o.occurrence_id = l.occurrence_id
+        WHERE l.account_id = ? AND l.provider = 'apple'`,
+      accountId,
+    );
+    const windowStart = Date.parse(startInstant);
+    const windowEnd = Date.parse(endInstant);
+    return rows.flatMap((row) => {
+      const occurrence = JSON.parse(row.occurrence_payload_json) as MissionOccurrenceInput;
+      const startsAt = Date.parse(occurrence.schedule.startInstant);
+      const finishesAt = Date.parse(occurrence.schedule.finishInstant);
+      if (finishesAt <= windowStart || startsAt >= windowEnd) return [];
+      const payload = parseLinkPayload(row.link_payload_json);
+      return [
+        {
+          occurrenceId: row.occurrence_id,
+          seriesId: row.series_id,
+          providerEventId: row.external_event_id,
+          providerCalendarId: payload.providerCalendarId,
+          connectionId: payload.connectionId,
+          ownership: payload.ownership,
+        },
+      ];
+    });
+  };
+
   const getMissionSyncState = async (occurrenceId: string): Promise<MissionSyncState | null> => {
     const row = await database.getFirstAsync<MissionStateRow>(
       `SELECT payload_json, server_version
@@ -578,9 +698,38 @@ export function createAppleCalendarSqliteSyncStore({
 
   const enqueueProviderMutation = async (input: ProviderMutationInput): Promise<void> => {
     const actionInstant = now().toISOString();
+    const mutationId = generateId();
+    if (input.operation === 'delete') {
+      await mutationQueue.enqueue({
+        mutation: {
+          mutationId,
+          accountId,
+          deviceId,
+          entityType: 'mission',
+          entityId: input.occurrenceId,
+          operation: 'delete',
+          baseVersion: input.baseVersion,
+          clientOccurredAt: actionInstant,
+          payload: {
+            kind: 'provider_delete',
+            providerLink: {
+              connectionId: input.connectionId,
+              provider: 'apple',
+              providerCalendarId: input.providerCalendarId,
+              providerEventId: input.providerEventId,
+              ownership: input.ownership,
+            },
+            recurrenceScope: 'this_occurrence',
+          },
+        },
+        destination: input.destination,
+        applyLocal: async () => undefined,
+      });
+      return;
+    }
+
     const occurrenceId = input.occurrenceId ?? generateId();
     const seriesId = input.seriesId ?? generateId();
-    const mutationId = generateId();
     const schedule = missionSchedule(input.event);
     const series: MissionSeriesInput = {
       id: seriesId,
@@ -881,6 +1030,7 @@ export function createAppleCalendarSqliteSyncStore({
 
   return {
     findLinkByProviderEventId,
+    listLinkedProviderEventsInWindow,
     getMissionSyncState,
     enqueueProviderMutation,
     relinkProviderEvent,
