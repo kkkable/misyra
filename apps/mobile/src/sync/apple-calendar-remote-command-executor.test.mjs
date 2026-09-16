@@ -47,7 +47,7 @@ function nativeModule() {
 }
 
 describe('MTS-077 remote Apple Calendar command executor', () => {
-  it('persists a created provider identifier before settlement so a settlement retry cannot duplicate the EventKit event', async () => {
+  it('reuses a retained created identifier when settlement is retried', async () => {
     const links = linkStore();
     const native = nativeModule();
     const claim = {
