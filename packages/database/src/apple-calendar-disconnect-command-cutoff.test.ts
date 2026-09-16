@@ -141,9 +141,7 @@ describe('MTS-077 Apple disconnect command cutoff', () => {
     });
     if (claim === null) throw new Error('expected claimed Apple command');
 
-    await expect(
-      connectionStore.disconnectConnection(accountId, connection.id),
-    ).resolves.toBe(true);
+    await expect(connectionStore.disconnectConnection(accountId, connection.id)).resolves.toBe(true);
     await expect(
       commandStore.settle(accountId, {
         commandId: staleCommandId,
