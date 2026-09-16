@@ -87,6 +87,96 @@ function providerEvent() {
   };
 }
 
+function ids(values) {
+  const remaining = [...values];
+  return () => remaining.shift() ?? crypto.randomUUID();
+}
+
+async function seedAppOwnedLinkedMission(database) {
+  const series = {
+    id: seriesId,
+    title: 'App mission',
+    recurrence: null,
+  };
+  const occurrence = {
+    id: occurrenceId,
+    seriesId,
+    schedule: {
+      localStart: '2026-09-16T09:00:00',
+      localFinish: '2026-09-16T10:00:00',
+      startInstant: '2026-09-16T00:00:00.000Z',
+      finishInstant: '2026-09-16T01:00:00.000Z',
+      timeZone: 'Asia/Tokyo',
+      timeBehavior: 'local_time',
+      allDay: false,
+      estimatedEffortMinutes: null,
+    },
+    scheduleState: 'scheduled',
+    completionState: 'incomplete',
+    evidenceState: 'not_required',
+    rewardEligibility: 'ineligible',
+    rewardIssuance: 'not_issued',
+    calendarSource: 'internal',
+    fieldOwnership: 'app_owned',
+    synchronizationState: 'synced',
+    storyState: 'none',
+    deletionState: 'active',
+  };
+  await database.runAsync(
+    `INSERT INTO cached_mission_series
+      (account_id, series_id, title, timezone, payload_json, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    accountId,
+    seriesId,
+    series.title,
+    'Asia/Tokyo',
+    JSON.stringify(series),
+    '2026-09-16T00:00:00.000Z',
+  );
+  await database.runAsync(
+    `INSERT INTO cached_mission_occurrences
+      (account_id, occurrence_id, series_id, local_date, scheduled_start, scheduled_end,
+       all_day, payload_json, updated_at, server_version)
+     VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?)`,
+    accountId,
+    occurrenceId,
+    seriesId,
+    '2026-09-16',
+    '09:00',
+    '10:00',
+    JSON.stringify(occurrence),
+    '2026-09-16T00:00:00.000Z',
+    7,
+  );
+  await database.runAsync(
+    `INSERT INTO search_documents
+      (account_id, document_id, occurrence_id, title, location, provider_text,
+       personal_note, general_note, updated_at)
+     VALUES (?, ?, ?, ?, ?, NULL, NULL, ?, ?)`,
+    accountId,
+    occurrenceId,
+    occurrenceId,
+    series.title,
+    'Shinjuku',
+    'App note',
+    '2026-09-16T00:00:00.000Z',
+  );
+  await database.runAsync(
+    `INSERT INTO external_links
+      (account_id, occurrence_id, provider, external_event_id, payload_json, updated_at)
+     VALUES (?, ?, 'apple', ?, ?, ?)`,
+    accountId,
+    occurrenceId,
+    'apple-app-owned-1',
+    JSON.stringify({
+      connectionId,
+      providerCalendarId: 'apple-calendar-1',
+      ownership: 'app_owned',
+    }),
+    '2026-09-16T00:00:00.000Z',
+  );
+}
+
 describe('MTS-077 EventKit SQLite/local-mutation harness', () => {
   it('persists the provider link and queues an offline EventKit import through the normal server mutation queue', async () => {
     const database = await databaseWithAccount();
@@ -96,10 +186,7 @@ describe('MTS-077 EventKit SQLite/local-mutation harness', () => {
       mutationQueue: queue,
       accountId,
       deviceId,
-      generateId: (() => {
-        const ids = [occurrenceId, seriesId, mutationId];
-        return () => ids.shift() ?? crypto.randomUUID();
-      })(),
+      generateId: ids([occurrenceId, seriesId, mutationId]),
       now: () => new Date('2026-09-16T00:00:00.000Z'),
     });
 
@@ -157,6 +244,138 @@ describe('MTS-077 EventKit SQLite/local-mutation harness', () => {
       calendarSource: 'external',
       serverVersion: null,
     });
+    await expect(
+      database.getFirstAsync(
+        `SELECT provider_text, general_note
+           FROM search_documents
+          WHERE account_id = ? AND occurrence_id = ?`,
+        accountId,
+        occurrenceId,
+      ),
+    ).resolves.toEqual({
+      provider_text: 'Provider notes',
+      general_note: null,
+    });
+  });
+
+  it('resolves all-day local midnights through the mission IANA zone across DST', async () => {
+    const database = await databaseWithAccount();
+    const queue = createMutationQueue(database, accountId);
+    const store = createAppleCalendarSqliteSyncStore({
+      database,
+      mutationQueue: queue,
+      accountId,
+      deviceId,
+      generateId: ids([occurrenceId, seriesId, mutationId]),
+      now: () => new Date('2026-10-31T12:00:00.000Z'),
+    });
+
+    await store.enqueueProviderMutation({
+      destination: { kind: 'server' },
+      operation: 'create',
+      provider: 'apple',
+      connectionId,
+      providerCalendarId: 'apple-calendar-1',
+      providerEventId: 'apple-all-day-1',
+      ownership: 'organizer_controlled',
+      event: {
+        title: 'DST all-day event',
+        schedule: {
+          type: 'all_day',
+          startLocalDate: '2026-11-01',
+          endLocalDateExclusive: '2026-11-02',
+          timeZone: 'America/New_York',
+        },
+        recurrence: null,
+        location: null,
+        providerNotes: null,
+      },
+    });
+
+    const cached = await database.getFirstAsync(
+      `SELECT payload_json
+         FROM cached_mission_occurrences
+        WHERE account_id = ? AND occurrence_id = ?`,
+      accountId,
+      occurrenceId,
+    );
+    const occurrence = JSON.parse(cached.payload_json);
+    expect(occurrence.schedule).toMatchObject({
+      localStart: '2026-11-01T00:00:00',
+      localFinish: '2026-11-02T00:00:00',
+      startInstant: '2026-11-01T04:00:00.000Z',
+      finishInstant: '2026-11-02T05:00:00.000Z',
+      timeZone: 'America/New_York',
+      timeBehavior: 'local_time',
+      allDay: true,
+      estimatedEffortMinutes: 30,
+    });
+  });
+
+  it('preserves app-owned mission state when provider writable fields refresh', async () => {
+    const database = await databaseWithAccount();
+    await seedAppOwnedLinkedMission(database);
+    const queue = createMutationQueue(database, accountId);
+    const store = createAppleCalendarSqliteSyncStore({
+      database,
+      mutationQueue: queue,
+      accountId,
+      deviceId,
+      generateId: ids([mutationId]),
+      now: () => new Date('2026-09-16T00:05:00.000Z'),
+    });
+
+    await store.enqueueProviderMutation({
+      destination: { kind: 'server' },
+      operation: 'update',
+      provider: 'apple',
+      connectionId,
+      providerCalendarId: 'apple-calendar-1',
+      providerEventId: 'apple-app-owned-1',
+      ownership: 'app_owned',
+      occurrenceId,
+      seriesId,
+      baseVersion: 7,
+      event: {
+        ...providerEvent(),
+        title: 'Provider-refreshed app mission',
+        providerNotes: 'Updated app note',
+      },
+    });
+
+    const cached = await database.getFirstAsync(
+      `SELECT payload_json, server_version
+         FROM cached_mission_occurrences
+        WHERE account_id = ? AND occurrence_id = ?`,
+      accountId,
+      occurrenceId,
+    );
+    expect(JSON.parse(cached.payload_json)).toMatchObject({
+      id: occurrenceId,
+      seriesId,
+      completionState: 'incomplete',
+      evidenceState: 'not_required',
+      rewardEligibility: 'ineligible',
+      rewardIssuance: 'not_issued',
+      calendarSource: 'internal',
+      fieldOwnership: 'app_owned',
+      storyState: 'none',
+      deletionState: 'active',
+      synchronizationState: 'pending',
+    });
+    expect(cached.server_version).toBe(7);
+    await expect(
+      database.getFirstAsync(
+        `SELECT provider_text, general_note
+           FROM search_documents
+          WHERE account_id = ? AND occurrence_id = ?`,
+        accountId,
+        occurrenceId,
+      ),
+    ).resolves.toEqual({
+      provider_text: null,
+      general_note: 'Updated app note',
+    });
   });
 
   it('retains the occurrence identifier while refreshing reconnect metadata for the same provider event', async () => {
@@ -167,10 +386,7 @@ describe('MTS-077 EventKit SQLite/local-mutation harness', () => {
       mutationQueue: queue,
       accountId,
       deviceId,
-      generateId: (() => {
-        const ids = [occurrenceId, seriesId, mutationId];
-        return () => ids.shift() ?? crypto.randomUUID();
-      })(),
+      generateId: ids([occurrenceId, seriesId, mutationId]),
       now: () => new Date('2026-09-16T00:00:00.000Z'),
     });
 
