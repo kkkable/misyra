@@ -69,7 +69,7 @@ public final class AppleCalendarModule: Module {
     }
 
     AsyncFunction("listCalendars") { () -> [[String: Any]] in
-      self.eventStore.calars(for: .event).map(self.calendarDictionary)
+      self.eventStore.calendars(for: .event).map(self.calendarDictionary)
     }
 
     AsyncFunction("createDedicatedCalendar") { (title: String) throws -> [String: Any] in
