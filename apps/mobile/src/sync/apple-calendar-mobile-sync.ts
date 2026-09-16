@@ -121,10 +121,7 @@ export type AppleCalendarMobileSyncStore = Readonly<{
 }>;
 
 type SyncInactiveReason =
-  | 'adapter_unavailable'
-  | 'connection_inactive'
-  | 'permission_denied'
-  | 'background_unavailable';
+  'adapter_unavailable' | 'connection_inactive' | 'permission_denied' | 'background_unavailable';
 
 type SyncRunResult =
   | Readonly<{ status: 'inactive'; reason: SyncInactiveReason }>
@@ -509,7 +506,9 @@ export function createAppleCalendarSqliteSyncStore({
   generateId: () => string;
   now?: () => Date;
 }>): AppleCalendarMobileSyncStore {
-  const findLinkByProviderEventId = async (providerEventId: string): Promise<ProviderLink | null> => {
+  const findLinkByProviderEventId = async (
+    providerEventId: string,
+  ): Promise<ProviderLink | null> => {
     const row = await database.getFirstAsync<LinkRow>(
       `SELECT l.occurrence_id, o.series_id, l.payload_json
          FROM external_links l
@@ -765,7 +764,8 @@ export function createAppleCalendarSqliteSyncStore({
 
   const listPendingAppleCommands = async (): Promise<readonly PendingAppleCommand[]> => {
     const pending = (await mutationQueue.listPending()).filter(
-      (item) => item.destination.kind === 'external_calendar' && item.destination.provider === 'apple',
+      (item) =>
+        item.destination.kind === 'external_calendar' && item.destination.provider === 'apple',
     );
     const commands: PendingAppleCommand[] = [];
     for (const item of pending) {
