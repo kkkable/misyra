@@ -64,8 +64,9 @@ function harness(overrides = {}) {
     emitStoreChanged: async () => {
       if (storeChangedListener === null) throw new Error('listener_not_registered');
       storeChangedListener({ changed: true });
-      await Promise.resolve();
-      await Promise.resolve();
+      await vi.waitFor(() => {
+        expect(sync.runBestEffortBackground).toHaveBeenCalledTimes(1);
+      });
     },
   };
 }
