@@ -99,7 +99,12 @@ type EventKitMissionUpdate = Readonly<{
   providerLink: AppleProviderLink;
 }>;
 
-type EventKitMissionMutation = EventKitMissionCreate | EventKitMissionUpdate;
+type EventKitMissionDelete = Readonly<{
+  kind: 'delete';
+  providerLink: AppleProviderLink;
+}>;
+
+type EventKitMissionMutation = EventKitMissionCreate | EventKitMissionUpdate | EventKitMissionDelete;
 
 interface ExistingMutationRow extends QueryResultRow {
   exactMatch: boolean;
@@ -387,25 +392,44 @@ function isAppleEventKitMutation(mutation: StoredSyncMutation): boolean {
 }
 
 function parseAppleMutation(mutation: StoredSyncMutation): EventKitMissionMutation {
-  if (mutation.operation !== 'create' && mutation.operation !== 'update') {
+  if (
+    mutation.operation !== 'create' &&
+    mutation.operation !== 'update' &&
+    mutation.operation !== 'delete'
+  ) {
     throw new SyncMutationValidationError(
-      'EventKit provider synchronization supports create and update mutations only',
+      'EventKit provider synchronization supports create, update, and delete mutations only',
     );
   }
   if (mutation.operation === 'create' && mutation.baseVersion !== null) {
     throw new SyncMutationValidationError('EventKit create cannot provide a base version');
   }
   if (
-    mutation.operation === 'update' &&
+    (mutation.operation === 'update' || mutation.operation === 'delete') &&
     (mutation.baseVersion === null ||
       !Number.isSafeInteger(mutation.baseVersion) ||
       mutation.baseVersion <= 0)
   ) {
     throw new SyncMutationValidationError(
-      'EventKit update requires a positive integer base version',
+      `EventKit ${mutation.operation} requires a positive integer base version`,
     );
   }
   const root = requireRecord(mutation.payload, 'EventKit mission payload');
+  if (mutation.operation === 'delete') {
+    if (root.kind !== 'provider_delete') {
+      throw new SyncMutationValidationError('EventKit delete must use provider_delete');
+    }
+    requireLiteral(
+      root,
+      'recurrenceScope',
+      ['this_occurrence'] as const,
+      'EventKit provider delete recurrence scope',
+    );
+    return {
+      kind: 'delete',
+      providerLink: parseProviderLink(root.providerLink),
+    };
+  }
   if (mutation.operation === 'update' && root.kind !== 'provider_details') {
     throw new SyncMutationValidationError('EventKit update must use provider_details');
   }
@@ -696,6 +720,26 @@ async function persistLink(
   );
 }
 
+async function requirePersistedLink(
+  client: PoolClient,
+  occurrenceId: string,
+  link: AppleProviderLink,
+): Promise<void> {
+  const result = await client.query(
+    `SELECT 1
+       FROM external_event_links
+      WHERE connection_id = $1
+        AND occurrence_id = $2
+        AND provider_event_id = $3
+        AND recurrence_scope = 'event'
+      FOR UPDATE`,
+    [link.connectionId, occurrenceId, link.providerEventId],
+  );
+  if (result.rowCount !== 1) {
+    throw new SyncMutationValidationError('EventKit provider deletion does not match the retained link');
+  }
+}
+
 async function applyCreate(client: PoolClient, accountId: string, input: EventKitMissionCreate) {
   await requireAppleConnection(client, accountId, input.providerLink);
   await insertOrVerifySeries(client, accountId, input.series);
@@ -872,6 +916,91 @@ async function applyUpdate(
   });
 }
 
+async function applyDelete(
+  client: PoolClient,
+  mutation: StoredSyncMutation,
+  input: EventKitMissionDelete,
+  currentTime: Date,
+): Promise<Readonly<{ operation: 'upsert' | 'delete'; payload: unknown | null }>> {
+  if (mutation.baseVersion === null) {
+    throw new SyncMutationValidationError('EventKit delete requires a base version');
+  }
+  await requireAppleConnection(client, mutation.accountId, input.providerLink);
+  const current = await readCurrentMission(client, mutation.accountId, mutation.entityId);
+  if (current.deletionState !== 'active') {
+    throw new SyncMutationConflictError('Mission occurrence is permanently deleted');
+  }
+  if (current.version !== mutation.baseVersion) {
+    throw new SyncMutationConflictError(
+      'Mission mutation base version does not match current occurrence version',
+    );
+  }
+  if (current.fieldOwnership !== input.providerLink.ownership) {
+    throw new SyncMutationValidationError('EventKit provider ownership does not match the mission');
+  }
+  await requirePersistedLink(client, mutation.entityId, input.providerLink);
+  if (current.completionState === 'completed') {
+    return {
+      operation: 'upsert',
+      payload: currentPayload(current, mutation.entityId, input.providerLink),
+    };
+  }
+
+  const nextVersion = current.version + 1;
+  if (current.startInstant.getTime() > currentTime.getTime()) {
+    await client.query(
+      `DELETE FROM external_event_links
+        WHERE connection_id = $1 AND occurrence_id = $2 AND provider_event_id = $3`,
+      [input.providerLink.connectionId, mutation.entityId, input.providerLink.providerEventId],
+    );
+    await client.query(
+      `INSERT INTO mission_occurrence_tombstones
+         (occurrence_id, account_id, deleted_at, reason)
+       VALUES ($1, $2, $3, 'provider_cancelled')
+       ON CONFLICT (occurrence_id) DO NOTHING`,
+      [mutation.entityId, mutation.accountId, currentTime],
+    );
+    const deleted = await client.query(
+      `UPDATE mission_occurrences
+          SET deletion_state = 'deleted',
+              synchronization_state = 'synced',
+              version = $3,
+              updated_at = now()
+        WHERE id = $1 AND account_id = $2 AND version = $4`,
+      [mutation.entityId, mutation.accountId, nextVersion, current.version],
+    );
+    if (deleted.rowCount !== 1) {
+      throw new SyncMutationConflictError(
+        'Mission mutation base version does not match current occurrence version',
+      );
+    }
+    return { operation: 'delete', payload: null };
+  }
+
+  const cancelled = await client.query(
+    `UPDATE mission_occurrences
+        SET schedule_state = 'cancelled',
+            synchronization_state = 'synced',
+            version = $3,
+            updated_at = now()
+      WHERE id = $1 AND account_id = $2 AND version = $4`,
+    [mutation.entityId, mutation.accountId, nextVersion, current.version],
+  );
+  if (cancelled.rowCount !== 1) {
+    throw new SyncMutationConflictError(
+      'Mission mutation base version does not match current occurrence version',
+    );
+  }
+  return {
+    operation: 'upsert',
+    payload: currentPayload(
+      { ...current, scheduleState: 'cancelled', version: nextVersion },
+      mutation.entityId,
+      input.providerLink,
+    ),
+  };
+}
+
 async function acceptAppleMutation(
   client: PoolClient,
   mutation: StoredSyncMutation,
@@ -884,10 +1013,18 @@ async function acceptAppleMutation(
   if (existing === false) throw new SyncMutationConflictError();
 
   const parsed = parseAppleMutation(mutation);
-  const authoritative =
+  const change =
     parsed.kind === 'create'
-      ? await applyCreate(client, mutation.accountId, parsed)
-      : await applyUpdate(client, mutation, parsed, timing.effectiveTime);
+      ? {
+          operation: 'upsert' as const,
+          payload: await applyCreate(client, mutation.accountId, parsed),
+        }
+      : parsed.kind === 'update'
+        ? {
+            operation: 'upsert' as const,
+            payload: await applyUpdate(client, mutation, parsed, timing.effectiveTime),
+          }
+        : await applyDelete(client, mutation, parsed, serverReceiptTime);
 
   await client.query(
     `INSERT INTO device_sync_mutations (
@@ -913,8 +1050,8 @@ async function acceptAppleMutation(
     accountId: mutation.accountId,
     entityType: 'mission',
     entityId: mutation.entityId,
-    operation: 'upsert',
-    payload: authoritative,
+    operation: change.operation,
+    payload: change.payload,
   });
 }
 
