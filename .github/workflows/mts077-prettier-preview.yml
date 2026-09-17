@@ -1,0 +1,48 @@
+name: MTS-077 Prettier Preview
+
+on:
+  push:
+    branches:
+      - verify/mts-077-prettier-preview-20260917t1420z
+
+permissions:
+  contents: read
+
+jobs:
+  preview:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pinned pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.5
+          run_install: false
+
+      - name: Set up pinned Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install from lockfile
+        run: pnpm install --frozen-lockfile
+
+      - name: Produce exact formatter output
+        shell: bash
+        run: |
+          mkdir -p prettier-preview
+          cp packages/database/src/apple-eventkit-sync-store.ts prettier-preview/before.ts
+          pnpm exec prettier packages/database/src/apple-eventkit-sync-store.ts --config packages/config/prettier.config.mjs --write
+          cp packages/database/src/apple-eventkit-sync-store.ts prettier-preview/formatted.ts
+          diff -u prettier-preview/before.ts prettier-preview/formatted.ts > prettier-preview/prettier.diff || true
+
+      - name: Upload formatter preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: mts077-prettier-preview
+          path: prettier-preview/
+          if-no-files-found: error
