@@ -34,7 +34,10 @@ afterAll(async () => {
 async function fixture(identity: string) {
   const auth = createPostgresAuthStore(pool);
   const devices = createPostgresDeviceSettingsStore(pool);
-  const account = await auth.findOrCreateAccount('apple', `apple-delete-${identity}-${randomUUID()}`);
+  const account = await auth.findOrCreateAccount(
+    'apple',
+    `apple-delete-${identity}-${randomUUID()}`,
+  );
   const deviceId = await devices.registerDevice({
     accountId: account.id,
     installationId: `apple-delete-${identity}-${randomUUID()}`,
