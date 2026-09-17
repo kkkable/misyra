@@ -924,7 +924,7 @@ async function applyDelete(
   mutation: StoredSyncMutation,
   input: EventKitMissionDelete,
   currentTime: Date,
-): Promise<Readonly<{ operation: 'upsert' | 'delete'; payload: unknown | null }>> {
+): Promise<Readonly<{ operation: 'upsert' | 'delete'; payload: unknown }>> {
   if (mutation.baseVersion === null) {
     throw new SyncMutationValidationError('EventKit delete requires a base version');
   }
