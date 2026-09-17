@@ -1,4 +1,4 @@
-name: MTS-077 Lint Correction Apply
+name: MTS-077 Provider Deletion Snapshot Apply
 
 on:
   push:
@@ -34,24 +34,93 @@ jobs:
       - name: Install from lockfile
         run: pnpm install --frozen-lockfile
 
-      - name: Apply exact lint correction
+      - name: Apply provider deletion snapshot fix
         shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path
-          path = Path('packages/database/src/apple-eventkit-sync-store.ts')
+
+          path = Path('apps/mobile/src/sync/apple-calendar-mobile-sync.ts')
           source = path.read_text()
-          old = "): Promise<Readonly<{ operation: 'upsert' | 'delete'; payload: unknown | null }>> {"
-          new = "): Promise<Readonly<{ operation: 'upsert' | 'delete'; payload: unknown }>> {"
-          if source.count(old) != 1:
-              raise SystemExit(f'expected exactly one lint target, found {source.count(old)}')
-          path.write_text(source.replace(old, new))
+
+          replacements = [
+              (
+                  "type LinkedProviderEvent = ProviderLink & Readonly<{ providerEventId: string }>;",
+                  """type LinkedProviderEvent = ProviderLink &
+            Readonly<{
+              providerEventId: string;
+              completionState: 'incomplete' | 'completed';
+              serverVersion: number | null;
+            }>;""",
+              ),
+              (
+                  """      const mission = await store.getMissionSyncState(link.occurrenceId);
+                if (mission?.completionState === 'completed') {
+                  frozenProviderEvents += 1;
+                  continue;
+                }
+                if (mission === null || mission.serverVersion === null) continue;""",
+                  """      if (link.completionState === 'completed') {
+                  frozenProviderEvents += 1;
+                  continue;
+                }
+                if (link.serverVersion === null) continue;""",
+              ),
+              (
+                  "        baseVersion: mission.serverVersion,\n      });\n      providerChangesQueued += 1;\n    }\n\n    return {",
+                  "        baseVersion: link.serverVersion,\n      });\n      providerChangesQueued += 1;\n    }\n\n    return {",
+              ),
+              (
+                  """type LinkedWindowRow = Readonly<{
+            occurrence_id: string;
+            series_id: string;
+            external_event_id: string;
+            link_payload_json: string;
+            occurrence_payload_json: string;
+          }>;""",
+                  """type LinkedWindowRow = Readonly<{
+            occurrence_id: string;
+            series_id: string;
+            external_event_id: string;
+            link_payload_json: string;
+            occurrence_payload_json: string;
+            server_version: number | null;
+          }>;""",
+              ),
+              (
+                  "              o.payload_json AS occurrence_payload_json\n         FROM external_links l",
+                  "              o.payload_json AS occurrence_payload_json,\n              o.server_version\n         FROM external_links l",
+              ),
+              (
+                  """          providerEventId: row.external_event_id,
+                    providerCalendarId: payload.providerCalendarId,
+                    connectionId: payload.connectionId,
+                    ownership: payload.ownership,""",
+                  """          providerEventId: row.external_event_id,
+                    providerCalendarId: payload.providerCalendarId,
+                    connectionId: payload.connectionId,
+                    ownership: payload.ownership,
+                    completionState: occurrence.completionState,
+                    serverVersion: row.server_version,""",
+              ),
+          ]
+
+          for old, new in replacements:
+              count = source.count(old)
+              if count != 1:
+                  raise SystemExit(f'expected exactly one patch target, found {count}: {old[:80]!r}')
+              source = source.replace(old, new)
+
+          path.write_text(source)
           PY
-          pnpm exec prettier packages/database/src/apple-eventkit-sync-store.ts --config packages/config/prettier.config.mjs --check
-          pnpm --filter @misyra/database lint
+          pnpm exec prettier apps/mobile/src/sync/apple-calendar-mobile-sync.ts --config packages/config/prettier.config.mjs --write
+          pnpm exec prettier apps/mobile/src/sync/apple-calendar-mobile-sync.ts --config packages/config/prettier.config.mjs --check
+          pnpm --filter @misyra/mobile lint
+          pnpm --filter @misyra/mobile typecheck
+          pnpm --filter @misyra/mobile exec vitest run --config ../../packages/config/vitest.config.mjs src/sync/apple-calendar-provider-deletion.test.mjs src/sync/apple-calendar-mobile-sync-store.test.mjs src/sync/apple-calendar-mobile-sync.test.mjs
           git diff --check
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add packages/database/src/apple-eventkit-sync-store.ts
-          git commit -m "MTS-077: correct deletion projection return type"
+          git add apps/mobile/src/sync/apple-calendar-mobile-sync.ts
+          git commit -m "MTS-077: preserve linked deletion snapshot state"
           git push origin HEAD:feat/mts-077-eventkit-mobile-sync
