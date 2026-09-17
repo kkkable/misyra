@@ -698,8 +698,8 @@ export function createAppleCalendarSqliteSyncStore({
 
   const enqueueProviderMutation = async (input: ProviderMutationInput): Promise<void> => {
     const actionInstant = now().toISOString();
-    const mutationId = generateId();
     if (input.operation === 'delete') {
+      const mutationId = generateId();
       await mutationQueue.enqueue({
         mutation: {
           mutationId,
@@ -730,6 +730,7 @@ export function createAppleCalendarSqliteSyncStore({
 
     const occurrenceId = input.occurrenceId ?? generateId();
     const seriesId = input.seriesId ?? generateId();
+    const mutationId = generateId();
     const schedule = missionSchedule(input.event);
     const series: MissionSeriesInput = {
       id: seriesId,
