@@ -147,7 +147,10 @@ describe('MTS-077 Apple EventKit provider deletion projection', () => {
     const occurrenceId = randomUUID();
     const seriesId = randomUUID();
     const providerEventId = `apple-event-${randomUUID()}`;
-    const store = createPostgresEventKitSyncStore(pool, () => new Date('2026-09-16T08:00:01.000Z'));
+    const store = createPostgresEventKitSyncStore(
+      pool,
+      () => new Date('2026-09-16T08:00:01.000Z'),
+    );
     await store.push(
       ids.accountId,
       [providerCreate({ ...ids, occurrenceId, seriesId, providerEventId })],
@@ -196,7 +199,10 @@ describe('MTS-077 Apple EventKit provider deletion projection', () => {
     const occurrenceId = randomUUID();
     const seriesId = randomUUID();
     const providerEventId = `apple-event-${randomUUID()}`;
-    const store = createPostgresEventKitSyncStore(pool, () => new Date('2026-09-16T08:00:01.000Z'));
+    const store = createPostgresEventKitSyncStore(
+      pool,
+      () => new Date('2026-09-16T08:00:01.000Z'),
+    );
     await store.push(
       ids.accountId,
       [providerCreate({ ...ids, occurrenceId, seriesId, providerEventId })],
@@ -236,7 +242,10 @@ describe('MTS-077 Apple EventKit provider deletion projection', () => {
     const occurrenceId = randomUUID();
     const seriesId = randomUUID();
     const providerEventId = `apple-event-${randomUUID()}`;
-    const store = createPostgresEventKitSyncStore(pool, () => new Date('2026-09-16T08:00:01.000Z'));
+    const store = createPostgresEventKitSyncStore(
+      pool,
+      () => new Date('2026-09-16T08:00:01.000Z'),
+    );
     await store.push(
       ids.accountId,
       [providerCreate({ ...ids, occurrenceId, seriesId, providerEventId })],
