@@ -1,4 +1,4 @@
-name: MTS-077 Prettier Apply
+name: MTS-077 Lint Correction Apply
 
 on:
   push:
@@ -34,16 +34,24 @@ jobs:
       - name: Install from lockfile
         run: pnpm install --frozen-lockfile
 
-      - name: Apply exact formatter output
+      - name: Apply exact lint correction
         shell: bash
         run: |
-          pnpm exec prettier packages/database/src/apple-eventkit-sync-store.ts --config packages/config/prettier.config.mjs --write
-          if git diff --quiet -- packages/database/src/apple-eventkit-sync-store.ts; then
-            echo "No formatter change required."
-            exit 0
-          fi
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('packages/database/src/apple-eventkit-sync-store.ts')
+          source = path.read_text()
+          old = "): Promise<Readonly<{ operation: 'upsert' | 'delete'; payload: unknown | null }>> {"
+          new = "): Promise<Readonly<{ operation: 'upsert' | 'delete'; payload: unknown }>> {"
+          if source.count(old) != 1:
+              raise SystemExit(f'expected exactly one lint target, found {source.count(old)}')
+          path.write_text(source.replace(old, new))
+          PY
+          pnpm exec prettier packages/database/src/apple-eventkit-sync-store.ts --config packages/config/prettier.config.mjs --check
+          pnpm --filter @misyra/database lint
+          git diff --check
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add packages/database/src/apple-eventkit-sync-store.ts
-          git commit -m "MTS-077: apply exact Prettier output"
+          git commit -m "MTS-077: correct deletion projection return type"
           git push origin HEAD:feat/mts-077-eventkit-mobile-sync
