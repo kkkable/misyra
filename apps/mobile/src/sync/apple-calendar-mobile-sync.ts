@@ -723,7 +723,7 @@ export function createAppleCalendarSqliteSyncStore({
           },
         },
         destination: input.destination,
-        applyLocal: async () => undefined,
+        applyLocal: () => Promise.resolve(),
       });
       return;
     }
