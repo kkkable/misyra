@@ -147,14 +147,10 @@ describe('MTS-077 Apple EventKit provider deletion projection', () => {
     const occurrenceId = randomUUID();
     const seriesId = randomUUID();
     const providerEventId = `apple-event-${randomUUID()}`;
-    const store = createPostgresEventKitSyncStore(
-      pool,
-      () => new Date('2026-09-16T08:00:01.000Z'),
-    );
-    await store.push(
-      ids.accountId,
-      [providerCreate({ ...ids, occurrenceId, seriesId, providerEventId })],
-    );
+    const store = createPostgresEventKitSyncStore(pool, () => new Date('2026-09-16T08:00:01.000Z'));
+    await store.push(ids.accountId, [
+      providerCreate({ ...ids, occurrenceId, seriesId, providerEventId }),
+    ]);
 
     const deletion = providerDelete({ ...ids, occurrenceId, providerEventId });
     await expect(store.push(ids.accountId, [deletion])).resolves.toEqual({
@@ -199,14 +195,10 @@ describe('MTS-077 Apple EventKit provider deletion projection', () => {
     const occurrenceId = randomUUID();
     const seriesId = randomUUID();
     const providerEventId = `apple-event-${randomUUID()}`;
-    const store = createPostgresEventKitSyncStore(
-      pool,
-      () => new Date('2026-09-16T08:00:01.000Z'),
-    );
-    await store.push(
-      ids.accountId,
-      [providerCreate({ ...ids, occurrenceId, seriesId, providerEventId })],
-    );
+    const store = createPostgresEventKitSyncStore(pool, () => new Date('2026-09-16T08:00:01.000Z'));
+    await store.push(ids.accountId, [
+      providerCreate({ ...ids, occurrenceId, seriesId, providerEventId }),
+    ]);
     await pool.query(
       `UPDATE mission_occurrences
           SET local_date = '2026-09-15',
@@ -242,14 +234,10 @@ describe('MTS-077 Apple EventKit provider deletion projection', () => {
     const occurrenceId = randomUUID();
     const seriesId = randomUUID();
     const providerEventId = `apple-event-${randomUUID()}`;
-    const store = createPostgresEventKitSyncStore(
-      pool,
-      () => new Date('2026-09-16T08:00:01.000Z'),
-    );
-    await store.push(
-      ids.accountId,
-      [providerCreate({ ...ids, occurrenceId, seriesId, providerEventId })],
-    );
+    const store = createPostgresEventKitSyncStore(pool, () => new Date('2026-09-16T08:00:01.000Z'));
+    await store.push(ids.accountId, [
+      providerCreate({ ...ids, occurrenceId, seriesId, providerEventId }),
+    ]);
     await pool.query(
       `UPDATE mission_occurrences
           SET completion_state = 'completed',
