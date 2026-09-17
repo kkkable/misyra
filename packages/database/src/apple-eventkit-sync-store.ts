@@ -105,9 +105,7 @@ type EventKitMissionDelete = Readonly<{
 }>;
 
 type EventKitMissionMutation =
-  | EventKitMissionCreate
-  | EventKitMissionUpdate
-  | EventKitMissionDelete;
+  EventKitMissionCreate | EventKitMissionUpdate | EventKitMissionDelete;
 
 interface ExistingMutationRow extends QueryResultRow {
   exactMatch: boolean;
