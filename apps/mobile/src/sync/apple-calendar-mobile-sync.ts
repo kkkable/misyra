@@ -52,7 +52,12 @@ type ProviderLink = Readonly<{
   ownership: 'app_owned' | 'organizer_controlled';
 }>;
 
-type LinkedProviderEvent = ProviderLink & Readonly<{ providerEventId: string }>;
+type LinkedProviderEvent = ProviderLink &
+  Readonly<{
+    providerEventId: string;
+    completionState: 'incomplete' | 'completed';
+    serverVersion: number | null;
+  }>;
 
 type MissionSyncState = Readonly<{
   completionState: 'incomplete' | 'completed';
@@ -377,12 +382,11 @@ export function createAppleCalendarMobileSync({
         continue;
       }
 
-      const mission = await store.getMissionSyncState(link.occurrenceId);
-      if (mission?.completionState === 'completed') {
+      if (link.completionState === 'completed') {
         frozenProviderEvents += 1;
         continue;
       }
-      if (mission === null || mission.serverVersion === null) continue;
+      if (link.serverVersion === null) continue;
       await store.enqueueProviderMutation({
         destination: { kind: 'server' },
         operation: 'delete',
@@ -393,7 +397,7 @@ export function createAppleCalendarMobileSync({
         ownership: link.ownership,
         occurrenceId: link.occurrenceId,
         seriesId: link.seriesId,
-        baseVersion: mission.serverVersion,
+        baseVersion: link.serverVersion,
       });
       providerChangesQueued += 1;
     }
@@ -448,6 +452,7 @@ type LinkedWindowRow = Readonly<{
   external_event_id: string;
   link_payload_json: string;
   occurrence_payload_json: string;
+  server_version: number | null;
 }>;
 
 type MissionStateRow = Readonly<{
@@ -621,7 +626,8 @@ export function createAppleCalendarSqliteSyncStore({
               o.series_id,
               l.external_event_id,
               l.payload_json AS link_payload_json,
-              o.payload_json AS occurrence_payload_json
+              o.payload_json AS occurrence_payload_json,
+              o.server_version
          FROM external_links l
          JOIN cached_mission_occurrences o
            ON o.account_id = l.account_id
@@ -645,6 +651,8 @@ export function createAppleCalendarSqliteSyncStore({
           providerCalendarId: payload.providerCalendarId,
           connectionId: payload.connectionId,
           ownership: payload.ownership,
+          completionState: occurrence.completionState,
+          serverVersion: row.server_version,
         },
       ];
     });
