@@ -142,7 +142,7 @@ function providerDelete(input: {
 }
 
 describe('MTS-077 Apple EventKit provider deletion projection', () => {
-  it('tombstones a future unfinished imported occurrence and removes its provider link', async () => {
+  it('removes a future unfinished import when Apple deletes it', async () => {
     const ids = await fixture('future');
     const occurrenceId = randomUUID();
     const seriesId = randomUUID();
@@ -191,7 +191,7 @@ describe('MTS-077 Apple EventKit provider deletion projection', () => {
     });
   });
 
-  it('marks a past unfinished imported occurrence cancelled and keeps it read-only linked', async () => {
+  it('keeps a past unfinished Apple deletion as a linked cancellation', async () => {
     const ids = await fixture('past');
     const occurrenceId = randomUUID();
     const seriesId = randomUUID();
@@ -231,7 +231,7 @@ describe('MTS-077 Apple EventKit provider deletion projection', () => {
     ).resolves.toMatchObject({ rowCount: 1 });
   });
 
-  it('keeps a completed imported occurrence frozen when the provider event is deleted', async () => {
+  it('keeps a completed import frozen after an Apple deletion', async () => {
     const ids = await fixture('completed');
     const occurrenceId = randomUUID();
     const seriesId = randomUUID();
