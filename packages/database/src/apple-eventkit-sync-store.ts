@@ -104,7 +104,10 @@ type EventKitMissionDelete = Readonly<{
   providerLink: AppleProviderLink;
 }>;
 
-type EventKitMissionMutation = EventKitMissionCreate | EventKitMissionUpdate | EventKitMissionDelete;
+type EventKitMissionMutation =
+  | EventKitMissionCreate
+  | EventKitMissionUpdate
+  | EventKitMissionDelete;
 
 interface ExistingMutationRow extends QueryResultRow {
   exactMatch: boolean;
@@ -736,7 +739,9 @@ async function requirePersistedLink(
     [link.connectionId, occurrenceId, link.providerEventId],
   );
   if (result.rowCount !== 1) {
-    throw new SyncMutationValidationError('EventKit provider deletion does not match the retained link');
+    throw new SyncMutationValidationError(
+      'EventKit provider deletion does not match the retained link',
+    );
   }
 }
 
