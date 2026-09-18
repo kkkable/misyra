@@ -84,4 +84,65 @@ describe('MTS-077 EventKit provider deletion reconciliation', () => {
       baseVersion: 7,
     });
   });
+
+  it('reconciles retained past links by identifier even when they are outside the future bulk-fetch window', async () => {
+    const nativeModule = {
+      getAuthorizationStatus: vi.fn(() => Promise.resolve('full_access')),
+      fetchEvents: vi.fn(() => Promise.resolve([])),
+      fetchEvent: vi.fn(() => Promise.resolve(null)),
+      createEvent: vi.fn(),
+      updateEvent: vi.fn(),
+      deleteEvent: vi.fn(),
+      addListener: vi.fn(),
+    };
+    const store = {
+      findLinkByProviderEventId: vi.fn(() => Promise.resolve(null)),
+      getMissionSyncState: vi.fn(() => Promise.resolve(null)),
+      enqueueProviderMutation: vi.fn(() => Promise.resolve()),
+      relinkProviderEvent: vi.fn(() => Promise.resolve()),
+      listPendingAppleCommands: vi.fn(() => Promise.resolve([])),
+      settleAppleCommand: vi.fn(() => Promise.resolve()),
+      listLinkedProviderEvents: vi.fn(() =>
+        Promise.resolve([
+          {
+            occurrenceId,
+            seriesId,
+            providerEventId: 'apple-past-event-deleted',
+            providerCalendarId: 'apple-calendar-1',
+            connectionId,
+            ownership: 'organizer_controlled',
+            completionState: 'incomplete',
+            serverVersion: 8,
+          },
+        ]),
+      ),
+    };
+
+    const sync = createAppleCalendarMobileSync({
+      accountId,
+      deviceId,
+      connection: connection(),
+      nativeModule,
+      store,
+      now: () => new Date('2026-09-16T00:00:00.000Z'),
+      generateId: () => '77777777-7777-4777-8777-777777777777',
+    });
+
+    await expect(sync.runForeground()).resolves.toMatchObject({
+      status: 'synchronized',
+      providerChangesQueued: 1,
+    });
+    expect(store.listLinkedProviderEvents).toHaveBeenCalledTimes(1);
+    expect(nativeModule.fetchEvent).toHaveBeenCalledWith('apple-past-event-deleted');
+    expect(store.enqueueProviderMutation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operation: 'delete',
+        providerEventId: 'apple-past-event-deleted',
+        occurrenceId,
+        seriesId,
+        baseVersion: 8,
+      }),
+    );
+  });
+
 });
