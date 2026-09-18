@@ -195,3 +195,31 @@ test("static infrastructure secret scan rejects committed credential values", ()
     }
   }
 });
+
+test("MTS-078 keeps protected media containers private and grants the API only blob data access", () => {
+  const main = read(mainPath);
+  const data = read(join(azureRoot, "modules", "data.bicep"));
+  const compute = read(join(azureRoot, "modules", "compute.bicep"));
+
+  for (const container of [
+    "evidence-working",
+    "story-working",
+    "planner-working",
+    "style-references",
+    "feedback-retained",
+  ]) {
+    const declaration = new RegExp(
+      `name\\s*:\\s*["']${container}["'][\\s\\S]{0,180}publicAccess\\s*:\\s*["']None["']`,
+    );
+    assert.match(data, declaration);
+  }
+
+  assert.match(compute, /output\\s+apiPrincipalId\\s+string\\s*=\\s*api\\.identity\\.principalId/);
+  assert.match(data, /param\\s+apiPrincipalId\\s+string/);
+  assert.match(data, /Microsoft\\.Authorization\\/roleAssignments/);
+  assert.match(data, /ba92f5b4-2d11-453d-a403-e96b0029c9fe/);
+  assert.match(data, /principalId\\s*:\\s*apiPrincipalId/);
+  assert.match(data, /principalType\\s*:\\s*["']ServicePrincipal["']/);
+  assert.match(main, /apiPrincipalId\\s*:\\s*compute\\.outputs\\.apiPrincipalId/);
+});
+
