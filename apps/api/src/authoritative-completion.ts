@@ -268,6 +268,19 @@ async function assertCompletionModeAllowed(
     if (occurrence.evidenceState === 'pending' || occurrence.evidenceState === 'accepted') {
       throw new CompletionRejectedError('completion_mode_not_allowed');
     }
+    const activeAttempts = await client.query<EvidenceAttemptStateRow>(
+      `SELECT EXISTS (
+         SELECT 1
+         FROM evidence_attempts
+         WHERE account_id = $1
+           AND occurrence_id = $2
+           AND verification_status IN ('pending', 'queued')
+       ) AS "hasEvidenceAttempt"`,
+      [input.accountId, input.occurrenceId],
+    );
+    if (activeAttempts.rows[0]?.hasEvidenceAttempt === true) {
+      throw new CompletionRejectedError('completion_mode_not_allowed');
+    }
   }
 }
 

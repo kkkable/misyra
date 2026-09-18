@@ -153,10 +153,21 @@ describe('MTS-059 Private and Trust Mode authoritative completion', () => {
   it('locks Private after the first evidence submission', async () => {
     const mission = await createOccurrence(13, 'rejected');
     await pool.query(
-      `INSERT INTO evidence_attempts
-        (account_id, occurrence_id, attempt_number, status, submitted_at)
-       VALUES ($1, $2, 1, 'rejected', $3)`,
-      [accountId, mission.occurrenceId, `${mission.date}T09:03:00Z`],
+      `INSERT INTO evidence_attempts (
+         account_id, occurrence_id, attempt_number, status, submitted_at,
+         first_submitted_at, effective_submitted_at, upload_status,
+         verification_status, deletion_deadline
+       ) VALUES (
+         $1, $2, 1, 'rejected', $3,
+         $3, $3, 'uploaded',
+         'rejected', $4
+       )`,
+      [
+        accountId,
+        mission.occurrenceId,
+        `${mission.date}T09:03:00Z`,
+        `${mission.date.replace('-09-', '-10-')}T09:03:00Z`,
+      ],
     );
 
     await expect(complete(mission.occurrenceId, 'private', mission.actionAt)).rejects.toMatchObject(
@@ -189,7 +200,24 @@ describe('MTS-059 Private and Trust Mode authoritative completion', () => {
     await pool.query(`UPDATE user_settings SET trust_mode = true WHERE account_id = $1`, [
       accountId,
     ]);
-    const pending = await createOccurrence(15, 'pending');
+    const pending = await createOccurrence(15);
+    await pool.query(
+      `INSERT INTO evidence_attempts (
+         account_id, occurrence_id, attempt_number, status, submitted_at,
+         first_submitted_at, effective_submitted_at, upload_status,
+         verification_status, deletion_deadline
+       ) VALUES (
+         $1, $2, 1, 'pending', $3,
+         $3, $3, 'uploaded',
+         'queued', $4
+       )`,
+      [
+        accountId,
+        pending.occurrenceId,
+        `${pending.date}T09:03:00Z`,
+        `${pending.date.replace('-09-', '-10-')}T09:03:00Z`,
+      ],
+    );
     await expect(
       complete(pending.occurrenceId, 'trust_mode', pending.actionAt),
     ).rejects.toMatchObject({
