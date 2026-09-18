@@ -85,7 +85,7 @@ describe('MTS-077 EventKit provider deletion reconciliation', () => {
     });
   });
 
-  it('reconciles retained past links by identifier even when they are outside the future bulk-fetch window', async () => {
+  it('reconciles retained past links by provider identifier', async () => {
     const nativeModule = {
       getAuthorizationStatus: vi.fn(() => Promise.resolve('full_access')),
       fetchEvents: vi.fn(() => Promise.resolve([])),
