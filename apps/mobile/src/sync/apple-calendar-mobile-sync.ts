@@ -138,10 +138,7 @@ export type AppleCalendarMobileSyncStore = Readonly<{
   getMissionSyncState(occurrenceId: string): Promise<MissionSyncState | null>;
   enqueueProviderMutation(input: ProviderMutationInput): Promise<void>;
   relinkProviderEvent(input: ProviderRelinkInput): Promise<void>;
-  listLinkedProviderEventsInWindow?(
-    startInstant: string,
-    endInstant: string,
-  ): Promise<readonly LinkedProviderEvent[]>;
+  listLinkedProviderEvents?(): Promise<readonly LinkedProviderEvent[]>;
   listPendingAppleCommands(): Promise<readonly PendingAppleCommand[]>;
   settleAppleCommand(input: SettleAppleCommandInput): Promise<void>;
 }>;
@@ -362,8 +359,7 @@ export function createAppleCalendarMobileSync({
       await processProviderEvent(event);
     }
 
-    const linkedEvents =
-      (await store.listLinkedProviderEventsInWindow?.(startInstant, endInstant)) ?? [];
+    const linkedEvents = (await store.listLinkedProviderEvents?.()) ?? [];
     for (const link of linkedEvents) {
       if (
         link.connectionId !== connection.id ||
@@ -446,7 +442,7 @@ type LinkRow = Readonly<{
   payload_json: string;
 }>;
 
-type LinkedWindowRow = Readonly<{
+type LinkedProviderEventRow = Readonly<{
   occurrence_id: string;
   series_id: string;
   external_event_id: string;
@@ -617,11 +613,8 @@ export function createAppleCalendarSqliteSyncStore({
     };
   };
 
-  const listLinkedProviderEventsInWindow = async (
-    startInstant: string,
-    endInstant: string,
-  ): Promise<readonly LinkedProviderEvent[]> => {
-    const rows = await database.getAllAsync<LinkedWindowRow>(
+  const listLinkedProviderEvents = async (): Promise<readonly LinkedProviderEvent[]> => {
+    const rows = await database.getAllAsync<LinkedProviderEventRow>(
       `SELECT l.occurrence_id,
               o.series_id,
               l.external_event_id,
@@ -635,26 +628,19 @@ export function createAppleCalendarSqliteSyncStore({
         WHERE l.account_id = ? AND l.provider = 'apple'`,
       accountId,
     );
-    const windowStart = Date.parse(startInstant);
-    const windowEnd = Date.parse(endInstant);
-    return rows.flatMap((row) => {
+    return rows.map((row) => {
       const occurrence = JSON.parse(row.occurrence_payload_json) as MissionOccurrenceInput;
-      const startsAt = Date.parse(occurrence.schedule.startInstant);
-      const finishesAt = Date.parse(occurrence.schedule.finishInstant);
-      if (finishesAt <= windowStart || startsAt >= windowEnd) return [];
       const payload = parseLinkPayload(row.link_payload_json);
-      return [
-        {
-          occurrenceId: row.occurrence_id,
-          seriesId: row.series_id,
-          providerEventId: row.external_event_id,
-          providerCalendarId: payload.providerCalendarId,
-          connectionId: payload.connectionId,
-          ownership: payload.ownership,
-          completionState: occurrence.completionState,
-          serverVersion: row.server_version,
-        },
-      ];
+      return {
+        occurrenceId: row.occurrence_id,
+        seriesId: row.series_id,
+        providerEventId: row.external_event_id,
+        providerCalendarId: payload.providerCalendarId,
+        connectionId: payload.connectionId,
+        ownership: payload.ownership,
+        completionState: occurrence.completionState,
+        serverVersion: row.server_version,
+      };
     });
   };
 
@@ -742,7 +728,7 @@ export function createAppleCalendarSqliteSyncStore({
     const schedule = missionSchedule(input.event);
     const series: MissionSeriesInput = {
       id: seriesId,
-      title: input.event.title.trim().length === 0 ? 'Untitled event' : input.event.title,
+      title: input.event.title,
       recurrence: input.event.recurrence as MissionSeriesInput['recurrence'],
     };
     let occurrence: MissionOccurrenceInput;
@@ -1039,7 +1025,7 @@ export function createAppleCalendarSqliteSyncStore({
 
   return {
     findLinkByProviderEventId,
-    listLinkedProviderEventsInWindow,
+    listLinkedProviderEvents,
     getMissionSyncState,
     enqueueProviderMutation,
     relinkProviderEvent,
