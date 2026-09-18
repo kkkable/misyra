@@ -146,6 +146,10 @@ function encodeBlobKey(key: string) {
     .join('/');
 }
 
+function isImmutableEvidenceOriginal(container: MediaUploadPurpose, key: string) {
+  return container === 'evidence-working' && key.endsWith('/original');
+}
+
 function canonicalizedAzuriteHeaders(headers: Record<string, string>) {
   return Object.entries(headers)
     .filter(([name]) => name.toLowerCase().startsWith('x-ms-'))
@@ -195,7 +199,7 @@ function signedAzuriteHeaders(
     '',
     '',
     '',
-    '',
+    headers['if-none-match'] ?? '',
     '',
     '',
   ].join('\n')}\n${canonicalizedAzuriteHeaders(headers)}${canonicalizedAzuriteResource(url)}`;
@@ -225,15 +229,19 @@ function createAzuriteBlobStore(env: NodeJS.ProcessEnv): ProtectedMediaBlobStore
     async put(container, key, bytes, contentType) {
       await ensureContainer(container);
       const url = new URL(`${endpoint}/${container}/${encodeBlobKey(key)}`);
+      const immutableOriginal = isImmutableEvidenceOriginal(container, key);
       const response = await fetch(url, {
         method: 'PUT',
         headers: signedAzuriteHeaders('PUT', url, bytes, {
           'content-type': contentType,
           'x-ms-blob-type': 'BlockBlob',
+          ...(immutableOriginal ? { 'if-none-match': '*' } : {}),
         }),
         body: new Uint8Array(bytes),
       });
-      if (!response.ok) throw new Error('Protected media upload failed');
+      if (!response.ok && !(immutableOriginal && response.status === 412)) {
+        throw new Error('Protected media upload failed');
+      }
     },
   };
 }
@@ -277,6 +285,7 @@ function createAzureManagedIdentityBlobStore(env: NodeJS.ProcessEnv): ProtectedM
       const url = new URL(
         `https://${accountName}.blob.core.windows.net/${container}/${encodeBlobKey(key)}`,
       );
+      const immutableOriginal = isImmutableEvidenceOriginal(container, key);
       const response = await fetch(url, {
         method: 'PUT',
         headers: {
@@ -284,10 +293,13 @@ function createAzureManagedIdentityBlobStore(env: NodeJS.ProcessEnv): ProtectedM
           'Content-Type': contentType,
           'x-ms-blob-type': 'BlockBlob',
           'x-ms-version': AZURE_STORAGE_VERSION,
+          ...(immutableOriginal ? { 'If-None-Match': '*' } : {}),
         },
         body: new Uint8Array(bytes),
       });
-      if (!response.ok) throw new Error('Protected media upload failed');
+      if (!response.ok && !(immutableOriginal && response.status === 412)) {
+        throw new Error('Protected media upload failed');
+      }
     },
   };
 }
