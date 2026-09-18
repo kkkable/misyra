@@ -223,6 +223,15 @@ test("MTS-078 keeps protected media containers private and grants the API only b
   assert.match(data, /ba92f5b4-2d11-453d-a403-e96b0029c9fe/);
   assert.match(data, /principalId\s*:\s*apiPrincipalId/);
   assert.match(data, /principalType\s*:\s*["']ServicePrincipal["']/);
+  for (const scope of [
+    "evidenceWorking",
+    "storyWorking",
+    "plannerWorking",
+    "styleReferences",
+  ]) {
+    assert.match(data, new RegExp(`scope\\s*:\\s*${scope}\\b`));
+  }
+  assert.doesNotMatch(data, /scope\s*:\s*storage\b/);
   assert.match(main, /apiPrincipalId\s*:\s*compute\.outputs\.apiPrincipalId/);
   assert.match(main, /storageAccountName\s*:\s*resourceNames\.storageAccount/);
 });
