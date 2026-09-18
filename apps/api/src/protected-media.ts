@@ -150,6 +150,14 @@ function isImmutableEvidenceOriginal(container: MediaUploadPurpose, key: string)
   return container === 'evidence-working' && key.endsWith('/original');
 }
 
+function isImmutableOriginalAlreadyStored(response: Response, immutableOriginal: boolean) {
+  if (!immutableOriginal) return false;
+  if (response.status === 412) return true;
+  return (
+    response.status === 409 && response.headers.get('x-ms-error-code') === 'BlobAlreadyExists'
+  );
+}
+
 function canonicalizedAzuriteHeaders(headers: Record<string, string>) {
   return Object.entries(headers)
     .filter(([name]) => name.toLowerCase().startsWith('x-ms-'))
@@ -239,7 +247,7 @@ function createAzuriteBlobStore(env: NodeJS.ProcessEnv): ProtectedMediaBlobStore
         }),
         body: new Uint8Array(bytes),
       });
-      if (!response.ok && !(immutableOriginal && response.status === 412)) {
+      if (!response.ok && !isImmutableOriginalAlreadyStored(response, immutableOriginal)) {
         throw new Error('Protected media upload failed');
       }
     },
@@ -297,7 +305,7 @@ function createAzureManagedIdentityBlobStore(env: NodeJS.ProcessEnv): ProtectedM
         },
         body: new Uint8Array(bytes),
       });
-      if (!response.ok && !(immutableOriginal && response.status === 412)) {
+      if (!response.ok && !isImmutableOriginalAlreadyStored(response, immutableOriginal)) {
         throw new Error('Protected media upload failed');
       }
     },
