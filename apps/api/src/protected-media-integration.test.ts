@@ -179,9 +179,7 @@ async function authorizeOriginalUpload(
 }
 
 describe('MTS-078 protected media upload service', () => {
-  it(
-    'binds a short-lived upload authorization to account, purpose, asset, and variant',
-    async () => {
+  it('binds a short-lived upload authorization to account, purpose, asset, and variant', async () => {
       const activeAccount = { value: accountA };
       const assetId = randomUUID();
       const { server } = createServer(activeAccount);
@@ -226,12 +224,9 @@ describe('MTS-078 protected media upload service', () => {
       });
       expect(result.rows[0]?.deletionDueAt?.toISOString()).toBe('2026-10-18T10:00:00.000Z');
       await server.close();
-    },
-  );
+  });
 
-  it(
-    'rejects cross-account authorization and token replay without disclosing another account asset',
-    async () => {
+  it('rejects cross-account authorization and token replay without disclosing another account asset', async () => {
       const activeAccount = { value: accountA };
       const assetId = randomUUID();
       const { server } = createServer(activeAccount);
@@ -258,9 +253,8 @@ describe('MTS-078 protected media upload service', () => {
       expect(crossAccountAuthorization.json()).toMatchObject({ error: { code: 'not_found' } });
       expect(crossAccountUpload.statusCode).toBe(404);
       expect(crossAccountUpload.json()).toMatchObject({ error: { code: 'not_found' } });
-      await server.close();
-    },
-  );
+    await server.close();
+  });
 
   it('uploads through the scoped API path into a private Azurite container', async () => {
     const activeAccount = { value: accountA };
