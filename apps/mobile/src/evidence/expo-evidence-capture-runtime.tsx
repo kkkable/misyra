@@ -1,4 +1,4 @@
-import { CameraView, getCameraPermissionsAsync, requestCameraPermissionsAsync } from 'expo-camera';
+import { Camera, CameraView } from 'expo-camera';
 import * as FileSystem from 'expo-file-system/legacy';
 import { AppState, Linking, StyleSheet } from 'react-native';
 
@@ -28,7 +28,7 @@ function protectedFileName(sourceUri: string): string {
     sourceName === undefined || sourceName.length === 0
       ? 'evidence.jpg'
       : sourceName.replace(/[^A-Za-z0-9._-]/g, '_');
-  return `${Date.now()}-${safeSourceName}`;
+  return `${String(Date.now())}-${safeSourceName}`;
 }
 
 export function createExpoEvidenceCaptureRuntime(): EvidenceCaptureRuntime {
@@ -51,11 +51,11 @@ export function createExpoEvidenceCaptureRuntime(): EvidenceCaptureRuntime {
   return {
     permission: {
       async getStatus() {
-        const response = await getCameraPermissionsAsync();
+        const response = await Camera.getCameraPermissionsAsync();
         return permissionStatus(response.status);
       },
       async request() {
-        const response = await requestCameraPermissionsAsync();
+        const response = await Camera.requestCameraPermissionsAsync();
         return permissionStatus(response.status);
       },
       async openSettings() {
@@ -78,7 +78,7 @@ export function createExpoEvidenceCaptureRuntime(): EvidenceCaptureRuntime {
           quality: 1,
           skipProcessing: true,
         });
-        if (picture?.uri === undefined || picture.uri.length === 0) {
+        if (picture.uri.length === 0) {
           throw new Error('Camera did not return an evidence image.');
         }
         return { uri: picture.uri };
