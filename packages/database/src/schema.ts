@@ -282,6 +282,13 @@ export const evidenceAttempts = pgTable(
     attemptNumber: smallint('attempt_number').notNull(),
     status: text('status').notNull(),
     submittedAt: timestamp('submitted_at', { withTimezone: true }),
+    firstSubmittedAt: timestamp('first_submitted_at', { withTimezone: true }).notNull(),
+    effectiveSubmittedAt: timestamp('effective_submitted_at', { withTimezone: true }).notNull(),
+    uploadStatus: text('upload_status').notNull().default('pending'),
+    verificationStatus: text('verification_status').notNull().default('pending'),
+    reasonCode: text('reason_code'),
+    mediaAssetId: uuid('media_asset_id'),
+    deletionDeadline: timestamp('deletion_deadline', { withTimezone: true }).notNull(),
     createdAt: createdAt(),
   },
   (table) => [
@@ -290,12 +297,21 @@ export const evidenceAttempts = pgTable(
       table.attemptNumber,
     ),
     index('evidence_attempts_account_idx').on(table.accountId),
+    index('evidence_attempts_media_asset_idx').on(table.mediaAssetId),
     foreignKey({
       columns: [table.occurrenceId, table.accountId],
       foreignColumns: [missionOccurrences.id, missionOccurrences.accountId],
       name: 'evidence_attempts_occurrence_account_fk',
     }).onDelete('cascade'),
     check('evidence_attempts_number_check', sql`${table.attemptNumber} between 1 and 3`),
+    check(
+      'evidence_attempts_upload_status_check',
+      sql`${table.uploadStatus} in ('pending', 'uploaded')`,
+    ),
+    check(
+      'evidence_attempts_verification_status_check',
+      sql`${table.verificationStatus} in ('pending', 'queued', 'accepted', 'rejected')`,
+    ),
   ],
 );
 

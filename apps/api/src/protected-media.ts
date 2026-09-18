@@ -17,11 +17,19 @@ export type ProtectedMediaBlobStore = Readonly<{
   ): Promise<void>;
 }>;
 
+export type ProtectedMediaUploadCommitted = Readonly<{
+  accountId: string;
+  assetId: string;
+  purpose: MediaUploadPurpose;
+  variant: MediaUploadVariant;
+}>;
+
 type ProtectedMediaServiceOptions = Readonly<{
   pool: Pool;
   signingSecret: string;
   blobStore: ProtectedMediaBlobStore;
   now?: () => Date;
+  onUploadCommitted?: (input: ProtectedMediaUploadCommitted) => Promise<void>;
 }>;
 
 type UploadClaims = Readonly<{
@@ -406,6 +414,12 @@ export function createProtectedMediaService(options: ProtectedMediaServiceOption
       if (result.rows[0]?.storageKey !== key) throw new ProtectedMediaError('not_found');
 
       await options.blobStore.put(claims.purpose, key, body, claims.contentType);
+      await options.onUploadCommitted?.({
+        accountId,
+        assetId: claims.assetId,
+        purpose: claims.purpose,
+        variant: claims.variant,
+      });
       return {
         assetId: claims.assetId,
         variant: claims.variant,
