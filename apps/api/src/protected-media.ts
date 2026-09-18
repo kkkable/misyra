@@ -287,9 +287,10 @@ function createAzureManagedIdentityBlobStore(env: NodeJS.ProcessEnv): ProtectedM
 export function createProtectedMediaBlobStore(
   env: NodeJS.ProcessEnv = process.env,
 ): ProtectedMediaBlobStore {
-  return env.NODE_ENV === 'production'
-    ? createAzureManagedIdentityBlobStore(env)
-    : createAzuriteBlobStore(env);
+  if (env.AZURE_STORAGE_ACCOUNT_NAME || env.NODE_ENV === 'production') {
+    return createAzureManagedIdentityBlobStore(env);
+  }
+  return createAzuriteBlobStore(env);
 }
 
 export function createProtectedMediaService(options: ProtectedMediaServiceOptions) {
