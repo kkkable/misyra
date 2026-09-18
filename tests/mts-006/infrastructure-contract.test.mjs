@@ -216,7 +216,7 @@ test("MTS-078 keeps protected media containers private and grants the API only b
 
   assert.match(compute, /output\\s+apiPrincipalId\\s+string\\s*=\\s*api\\.identity\\.principalId/);
   assert.match(data, /param\\s+apiPrincipalId\\s+string/);
-  assert.match(data, /Microsoft\\.Authorization\\/roleAssignments/);
+  assert.match(data, /Microsoft\.Authorization\/roleAssignments/);
   assert.match(data, /ba92f5b4-2d11-453d-a403-e96b0029c9fe/);
   assert.match(data, /principalId\\s*:\\s*apiPrincipalId/);
   assert.match(data, /principalType\\s*:\\s*["']ServicePrincipal["']/);
