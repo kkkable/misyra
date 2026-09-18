@@ -181,7 +181,9 @@ async function authorizeOriginalUpload(
 }
 
 describe('MTS-078 protected media upload service', () => {
-  it('binds a short-lived upload authorization to account, purpose, asset, and variant', async () => {
+  it(
+    'binds a short-lived upload authorization to account, purpose, asset, and variant',
+    async () => {
     const activeAccount = { value: accountA };
     const assetId = randomUUID();
     const { server } = createServer(activeAccount);
@@ -225,8 +227,9 @@ describe('MTS-078 protected media upload service', () => {
       retryState: 'ready',
     });
     expect(result.rows[0]?.deletionDueAt?.toISOString()).toBe('2026-10-18T10:00:00.000Z');
-    await server.close();
-  });
+      await server.close();
+    },
+  );
 
   it(
     'rejects cross-account authorization and token replay without disclosing another account asset',
