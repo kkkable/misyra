@@ -258,6 +258,44 @@ describe('MTS-077 EventKit SQLite/local-mutation harness', () => {
     });
   });
 
+
+  it('preserves an empty provider title in canonical sync data instead of persisting the display-only placeholder', async () => {
+    const database = await databaseWithAccount();
+    const queue = createMutationQueue(database, accountId);
+    const store = createAppleCalendarSqliteSyncStore({
+      database,
+      mutationQueue: queue,
+      accountId,
+      deviceId,
+      generateId: ids([occurrenceId, seriesId, mutationId]),
+      now: () => new Date('2026-09-16T00:00:00.000Z'),
+    });
+
+    await store.enqueueProviderMutation({
+      destination: { kind: 'server' },
+      operation: 'create',
+      provider: 'apple',
+      connectionId,
+      providerCalendarId: 'apple-calendar-1',
+      providerEventId: 'apple-untitled-1',
+      ownership: 'organizer_controlled',
+      event: { ...providerEvent(), title: '' },
+    });
+
+    const series = await database.getFirstAsync(
+      `SELECT title, payload_json
+         FROM cached_mission_series
+        WHERE account_id = ? AND series_id = ?`,
+      accountId,
+      seriesId,
+    );
+    expect(series.title).toBe('');
+    expect(JSON.parse(series.payload_json).title).toBe('');
+
+    const pending = await queue.listPending();
+    expect(pending[0]?.mutation.payload.series.title).toBe('');
+  });
+
   it('resolves all-day local midnights through the mission IANA zone across DST', async () => {
     const database = await databaseWithAccount();
     const queue = createMutationQueue(database, accountId);
