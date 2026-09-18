@@ -313,14 +313,14 @@ describe('MTS-078 protected media upload service', () => {
       [
         expect.objectContaining({
           method: 'POST',
-          route: '/media/assets/:assetId/upload-authorizations',
+          route: '/v1/media/assets/:assetId/upload-authorizations',
           statusCode: 200,
         }),
       ],
       [
         expect.objectContaining({
           method: 'PUT',
-          route: '/media/uploads/:token',
+          route: '/v1/media/uploads/:token',
           statusCode: 200,
         }),
       ],
