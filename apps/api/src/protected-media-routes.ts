@@ -8,9 +8,7 @@ function mapError(error: unknown): never {
   throw error;
 }
 
-export function createProtectedMediaRoutes(
-  service: ProtectedMediaService,
-): ApiRouteDefinition[] {
+export function createProtectedMediaRoutes(service: ProtectedMediaService): ApiRouteDefinition[] {
   return [
     {
       method: 'POST',
@@ -18,11 +16,15 @@ export function createProtectedMediaRoutes(
       handler: async (request, _reply, auth) => {
         const params = request.params as { assetId?: unknown };
         try {
-          return await service.authorizeUpload(auth.accountId, String(params.assetId ?? ''), request.body as {
-            purpose?: unknown;
-            variant?: unknown;
-            contentType?: unknown;
-          });
+          return await service.authorizeUpload(
+            auth.accountId,
+            String(params.assetId ?? ''),
+            request.body as {
+              purpose?: unknown;
+              variant?: unknown;
+              contentType?: unknown;
+            },
+          );
         } catch (error) {
           return mapError(error);
         }
