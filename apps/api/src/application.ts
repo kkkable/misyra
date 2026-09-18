@@ -203,7 +203,9 @@ export function createApiApplication(options: AuthApplicationOptions) {
   });
   const deviceSettingsService = createDeviceSettingsService(deviceSettingsStore);
   const syncService = createPostgresSyncService(options.pool);
-  let evidenceAttemptService: EvidenceAttemptService | undefined;
+  const evidenceAttemptLifecycle: { service: EvidenceAttemptService | undefined } = {
+    service: undefined,
+  };
   const protectedMediaService = createProtectedMediaService({
     pool: options.pool,
     signingSecret: options.reauthenticationProofSecret,
@@ -214,14 +216,15 @@ export function createApiApplication(options: AuthApplicationOptions) {
       }),
     ...(options.now === undefined ? {} : { now: options.now }),
     onUploadCommitted: async (input) => {
-      await evidenceAttemptService?.handleMediaUploaded(input);
+      await evidenceAttemptLifecycle.service?.handleMediaUploaded(input);
     },
   });
-  evidenceAttemptService = createEvidenceAttemptService({
+  const evidenceAttemptService = createEvidenceAttemptService({
     pool: options.pool,
     protectedMediaService,
     ...(options.now === undefined ? {} : { now: options.now }),
   });
+  evidenceAttemptLifecycle.service = evidenceAttemptService;
   const appleCalendarRoutes = createAppleCalendarRoutes({
     async connect(accountId, input) {
       try {
