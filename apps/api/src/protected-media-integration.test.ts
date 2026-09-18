@@ -326,10 +326,7 @@ describe('MTS-078 protected media upload service', () => {
         WHERE id = $1 AND account_id = $2`,
       [assetId, accountA],
     );
-    const stored = await readPrivateBlob(
-      'evidence-working',
-      registry.rows[0]?.storageKey ?? '',
-    );
+    const stored = await readPrivateBlob('evidence-working', registry.rows[0]?.storageKey ?? '');
     expect(stored.response.status).toBe(200);
     expect(stored.bytes).toEqual(firstBytes);
     await server.close();
