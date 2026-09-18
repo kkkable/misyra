@@ -296,6 +296,45 @@ describe('MTS-078 protected media upload service', () => {
     await server.close();
   });
 
+  it('keeps a submitted evidence original immutable when an upload is retried', async () => {
+    const activeAccount = { value: accountA };
+    const assetId = randomUUID();
+    const { server } = createServer(activeAccount);
+    const firstAuthorization = await authorizeOriginalUpload(server, assetId);
+    const firstBytes = Buffer.from('first-evidence-original');
+
+    const firstUpload = await server.inject({
+      method: 'PUT',
+      url: firstAuthorization.uploadPath,
+      headers: { 'content-type': 'application/octet-stream' },
+      payload: firstBytes,
+    });
+    expect(firstUpload.statusCode).toBe(200);
+
+    const retryAuthorization = await authorizeOriginalUpload(server, assetId);
+    const retryUpload = await server.inject({
+      method: 'PUT',
+      url: retryAuthorization.uploadPath,
+      headers: { 'content-type': 'application/octet-stream' },
+      payload: Buffer.from('different-retry-bytes'),
+    });
+    expect(retryUpload.statusCode).toBe(200);
+
+    const registry = await pool.query<{ storageKey: string }>(
+      `SELECT original_storage_key AS "storageKey"
+         FROM media_assets
+        WHERE id = $1 AND account_id = $2`,
+      [assetId, accountA],
+    );
+    const stored = await readPrivateBlob(
+      'evidence-working',
+      registry.rows[0]?.storageKey ?? '',
+    );
+    expect(stored.response.status).toBe(200);
+    expect(stored.bytes).toEqual(firstBytes);
+    await server.close();
+  });
+
   it('emits only correlation metadata for media authorization and upload requests', async () => {
     const activeAccount = { value: accountA };
     const assetId = randomUUID();
