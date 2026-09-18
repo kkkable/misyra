@@ -54,7 +54,10 @@ jobs:
         run: pnpm ci:fixtures
 
       - name: Check workspace formatting
-        run: pnpm format
+        run: |
+          pnpm exec prettier --write packages/database/src/sync-store-mission-delete.test.ts --config packages/config/prettier.config.mjs
+          git diff -- packages/database/src/sync-store-mission-delete.test.ts
+          exit 1
 
       - name: Check CI-owned formatting
         run: pnpm format:ci
