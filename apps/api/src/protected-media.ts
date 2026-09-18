@@ -4,10 +4,7 @@ import { calculateMediaDeletionDeadline, classifyMediaPurpose } from '@misyra/do
 import type { Pool } from 'pg';
 
 export type MediaUploadPurpose =
-  | 'evidence-working'
-  | 'story-working'
-  | 'planner-working'
-  | 'style-references';
+  'evidence-working' | 'story-working' | 'planner-working' | 'style-references';
 
 export type MediaUploadVariant = 'original' | 'thumbnail' | 'derivative' | 'temporary';
 
@@ -110,7 +107,9 @@ function verifyToken(secret: string, token: string, now: Date): UploadClaims | n
   if (expected.length !== supplied.length || !timingSafeEqual(expected, supplied)) return null;
 
   try {
-    const claims = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as Partial<UploadClaims>;
+    const claims = JSON.parse(
+      Buffer.from(payload, 'base64url').toString('utf8'),
+    ) as Partial<UploadClaims>;
     if (
       claims.v !== 1 ||
       typeof claims.accountId !== 'string' ||
@@ -192,10 +191,7 @@ function signedAzuriteHeaders(
     '',
     '',
   ].join('\n')}\n${canonicalizedAzuriteHeaders(headers)}${canonicalizedAzuriteResource(url)}`;
-  const signature = createHmac(
-    'sha256',
-    Buffer.from(AZURITE_DEVELOPMENT_CREDENTIAL, 'base64'),
-  )
+  const signature = createHmac('sha256', Buffer.from(AZURITE_DEVELOPMENT_CREDENTIAL, 'base64'))
     .update(stringToSign, 'utf8')
     .digest('base64');
   headers.authorization = `SharedKey ${AZURITE_ACCOUNT}:${signature}`;
