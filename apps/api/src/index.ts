@@ -179,6 +179,9 @@ export function createApiServer(options: ApiServerOptions = {}) {
   const authenticate = options.authenticate ?? (() => null);
   const server = Fastify({
     logger: false,
+    routerOptions: {
+      maxParamLength: 1024,
+    },
     genReqId: (request) => {
       const supplied = request.headers['x-request-id'];
       return isUuid(supplied) ? supplied : randomUUID();
