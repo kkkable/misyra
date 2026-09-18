@@ -33,10 +33,7 @@ import { createCompletionRoutes } from './completion-routes.js';
 import { createDeviceSettingsRoutes } from './device-settings-routes.js';
 import { createDeviceSettingsService } from './device-settings.js';
 import { createEvidenceAttemptRoutes } from './evidence-attempt-routes.js';
-import {
-  createEvidenceAttemptService,
-  type EvidenceAttemptService,
-} from './evidence-attempt.js';
+import { createEvidenceAttemptService, type EvidenceAttemptService } from './evidence-attempt.js';
 import {
   createGoogleCalendarConnectionService,
   GoogleCalendarOAuthError,

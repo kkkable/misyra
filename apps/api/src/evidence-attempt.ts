@@ -3,10 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { calculateMediaDeletionDeadline, evaluateCompletionEligibility } from '@misyra/domain';
 import type { Pool, PoolClient, QueryResultRow } from 'pg';
 
-import type {
-  ProtectedMediaService,
-  ProtectedMediaUploadCommitted,
-} from './protected-media.js';
+import type { ProtectedMediaService, ProtectedMediaUploadCommitted } from './protected-media.js';
 
 export type EvidenceAttemptErrorCode =
   | 'validation_failed'
@@ -74,8 +71,7 @@ interface UploadedAttemptRow extends QueryResultRow {
   verificationStatus: string;
 }
 
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function parseUuid(value: unknown): string {
   if (typeof value !== 'string' || !UUID_PATTERN.test(value)) {

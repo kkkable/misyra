@@ -8,9 +8,7 @@ function mapError(error: unknown): never {
   throw error;
 }
 
-export function createEvidenceAttemptRoutes(
-  service: EvidenceAttemptService,
-): ApiRouteDefinition[] {
+export function createEvidenceAttemptRoutes(service: EvidenceAttemptService): ApiRouteDefinition[] {
   return [
     {
       method: 'POST',
