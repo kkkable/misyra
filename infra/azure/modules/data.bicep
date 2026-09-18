@@ -132,9 +132,39 @@ resource feedbackRetained 'Microsoft.Storage/storageAccounts/blobServices/contai
   }
 }
 
-resource apiBlobDataContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(storage.id, apiPrincipalId, storageBlobDataContributorRoleDefinitionId)
-  scope: storage
+resource apiEvidenceWorkingBlobDataContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(evidenceWorking.id, apiPrincipalId, storageBlobDataContributorRoleDefinitionId)
+  scope: evidenceWorking
+  properties: {
+    roleDefinitionId: storageBlobDataContributorRoleDefinitionId
+    principalId: apiPrincipalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource apiStoryWorkingBlobDataContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(storyWorking.id, apiPrincipalId, storageBlobDataContributorRoleDefinitionId)
+  scope: storyWorking
+  properties: {
+    roleDefinitionId: storageBlobDataContributorRoleDefinitionId
+    principalId: apiPrincipalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource apiPlannerWorkingBlobDataContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(plannerWorking.id, apiPrincipalId, storageBlobDataContributorRoleDefinitionId)
+  scope: plannerWorking
+  properties: {
+    roleDefinitionId: storageBlobDataContributorRoleDefinitionId
+    principalId: apiPrincipalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource apiStyleReferencesBlobDataContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(styleReferences.id, apiPrincipalId, storageBlobDataContributorRoleDefinitionId)
+  scope: styleReferences
   properties: {
     roleDefinitionId: storageBlobDataContributorRoleDefinitionId
     principalId: apiPrincipalId
