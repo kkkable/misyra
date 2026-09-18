@@ -28,10 +28,12 @@ type AttemptPayload = Readonly<{
   expiresAt: string;
 }>;
 
-async function seedOccurrence(input: Readonly<{
-  finishAt?: string;
-  completed?: boolean;
-}> = {}) {
+async function seedOccurrence(
+  input: Readonly<{
+    finishAt?: string;
+    completed?: boolean;
+  }> = {},
+) {
   const seriesId = randomUUID();
   const occurrenceId = randomUUID();
   const finishAt = input.finishAt ?? '2026-09-18T09:00:00.000Z';
@@ -106,7 +108,8 @@ async function reserveAttempt(
   });
   return {
     response,
-    payload: response.statusCode === 200 ? response.json<{ payload: AttemptPayload }>().payload : null,
+    payload:
+      response.statusCode === 200 ? response.json<{ payload: AttemptPayload }>().payload : null,
   };
 }
 
@@ -183,9 +186,7 @@ describe('MTS-080 evidence-attempt creation and upload', () => {
       reasonCode: null,
       mediaAssetId: reserved.payload?.mediaAssetId,
     });
-    expect(beforeUpload.rows[0]?.deletionDeadline.toISOString()).toBe(
-      '2026-10-18T10:00:00.000Z',
-    );
+    expect(beforeUpload.rows[0]?.deletionDeadline.toISOString()).toBe('2026-10-18T10:00:00.000Z');
 
     const beforeOutbox = await pool.query<{ count: string }>(
       `SELECT COUNT(*)::text AS count
@@ -268,12 +269,7 @@ describe('MTS-080 evidence-attempt creation and upload', () => {
     apiNow = new Date('2026-10-20T12:00:00.000Z');
     const submittedBeforeExpiry = '2026-10-18T08:59:59.999Z';
 
-    const result = await reserveAttempt(
-      server,
-      occurrenceId,
-      randomUUID(),
-      submittedBeforeExpiry,
-    );
+    const result = await reserveAttempt(server, occurrenceId, randomUUID(), submittedBeforeExpiry);
 
     expect(result.response.statusCode).toBe(200);
     expect(result.payload).toMatchObject({
@@ -365,12 +361,7 @@ describe('MTS-080 evidence-attempt creation and upload', () => {
     const attemptId = randomUUID();
     const submittedAt = '2026-09-18T09:06:00.000Z';
 
-    const reserved = await reserveAttempt(
-      failingServer,
-      occurrenceId,
-      attemptId,
-      submittedAt,
-    );
+    const reserved = await reserveAttempt(failingServer, occurrenceId, attemptId, submittedAt);
     expect(reserved.response.statusCode).toBe(200);
 
     const failedUpload = await failingServer.inject({
@@ -403,12 +394,7 @@ describe('MTS-080 evidence-attempt creation and upload', () => {
 
     const succeedingPut = vi.fn(() => Promise.resolve());
     const succeedingServer = createServer({ put: succeedingPut });
-    const replay = await reserveAttempt(
-      succeedingServer,
-      occurrenceId,
-      attemptId,
-      submittedAt,
-    );
+    const replay = await reserveAttempt(succeedingServer, occurrenceId, attemptId, submittedAt);
 
     expect(replay.response.statusCode).toBe(200);
     expect(replay.payload).toMatchObject({
