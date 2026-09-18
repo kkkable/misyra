@@ -258,8 +258,7 @@ describe('MTS-077 EventKit SQLite/local-mutation harness', () => {
     });
   });
 
-
-  it('preserves an empty provider title in canonical sync data instead of persisting the display-only placeholder', async () => {
+  it('preserves an empty provider title in canonical sync data', async () => {
     const database = await databaseWithAccount();
     const queue = createMutationQueue(database, accountId);
     const store = createAppleCalendarSqliteSyncStore({
