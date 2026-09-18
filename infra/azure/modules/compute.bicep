@@ -5,6 +5,7 @@ param workerContainerAppName string
 param cleanupJobName string
 param repairJobName string
 param containerAppsSubnetId string
+param storageAccountName string
 param apiImage string
 param workerImage string
 param containerCpu string
@@ -44,6 +45,12 @@ resource api 'Microsoft.App/containerApps@2024-03-01' = {
         {
           name: 'api'
           image: apiImage
+          env: [
+            {
+              name: 'AZURE_STORAGE_ACCOUNT_NAME'
+              value: storageAccountName
+            }
+          ]
           resources: {
             cpu: json(containerCpu)
             memory: containerMemory
