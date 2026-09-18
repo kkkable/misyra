@@ -36,7 +36,7 @@ describe('MTS-077 EventKit provider deletion reconciliation', () => {
       relinkProviderEvent: vi.fn(() => Promise.resolve()),
       listPendingAppleCommands: vi.fn(() => Promise.resolve([])),
       settleAppleCommand: vi.fn(() => Promise.resolve()),
-      listLinkedProviderEventsInWindow: vi.fn(() =>
+      listLinkedProviderEvents: vi.fn(() =>
         Promise.resolve([
           {
             occurrenceId,
@@ -66,10 +66,7 @@ describe('MTS-077 EventKit provider deletion reconciliation', () => {
       status: 'synchronized',
       providerChangesQueued: 1,
     });
-    expect(store.listLinkedProviderEventsInWindow).toHaveBeenCalledWith(
-      '2026-09-16T00:00:00.000Z',
-      expect.any(String),
-    );
+    expect(store.listLinkedProviderEvents).toHaveBeenCalledTimes(1);
     expect(nativeModule.fetchEvent).toHaveBeenCalledWith('apple-event-deleted');
     expect(store.enqueueProviderMutation).toHaveBeenCalledWith({
       destination: { kind: 'server' },
