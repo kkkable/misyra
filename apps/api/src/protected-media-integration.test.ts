@@ -158,7 +158,7 @@ async function authorizeOriginalUpload(
     },
   });
   expect(response.statusCode).toBe(200);
-  const envelope = response.json() as {
+  const envelope = response.json<{
     payload: {
       assetId: string;
       purpose: string;
@@ -166,7 +166,7 @@ async function authorizeOriginalUpload(
       uploadPath: string;
       expiresAt: string;
     };
-  };
+  }>();
   const payload = envelope.payload;
   expect(payload).toMatchObject({
     assetId,
