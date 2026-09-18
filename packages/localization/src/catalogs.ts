@@ -146,6 +146,14 @@ export const localizationCatalogs = {
     'sync.conflict.missionCompletedElsewhere':
       'This mission was already completed on another device.',
     'sync.conflict.storyUpdated': 'This Story draft was updated on another device.',
+    'evidence.close': 'Close',
+    'evidence.permission.title': 'Camera access is required',
+    'evidence.permission.body': 'Use the camera to capture evidence for this mission.',
+    'evidence.permission.openSettings': 'Open Settings',
+    'evidence.capture': 'Take photo',
+    'evidence.retake': 'Retake',
+    'evidence.submit': 'Submit Evidence',
+    'evidence.captureFailed': 'Could not capture evidence. Try again.',
   },
   'zh-HK': {
     'auth.signIn.title': '登入 Misyra',
@@ -286,6 +294,14 @@ export const localizationCatalogs = {
     'sync.conflict.missionDeleted': '此任務已在另一部裝置上刪除。',
     'sync.conflict.missionCompletedElsewhere': '此任務已在另一部裝置上完成。',
     'sync.conflict.storyUpdated': '此 Story 草稿已在另一部裝置上更新。',
+    'evidence.close': '關閉',
+    'evidence.permission.title': '需要相機權限',
+    'evidence.permission.body': '使用相機拍攝此任務的證據。',
+    'evidence.permission.openSettings': '開啟設定',
+    'evidence.capture': '拍照',
+    'evidence.retake': '重拍',
+    'evidence.submit': '提交證據',
+    'evidence.captureFailed': '無法拍攝證據，請再試一次。',
   },
 } as const;
 
