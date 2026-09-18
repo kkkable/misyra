@@ -257,6 +257,45 @@ describe('MTS-037 account deletion transaction', () => {
     await expect(countRows('outbox_events', seeded.accountId)).resolves.toBe(0);
   });
 
+  it('queues every registered product-media copy exactly once', async () => {
+    const seeded = await seedAccount();
+    const baseKey = `evidence-working/${seeded.accountId}/${seeded.mediaId}`;
+    await pool.query(
+      `UPDATE media_assets
+          SET storage_key = $2,
+              original_storage_key = $2,
+              thumbnail_storage_key = $3,
+              derivative_storage_key = $4,
+              temporary_storage_key = $5
+        WHERE id = $1`,
+      [
+        seeded.mediaId,
+        `${baseKey}/original`,
+        `${baseKey}/thumbnail`,
+        `${baseKey}/derivative`,
+        `${baseKey}/temporary`,
+      ],
+    );
+
+    await deleteAccountTransaction(pool, seeded.accountId);
+
+    const cleanup = await pool.query<{ storageKey: string }>(
+      `SELECT payload->'protectedReference'->>'id' AS "storageKey"
+         FROM outbox_events
+        WHERE aggregate_id = $1
+          AND event_type = 'account.product_media.delete'
+        ORDER BY "storageKey"`,
+      [seeded.mediaId],
+    );
+
+    expect(cleanup.rows.map((row) => row.storageKey)).toEqual([
+      `${baseKey}/derivative`,
+      `${baseKey}/original`,
+      `${baseKey}/temporary`,
+      `${baseKey}/thumbnail`,
+    ]);
+  });
+
   it('rolls the deletion back if required post-delete cleanup work cannot be recorded', async () => {
     const seeded = await seedAccount();
     await pool.query(`

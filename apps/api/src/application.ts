@@ -58,6 +58,12 @@ import {
   type AuthenticateRequest,
   type ReadinessCheck,
 } from './index.js';
+import { createProtectedMediaRoutes } from './protected-media-routes.js';
+import {
+  createProtectedMediaBlobStore,
+  createProtectedMediaService,
+  type ProtectedMediaBlobStore,
+} from './protected-media.js';
 import { createProviderProofVerifier } from './provider-proof-verifier.js';
 import { createSyncRoutes } from './sync-routes.js';
 import { createPostgresSyncService } from './sync-service.js';
@@ -80,6 +86,7 @@ type AuthApplicationOptions = {
   authenticate?: AuthenticateRequest;
   auditLog?: ApiAuditLog;
   googleCalendar?: GoogleCalendarApplicationDependencies;
+  mediaBlobStore?: ProtectedMediaBlobStore;
 };
 
 type SessionActiveCheck = (
@@ -194,6 +201,16 @@ export function createApiApplication(options: AuthApplicationOptions) {
   });
   const deviceSettingsService = createDeviceSettingsService(deviceSettingsStore);
   const syncService = createPostgresSyncService(options.pool);
+  const protectedMediaService = createProtectedMediaService({
+    pool: options.pool,
+    signingSecret: options.reauthenticationProofSecret,
+    blobStore:
+      options.mediaBlobStore ??
+      createProtectedMediaBlobStore({
+        AZURITE_BLOB_PORT: process.env.AZURITE_BLOB_PORT,
+      }),
+    ...(options.now === undefined ? {} : { now: options.now }),
+  });
   const appleCalendarRoutes = createAppleCalendarRoutes({
     async connect(accountId, input) {
       try {
@@ -256,6 +273,7 @@ export function createApiApplication(options: AuthApplicationOptions) {
       ...createDeviceSettingsRoutes(deviceSettingsService),
       ...createCompletionRoutes(options.pool),
       ...createSyncRoutes(syncService),
+      ...createProtectedMediaRoutes(protectedMediaService),
       ...calendarConnectionRoutes,
       ...appleCalendarRoutes,
       ...googleCalendarRoutes,
@@ -467,6 +485,7 @@ export async function startApiApplication(env: NodeJS.ProcessEnv = process.env) 
     expectedAudience: authConfiguration.expectedAudience,
     issueAccessToken: createHmacAccessTokenIssuer(authConfiguration.accessTokenSecret),
     reauthenticationProofSecret: authConfiguration.accessTokenSecret,
+    mediaBlobStore: createProtectedMediaBlobStore(env),
     authenticate: createHmacAccessTokenAuthenticator(
       authConfiguration.accessTokenSecret,
       (accountId, sessionId, currentTime) =>

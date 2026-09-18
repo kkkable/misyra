@@ -98,7 +98,13 @@ interface MediaAssetRow extends QueryResultRow {
   accountId: string;
   purpose: string;
   storageKey: string;
+  originalStorageKey: string | null;
+  thumbnailStorageKey: string | null;
+  derivativeStorageKey: string | null;
+  temporaryStorageKey: string | null;
   deletionDueAt: Date | null;
+  deletionState: string;
+  retryState: string;
   createdAt: Date;
 }
 
@@ -495,7 +501,13 @@ function createBoundRepositories(
              account_id AS "accountId",
              purpose,
              storage_key AS "storageKey",
+             original_storage_key AS "originalStorageKey",
+             thumbnail_storage_key AS "thumbnailStorageKey",
+             derivative_storage_key AS "derivativeStorageKey",
+             temporary_storage_key AS "temporaryStorageKey",
              deletion_due_at AS "deletionDueAt",
+             deletion_state AS "deletionState",
+             retry_state AS "retryState",
              created_at AS "createdAt"
            FROM media_assets
            WHERE id = $1 AND account_id = $2`,

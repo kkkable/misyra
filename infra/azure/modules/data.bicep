@@ -15,12 +15,17 @@ param containerRegistrySkuName string
 param enablePrivateNetworking bool
 param allowPublicDataPlaneAccess bool
 param privateEndpointSubnetId string
+param apiPrincipalId string
 param postgresqlAdministratorLogin string
 
 @secure()
 param postgresqlAdministratorPassword string
 
 var publicNetworkAccess = enablePrivateNetworking || !allowPublicDataPlaneAccess ? 'Disabled' : 'Enabled'
+var storageBlobDataContributorRoleDefinitionId = subscriptionResourceId(
+  'Microsoft.Authorization/roleDefinitions',
+  'ba92f5b4-2d11-453d-a403-e96b0029c9fe'
+)
 
 resource postgresql 'Microsoft.DBforPostgreSQL/flexibleServers@2024-08-01' = {
   name: postgresqlServerName
@@ -124,6 +129,46 @@ resource feedbackRetained 'Microsoft.Storage/storageAccounts/blobServices/contai
   name: 'feedback-retained'
   properties: {
     publicAccess: 'None'
+  }
+}
+
+resource apiEvidenceWorkingBlobDataContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(evidenceWorking.id, apiPrincipalId, storageBlobDataContributorRoleDefinitionId)
+  scope: evidenceWorking
+  properties: {
+    roleDefinitionId: storageBlobDataContributorRoleDefinitionId
+    principalId: apiPrincipalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource apiStoryWorkingBlobDataContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(storyWorking.id, apiPrincipalId, storageBlobDataContributorRoleDefinitionId)
+  scope: storyWorking
+  properties: {
+    roleDefinitionId: storageBlobDataContributorRoleDefinitionId
+    principalId: apiPrincipalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource apiPlannerWorkingBlobDataContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(plannerWorking.id, apiPrincipalId, storageBlobDataContributorRoleDefinitionId)
+  scope: plannerWorking
+  properties: {
+    roleDefinitionId: storageBlobDataContributorRoleDefinitionId
+    principalId: apiPrincipalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource apiStyleReferencesBlobDataContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(styleReferences.id, apiPrincipalId, storageBlobDataContributorRoleDefinitionId)
+  scope: styleReferences
+  properties: {
+    roleDefinitionId: storageBlobDataContributorRoleDefinitionId
+    principalId: apiPrincipalId
+    principalType: 'ServicePrincipal'
   }
 }
 

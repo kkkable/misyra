@@ -582,7 +582,13 @@ export const mediaAssets = pgTable(
       .references(() => accounts.id, { onDelete: 'cascade' }),
     purpose: text('purpose').notNull(),
     storageKey: text('storage_key').notNull(),
+    originalStorageKey: text('original_storage_key'),
+    thumbnailStorageKey: text('thumbnail_storage_key'),
+    derivativeStorageKey: text('derivative_storage_key'),
+    temporaryStorageKey: text('temporary_storage_key'),
     deletionDueAt: timestamp('deletion_due_at', { withTimezone: true }),
+    deletionState: text('deletion_state').notNull().default('active'),
+    retryState: text('retry_state').notNull().default('ready'),
     createdAt: createdAt(),
   },
   (table) => [

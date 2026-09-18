@@ -37,6 +37,7 @@ type ApiRouteBase = {
   method: HTTPMethods | HTTPMethods[];
   path: `/${string}`;
   schema?: FastifySchema;
+  bodyLimit?: number;
 };
 
 export type ApiProtectedRouteDefinition = ApiRouteBase & {
@@ -178,11 +179,22 @@ export function createApiServer(options: ApiServerOptions = {}) {
   const authenticate = options.authenticate ?? (() => null);
   const server = Fastify({
     logger: false,
+    routerOptions: {
+      maxParamLength: 1024,
+    },
     genReqId: (request) => {
       const supplied = request.headers['x-request-id'];
       return isUuid(supplied) ? supplied : randomUUID();
     },
   });
+
+  server.addContentTypeParser(
+    'application/octet-stream',
+    { parseAs: 'buffer' },
+    (_request, body, done) => {
+      done(null, body);
+    },
+  );
 
   server.addHook('onRequest', (request, reply, done) => {
     reply.header('x-request-id', request.id);
@@ -262,6 +274,7 @@ export function createApiServer(options: ApiServerOptions = {}) {
             return successEnvelope(request.id, payload);
           },
           ...(route.schema === undefined ? {} : { schema: route.schema }),
+          ...(route.bodyLimit === undefined ? {} : { bodyLimit: route.bodyLimit }),
         };
         v1.route(routeOptions);
       }

@@ -77,6 +77,7 @@ module data './modules/data.bicep' = {
     enablePrivateNetworking: enablePrivateNetworking
     allowPublicDataPlaneAccess: allowPublicDataPlaneAccess
     privateEndpointSubnetId: network.outputs.privateEndpointsSubnetId
+    apiPrincipalId: compute.outputs.apiPrincipalId
     postgresqlAdministratorLogin: postgresqlAdministratorLogin
     postgresqlAdministratorPassword: postgresqlAdministratorPassword
   }
@@ -92,6 +93,7 @@ module compute './modules/compute.bicep' = {
     cleanupJobName: resourceNames.cleanupJob
     repairJobName: resourceNames.repairJob
     containerAppsSubnetId: network.outputs.containerAppsSubnetId
+    storageAccountName: resourceNames.storageAccount
     apiImage: apiImage
     workerImage: workerImage
     containerCpu: capacitySettings.containerCpu
