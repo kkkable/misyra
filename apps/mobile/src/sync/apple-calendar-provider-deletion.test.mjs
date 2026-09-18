@@ -144,5 +144,4 @@ describe('MTS-077 EventKit provider deletion reconciliation', () => {
       }),
     );
   });
-
 });
