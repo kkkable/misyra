@@ -7,6 +7,7 @@ import { rootSyncRuntime } from './root-sync-runtime.js';
 
 export type SyncRuntime = Readonly<{
   run(): Promise<unknown>;
+  subscribeAppleCalendarStoreChanges?: () => Readonly<{ remove(): void }>;
 }>;
 
 type SyncRuntimeGateProps = PropsWithChildren<{
@@ -76,6 +77,13 @@ export function SyncRuntimeGate({ children, runtime = rootSyncRuntime }: SyncRun
       subscription.remove();
     };
   }, []);
+
+  useEffect(() => {
+    const subscription = runtime.subscribeAppleCalendarStoreChanges?.();
+    return () => {
+      subscription?.remove();
+    };
+  }, [runtime]);
 
   return (
     <QueryClientProvider client={rootSyncQueryClient}>

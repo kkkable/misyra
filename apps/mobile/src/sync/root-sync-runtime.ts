@@ -2,20 +2,27 @@ import { getCalendars } from 'expo-localization';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
+import { AppleCalendarNativeModule } from '../../modules/apple-calendar/index.js';
 import { getAuthApiBaseUrl, rootAuthController } from '../auth/auth-runtime.js';
 import { rootNotificationRebuildLifecycle } from '../notifications/root-notification-rebuild-runtime.js';
 import { openMobileDatabase } from '../storage/database.js';
+import { createAppleCalendarCommandApi } from './apple-calendar-command-api.js';
 import { createAuthenticatedSyncApi } from './authenticated-sync-api.js';
 import {
   createAuthenticatedSyncRuntime,
   createSyncSessionProvider,
 } from './authenticated-sync-runtime.js';
+import { rootAppleCalendarConnectionCache } from './apple-calendar-connection-cache-runtime.js';
+import { createAppleCalendarDeviceRuntime } from './apple-calendar-device-runtime.js';
 import { completionSettlementChannel } from './completion-settlement-runtime.js';
 
 const installationStore = {
   getItem: (key: string) => SecureStore.getItemAsync(key),
   setItem: (key: string, value: string) => SecureStore.setItemAsync(key, value),
 };
+
+const UUID_HEX = '0123456789abcdef';
+const UUID_VARIANTS = '89ab';
 
 function registeredDeviceIdKey(accountId: string) {
   return `misyra.device-id.v1:${accountId}`;
@@ -24,6 +31,17 @@ function registeredDeviceIdKey(accountId: string) {
 function generateInstallationId() {
   const randomPart = Math.random().toString(36).slice(2);
   return `misyra-${Date.now().toString(36)}-${randomPart}`;
+}
+
+function randomHex(length: number): string {
+  return Array.from({ length }, () => UUID_HEX[Math.floor(Math.random() * UUID_HEX.length)]).join(
+    '',
+  );
+}
+
+function generateUuid(): string {
+  const variant = UUID_VARIANTS.charAt(Math.floor(Math.random() * UUID_VARIANTS.length));
+  return `${randomHex(8)}-${randomHex(4)}-4${randomHex(3)}-${variant}${randomHex(3)}-${randomHex(12)}`;
 }
 
 function deviceMetadata() {
@@ -71,16 +89,70 @@ const authenticatedRootSyncRuntime = createAuthenticatedSyncRuntime({
   deviceMetadata,
 });
 
+async function runAuthenticatedSyncAndRebuildNotifications() {
+  const result = await authenticatedRootSyncRuntime.run();
+  if (result !== null) {
+    const timeZoneChanged = result.timeZoneNotice !== undefined && result.timeZoneNotice !== null;
+    await rootNotificationRebuildLifecycle
+      .afterSynchronization(timeZoneChanged)
+      .catch(() => undefined);
+  }
+  return result;
+}
+
+const rootAppleCalendarRuntime = createAppleCalendarDeviceRuntime({
+  platform: Platform.OS,
+  nativeModule: AppleCalendarNativeModule,
+  accountIdProvider: async () => {
+    const authState = await rootAuthController.restore();
+    return authState.status === 'signed_in' ? authState.session.accountId : null;
+  },
+  registeredDeviceIdProvider: (accountId) =>
+    installationStore.getItem(registeredDeviceIdKey(accountId)),
+  remoteConnectionProvider: async (accountId) => {
+    const authState = await rootAuthController.restore();
+    if (authState.status !== 'signed_in' || authState.session.accountId !== accountId) return null;
+    return createAuthenticatedSyncApi({
+      baseUrl: getAuthApiBaseUrl(),
+      accessToken: authState.session.accessToken,
+    }).getConnectedCalendarStatus();
+  },
+  remoteCommandApiProvider: async (accountId) => {
+    const authState = await rootAuthController.restore();
+    if (authState.status !== 'signed_in' || authState.session.accountId !== accountId) return null;
+    return createAppleCalendarCommandApi({
+      baseUrl: getAuthApiBaseUrl(),
+      accessToken: authState.session.accessToken,
+    });
+  },
+  afterProviderChangesQueued: async () => {
+    await runAuthenticatedSyncAndRebuildNotifications();
+  },
+  connectionCache: rootAppleCalendarConnectionCache,
+  openDatabase: openMobileDatabase,
+  generateId: generateUuid,
+});
+
 export const rootSyncRuntime = Object.freeze({
   async run() {
-    const result = await authenticatedRootSyncRuntime.run();
+    let result;
+    try {
+      result = await runAuthenticatedSyncAndRebuildNotifications();
+    } catch (error) {
+      await rootAppleCalendarRuntime.runBestEffortBackground();
+      throw error;
+    }
+
     if (result !== null) {
-      const timeZoneChanged = result.timeZoneNotice !== undefined && result.timeZoneNotice !== null;
-      await rootNotificationRebuildLifecycle
-        .afterSynchronization(timeZoneChanged)
-        .catch(() => undefined);
+      await rootAppleCalendarRuntime.runForeground().catch(() => undefined);
     }
     return result;
+  },
+  runBestEffortAppleCalendarBackground() {
+    return rootAppleCalendarRuntime.runBestEffortBackground();
+  },
+  subscribeAppleCalendarStoreChanges() {
+    return rootAppleCalendarRuntime.subscribeStoreChanges();
   },
 });
 

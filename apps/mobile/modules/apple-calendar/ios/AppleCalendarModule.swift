@@ -7,6 +7,7 @@ private enum AppleCalendarNativeError: String, LocalizedError {
   case calendarNotFound = "calendar_not_found"
   case eventNotFound = "event_not_found"
   case noWritableCalendarSource = "no_writable_calendar_source"
+  case unsupportedRecurrenceScope = "unsupported_recurrence_scope"
 
   var errorDescription: String? { rawValue }
 }
@@ -88,24 +89,25 @@ public final class AppleCalendarModule: Module {
     }
 
     AsyncFunction("fetchEvents") {
-      (calendarIdentifier: String, startInstant: String, endInstant: String) throws -> [[String: Any?]] in
+      (calendarIdentifier: String, startDate: String, endDate: String) throws -> [[String: Any?]] in
       guard let calendar = self.eventStore.calendar(withIdentifier: calendarIdentifier) else {
         throw AppleCalendarNativeError.calendarNotFound
       }
-      guard
-        let start = AppleCalendarDateCodec.instant(startInstant),
-        let end = AppleCalendarDateCodec.instant(endInstant),
-        end > start
-      else {
-        throw AppleCalendarPayloadError.invalidField("fetch_range")
-      }
-
+      let start = try AppleCalendarDateCodec.instant(startDate)
+      let end = try AppleCalendarDateCodec.instant(endDate)
       let predicate = self.eventStore.predicateForEvents(
         withStart: start,
         end: end,
         calendars: [calendar]
       )
       return try self.eventStore.events(matching: predicate).map(self.eventDictionary)
+    }
+
+    AsyncFunction("fetchEvent") { (eventIdentifier: String) throws -> [String: Any?]? in
+      guard let event = self.eventStore.event(withIdentifier: eventIdentifier) else {
+        return nil
+      }
+      return try self.eventDictionary(event)
     }
 
     AsyncFunction("createEvent") {
@@ -122,21 +124,45 @@ public final class AppleCalendarModule: Module {
     }
 
     AsyncFunction("updateEvent") {
-      (eventIdentifier: String, payload: [String: Any]) throws -> [String: Any?] in
+      (
+        eventIdentifier: String,
+        payload: [String: Any],
+        recurrenceScope: String?
+      ) throws -> [String: Any?] in
       guard let event = self.eventStore.event(withIdentifier: eventIdentifier) else {
         throw AppleCalendarNativeError.eventNotFound
       }
 
       try AppleCalendarEventPayload.apply(payload, to: event)
-      try self.eventStore.save(event, span: .thisEvent, commit: true)
+      try self.eventStore.save(
+        event,
+        span: try self.eventSpan(recurrenceScope),
+        commit: true
+      )
       return try self.eventDictionary(event)
     }
 
-    AsyncFunction("deleteEvent") { (eventIdentifier: String) throws in
+    AsyncFunction("deleteEvent") {
+      (eventIdentifier: String, recurrenceScope: String?) throws in
       guard let event = self.eventStore.event(withIdentifier: eventIdentifier) else {
-        throw AppleCalendarNativeError.eventNotFound
+        return
       }
-      try self.eventStore.remove(event, span: .thisEvent, commit: true)
+      try self.eventStore.remove(
+        event,
+        span: try self.eventSpan(recurrenceScope),
+        commit: true
+      )
+    }
+  }
+
+  private func eventSpan(_ recurrenceScope: String?) throws -> EKSpan {
+    switch recurrenceScope {
+    case nil, "this_occurrence":
+      return .thisEvent
+    case "this_and_future", "entire_series":
+      return .futureEvents
+    default:
+      throw AppleCalendarNativeError.unsupportedRecurrenceScope
     }
   }
 

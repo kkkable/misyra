@@ -2,9 +2,11 @@ import {
   SyncDeviceOwnershipError,
   SyncMutationConflictError,
   SyncMutationValidationError,
-  createPostgresSyncStore,
+  createPostgresAppleCalendarDeviceCommandStore,
+  createPostgresEventKitSyncStore,
   type PostgresSyncStore,
 } from '@misyra/database';
+import { calendarCommandSchema, type CalendarCommandResult } from '@misyra/contracts';
 import type { Pool } from 'pg';
 
 import { ApiError } from './index.js';
@@ -41,7 +43,36 @@ async function mapStoreErrors<T>(work: () => Promise<T>): Promise<T> {
   }
 }
 
-export function createSyncService(store: PostgresSyncStore): SyncRouteServices {
+type AppleCommandClaim = Readonly<{
+  claimToken: string;
+  occurrenceId: string;
+  providerCalendarId: string;
+  command: unknown;
+}>;
+
+type AppleCommandSettlement =
+  | Readonly<{
+      commandId: string;
+      claimToken: string;
+      status: 'applied';
+      providerEventId: string;
+    }>
+  | Readonly<{
+      commandId: string;
+      claimToken: string;
+      status: 'failed';
+      errorCode: string;
+    }>;
+
+type AppleCommandService = Readonly<{
+  claimNext(accountId: string): Promise<AppleCommandClaim | null>;
+  settle(accountId: string, input: AppleCommandSettlement): Promise<void>;
+}>;
+
+export function createSyncService(
+  store: PostgresSyncStore,
+  appleCommands?: AppleCommandService,
+): SyncRouteServices {
   return {
     push: async (accountId, mutations) => {
       const acceptedMutationIds: string[] = [];
@@ -99,9 +130,37 @@ export function createSyncService(store: PostgresSyncStore): SyncRouteServices {
           nextCursor: snapshot.nextCursor,
         };
       }),
+
+    ...(appleCommands === undefined
+      ? {}
+      : {
+          claimAppleCalendarCommand: (accountId: string) =>
+            mapStoreErrors(async () => {
+              const claim = await appleCommands.claimNext(accountId);
+              if (claim === null) return null;
+              return {
+                ...claim,
+                command: calendarCommandSchema.parse(claim.command),
+              };
+            }),
+          settleAppleCalendarCommand: (
+            accountId: string,
+            claimToken: string,
+            result: CalendarCommandResult,
+          ) =>
+            mapStoreErrors(() =>
+              appleCommands.settle(accountId, {
+                ...result,
+                claimToken,
+              }),
+            ),
+        }),
   };
 }
 
 export function createPostgresSyncService(pool: Pool) {
-  return createSyncService(createPostgresSyncStore(pool));
+  return createSyncService(
+    createPostgresEventKitSyncStore(pool),
+    createPostgresAppleCalendarDeviceCommandStore(pool),
+  );
 }

@@ -70,6 +70,38 @@ function syncApi(change) {
   };
 }
 
+function timedOccurrence({
+  occurrenceId,
+  seriesId,
+  calendarSource = 'internal',
+  fieldOwnership = 'app_owned',
+}) {
+  return {
+    id: occurrenceId,
+    seriesId,
+    schedule: {
+      localStart: '2026-09-07T09:00:00',
+      localFinish: '2026-09-07T09:30:00',
+      startInstant: '2026-09-07T01:00:00.000Z',
+      finishInstant: '2026-09-07T01:30:00.000Z',
+      timeZone: 'Asia/Hong_Kong',
+      timeBehavior: 'local_time',
+      allDay: false,
+      estimatedEffortMinutes: null,
+    },
+    scheduleState: 'scheduled',
+    completionState: 'incomplete',
+    evidenceState: 'not_submitted',
+    rewardEligibility: 'eligible',
+    rewardIssuance: 'not_issued',
+    calendarSource,
+    fieldOwnership,
+    synchronizationState: 'synced',
+    storyState: 'none',
+    deletionState: 'active',
+  };
+}
+
 describe('authenticated mission synchronization', () => {
   it('projects an authoritative timed mission upsert into Calendar and search read models', async () => {
     const database = createDatabase();
@@ -84,30 +116,7 @@ describe('authenticated mission synchronization', () => {
     );
     const payload = {
       series: { id: seriesId, title: 'Morning mission', recurrence: null },
-      occurrence: {
-        id: occurrenceId,
-        seriesId,
-        schedule: {
-          localStart: '2026-09-07T09:00:00',
-          localFinish: '2026-09-07T09:30:00',
-          startInstant: '2026-09-07T01:00:00.000Z',
-          finishInstant: '2026-09-07T01:30:00.000Z',
-          timeZone: 'Asia/Hong_Kong',
-          timeBehavior: 'local_time',
-          allDay: false,
-          estimatedEffortMinutes: null,
-        },
-        scheduleState: 'scheduled',
-        completionState: 'incomplete',
-        evidenceState: 'not_submitted',
-        rewardEligibility: 'eligible',
-        rewardIssuance: 'not_issued',
-        calendarSource: 'internal',
-        fieldOwnership: 'app_owned',
-        synchronizationState: 'synced',
-        storyState: 'none',
-        deletionState: 'active',
-      },
+      occurrence: timedOccurrence({ occurrenceId, seriesId }),
       location: null,
       notes: null,
     };
@@ -228,5 +237,76 @@ describe('authenticated mission synchronization', () => {
       general_note: 'Bring documents',
       personal_note: null,
     });
+  });
+
+  it('projects authoritative Apple provider identifiers into the local external link read model', async () => {
+    const database = createDatabase();
+    await applyMobileMigrations(database);
+    const accountId = '11111111-1111-4111-8111-111111111111';
+    const seriesId = '77777777-7777-4777-8777-777777777777';
+    const occurrenceId = '88888888-8888-4888-8888-888888888888';
+    const connectionId = '99999999-9999-4999-8999-999999999999';
+    await database.runAsync(
+      'INSERT INTO local_accounts (account_id, created_at) VALUES (?, ?)',
+      accountId,
+      '2026-09-16T00:00:00.000Z',
+    );
+    const api = syncApi({
+      sequence: 1,
+      entityType: 'mission',
+      entityId: occurrenceId,
+      operation: 'upsert',
+      payload: {
+        version: 4,
+        series: { id: seriesId, title: 'Imported Apple event', recurrence: null },
+        occurrence: timedOccurrence({
+          occurrenceId,
+          seriesId,
+          calendarSource: 'external',
+          fieldOwnership: 'organizer_controlled',
+        }),
+        location: 'Tokyo',
+        notes: 'Provider text',
+        providerLink: {
+          connectionId,
+          provider: 'apple',
+          providerCalendarId: 'apple-calendar-1',
+          providerEventId: 'apple-event-1',
+          ownership: 'organizer_controlled',
+        },
+      },
+    });
+
+    await expect(runAuthenticatedServerSync({ database, accountId, api })).resolves.toEqual({
+      settledMutations: 0,
+      cursor: 1,
+    });
+
+    const link = await database.getFirstAsync(
+      `SELECT occurrence_id, provider, external_event_id, payload_json
+         FROM external_links
+        WHERE account_id = ? AND occurrence_id = ?`,
+      accountId,
+      occurrenceId,
+    );
+    expect(link).toMatchObject({
+      occurrence_id: occurrenceId,
+      provider: 'apple',
+      external_event_id: 'apple-event-1',
+    });
+    expect(JSON.parse(link.payload_json)).toEqual({
+      connectionId,
+      providerCalendarId: 'apple-calendar-1',
+      ownership: 'organizer_controlled',
+    });
+    await expect(
+      database.getFirstAsync(
+        `SELECT provider_text, general_note
+           FROM search_documents
+          WHERE account_id = ? AND occurrence_id = ?`,
+        accountId,
+        occurrenceId,
+      ),
+    ).resolves.toEqual({ provider_text: 'Provider text', general_note: null });
   });
 });

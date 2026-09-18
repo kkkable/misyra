@@ -12,6 +12,7 @@ import { createSecureSessionStorage } from './secure-session-storage.js';
 import { createSignOutCleanup } from './sign-out-cleanup.js';
 import { rootMissionNotificationScheduler } from '../notifications/expo-mission-notifications.js';
 import { openMobileDatabase } from '../storage/database.js';
+import { rootAppleCalendarConnectionCache } from '../sync/apple-calendar-connection-cache-runtime.js';
 
 let providerGateway: ProviderSignInGateway | null = null;
 let apiBaseUrl = 'http://127.0.0.1:3000';
@@ -64,6 +65,7 @@ export const rootAuthController = createAuthSessionController({
       cancelNotifications: async () => {
         await rootMissionNotificationScheduler.cancelAll();
       },
+      clearAppKeys: (accountId) => rootAppleCalendarConnectionCache.clear(accountId),
     },
   }),
   messages: { signInFailed: rootAuthMessages.signInFailed },

@@ -52,6 +52,14 @@ type ServerSyncRunner = (
   }>,
 ) => Promise<Readonly<{ settledMutations: number; cursor: number }>>;
 
+type AppleProviderLink = Readonly<{
+  connectionId: string;
+  provider: 'apple';
+  providerCalendarId: string;
+  providerEventId: string;
+  ownership: 'app_owned' | 'organizer_controlled';
+}>;
+
 type MissionProjection = Readonly<{
   mission: Readonly<{
     series: MissionSeries;
@@ -59,6 +67,7 @@ type MissionProjection = Readonly<{
   }>;
   location: string | null;
   notes: string | null;
+  providerLink: AppleProviderLink | null;
   version: number;
 }>;
 
@@ -198,6 +207,50 @@ function missionVersion(payload: Record<string, unknown>): number {
   return value;
 }
 
+function nonEmptyPayloadString(
+  payload: Record<string, unknown>,
+  key: string,
+  label: string,
+): string {
+  const value = payload[key];
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    throw new Error(`${label} must be a non-empty string.`);
+  }
+  return value;
+}
+
+function appleProviderLinkFromPayload(
+  payload: Record<string, unknown>,
+  occurrence: MissionOccurrence,
+): AppleProviderLink | null {
+  const value = payload.providerLink;
+  if (value === undefined || value === null) return null;
+  if (typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error('Mission change providerLink must be an object.');
+  }
+  const source = value as Record<string, unknown>;
+  if (source.provider !== 'apple') {
+    throw new Error('Mission change providerLink provider must be apple.');
+  }
+  if (source.ownership !== 'app_owned' && source.ownership !== 'organizer_controlled') {
+    throw new Error('Mission change providerLink ownership is invalid.');
+  }
+  if (source.ownership !== occurrence.fieldOwnership) {
+    throw new Error('Mission change providerLink ownership must match field ownership.');
+  }
+  return {
+    connectionId: nonEmptyPayloadString(source, 'connectionId', 'Apple connection id'),
+    provider: 'apple',
+    providerCalendarId: nonEmptyPayloadString(
+      source,
+      'providerCalendarId',
+      'Apple provider calendar id',
+    ),
+    providerEventId: nonEmptyPayloadString(source, 'providerEventId', 'Apple provider event id'),
+    ownership: source.ownership,
+  };
+}
+
 function missionFromChange(change: ServerAccountChange): MissionProjection | null {
   if (change.entityType !== 'mission') return null;
   if (change.operation !== 'upsert') throw new Error('Unsupported mission change operation.');
@@ -235,6 +288,7 @@ function missionFromChange(change: ServerAccountChange): MissionProjection | nul
     mission,
     location: optionalPayloadString(payload, 'location'),
     notes: optionalPayloadString(payload, 'notes'),
+    providerLink: appleProviderLinkFromPayload(payload, occurrence),
     version: missionVersion(payload),
   };
 }
@@ -245,7 +299,7 @@ async function applyMissionProjection(
   projection: MissionProjection,
   updatedAt: string,
 ) {
-  const { mission, location, notes, version } = projection;
+  const { mission, location, notes, providerLink, version } = projection;
   const tombstone = await transaction.getFirstAsync<{ occurrence_id: string }>(
     `SELECT occurrence_id
        FROM mission_occurrence_tombstones
@@ -321,6 +375,26 @@ async function applyMissionProjection(
     generalNote,
     updatedAt,
   );
+  if (providerLink !== null) {
+    await transaction.runAsync(
+      `INSERT INTO external_links
+        (account_id, occurrence_id, provider, external_event_id, payload_json, updated_at)
+       VALUES (?, ?, 'apple', ?, ?, ?)
+       ON CONFLICT(account_id, occurrence_id, provider) DO UPDATE SET
+         external_event_id = excluded.external_event_id,
+         payload_json = excluded.payload_json,
+         updated_at = excluded.updated_at`,
+      accountId,
+      mission.occurrence.id,
+      providerLink.providerEventId,
+      JSON.stringify({
+        connectionId: providerLink.connectionId,
+        providerCalendarId: providerLink.providerCalendarId,
+        ownership: providerLink.ownership,
+      }),
+      updatedAt,
+    );
+  }
 }
 
 async function applyMissionPersonalNoteProjection(
