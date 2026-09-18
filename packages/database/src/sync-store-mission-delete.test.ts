@@ -253,12 +253,7 @@ describe('MTS-048 mission deletion synchronization', () => {
          $3, $3, 'uploaded',
          'accepted', $4
        )`,
-      [
-        account.id,
-        occurrenceId,
-        '2026-09-08T08:02:00.000Z',
-        '2026-10-08T08:02:00.000Z',
-      ],
+      [account.id, occurrenceId, '2026-09-08T08:02:00.000Z', '2026-10-08T08:02:00.000Z'],
     );
     await pool.query(
       `INSERT INTO story_drafts (id, account_id, occurrence_id, state, ai_generation_count)
