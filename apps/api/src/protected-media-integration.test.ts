@@ -10,8 +10,10 @@ const postgresUser = process.env.POSTGRES_USER ?? 'misyra';
 const postgresPassword = process.env.POSTGRES_PASSWORD ?? 'misyra-local-only';
 const postgresPort = process.env.POSTGRES_PORT ?? '5432';
 const databaseName = `misyra_mts078_${randomUUID().replaceAll('-', '')}`;
-const databaseUrl =\n  `postgresql://${postgresUser}:${postgresPassword}@127.0.0.1:${postgresPort}/${databaseName}`;
-const adminUrl =\n  `postgresql://${postgresUser}:${postgresPassword}@127.0.0.1:${postgresPort}/postgres`;
+const databaseUrl =
+  `postgresql://${postgresUser}:${postgresPassword}@127.0.0.1:${postgresPort}/${databaseName}`;
+const adminUrl =
+  `postgresql://${postgresUser}:${postgresPassword}@127.0.0.1:${postgresPort}/postgres`;
 const azuritePort = process.env.AZURITE_BLOB_PORT ?? '10000';
 const azuriteAccount = 'devstoreaccount1';
 const azuriteKey =
@@ -145,7 +147,10 @@ function createServer(activeAccount: { value: string }, auditLog = vi.fn()) {
   };
 }
 
-async function authorizeOriginalUpload(\n  server: ReturnType<typeof createApiApplication>,\n  assetId: string,\n) {
+async function authorizeOriginalUpload(
+  server: ReturnType<typeof createApiApplication>,
+  assetId: string,
+) {
   const response = await server.inject({
     method: 'POST',
     url: `/v1/media/assets/${assetId}/upload-authorizations`,
@@ -223,31 +228,33 @@ describe('MTS-078 protected media upload service', () => {
     await server.close();
   });
 
-  it(\n    'rejects cross-account authorization and token replay without disclosing another account asset',\n    async () => {
-    const activeAccount = { value: accountA };
-    const assetId = randomUUID();
-    const { server } = createServer(activeAccount);
-    const authorization = await authorizeOriginalUpload(server, assetId);
+  it(
+    'rejects cross-account authorization and token replay without disclosing another account asset',
+    async () => {
+      const activeAccount = { value: accountA };
+      const assetId = randomUUID();
+      const { server } = createServer(activeAccount);
+      const authorization = await authorizeOriginalUpload(server, assetId);
 
-    activeAccount.value = accountB;
-    const crossAccountAuthorization = await server.inject({
-      method: 'POST',
-      url: `/v1/media/assets/${assetId}/upload-authorizations`,
-      payload: {
-        purpose: 'evidence-working',
-        variant: 'original',
-        contentType: 'image/jpeg',
-      },
-    });
-    const crossAccountUpload = await server.inject({
-      method: 'PUT',
-      url: authorization.uploadPath,
-      headers: { 'content-type': 'application/octet-stream' },
-      payload: Buffer.from('private-media'),
-    });
+      activeAccount.value = accountB;
+      const crossAccountAuthorization = await server.inject({
+        method: 'POST',
+        url: `/v1/media/assets/${assetId}/upload-authorizations`,
+        payload: {
+          purpose: 'evidence-working',
+          variant: 'original',
+          contentType: 'image/jpeg',
+        },
+      });
+      const crossAccountUpload = await server.inject({
+        method: 'PUT',
+        url: authorization.uploadPath,
+        headers: { 'content-type': 'application/octet-stream' },
+        payload: Buffer.from('private-media'),
+      });
 
-    expect(crossAccountAuthorization.statusCode).toBe(404);
-    expect(crossAccountAuthorization.json()).toMatchObject({ error: { code: 'not_found' } });
+      expect(crossAccountAuthorization.statusCode).toBe(404);
+      expect(crossAccountAuthorization.json()).toMatchObject({ error: { code: 'not_found' } });
       expect(crossAccountUpload.statusCode).toBe(404);
       expect(crossAccountUpload.json()).toMatchObject({ error: { code: 'not_found' } });
       await server.close();
@@ -275,7 +282,9 @@ describe('MTS-078 protected media upload service', () => {
     });
 
     const registry = await pool.query<{ storageKey: string }>(
-      `SELECT original_storage_key AS "storageKey"\n         FROM media_assets\n        WHERE id = $1 AND account_id = $2`,
+      `SELECT original_storage_key AS "storageKey"
+         FROM media_assets
+        WHERE id = $1 AND account_id = $2`,
       [assetId, accountA],
     );
     const storageKey = registry.rows[0]?.storageKey;
