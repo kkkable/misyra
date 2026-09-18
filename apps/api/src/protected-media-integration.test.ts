@@ -180,79 +180,79 @@ async function authorizeOriginalUpload(
 
 describe('MTS-078 protected media upload service', () => {
   it('binds a short-lived upload authorization to account, purpose, asset, and variant', async () => {
-      const activeAccount = { value: accountA };
-      const assetId = randomUUID();
-      const { server } = createServer(activeAccount);
+    const activeAccount = { value: accountA };
+    const assetId = randomUUID();
+    const { server } = createServer(activeAccount);
 
-      await authorizeOriginalUpload(server, assetId);
+    await authorizeOriginalUpload(server, assetId);
 
-      const result = await pool.query<{
-        accountId: string;
-        purpose: string;
-        originalStorageKey: string | null;
-        thumbnailStorageKey: string | null;
-        derivativeStorageKey: string | null;
-        temporaryStorageKey: string | null;
-        deletionDueAt: Date | null;
-        deletionState: string;
-        retryState: string;
-      }>(
-        `SELECT
-           account_id AS "accountId",
-           purpose,
-           original_storage_key AS "originalStorageKey",
-           thumbnail_storage_key AS "thumbnailStorageKey",
-           derivative_storage_key AS "derivativeStorageKey",
-           temporary_storage_key AS "temporaryStorageKey",
-           deletion_due_at AS "deletionDueAt",
-           deletion_state AS "deletionState",
-           retry_state AS "retryState"
-         FROM media_assets
-         WHERE id = $1`,
-        [assetId],
-      );
+    const result = await pool.query<{
+      accountId: string;
+      purpose: string;
+      originalStorageKey: string | null;
+      thumbnailStorageKey: string | null;
+      derivativeStorageKey: string | null;
+      temporaryStorageKey: string | null;
+      deletionDueAt: Date | null;
+      deletionState: string;
+      retryState: string;
+    }>(
+      `SELECT
+         account_id AS "accountId",
+         purpose,
+         original_storage_key AS "originalStorageKey",
+         thumbnail_storage_key AS "thumbnailStorageKey",
+         derivative_storage_key AS "derivativeStorageKey",
+         temporary_storage_key AS "temporaryStorageKey",
+         deletion_due_at AS "deletionDueAt",
+         deletion_state AS "deletionState",
+         retry_state AS "retryState"
+       FROM media_assets
+       WHERE id = $1`,
+      [assetId],
+    );
 
-      expect(result.rows[0]).toMatchObject({
-        accountId: accountA,
-        purpose: 'evidence-working',
-        originalStorageKey: `${accountA}/${assetId}/original`,
-        thumbnailStorageKey: null,
-        derivativeStorageKey: null,
-        temporaryStorageKey: null,
-        deletionState: 'active',
-        retryState: 'ready',
-      });
-      expect(result.rows[0]?.deletionDueAt?.toISOString()).toBe('2026-10-18T10:00:00.000Z');
-      await server.close();
+    expect(result.rows[0]).toMatchObject({
+      accountId: accountA,
+      purpose: 'evidence-working',
+      originalStorageKey: `${accountA}/${assetId}/original`,
+      thumbnailStorageKey: null,
+      derivativeStorageKey: null,
+      temporaryStorageKey: null,
+      deletionState: 'active',
+      retryState: 'ready',
+    });
+    expect(result.rows[0]?.deletionDueAt?.toISOString()).toBe('2026-10-18T10:00:00.000Z');
+    await server.close();
   });
 
   it('rejects cross-account authorization and token replay without disclosing another account asset', async () => {
-      const activeAccount = { value: accountA };
-      const assetId = randomUUID();
-      const { server } = createServer(activeAccount);
-      const authorization = await authorizeOriginalUpload(server, assetId);
+    const activeAccount = { value: accountA };
+    const assetId = randomUUID();
+    const { server } = createServer(activeAccount);
+    const authorization = await authorizeOriginalUpload(server, assetId);
 
-      activeAccount.value = accountB;
-      const crossAccountAuthorization = await server.inject({
-        method: 'POST',
-        url: `/v1/media/assets/${assetId}/upload-authorizations`,
-        payload: {
-          purpose: 'evidence-working',
-          variant: 'original',
-          contentType: 'image/jpeg',
-        },
-      });
-      const crossAccountUpload = await server.inject({
-        method: 'PUT',
-        url: authorization.uploadPath,
-        headers: { 'content-type': 'application/octet-stream' },
-        payload: Buffer.from('private-media'),
-      });
+    activeAccount.value = accountB;
+    const crossAccountAuthorization = await server.inject({
+      method: 'POST',
+      url: `/v1/media/assets/${assetId}/upload-authorizations`,
+      payload: {
+        purpose: 'evidence-working',
+        variant: 'original',
+        contentType: 'image/jpeg',
+      },
+    });
+    const crossAccountUpload = await server.inject({
+      method: 'PUT',
+      url: authorization.uploadPath,
+      headers: { 'content-type': 'application/octet-stream' },
+      payload: Buffer.from('private-media'),
+    });
 
-      expect(crossAccountAuthorization.statusCode).toBe(404);
-      expect(crossAccountAuthorization.json()).toMatchObject({ error: { code: 'not_found' } });
-      expect(crossAccountUpload.statusCode).toBe(404);
-      expect(crossAccountUpload.json()).toMatchObject({ error: { code: 'not_found' } });
+    expect(crossAccountAuthorization.statusCode).toBe(404);
+    expect(crossAccountAuthorization.json()).toMatchObject({ error: { code: 'not_found' } });
+    expect(crossAccountUpload.statusCode).toBe(404);
+    expect(crossAccountUpload.json()).toMatchObject({ error: { code: 'not_found' } });
     await server.close();
   });
 
