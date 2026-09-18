@@ -302,7 +302,7 @@ export function createProtectedMediaService(options: ProtectedMediaServiceOption
     async authorizeUpload(
       accountId: string,
       assetId: string,
-      input: Readonly<{ purpose: unknown; variant: unknown; contentType: unknown }>,
+      input: Readonly<{ purpose?: unknown; variant?: unknown; contentType?: unknown }>,
     ) {
       if (
         !UUID_PATTERN.test(assetId) ||
