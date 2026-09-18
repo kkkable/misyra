@@ -58,7 +58,7 @@ function signedAzuriteHeaders(
   additionalHeaders: Record<string, string> = {},
 ) {
   const headers: Record<string, string> = {
-    'x-ms-date': apiNow.toUTCString(),
+    'x-ms-date': new Date().toUTCString(),
     'x-ms-version': '2023-11-03',
     ...additionalHeaders,
   };
@@ -184,49 +184,49 @@ describe('MTS-078 protected media upload service', () => {
   it(
     'binds a short-lived upload authorization to account, purpose, asset, and variant',
     async () => {
-    const activeAccount = { value: accountA };
-    const assetId = randomUUID();
-    const { server } = createServer(activeAccount);
+      const activeAccount = { value: accountA };
+      const assetId = randomUUID();
+      const { server } = createServer(activeAccount);
 
-    await authorizeOriginalUpload(server, assetId);
+      await authorizeOriginalUpload(server, assetId);
 
-    const result = await pool.query<{
-      accountId: string;
-      purpose: string;
-      originalStorageKey: string | null;
-      thumbnailStorageKey: string | null;
-      derivativeStorageKey: string | null;
-      temporaryStorageKey: string | null;
-      deletionDueAt: Date | null;
-      deletionState: string;
-      retryState: string;
-    }>(
-      `SELECT
-         account_id AS "accountId",
-         purpose,
-         original_storage_key AS "originalStorageKey",
-         thumbnail_storage_key AS "thumbnailStorageKey",
-         derivative_storage_key AS "derivativeStorageKey",
-         temporary_storage_key AS "temporaryStorageKey",
-         deletion_due_at AS "deletionDueAt",
-         deletion_state AS "deletionState",
-         retry_state AS "retryState"
-       FROM media_assets
-       WHERE id = $1`,
-      [assetId],
-    );
+      const result = await pool.query<{
+        accountId: string;
+        purpose: string;
+        originalStorageKey: string | null;
+        thumbnailStorageKey: string | null;
+        derivativeStorageKey: string | null;
+        temporaryStorageKey: string | null;
+        deletionDueAt: Date | null;
+        deletionState: string;
+        retryState: string;
+      }>(
+        `SELECT
+           account_id AS "accountId",
+           purpose,
+           original_storage_key AS "originalStorageKey",
+           thumbnail_storage_key AS "thumbnailStorageKey",
+           derivative_storage_key AS "derivativeStorageKey",
+           temporary_storage_key AS "temporaryStorageKey",
+           deletion_due_at AS "deletionDueAt",
+           deletion_state AS "deletionState",
+           retry_state AS "retryState"
+         FROM media_assets
+         WHERE id = $1`,
+        [assetId],
+      );
 
-    expect(result.rows[0]).toMatchObject({
-      accountId: accountA,
-      purpose: 'evidence-working',
-      originalStorageKey: `${accountA}/${assetId}/original`,
-      thumbnailStorageKey: null,
-      derivativeStorageKey: null,
-      temporaryStorageKey: null,
-      deletionState: 'active',
-      retryState: 'ready',
-    });
-    expect(result.rows[0]?.deletionDueAt?.toISOString()).toBe('2026-10-18T10:00:00.000Z');
+      expect(result.rows[0]).toMatchObject({
+        accountId: accountA,
+        purpose: 'evidence-working',
+        originalStorageKey: `${accountA}/${assetId}/original`,
+        thumbnailStorageKey: null,
+        derivativeStorageKey: null,
+        temporaryStorageKey: null,
+        deletionState: 'active',
+        retryState: 'ready',
+      });
+      expect(result.rows[0]?.deletionDueAt?.toISOString()).toBe('2026-10-18T10:00:00.000Z');
       await server.close();
     },
   );
