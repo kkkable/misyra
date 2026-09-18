@@ -13,6 +13,10 @@ type CalendarConnectionRow = Readonly<{
 type MediaAssetRow = Readonly<{
   id: string;
   storageKey: string;
+  originalStorageKey: string | null;
+  thumbnailStorageKey: string | null;
+  derivativeStorageKey: string | null;
+  temporaryStorageKey: string | null;
 }>;
 
 export async function deleteAccountTransaction(
@@ -32,7 +36,13 @@ export async function deleteAccountTransaction(
       [accountId],
     );
     const media = await client.query<MediaAssetRow>(
-      `SELECT id, storage_key AS "storageKey"
+      `SELECT
+         id,
+         storage_key AS "storageKey",
+         original_storage_key AS "originalStorageKey",
+         thumbnail_storage_key AS "thumbnailStorageKey",
+         derivative_storage_key AS "derivativeStorageKey",
+         temporary_storage_key AS "temporaryStorageKey"
          FROM media_assets
         WHERE account_id = $1
         FOR UPDATE`,
@@ -50,21 +60,32 @@ export async function deleteAccountTransaction(
     );
 
     for (const asset of media.rows) {
-      await client.query(
-        `INSERT INTO outbox_events
-           (id, account_id, event_type, aggregate_type, aggregate_id, payload)
-         VALUES ($1, NULL, 'account.product_media.delete', 'media_asset', $2, $3)`,
+      const storageKeys = new Set(
         [
-          randomUUID(),
-          asset.id,
-          {
-            protectedReference: {
-              kind: 'media_storage_key',
-              id: asset.storageKey,
-            },
-          },
-        ],
+          asset.storageKey,
+          asset.originalStorageKey,
+          asset.thumbnailStorageKey,
+          asset.derivativeStorageKey,
+          asset.temporaryStorageKey,
+        ].filter((value): value is string => value !== null),
       );
+      for (const storageKey of storageKeys) {
+        await client.query(
+          `INSERT INTO outbox_events
+             (id, account_id, event_type, aggregate_type, aggregate_id, payload)
+           VALUES ($1, NULL, 'account.product_media.delete', 'media_asset', $2, $3)`,
+          [
+            randomUUID(),
+            asset.id,
+            {
+              protectedReference: {
+                kind: 'media_storage_key',
+                id: storageKey,
+              },
+            },
+          ],
+        );
+      }
     }
 
     for (const connection of connections.rows) {
