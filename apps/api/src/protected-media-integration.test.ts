@@ -77,8 +77,7 @@ function signedAzuriteHeaders(
     '',
     '',
   ];
-  const stringToSign =
-    `${standardFields.join('\n')}\n${canonicalizedHeaders(headers)}${canonicalizedResource(url)}`;
+  const stringToSign = `${standardFields.join('\n')}\n${canonicalizedHeaders(headers)}${canonicalizedResource(url)}`;
   const signature = createHmac('sha256', Buffer.from(azuriteKey, 'base64'))
     .update(stringToSign, 'utf8')
     .digest('base64');
