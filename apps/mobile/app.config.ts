@@ -16,6 +16,17 @@ const eventKitInfoPlist = eventKitPermissionCopy
 
 export default ({ config }: ConfigContext) => ({
   ...config,
+  plugins: [
+    ...(config.plugins ?? []),
+    [
+      'expo-camera',
+      {
+        cameraPermission: 'Allow Misyra to use the camera to capture mission evidence.',
+        recordAudioAndroid: false,
+        barcodeScannerEnabled: false,
+      },
+    ],
+  ],
   android: {
     ...config.android,
     permissions: Array.from(
