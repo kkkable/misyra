@@ -38,6 +38,9 @@ async function seedOccurrence(
   const occurrenceId = randomUUID();
   const finishAt = input.finishAt ?? '2026-09-18T09:00:00.000Z';
   const startAt = new Date(new Date(finishAt).getTime() - 60 * 60 * 1_000).toISOString();
+  const localDate = finishAt.slice(0, 10);
+  const localStart = startAt.replace(/\.\d{3}Z$/, '');
+  const localFinish = finishAt.replace(/\.\d{3}Z$/, '');
 
   await pool.query(
     `INSERT INTO mission_series (id, account_id, title)
@@ -50,13 +53,16 @@ async function seedOccurrence(
        start_instant, finish_instant, time_zone, time_behavior, all_day,
        completion_state
      ) VALUES (
-       $1, $2, $3, '2026-09-18', '08:00:00', '09:00:00',
-       $4, $5, 'UTC', 'fixed_instant', false, $6
+       $1, $2, $3, $4, $5, $6,
+       $7, $8, 'UTC', 'fixed_instant', false, $9
      )`,
     [
       occurrenceId,
       accountId,
       seriesId,
+      localDate,
+      localStart,
+      localFinish,
       startAt,
       finishAt,
       input.completed === true ? 'completed' : 'incomplete',
