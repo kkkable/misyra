@@ -15,16 +15,17 @@ export function createProtectedMediaRoutes(service: ProtectedMediaService): ApiR
       path: '/media/assets/:assetId/upload-authorizations',
       handler: async (request, _reply, auth) => {
         const params = request.params as { assetId?: unknown };
+        const assetId = typeof params.assetId === 'string' ? params.assetId : '';
+        const body =
+          typeof request.body === 'object' && request.body !== null
+            ? (request.body as {
+                purpose?: unknown;
+                variant?: unknown;
+                contentType?: unknown;
+              })
+            : {};
         try {
-          return await service.authorizeUpload(
-            auth.accountId,
-            String(params.assetId ?? ''),
-            request.body as {
-              purpose?: unknown;
-              variant?: unknown;
-              contentType?: unknown;
-            },
-          );
+          return await service.authorizeUpload(auth.accountId, assetId, body);
         } catch (error) {
           return mapError(error);
         }
@@ -36,8 +37,9 @@ export function createProtectedMediaRoutes(service: ProtectedMediaService): ApiR
       bodyLimit: 12 * 1024 * 1024,
       handler: async (request, _reply, auth) => {
         const params = request.params as { token?: unknown };
+        const token = typeof params.token === 'string' ? params.token : '';
         try {
-          return await service.upload(auth.accountId, String(params.token ?? ''), request.body);
+          return await service.upload(auth.accountId, token, request.body);
         } catch (error) {
           return mapError(error);
         }
