@@ -14,6 +14,7 @@ export type EvidenceCaptureRuntime = Readonly<{
     getStatus(): Promise<EvidencePermissionStatus>;
     request(): Promise<EvidencePermissionStatus>;
     openSettings(): Promise<void>;
+    subscribeToAppActive(listener: () => void): () => void;
   }>;
   camera: Readonly<{
     Preview: ComponentType<Readonly<{ active: boolean }>>;
@@ -71,17 +72,22 @@ export function EvidenceCaptureScreen({
   useEffect(() => {
     let mounted = true;
 
-    void resolvePermission(runtime)
-      .then((status) => {
-        if (!mounted) return;
-        setFlowState(status === 'granted' ? 'camera' : 'denied');
-      })
-      .catch(() => {
-        if (mounted) setFlowState('denied');
-      });
+    const applyStatus = (status: EvidencePermissionStatus) => {
+      if (!mounted) return;
+      setFlowState(status === 'granted' ? 'camera' : 'denied');
+    };
+
+    void resolvePermission(runtime).then(applyStatus).catch(() => {
+      if (mounted) setFlowState('denied');
+    });
+
+    const unsubscribe = runtime.permission.subscribeToAppActive(() => {
+      void runtime.permission.getStatus().then(applyStatus).catch(() => undefined);
+    });
 
     return () => {
       mounted = false;
+      unsubscribe();
     };
   }, [runtime]);
 
@@ -131,7 +137,12 @@ export function EvidenceCaptureScreen({
   };
 
   if (flowState === 'checking') {
-    return <View testID="evidence-permission-check" style={[styles.fill, { backgroundColor: colors.canvas }]} />;
+    return (
+      <View
+        testID="evidence-permission-check"
+        style={[styles.fill, { backgroundColor: colors.canvas }]}
+      />
+    );
   }
 
   if (flowState === 'denied') {
@@ -155,7 +166,11 @@ export function EvidenceCaptureScreen({
             {messages.openSettings}
           </Text>
         </Pressable>
-        <Pressable accessibilityRole="button" onPress={() => void close()} style={styles.closeTextAction}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => void close()}
+          style={styles.closeTextAction}
+        >
           <Text style={[styles.secondaryText, { color: colors.textSecondary }]}>{messages.close}</Text>
         </Pressable>
       </View>
@@ -174,7 +189,9 @@ export function EvidenceCaptureScreen({
               onPress={() => void close()}
               style={[styles.roundAction, { backgroundColor: colors.overlay }]}
             >
-              <Text style={[styles.closeLabel, { color: colors.primaryText }]}>{messages.close}</Text>
+              <Text style={[styles.closeLabel, { color: colors.primaryText }]}>
+                {messages.close}
+              </Text>
             </Pressable>
           </View>
           <View style={styles.captureBar}>
@@ -210,7 +227,9 @@ export function EvidenceCaptureScreen({
               onPress={() => void close()}
               style={[styles.roundAction, { backgroundColor: colors.overlay }]}
             >
-              <Text style={[styles.closeLabel, { color: colors.primaryText }]}>{messages.close}</Text>
+              <Text style={[styles.closeLabel, { color: colors.primaryText }]}>
+                {messages.close}
+              </Text>
             </Pressable>
           </View>
           <View style={[styles.reviewActions, { backgroundColor: colors.surface }]}>

@@ -30,11 +30,16 @@ const messages = {
 
 function harness(permissionStatus = 'granted') {
   const Preview = ({ active }) => createElement('CameraPreview', { active });
+  let activeListener = () => {};
   const runtime = {
     permission: {
       getStatus: vi.fn(() => Promise.resolve(permissionStatus)),
       request: vi.fn(() => Promise.resolve(permissionStatus)),
       openSettings: vi.fn(() => Promise.resolve()),
+      subscribeToAppActive: vi.fn((listener) => {
+        activeListener = listener;
+        return vi.fn();
+      }),
     },
     camera: {
       Preview,
@@ -45,6 +50,9 @@ function harness(permissionStatus = 'granted') {
         Promise.resolve({ uri: 'file:///documents/misyra/evidence-working/original.jpg' }),
       ),
       discard: vi.fn(() => Promise.resolve()),
+    },
+    emitAppActive() {
+      activeListener();
     },
   };
   return runtime;
@@ -93,6 +101,15 @@ describe('MTS-079 evidence camera permission timing', () => {
     });
 
     expect(runtime.permission.openSettings).toHaveBeenCalledTimes(1);
+
+    runtime.permission.getStatus.mockResolvedValue('granted');
+    await act(async () => {
+      runtime.emitAppActive();
+      await Promise.resolve();
+    });
+
+    expect(runtime.permission.request).not.toHaveBeenCalled();
+    expect(renderer.root.findAllByType('CameraPreview')).toHaveLength(1);
   });
 });
 

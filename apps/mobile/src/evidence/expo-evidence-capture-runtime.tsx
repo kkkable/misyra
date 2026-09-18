@@ -1,11 +1,10 @@
-import { useRef } from 'react';
 import {
   CameraView,
   getCameraPermissionsAsync,
   requestCameraPermissionsAsync,
 } from 'expo-camera';
 import * as FileSystem from 'expo-file-system/legacy';
-import { Linking, StyleSheet } from 'react-native';
+import { AppState, Linking, StyleSheet } from 'react-native';
 
 import type {
   EvidenceCaptureRuntime,
@@ -40,8 +39,6 @@ export function createExpoEvidenceCaptureRuntime(): EvidenceCaptureRuntime {
   let camera: CameraView | null = null;
 
   function Preview({ active }: Readonly<{ active: boolean }>) {
-    const mounted = useRef(true);
-    mounted.current = active;
     return (
       <CameraView
         ref={(instance) => {
@@ -68,6 +65,14 @@ export function createExpoEvidenceCaptureRuntime(): EvidenceCaptureRuntime {
       async openSettings() {
         await Linking.openSettings();
       },
+      subscribeToAppActive(listener) {
+        const subscription = AppState.addEventListener('change', (state) => {
+          if (state === 'active') listener();
+        });
+        return () => {
+          subscription.remove();
+        };
+      },
     },
     camera: {
       Preview,
@@ -88,7 +93,7 @@ export function createExpoEvidenceCaptureRuntime(): EvidenceCaptureRuntime {
         const directory = protectedEvidenceDirectory();
         await FileSystem.makeDirectoryAsync(directory, { intermediates: true });
         const uri = `${directory}${protectedFileName(sourceUri)}`;
-        await FileSystem.copyAsync({ from: sourceUri, to: uri });
+        await FileSystem.moveAsync({ from: sourceUri, to: uri });
         return { uri };
       },
       async discard(uri) {
