@@ -77,12 +77,17 @@ export function EvidenceCaptureScreen({
       setFlowState(status === 'granted' ? 'camera' : 'denied');
     };
 
-    void resolvePermission(runtime).then(applyStatus).catch(() => {
-      if (mounted) setFlowState('denied');
-    });
+    void resolvePermission(runtime)
+      .then(applyStatus)
+      .catch(() => {
+        if (mounted) setFlowState('denied');
+      });
 
     const unsubscribe = runtime.permission.subscribeToAppActive(() => {
-      void runtime.permission.getStatus().then(applyStatus).catch(() => undefined);
+      void runtime.permission
+        .getStatus()
+        .then(applyStatus)
+        .catch(() => undefined);
     });
 
     return () => {
@@ -171,7 +176,9 @@ export function EvidenceCaptureScreen({
           onPress={() => void close()}
           style={styles.closeTextAction}
         >
-          <Text style={[styles.secondaryText, { color: colors.textSecondary }]}>{messages.close}</Text>
+          <Text style={[styles.secondaryText, { color: colors.textSecondary }]}>
+            {messages.close}
+          </Text>
         </Pressable>
       </View>
     );
@@ -240,7 +247,9 @@ export function EvidenceCaptureScreen({
               onPress={() => void retake()}
               style={[styles.reviewButton, { borderColor: colors.border }]}
             >
-              <Text style={[styles.secondaryText, { color: colors.textPrimary }]}>{messages.retake}</Text>
+              <Text style={[styles.secondaryText, { color: colors.textPrimary }]}>
+                {messages.retake}
+              </Text>
             </Pressable>
             <Pressable
               accessibilityRole="button"
@@ -249,7 +258,9 @@ export function EvidenceCaptureScreen({
               onPress={() => void submit()}
               style={[styles.reviewButton, { backgroundColor: colors.primary }]}
             >
-              <Text style={[styles.actionText, { color: colors.primaryText }]}>{messages.submit}</Text>
+              <Text style={[styles.actionText, { color: colors.primaryText }]}>
+                {messages.submit}
+              </Text>
             </Pressable>
           </View>
         </View>

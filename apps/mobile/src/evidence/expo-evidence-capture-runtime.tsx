@@ -1,8 +1,4 @@
-import {
-  CameraView,
-  getCameraPermissionsAsync,
-  requestCameraPermissionsAsync,
-} from 'expo-camera';
+import { CameraView, getCameraPermissionsAsync, requestCameraPermissionsAsync } from 'expo-camera';
 import * as FileSystem from 'expo-file-system/legacy';
 import { AppState, Linking, StyleSheet } from 'react-native';
 

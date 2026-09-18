@@ -54,10 +54,7 @@ jobs:
         run: pnpm ci:fixtures
 
       - name: Check workspace formatting
-        run: |
-          pnpm exec prettier --write apps/mobile/src/evidence/evidence-capture-screen.tsx apps/mobile/src/evidence/expo-evidence-capture-runtime.tsx --config packages/config/prettier.config.mjs
-          git diff -- apps/mobile/src/evidence/evidence-capture-screen.tsx apps/mobile/src/evidence/expo-evidence-capture-runtime.tsx
-          exit 1
+        run: pnpm format
 
       - name: Check CI-owned formatting
         run: pnpm format:ci
