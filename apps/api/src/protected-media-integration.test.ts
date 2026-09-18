@@ -158,13 +158,16 @@ async function authorizeOriginalUpload(
     },
   });
   expect(response.statusCode).toBe(200);
-  const payload = response.json().payload as {
-    assetId: string;
-    purpose: string;
-    variant: string;
-    uploadPath: string;
-    expiresAt: string;
+  const envelope = response.json() as {
+    payload: {
+      assetId: string;
+      purpose: string;
+      variant: string;
+      uploadPath: string;
+      expiresAt: string;
+    };
   };
+  const payload = envelope.payload;
   expect(payload).toMatchObject({
     assetId,
     purpose: 'evidence-working',
