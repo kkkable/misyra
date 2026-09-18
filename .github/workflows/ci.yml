@@ -42,10 +42,7 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
 
       - name: Install from lockfile
-        run: |
-          pnpm install --no-frozen-lockfile
-          git diff -- pnpm-lock.yaml
-          exit 1
+        run: pnpm install --frozen-lockfile
 
       - name: Install Bicep compiler in runner only
         run: az bicep install
