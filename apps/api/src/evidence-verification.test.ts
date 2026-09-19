@@ -206,6 +206,26 @@ describe('MTS-081 AI evidence verification', () => {
       verificationStatus: 'accepted',
       reasonCode: 'verified',
     });
+
+    await expect(service.processOutboxEvent(seeded.event)).resolves.toMatchObject({
+      attemptId: seeded.attemptId,
+      occurrenceId: seeded.occurrenceId,
+      verdict: 'accepted',
+      reasonCode: 'verified',
+    });
+    expect(verifyEvidence).toHaveBeenCalledTimes(1);
+
+    const durableCounts = await pool.query<{ completions: number; rewards: number }>(
+      `SELECT
+         (SELECT count(*)::int
+            FROM mission_completions
+           WHERE account_id = $1 AND occurrence_id = $2) AS completions,
+         (SELECT count(*)::int
+            FROM reward_ledger
+           WHERE account_id = $1 AND occurrence_id = $2) AS rewards`,
+      [accountId, seeded.occurrenceId],
+    );
+    expect(durableCounts.rows[0]).toEqual({ completions: 1, rewards: 1 });
   });
 
   it('maps rejected output to a controlled reason code without a second explanation call', async () => {
