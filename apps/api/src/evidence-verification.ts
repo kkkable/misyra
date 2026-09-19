@@ -91,9 +91,7 @@ function completionTypeFor(
   attempt: Pick<VerificationAttemptRow, 'firstSubmittedAt' | 'finishInstant'>,
 ): 'verified_on_time' | 'verified_late' {
   const lateThreshold = attempt.finishInstant.getTime() + 10 * 60_000;
-  return attempt.firstSubmittedAt.getTime() >= lateThreshold
-    ? 'verified_late'
-    : 'verified_on_time';
+  return attempt.firstSubmittedAt.getTime() >= lateThreshold ? 'verified_late' : 'verified_on_time';
 }
 
 async function ensureAcceptedCompletion(
