@@ -28,7 +28,7 @@ describe('MTS-056 AI difficulty classification gateway', () => {
         modelVersion: 'fake-v1',
       });
     });
-    const gateway: AiGateway = { classifyDifficulty };
+    const gateway: Pick<AiGateway, 'classifyDifficulty'> = { classifyDifficulty };
     const service = createDifficultyClassificationService({ gateway });
 
     await expect(service.classify(task)).resolves.toEqual({
