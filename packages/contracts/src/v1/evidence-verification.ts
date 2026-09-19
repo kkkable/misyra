@@ -46,7 +46,9 @@ export const evidenceVerificationGatewayRequestSchema = z
   })
   .strict();
 
-export type EvidenceVerificationReasonCode = z.infer<typeof evidenceVerificationReasonCodeSchema>;
+export type EvidenceVerificationReasonCode = z.infer<
+  typeof evidenceVerificationReasonCodeSchema
+>;
 export type EvidenceVerificationAiOutput = z.infer<typeof evidenceVerificationAiOutputSchema>;
 export type EvidenceVerificationGatewayRequest = z.infer<
   typeof evidenceVerificationGatewayRequestSchema
