@@ -17,11 +17,19 @@ export type ProtectedMediaBlobStore = Readonly<{
   ): Promise<void>;
 }>;
 
+export type ProtectedMediaUploadCommitted = Readonly<{
+  accountId: string;
+  assetId: string;
+  purpose: MediaUploadPurpose;
+  variant: MediaUploadVariant;
+}>;
+
 type ProtectedMediaServiceOptions = Readonly<{
   pool: Pool;
   signingSecret: string;
   blobStore: ProtectedMediaBlobStore;
   now?: () => Date;
+  onUploadCommitted?: (input: ProtectedMediaUploadCommitted) => Promise<void>;
 }>;
 
 type UploadClaims = Readonly<{
@@ -138,6 +146,16 @@ function encodeBlobKey(key: string) {
     .join('/');
 }
 
+function isImmutableEvidenceOriginal(container: MediaUploadPurpose, key: string) {
+  return container === 'evidence-working' && key.endsWith('/original');
+}
+
+function isImmutableOriginalAlreadyStored(response: Response, immutableOriginal: boolean) {
+  if (!immutableOriginal) return false;
+  if (response.status === 412) return true;
+  return response.status === 409 && response.headers.get('x-ms-error-code') === 'BlobAlreadyExists';
+}
+
 function canonicalizedAzuriteHeaders(headers: Record<string, string>) {
   return Object.entries(headers)
     .filter(([name]) => name.toLowerCase().startsWith('x-ms-'))
@@ -187,7 +205,7 @@ function signedAzuriteHeaders(
     '',
     '',
     '',
-    '',
+    headers['if-none-match'] ?? '',
     '',
     '',
   ].join('\n')}\n${canonicalizedAzuriteHeaders(headers)}${canonicalizedAzuriteResource(url)}`;
@@ -217,15 +235,19 @@ function createAzuriteBlobStore(env: NodeJS.ProcessEnv): ProtectedMediaBlobStore
     async put(container, key, bytes, contentType) {
       await ensureContainer(container);
       const url = new URL(`${endpoint}/${container}/${encodeBlobKey(key)}`);
+      const immutableOriginal = isImmutableEvidenceOriginal(container, key);
       const response = await fetch(url, {
         method: 'PUT',
         headers: signedAzuriteHeaders('PUT', url, bytes, {
           'content-type': contentType,
           'x-ms-blob-type': 'BlockBlob',
+          ...(immutableOriginal ? { 'if-none-match': '*' } : {}),
         }),
         body: new Uint8Array(bytes),
       });
-      if (!response.ok) throw new Error('Protected media upload failed');
+      if (!response.ok && !isImmutableOriginalAlreadyStored(response, immutableOriginal)) {
+        throw new Error('Protected media upload failed');
+      }
     },
   };
 }
@@ -269,6 +291,7 @@ function createAzureManagedIdentityBlobStore(env: NodeJS.ProcessEnv): ProtectedM
       const url = new URL(
         `https://${accountName}.blob.core.windows.net/${container}/${encodeBlobKey(key)}`,
       );
+      const immutableOriginal = isImmutableEvidenceOriginal(container, key);
       const response = await fetch(url, {
         method: 'PUT',
         headers: {
@@ -276,10 +299,13 @@ function createAzureManagedIdentityBlobStore(env: NodeJS.ProcessEnv): ProtectedM
           'Content-Type': contentType,
           'x-ms-blob-type': 'BlockBlob',
           'x-ms-version': AZURE_STORAGE_VERSION,
+          ...(immutableOriginal ? { 'If-None-Match': '*' } : {}),
         },
         body: new Uint8Array(bytes),
       });
-      if (!response.ok) throw new Error('Protected media upload failed');
+      if (!response.ok && !isImmutableOriginalAlreadyStored(response, immutableOriginal)) {
+        throw new Error('Protected media upload failed');
+      }
     },
   };
 }
@@ -406,6 +432,12 @@ export function createProtectedMediaService(options: ProtectedMediaServiceOption
       if (result.rows[0]?.storageKey !== key) throw new ProtectedMediaError('not_found');
 
       await options.blobStore.put(claims.purpose, key, body, claims.contentType);
+      await options.onUploadCommitted?.({
+        accountId,
+        assetId: claims.assetId,
+        purpose: claims.purpose,
+        variant: claims.variant,
+      });
       return {
         assetId: claims.assetId,
         variant: claims.variant,
