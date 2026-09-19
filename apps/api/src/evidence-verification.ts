@@ -206,6 +206,7 @@ export function createEvidenceVerificationService(input: {
         throw new EvidenceVerificationInvalidOutputError();
       }
 
+      let updateApplied = false;
       const client = await input.pool.connect();
       try {
         await client.query('BEGIN');
@@ -232,56 +233,60 @@ export function createEvidenceVerificationService(input: {
 
         if (updated.rows[0] === undefined) {
           await client.query('ROLLBACK');
-          const terminal = await loadAttempt(input.pool, accountId, attempt.id);
-          if (terminal.verificationStatus === 'accepted') {
-            await ensureAcceptedCompletion(input.pool, accountId, terminal);
-          }
-          return resultFromTerminalAttempt(terminal);
+        } else {
+          await client.query(
+            `UPDATE mission_occurrences o
+                SET evidence_state = CASE
+                  WHEN EXISTS (
+                    SELECT 1
+                      FROM evidence_attempts a
+                     WHERE a.account_id = o.account_id
+                       AND a.occurrence_id = o.id
+                       AND a.verification_status = 'accepted'
+                  ) THEN 'accepted'
+                  WHEN EXISTS (
+                    SELECT 1
+                      FROM evidence_attempts a
+                     WHERE a.account_id = o.account_id
+                       AND a.occurrence_id = o.id
+                       AND a.verification_status IN ('pending', 'queued')
+                  ) THEN 'pending'
+                  ELSE 'rejected'
+                END
+              WHERE o.id = $1 AND o.account_id = $2`,
+            [attempt.occurrenceId, accountId],
+          );
+          await client.query('COMMIT');
+          updateApplied = true;
         }
-
-        await client.query(
-          `UPDATE mission_occurrences o
-              SET evidence_state = CASE
-                WHEN EXISTS (
-                  SELECT 1
-                    FROM evidence_attempts a
-                   WHERE a.account_id = o.account_id
-                     AND a.occurrence_id = o.id
-                     AND a.verification_status = 'accepted'
-                ) THEN 'accepted'
-                WHEN EXISTS (
-                  SELECT 1
-                    FROM evidence_attempts a
-                   WHERE a.account_id = o.account_id
-                     AND a.occurrence_id = o.id
-                     AND a.verification_status IN ('pending', 'queued')
-                ) THEN 'pending'
-                ELSE 'rejected'
-              END
-            WHERE o.id = $1 AND o.account_id = $2`,
-          [attempt.occurrenceId, accountId],
-        );
-        await client.query('COMMIT');
-
-        if (parsedOutput.data.verdict === 'accepted') {
-          await ensureAcceptedCompletion(input.pool, accountId, attempt);
-        }
-
-        return Object.freeze({
-          attemptId: attempt.id,
-          occurrenceId: attempt.occurrenceId,
-          attemptNumber: attempt.attemptNumber,
-          firstSubmittedAt: attempt.firstSubmittedAt.toISOString(),
-          effectiveSubmittedAt: attempt.effectiveSubmittedAt.toISOString(),
-          verdict: parsedOutput.data.verdict,
-          reasonCode: parsedOutput.data.reasonCode,
-        });
       } catch (error) {
         await client.query('ROLLBACK');
         throw error;
       } finally {
         client.release();
       }
+
+      if (!updateApplied) {
+        const terminal = await loadAttempt(input.pool, accountId, attempt.id);
+        if (terminal.verificationStatus === 'accepted') {
+          await ensureAcceptedCompletion(input.pool, accountId, terminal);
+        }
+        return resultFromTerminalAttempt(terminal);
+      }
+
+      if (parsedOutput.data.verdict === 'accepted') {
+        await ensureAcceptedCompletion(input.pool, accountId, attempt);
+      }
+
+      return Object.freeze({
+        attemptId: attempt.id,
+        occurrenceId: attempt.occurrenceId,
+        attemptNumber: attempt.attemptNumber,
+        firstSubmittedAt: attempt.firstSubmittedAt.toISOString(),
+        effectiveSubmittedAt: attempt.effectiveSubmittedAt.toISOString(),
+        verdict: parsedOutput.data.verdict,
+        reasonCode: parsedOutput.data.reasonCode,
+      });
     },
   });
 }
