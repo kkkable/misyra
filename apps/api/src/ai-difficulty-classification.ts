@@ -3,7 +3,6 @@ import {
   difficultyClassificationGatewayRequestSchema,
   difficultyClassificationResultSchema,
   difficultyClassificationSaveRequestSchema,
-  type DifficultyClassificationGatewayRequest,
   type DifficultyClassificationResult,
   type DifficultyClassificationSaveRequest,
   type DifficultyClassificationTask,
