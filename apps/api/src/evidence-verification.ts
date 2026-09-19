@@ -9,6 +9,7 @@ import type { ClaimedOutboxEvent } from '@misyra/database';
 import type { Pool, QueryResultRow } from 'pg';
 
 import type { AiGateway } from './ai-gateway.js';
+import { completeMissionAuthoritatively } from './authoritative-completion.js';
 
 export type EvidenceVerificationResult = Readonly<{
   attemptId: string;
@@ -40,6 +41,7 @@ interface VerificationAttemptRow extends QueryResultRow {
   attemptNumber: number;
   firstSubmittedAt: Date;
   effectiveSubmittedAt: Date;
+  finishInstant: Date;
   uploadStatus: string;
   verificationStatus: string;
   reasonCode: string | null;
@@ -85,6 +87,31 @@ function scheduleContext(row: VerificationAttemptRow): string {
   return `${row.localStart} → ${row.localFinish} · ${row.timeZone} · ${row.timeBehavior}`;
 }
 
+function completionTypeFor(
+  attempt: Pick<VerificationAttemptRow, 'firstSubmittedAt' | 'finishInstant'>,
+): 'verified_on_time' | 'verified_late' {
+  const lateThreshold = attempt.finishInstant.getTime() + 10 * 60_000;
+  return attempt.firstSubmittedAt.getTime() >= lateThreshold
+    ? 'verified_late'
+    : 'verified_on_time';
+}
+
+async function ensureAcceptedCompletion(
+  pool: Pool,
+  accountId: string,
+  attempt: VerificationAttemptRow,
+): Promise<void> {
+  await completeMissionAuthoritatively(pool, {
+    accountId,
+    occurrenceId: attempt.occurrenceId,
+    completionType: completionTypeFor(attempt),
+    effectiveActionAt: attempt.effectiveSubmittedAt.toISOString(),
+    deviceId: attempt.id,
+    idempotencyKey: `evidence-verification:${attempt.id}`,
+    evidenceAttemptId: attempt.id,
+  });
+}
+
 async function loadAttempt(
   pool: Pool,
   accountId: string,
@@ -97,6 +124,7 @@ async function loadAttempt(
        a.attempt_number AS "attemptNumber",
        a.first_submitted_at AS "firstSubmittedAt",
        a.effective_submitted_at AS "effectiveSubmittedAt",
+       o.finish_instant AS "finishInstant",
        a.upload_status AS "uploadStatus",
        a.verification_status AS "verificationStatus",
        a.reason_code AS "reasonCode",
@@ -147,6 +175,9 @@ export function createEvidenceVerificationService(input: {
       const attempt = await loadAttempt(input.pool, accountId, event.aggregateId);
 
       if (attempt.verificationStatus === 'accepted' || attempt.verificationStatus === 'rejected') {
+        if (attempt.verificationStatus === 'accepted') {
+          await ensureAcceptedCompletion(input.pool, accountId, attempt);
+        }
         return resultFromTerminalAttempt(attempt);
       }
       if (
@@ -204,6 +235,9 @@ export function createEvidenceVerificationService(input: {
         if (updated.rows[0] === undefined) {
           await client.query('ROLLBACK');
           const terminal = await loadAttempt(input.pool, accountId, attempt.id);
+          if (terminal.verificationStatus === 'accepted') {
+            await ensureAcceptedCompletion(input.pool, accountId, terminal);
+          }
           return resultFromTerminalAttempt(terminal);
         }
 
@@ -230,6 +264,10 @@ export function createEvidenceVerificationService(input: {
           [attempt.occurrenceId, accountId],
         );
         await client.query('COMMIT');
+
+        if (parsedOutput.data.verdict === 'accepted') {
+          await ensureAcceptedCompletion(input.pool, accountId, attempt);
+        }
 
         return Object.freeze({
           attemptId: attempt.id,
