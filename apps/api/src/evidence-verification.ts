@@ -173,10 +173,11 @@ export function createEvidenceVerificationService(input: {
       const attempt = await loadAttempt(input.pool, accountId, event.aggregateId);
 
       if (attempt.verificationStatus === 'accepted' || attempt.verificationStatus === 'rejected') {
-        if (attempt.verificationStatus === 'accepted') {
+        const result = resultFromTerminalAttempt(attempt);
+        if (result.verdict === 'accepted') {
           await ensureAcceptedCompletion(input.pool, accountId, attempt);
         }
-        return resultFromTerminalAttempt(attempt);
+        return result;
       }
       if (
         attempt.uploadStatus !== 'uploaded' ||
@@ -268,10 +269,11 @@ export function createEvidenceVerificationService(input: {
 
       if (!updateApplied) {
         const terminal = await loadAttempt(input.pool, accountId, attempt.id);
-        if (terminal.verificationStatus === 'accepted') {
+        const result = resultFromTerminalAttempt(terminal);
+        if (result.verdict === 'accepted') {
           await ensureAcceptedCompletion(input.pool, accountId, terminal);
         }
-        return resultFromTerminalAttempt(terminal);
+        return result;
       }
 
       if (parsedOutput.data.verdict === 'accepted') {
