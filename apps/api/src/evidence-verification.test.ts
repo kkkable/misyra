@@ -46,17 +46,23 @@ async function seedQueuedAttempt(
     `INSERT INTO mission_occurrences (
        id, account_id, series_id, local_date, local_start, local_finish,
        start_instant, finish_instant, time_zone, time_behavior, all_day,
-       completion_state, evidence_state, notes
+       completion_state, evidence_state, reward_eligibility, notes
      ) VALUES (
        $1, $2, $3, '2026-09-19', '2026-09-19T09:00:00', '2026-09-19T10:00:00',
        '2026-09-19T01:00:00.000Z', '2026-09-19T02:00:00.000Z',
-       'Asia/Hong_Kong', 'fixed_instant', false, 'incomplete', 'pending', 'Organizer agenda'
+       'Asia/Hong_Kong', 'fixed_instant', false, 'incomplete', 'pending', 'eligible',
+       'Organizer agenda'
      )`,
     [occurrenceId, accountId, seriesId],
   );
   await pool.query(
     `INSERT INTO mission_personal_notes (occurrence_id, account_id, note)
      VALUES ($1, $2, 'Private note that must never reach AI verification')`,
+    [occurrenceId, accountId],
+  );
+  await pool.query(
+    `INSERT INTO mission_reward_basis (occurrence_id, account_id, difficulty, base_xp)
+     VALUES ($1, $2, 'normal', 100)`,
     [occurrenceId, accountId],
   );
   await pool.query(
@@ -263,7 +269,7 @@ describe('MTS-081 AI evidence verification', () => {
     });
   });
 
-  it('accepts a successful retry while preserving the first-submit timestamp needed for proof bonus timing', async () => {
+  it('completes a successful retry authoritatively and awards the proof bonus from first-submit timing', async () => {
     const seeded = await seedQueuedAttempt({ attemptNumber: 2 });
     const service = createEvidenceVerificationService({
       pool,
@@ -280,6 +286,35 @@ describe('MTS-081 AI evidence verification', () => {
       effectiveSubmittedAt: seeded.effectiveSubmittedAt,
       verdict: 'accepted',
       reasonCode: 'verified',
+    });
+
+    const completion = await pool.query<{
+      completionType: string;
+      actionTime: Date;
+      baseXp: number;
+      proofBonusXp: number;
+      awardedXp: number;
+    }>(
+      `SELECT
+         c.completion_type AS "completionType",
+         c.action_time AS "actionTime",
+         r.base_xp AS "baseXp",
+         r.proof_bonus_xp AS "proofBonusXp",
+         r.awarded_xp AS "awardedXp"
+       FROM mission_completions c
+       JOIN reward_ledger r
+         ON r.account_id = c.account_id AND r.occurrence_id = c.occurrence_id
+       WHERE c.account_id = $1 AND c.occurrence_id = $2`,
+      [accountId, seeded.occurrenceId],
+    );
+
+    expect(completion.rows).toHaveLength(1);
+    expect(completion.rows[0]).toEqual({
+      completionType: 'verified_late',
+      actionTime: new Date(seeded.effectiveSubmittedAt),
+      baseXp: 100,
+      proofBonusXp: 15,
+      awardedXp: 115,
     });
   });
 });
