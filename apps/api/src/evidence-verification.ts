@@ -56,7 +56,9 @@ interface VerificationAttemptRow extends QueryResultRow {
 
 function resultFromTerminalAttempt(row: VerificationAttemptRow): EvidenceVerificationResult {
   if (row.verificationStatus !== 'accepted' && row.verificationStatus !== 'rejected') {
-    throw new EvidenceVerificationStateError('Evidence attempt is not in a terminal verification state');
+    throw new EvidenceVerificationStateError(
+      'Evidence attempt is not in a terminal verification state',
+    );
   }
   const parsedReason = evidenceVerificationReasonCodeSchema.safeParse(row.reasonCode);
   if (!parsedReason.success) {
@@ -196,12 +198,7 @@ export function createEvidenceVerificationService(input: {
             verification_status AS "verificationStatus",
             reason_code AS "reasonCode",
             media_asset_id AS "mediaAssetId"`,
-          [
-            attempt.id,
-            accountId,
-            parsedOutput.data.verdict,
-            parsedOutput.data.reasonCode,
-          ],
+          [attempt.id, accountId, parsedOutput.data.verdict, parsedOutput.data.reasonCode],
         );
 
         if (updated.rows[0] === undefined) {
