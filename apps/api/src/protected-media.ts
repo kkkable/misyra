@@ -153,9 +153,7 @@ function isImmutableEvidenceOriginal(container: MediaUploadPurpose, key: string)
 function isImmutableOriginalAlreadyStored(response: Response, immutableOriginal: boolean) {
   if (!immutableOriginal) return false;
   if (response.status === 412) return true;
-  return (
-    response.status === 409 && response.headers.get('x-ms-error-code') === 'BlobAlreadyExists'
-  );
+  return response.status === 409 && response.headers.get('x-ms-error-code') === 'BlobAlreadyExists';
 }
 
 function canonicalizedAzuriteHeaders(headers: Record<string, string>) {
