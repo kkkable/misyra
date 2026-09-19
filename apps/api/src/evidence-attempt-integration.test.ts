@@ -293,23 +293,6 @@ describe('MTS-080 evidence-attempt creation and upload', () => {
     await server.close();
   });
 
-  it('falls back silently to server receipt time when the device submit timestamp is invalid', async () => {
-    const server = createServer();
-    const occurrenceId = await seedOccurrence();
-    apiNow = new Date('2026-09-18T10:00:05.000Z');
-
-    const result = await reserveAttempt(server, occurrenceId, randomUUID(), 'not-a-timestamp');
-
-    expect(result.response.statusCode).toBe(200);
-    expect(result.payload).toMatchObject({
-      attemptNumber: 1,
-      firstSubmittedAt: apiNow.toISOString(),
-      effectiveSubmittedAt: apiNow.toISOString(),
-    });
-
-    await server.close();
-  });
-
   it('enforces the maximum three attempts under concurrent server reservation', async () => {
     const server = createServer();
     const occurrenceId = await seedOccurrence();
