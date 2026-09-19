@@ -24,13 +24,15 @@ export class EvidenceVerificationInvalidOutputError extends Error {
   }
 }
 
-export function createEvidenceVerificationService(_input: {
+export function createEvidenceVerificationService(input: {
   readonly pool: Pool;
   readonly gateway: Pick<AiGateway, 'verifyEvidence'>;
 }) {
   return Object.freeze({
-    async processOutboxEvent(_event: ClaimedOutboxEvent): Promise<EvidenceVerificationResult> {
-      throw new Error('MTS-081 evidence verification not implemented');
+    processOutboxEvent(event: ClaimedOutboxEvent): Promise<EvidenceVerificationResult> {
+      void input;
+      void event;
+      return Promise.reject(new Error('MTS-081 evidence verification not implemented'));
     },
   });
 }
