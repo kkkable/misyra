@@ -26,15 +26,16 @@ type SeededAttempt = Readonly<{
   event: ClaimedOutboxEvent;
 }>;
 
-async function seedQueuedAttempt(input: Readonly<{ attemptNumber?: 1 | 2 }> = {}): Promise<SeededAttempt> {
+async function seedQueuedAttempt(
+  input: Readonly<{ attemptNumber?: 1 | 2 }> = {},
+): Promise<SeededAttempt> {
   const attemptNumber = input.attemptNumber ?? 1;
   const seriesId = randomUUID();
   const occurrenceId = randomUUID();
   const mediaAssetId = randomUUID();
   const attemptId = randomUUID();
   const firstSubmittedAt = '2026-09-19T09:04:00.000Z';
-  const effectiveSubmittedAt =
-    attemptNumber === 1 ? firstSubmittedAt : '2026-09-19T09:20:00.000Z';
+  const effectiveSubmittedAt = attemptNumber === 1 ? firstSubmittedAt : '2026-09-19T09:20:00.000Z';
 
   await pool.query(
     `INSERT INTO mission_series (id, account_id, title)
