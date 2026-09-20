@@ -321,7 +321,7 @@ describe('MTS-081 AI evidence verification', () => {
         },
       },
       deleteMediaAsset,
-    } as unknown as Parameters<typeof createEvidenceVerificationService>[0]);
+    });
 
     await expect(service.processOutboxEvent(seeded.event)).resolves.toMatchObject({
       verdict: 'accepted',
