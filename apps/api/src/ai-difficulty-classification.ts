@@ -3,15 +3,14 @@ import {
   difficultyClassificationGatewayRequestSchema,
   difficultyClassificationResultSchema,
   difficultyClassificationSaveRequestSchema,
-  type DifficultyClassificationGatewayRequest,
   type DifficultyClassificationResult,
   type DifficultyClassificationSaveRequest,
   type DifficultyClassificationTask,
 } from '@misyra/contracts';
 
-export interface AiGateway {
-  classifyDifficulty(request: DifficultyClassificationGatewayRequest): Promise<unknown>;
-}
+import type { AiGateway } from './ai-gateway.js';
+
+export type { AiGateway } from './ai-gateway.js';
 
 export interface DifficultyClassificationService {
   classify(task: DifficultyClassificationTask): Promise<DifficultyClassificationResult>;
@@ -42,7 +41,7 @@ const FALLBACK_CLASSIFICATION = difficultyClassificationResultSchema.parse({
 const RELEVANT_RECALCULATION_FIELDS = new Set(['title', 'description', 'estimated_duration']);
 
 export function createDifficultyClassificationService(input: {
-  readonly gateway: AiGateway;
+  readonly gateway: Pick<AiGateway, 'classifyDifficulty'>;
 }): DifficultyClassificationService {
   async function classify(
     task: DifficultyClassificationTask,
