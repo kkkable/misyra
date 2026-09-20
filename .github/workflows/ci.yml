@@ -54,7 +54,10 @@ jobs:
         run: pnpm ci:fixtures
 
       - name: Check workspace formatting
-        run: pnpm format
+        run: |
+          pnpm exec prettier --write apps/mobile/src/evidence/evidence-offline-queue.ts --config packages/config/prettier.config.mjs
+          git diff -- apps/mobile/src/evidence/evidence-offline-queue.ts
+          exit 1
 
       - name: Check CI-owned formatting
         run: pnpm format:ci
