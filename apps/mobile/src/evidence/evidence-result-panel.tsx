@@ -16,6 +16,8 @@ export type EvidenceResultMessages = Readonly<{
   selfConfirmPrompt: string;
   confirmSelfCompletion: string;
   cancel: string;
+  close: string;
+  remainingAttempts: string;
   reasonTaskMismatch: string;
   reasonTaskNotEvident: string;
   reasonImageUnusable: string;
@@ -27,6 +29,7 @@ export type EvidenceResultPanelProps = Readonly<{
   colorScheme?: ColorScheme;
   onRetry(): void | Promise<void>;
   onSelfConfirm(): void | Promise<void>;
+  onClose?: (() => void) | undefined;
 }>;
 
 function reasonCopy(key: EvidenceReasonMessageKey | null, messages: EvidenceResultMessages) {
@@ -48,6 +51,7 @@ export function EvidenceResultPanel({
   colorScheme = 'light',
   onRetry,
   onSelfConfirm,
+  onClose,
 }: EvidenceResultPanelProps) {
   const colors = themeColors(colorScheme);
   const [confirming, setConfirming] = useState(false);
@@ -71,6 +75,15 @@ export function EvidenceResultPanel({
           {reason}
         </Text>
       )}
+      {flow.state === 'rejected' && flow.remainingAttempts > 0 ? (
+        <Text
+          allowFontScaling
+          style={[styles.body, { color: colors.textSecondary }]}
+          testID="evidence-result-remaining-attempts"
+        >
+          {messages.remainingAttempts.replace('{count}', String(flow.remainingAttempts))}
+        </Text>
+      ) : null}
       {flow.canRetry ? (
         <Pressable
           accessibilityLabel={messages.tryAnotherPhoto}
@@ -139,6 +152,19 @@ export function EvidenceResultPanel({
           </View>
         </View>
       ) : null}
+      {onClose === undefined ? null : (
+        <Pressable
+          accessibilityLabel={messages.close}
+          accessibilityRole="button"
+          onPress={onClose}
+          style={[styles.secondaryAction, { borderColor: colors.border }]}
+          testID="evidence-result-close"
+        >
+          <Text allowFontScaling style={[styles.actionText, { color: colors.textSecondary }]}>
+            {messages.close}
+          </Text>
+        </Pressable>
+      )}
     </View>
   );
 }

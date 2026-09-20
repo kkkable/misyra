@@ -27,6 +27,8 @@ const messages = {
   selfConfirmPrompt: 'Mark completed?',
   confirmSelfCompletion: 'Mark completed',
   cancel: 'Cancel',
+  close: 'Close',
+  remainingAttempts: '{count} evidence attempts remaining',
   reasonTaskMismatch: 'The photo does not match this mission.',
   reasonTaskNotEvident: 'The mission is not clear in the photo.',
   reasonImageUnusable: 'The photo could not be checked.',
@@ -76,6 +78,13 @@ describe('MTS-082 evidence result actions', () => {
     });
 
     expect(onSelfConfirm).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the remaining retry count without adding a Calendar label', () => {
+    const { renderer } = renderRejected(1);
+    expect(
+      renderer.root.findByProps({ testID: 'evidence-result-remaining-attempts' }).children.join(''),
+    ).toBe('2 evidence attempts remaining');
   });
 
   it('offers retry only while submitted attempts remain', () => {
