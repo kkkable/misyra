@@ -29,10 +29,9 @@ export default ({ config }: ConfigContext) => ({
     [
       'expo-media-library',
       {
-        photosPermission: 'Allow Misyra to access photos you choose.',
         savePhotosPermission:
           'Allow Misyra to save evidence photos when you choose Save to Photos.',
-        granularPermissions: ['photo'],
+        granularPermissions: [],
       },
     ],
   ],

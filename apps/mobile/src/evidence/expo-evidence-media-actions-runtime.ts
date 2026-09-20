@@ -86,7 +86,7 @@ export function createExpoEvidenceMediaActionsRuntime(options: RuntimeOptions): 
 
     photoLibrary: {
       async requestSavePermission() {
-        const response = await requestPermissionsAsync(true, ['photo']);
+        const response = await requestPermissionsAsync(true, []);
         return response.granted ? 'granted' : 'denied';
       },
 

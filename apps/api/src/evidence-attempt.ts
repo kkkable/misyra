@@ -89,6 +89,7 @@ interface AttemptResultRow extends QueryResultRow {
   verificationStatus: string;
   reasonCode: string | null;
   mediaDeletionState: string | null;
+  hasCompletion: boolean;
   localStart: string;
   localFinish: string;
   startInstant: Date;
@@ -342,6 +343,12 @@ export function createEvidenceAttemptService(options: EvidenceAttemptServiceOpti
            a.verification_status AS "verificationStatus",
            a.reason_code AS "reasonCode",
            m.deletion_state AS "mediaDeletionState",
+           EXISTS (
+             SELECT 1
+               FROM mission_completions c
+              WHERE c.account_id = a.account_id
+                AND c.occurrence_id = a.occurrence_id
+           ) AS "hasCompletion",
            o.local_start AS "localStart",
            o.local_finish AS "localFinish",
            o.start_instant AS "startInstant",
@@ -399,6 +406,7 @@ export function createEvidenceAttemptService(options: EvidenceAttemptServiceOpti
         reasonCode: reasonCode === null ? null : reasonCode.data,
         duplicateLoser: attempt.status === 'duplicate_loser',
         mediaAvailable: attempt.mediaDeletionState === 'active',
+        mediaDeletable: attempt.mediaDeletionState === 'active' && attempt.hasCompletion,
         expired: eligibility.state === 'expired',
         serverNow: currentTime.toISOString(),
         expiresAt: eligibility.expiresAt,
