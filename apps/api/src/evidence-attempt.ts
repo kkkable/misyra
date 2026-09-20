@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
+import { evidenceVerificationReasonCodeSchema } from '@misyra/contracts';
 import { calculateMediaDeletionDeadline, evaluateCompletionEligibility } from '@misyra/domain';
 import type { Pool, PoolClient, QueryResultRow } from 'pg';
 
@@ -70,6 +71,25 @@ interface UploadedAttemptRow extends QueryResultRow {
   uploadStatus: string;
   verificationStatus: string;
 }
+
+interface AttemptResultRow extends QueryResultRow {
+  id: string;
+  occurrenceId: string;
+  attemptNumber: number;
+  firstSubmittedAt: Date;
+  effectiveSubmittedAt: Date;
+  verificationStatus: string;
+  reasonCode: string | null;
+  localStart: string;
+  localFinish: string;
+  startInstant: Date;
+  finishInstant: Date;
+  timeZone: string;
+  timeBehavior: 'local_time' | 'fixed_instant';
+  allDay: boolean;
+  estimatedEffortMinutes: number | null;
+}
+
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -236,6 +256,73 @@ export function createEvidenceAttemptService(options: EvidenceAttemptServiceOpti
   }
 
   return {
+    async getResult(accountId: string, attemptIdSource: unknown) {
+      const attemptId = parseUuid(attemptIdSource);
+      const result = await options.pool.query<AttemptResultRow>(
+        `SELECT
+           a.id,
+           a.occurrence_id AS "occurrenceId",
+           a.attempt_number AS "attemptNumber",
+           a.first_submitted_at AS "firstSubmittedAt",
+           a.effective_submitted_at AS "effectiveSubmittedAt",
+           a.verification_status AS "verificationStatus",
+           a.reason_code AS "reasonCode",
+           o.local_start AS "localStart",
+           o.local_finish AS "localFinish",
+           o.start_instant AS "startInstant",
+           o.finish_instant AS "finishInstant",
+           o.time_zone AS "timeZone",
+           o.time_behavior AS "timeBehavior",
+           o.all_day AS "allDay",
+           o.estimated_effort_minutes AS "estimatedEffortMinutes"
+         FROM evidence_attempts a
+         JOIN mission_occurrences o
+           ON o.id = a.occurrence_id AND o.account_id = a.account_id
+         WHERE a.id = $1 AND a.account_id = $2`,
+        [attemptId, accountId],
+      );
+      const attempt = result.rows[0];
+      if (attempt === undefined) throw new EvidenceAttemptError('not_found');
+      if (
+        attempt.verificationStatus !== 'pending' &&
+        attempt.verificationStatus !== 'queued' &&
+        attempt.verificationStatus !== 'accepted' &&
+        attempt.verificationStatus !== 'rejected'
+      ) {
+        throw new EvidenceAttemptError('conflict');
+      }
+      const reasonCode =
+        attempt.reasonCode === null
+          ? null
+          : evidenceVerificationReasonCodeSchema.safeParse(attempt.reasonCode);
+      if (reasonCode !== null && !reasonCode.success) {
+        throw new EvidenceAttemptError('conflict');
+      }
+      const eligibility = evaluateCompletionEligibility({
+        schedule: {
+          localStart: attempt.localStart,
+          localFinish: attempt.localFinish,
+          startInstant: attempt.startInstant.toISOString(),
+          finishInstant: attempt.finishInstant.toISOString(),
+          timeZone: attempt.timeZone,
+          timeBehavior: attempt.timeBehavior,
+          allDay: attempt.allDay,
+          estimatedEffortMinutes: attempt.estimatedEffortMinutes,
+        },
+        actionInstant: now().toISOString(),
+      });
+      return {
+        attemptId: attempt.id,
+        occurrenceId: attempt.occurrenceId,
+        attemptNumber: attempt.attemptNumber,
+        firstSubmittedAt: attempt.firstSubmittedAt.toISOString(),
+        effectiveSubmittedAt: attempt.effectiveSubmittedAt.toISOString(),
+        verificationStatus: attempt.verificationStatus,
+        reasonCode: reasonCode === null ? null : reasonCode.data,
+        expired: eligibility.state === 'expired',
+      } as const;
+    },
+
     async reserve(
       accountId: string,
       occurrenceIdSource: unknown,

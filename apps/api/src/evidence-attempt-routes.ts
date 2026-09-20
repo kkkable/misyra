@@ -11,6 +11,18 @@ function mapError(error: unknown): never {
 export function createEvidenceAttemptRoutes(service: EvidenceAttemptService): ApiRouteDefinition[] {
   return [
     {
+      method: 'GET',
+      path: '/evidence/attempts/:attemptId',
+      handler: async (request, _reply, auth) => {
+        const params = request.params as { attemptId?: unknown };
+        try {
+          return await service.getResult(auth.accountId, params.attemptId);
+        } catch (error) {
+          return mapError(error);
+        }
+      },
+    },
+    {
       method: 'POST',
       path: '/evidence/occurrences/:occurrenceId/attempts',
       handler: async (request, _reply, auth) => {

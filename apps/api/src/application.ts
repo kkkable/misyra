@@ -285,7 +285,7 @@ export function createApiApplication(options: AuthApplicationOptions) {
       ...createAuthRoutes(authService),
       ...createAccountLifecycleRoutes(accountLifecycleService),
       ...createDeviceSettingsRoutes(deviceSettingsService),
-      ...createCompletionRoutes(options.pool),
+      ...createCompletionRoutes(options.pool, options.now),
       ...createSyncRoutes(syncService),
       ...createEvidenceAttemptRoutes(evidenceAttemptService),
       ...createProtectedMediaRoutes(protectedMediaService),

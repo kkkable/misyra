@@ -54,7 +54,10 @@ function mapCompletionError(error: unknown): never {
   }
 }
 
-export function createCompletionRoutes(pool: Pool): ApiRouteDefinition[] {
+export function createCompletionRoutes(
+  pool: Pool,
+  now: () => Date = () => new Date(),
+): ApiRouteDefinition[] {
   return [
     {
       method: 'POST',
@@ -67,7 +70,10 @@ export function createCompletionRoutes(pool: Pool): ApiRouteDefinition[] {
             accountId: auth.accountId,
             occurrenceId,
             completionType: body.completionMode === 'trust' ? 'trust_mode' : body.completionMode,
-            effectiveActionAt: body.effectiveActionAt,
+            effectiveActionAt:
+              body.completionMode === 'self_confirmed'
+                ? now().toISOString()
+                : body.effectiveActionAt,
             deviceId: body.deviceId,
             idempotencyKey: body.idempotencyKey,
             ...(body.evidenceAttemptId === undefined
