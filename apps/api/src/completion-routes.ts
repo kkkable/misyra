@@ -66,8 +66,7 @@ export function createCompletionRoutes(pool: Pool): ApiRouteDefinition[] {
           const result = await completeMissionAuthoritatively(pool, {
             accountId: auth.accountId,
             occurrenceId,
-            completionType:
-              body.completionMode === 'trust' ? 'trust_mode' : body.completionMode,
+            completionType: body.completionMode === 'trust' ? 'trust_mode' : body.completionMode,
             effectiveActionAt: body.effectiveActionAt,
             deviceId: body.deviceId,
             idempotencyKey: body.idempotencyKey,
