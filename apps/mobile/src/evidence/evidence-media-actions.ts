@@ -14,21 +14,29 @@ export type EvidenceMediaFiles = Readonly<{
 }>;
 
 export function createEvidenceMediaActions(
-  _input: Readonly<{
+  input: Readonly<{
     api: EvidenceMediaActionsApi;
     photoLibrary: EvidencePhotoLibrary;
     files: EvidenceMediaFiles;
   }>,
 ) {
-  void _input;
   return Object.freeze({
-    saveToPhotos(_attemptId: string): Promise<Readonly<{ saved: boolean }>> {
-      void _attemptId;
-      return Promise.reject(new Error('MTS-084 evidence save not implemented'));
+    async saveToPhotos(attemptId: string): Promise<Readonly<{ saved: boolean }>> {
+      const permission = await input.photoLibrary.requestSavePermission();
+      if (permission !== 'granted') return { saved: false };
+
+      const fileUri = await input.api.downloadOriginal(attemptId);
+      try {
+        await input.photoLibrary.saveToPhotos(fileUri);
+        return { saved: true };
+      } finally {
+        await input.files.discard(fileUri);
+      }
     },
-    deleteEvidence(_attemptId: string): Promise<void> {
-      void _attemptId;
-      return Promise.reject(new Error('MTS-084 evidence deletion not implemented'));
+
+    async deleteEvidence(attemptId: string): Promise<void> {
+      await input.api.deleteMedia(attemptId);
+      await input.files.deleteAttemptCopies(attemptId);
     },
   });
 }

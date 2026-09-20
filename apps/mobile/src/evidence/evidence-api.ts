@@ -22,6 +22,7 @@ export type EvidenceAttemptResult = Readonly<{
   verificationStatus: 'pending' | 'queued' | 'accepted' | 'rejected';
   reasonCode: EvidenceVerificationReasonCode | null;
   duplicateLoser: boolean;
+  mediaAvailable: boolean;
   expired: boolean;
   serverNow: string | null;
   expiresAt: string | null;
@@ -125,6 +126,7 @@ function parseResult(value: unknown): EvidenceAttemptResult {
     verificationStatus,
     reasonCode: reason === null ? null : reason.data,
     duplicateLoser: value.duplicateLoser === true,
+    mediaAvailable: value.mediaAvailable === true,
     expired: value.expired,
     serverNow,
     expiresAt,
