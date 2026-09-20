@@ -221,6 +221,38 @@ describe('MTS-046 Mission Details state matrix', () => {
     expect(textContent(renderer.toJSON())).toContain(expectedCopy);
   });
 
+  it.each(['accepted', 'rejected'])(
+    'lets a completed mission reopen retained %s evidence management',
+    (evidenceState) => {
+      const onEvidencePress = vi.fn();
+      let renderer;
+      act(() => {
+        renderer = create(
+          createElement(MissionDetailsScreen, {
+            colorScheme: 'light',
+            details: {
+              ...baseDetails,
+              lifecycle: 'completed',
+              completionState: 'completed',
+              evidenceState,
+            },
+            language: 'en',
+            onEvidencePress,
+          }),
+        );
+      });
+
+      const actions = renderer.root
+        .findAllByProps({ testID: 'mission-details-evidence-action' })
+        .filter((node) => node.type === 'Pressable');
+      expect(actions).toHaveLength(1);
+      act(() => {
+        actions[0].props.onPress();
+      });
+      expect(onEvidencePress).toHaveBeenCalledTimes(1);
+    },
+  );
+
   it('shows the permanent 0-XP reason without a confirmation action', () => {
     const renderer = renderDetails({
       rewardEligibility: 'ineligible',

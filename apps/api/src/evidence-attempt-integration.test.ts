@@ -456,6 +456,23 @@ describe('MTS-080 evidence-attempt creation and upload', () => {
       [accountId, occurrenceId],
     );
 
+    const beforeResult = await server.inject({
+      method: 'GET',
+      url: `/v1/evidence/attempts/${attemptId}`,
+    });
+    expect(beforeResult.statusCode).toBe(200);
+    expect(beforeResult.json()).toMatchObject({
+      payload: { mediaAvailable: true, mediaDeletable: true },
+    });
+
+    const originalRead = await server.inject({
+      method: 'GET',
+      url: `/v1/evidence/attempts/${attemptId}/media/original`,
+    });
+    expect(originalRead.statusCode).toBe(200);
+    expect(originalRead.headers['content-type']).toMatch(/^image\/jpeg/);
+    expect(originalRead.body).toBe('evidence-image');
+
     const deleted = await server.inject({
       method: 'DELETE',
       url: `/v1/evidence/attempts/${attemptId}/media`,
@@ -477,6 +494,15 @@ describe('MTS-080 evidence-attempt creation and upload', () => {
       [mediaAssetId, accountId],
     );
     expect(asset.rows[0]).toEqual({ deletionState: 'deleted', retryState: 'ready' });
+
+    const afterResult = await server.inject({
+      method: 'GET',
+      url: `/v1/evidence/attempts/${attemptId}`,
+    });
+    expect(afterResult.statusCode).toBe(200);
+    expect(afterResult.json()).toMatchObject({
+      payload: { mediaAvailable: false, mediaDeletable: true },
+    });
 
     const after = await pool.query<{
       completionCount: number;

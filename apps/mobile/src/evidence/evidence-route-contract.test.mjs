@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 const evidenceRoutePath = fileURLToPath(new URL('../../app/evidence.tsx', import.meta.url));
 const mobilePackagePath = fileURLToPath(new URL('../../package.json', import.meta.url));
+const mobileAppConfigPath = fileURLToPath(new URL('../../app.config.ts', import.meta.url));
 const evidenceRuntimePath = fileURLToPath(
   new URL('./expo-evidence-capture-runtime.tsx', import.meta.url),
 );
@@ -39,9 +40,12 @@ describe('MTS-079 camera-only route contract', () => {
     const routeSource = readFileSync(evidenceRoutePath, 'utf8');
     const captureSource = readFileSync(evidenceRuntimePath, 'utf8');
     const mediaActionsSource = readFileSync(evidenceMediaActionsPath, 'utf8');
+    const appConfigSource = readFileSync(mobileAppConfigPath, 'utf8');
 
     expect(captureSource).not.toMatch(/expo-media-library/);
     expect(mediaActionsSource).toMatch(/expo-media-library/);
+    expect(mediaActionsSource).toMatch(/requestPermissionsAsync\(true, \[\]\)/);
+    expect(appConfigSource).toMatch(/granularPermissions:\s*\[\]/);
     expect(routeSource).toMatch(/createExpoEvidenceMediaActionsRuntime/);
     expect(routeSource).toMatch(/saveToPhotos/);
     expect(routeSource).toMatch(/deleteEvidence/);

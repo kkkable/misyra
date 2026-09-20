@@ -32,6 +32,8 @@ const messages = {
   reasonTaskMismatch: 'The photo does not match this mission.',
   reasonTaskNotEvident: 'The mission is not clear in the photo.',
   reasonImageUnusable: 'The photo could not be checked.',
+  saveToPhotos: 'Save to Photos',
+  deleteEvidence: 'Delete evidence',
 };
 
 function renderRejected(attemptNumber = 1, expired = false) {
@@ -56,6 +58,75 @@ function renderRejected(attemptNumber = 1, expired = false) {
   });
   return { renderer, onRetry, onSelfConfirm };
 }
+
+describe('MTS-084 retained evidence actions', () => {
+  it('shows explicit Save to Photos and delete actions only while retained app media exists', async () => {
+    const onSaveToPhotos = vi.fn(() => Promise.resolve({ saved: true }));
+    const onDeleteEvidence = vi.fn(() => Promise.resolve());
+    const flow = resolveEvidenceResultFlow({
+      verificationStatus: 'rejected',
+      attemptNumber: 3,
+      expired: false,
+      reasonCode: 'task_mismatch',
+    });
+    let renderer;
+    await act(async () => {
+      renderer = create(
+        createElement(EvidenceResultPanel, {
+          flow,
+          messages,
+          mediaAvailable: true,
+          mediaDeletable: true,
+          onRetry: vi.fn(),
+          onSelfConfirm: vi.fn(),
+          onSaveToPhotos,
+          onDeleteEvidence,
+        }),
+      );
+    });
+
+    expect(renderer.root.findByProps({ testID: 'evidence-result-save-to-photos' })).toBeDefined();
+    expect(renderer.root.findByProps({ testID: 'evidence-result-delete-media' })).toBeDefined();
+
+    await act(async () => {
+      renderer.root.findByProps({ testID: 'evidence-result-save-to-photos' }).props.onPress();
+      await Promise.resolve();
+    });
+    await act(async () => {
+      renderer.root.findByProps({ testID: 'evidence-result-delete-media' }).props.onPress();
+      await Promise.resolve();
+    });
+    expect(onSaveToPhotos).toHaveBeenCalledTimes(1);
+    expect(onDeleteEvidence).toHaveBeenCalledTimes(1);
+  });
+
+  it('hides retained-media actions after app-controlled media is deleted', () => {
+    const flow = resolveEvidenceResultFlow({
+      verificationStatus: 'accepted',
+      attemptNumber: 1,
+      expired: false,
+      reasonCode: 'verified',
+    });
+    let renderer;
+    act(() => {
+      renderer = create(
+        createElement(EvidenceResultPanel, {
+          flow,
+          messages,
+          mediaAvailable: false,
+          mediaDeletable: false,
+          onRetry: vi.fn(),
+          onSelfConfirm: vi.fn(),
+          onSaveToPhotos: vi.fn(),
+          onDeleteEvidence: vi.fn(),
+        }),
+      );
+    });
+
+    expect(renderer.root.findAllByProps({ testID: 'evidence-result-save-to-photos' })).toHaveLength(0);
+    expect(renderer.root.findAllByProps({ testID: 'evidence-result-delete-media' })).toHaveLength(0);
+  });
+});
 
 describe('MTS-082 evidence result actions', () => {
   it('requires a second explicit confirmation before self-confirming a rejected attempt', () => {
