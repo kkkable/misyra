@@ -314,6 +314,7 @@ export function createEvidenceAttemptService(options: EvidenceAttemptServiceOpti
       if (reasonCode !== null && !reasonCode.success) {
         throw new EvidenceAttemptError('conflict');
       }
+      const currentTime = now();
       const eligibility = evaluateCompletionEligibility({
         schedule: {
           localStart: attempt.localStart,
@@ -325,7 +326,7 @@ export function createEvidenceAttemptService(options: EvidenceAttemptServiceOpti
           allDay: attempt.allDay,
           estimatedEffortMinutes: attempt.estimatedEffortMinutes,
         },
-        actionInstant: now().toISOString(),
+        actionInstant: currentTime.toISOString(),
       });
       return {
         attemptId: attempt.id,
@@ -336,6 +337,8 @@ export function createEvidenceAttemptService(options: EvidenceAttemptServiceOpti
         verificationStatus: attempt.verificationStatus,
         reasonCode: reasonCode === null ? null : reasonCode.data,
         expired: eligibility.state === 'expired',
+        serverNow: currentTime.toISOString(),
+        expiresAt: eligibility.expiresAt,
       } as const;
     },
 

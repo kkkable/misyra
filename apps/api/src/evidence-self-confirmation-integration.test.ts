@@ -227,6 +227,8 @@ describe('MTS-082 evidence self-confirmation', () => {
         verificationStatus: 'rejected',
         reasonCode: 'task_mismatch',
         expired: false,
+        serverNow: '2026-09-24T10:20:00.000Z',
+        expiresAt: '2026-10-24T10:00:00.000Z',
       },
     });
     expect(JSON.stringify(openResult.json())).not.toContain('model');

@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { resolveEvidenceResultFlow } from './evidence-result-flow.js';
+import {
+  resolveEvidenceResultFlow,
+  resolveEvidenceResultRefreshDelay,
+} from './evidence-result-flow.js';
 
 describe('MTS-082 evidence result flow matrix', () => {
   it.each([
@@ -109,5 +112,58 @@ describe('MTS-082 evidence result flow matrix', () => {
 
     expect(result.reasonMessageKey).toBe('evidence.result.reason.taskMismatch');
     expect(JSON.stringify(result)).not.toContain('model');
+  });
+});
+
+
+describe('MTS-082 evidence result server-time refresh', () => {
+  it('polls active verification every second without needing expiry metadata', () => {
+    expect(
+      resolveEvidenceResultRefreshDelay({
+        verificationStatus: 'queued',
+        expired: false,
+        serverNow: null,
+        expiresAt: null,
+      }),
+    ).toBe(1_000);
+  });
+
+  it('rechecks a rejected result at most hourly until the server-side expiry', () => {
+    expect(
+      resolveEvidenceResultRefreshDelay({
+        verificationStatus: 'rejected',
+        expired: false,
+        serverNow: '2026-09-20T08:00:00.000Z',
+        expiresAt: '2026-10-20T10:00:00.000Z',
+      }),
+    ).toBe(60 * 60 * 1_000);
+
+    expect(
+      resolveEvidenceResultRefreshDelay({
+        verificationStatus: 'rejected',
+        expired: false,
+        serverNow: '2026-10-20T09:59:55.000Z',
+        expiresAt: '2026-10-20T10:00:00.000Z',
+      }),
+    ).toBe(5_000);
+  });
+
+  it('stops refreshing accepted and server-expired results', () => {
+    expect(
+      resolveEvidenceResultRefreshDelay({
+        verificationStatus: 'accepted',
+        expired: false,
+        serverNow: '2026-09-20T08:00:00.000Z',
+        expiresAt: '2026-10-20T10:00:00.000Z',
+      }),
+    ).toBeNull();
+    expect(
+      resolveEvidenceResultRefreshDelay({
+        verificationStatus: 'rejected',
+        expired: true,
+        serverNow: '2026-10-20T10:00:00.000Z',
+        expiresAt: '2026-10-20T10:00:00.000Z',
+      }),
+    ).toBeNull();
   });
 });

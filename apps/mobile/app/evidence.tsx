@@ -11,7 +11,10 @@ import {
   type EvidenceCaptureMessages,
 } from '../src/evidence/evidence-capture-screen.js';
 import { createExpoEvidenceCaptureRuntime } from '../src/evidence/expo-evidence-capture-runtime.js';
-import { resolveEvidenceResultFlow } from '../src/evidence/evidence-result-flow.js';
+import {
+  resolveEvidenceResultFlow,
+  resolveEvidenceResultRefreshDelay,
+} from '../src/evidence/evidence-result-flow.js';
 import { createEvidenceSubmissionSession } from '../src/evidence/evidence-submission-session.js';
 import {
   EvidenceResultPanel,
@@ -144,17 +147,15 @@ export default function EvidenceRoute() {
   }, [authenticatedEvidenceApi, occurrenceId, submissionSession]);
 
   useEffect(() => {
-    if (
-      result === null ||
-      (result.verificationStatus !== 'pending' && result.verificationStatus !== 'queued')
-    ) {
-      return;
-    }
+    if (result === null) return;
+    const delay = resolveEvidenceResultRefreshDelay(result);
+    if (delay === null) return;
+
     const timer = setTimeout(() => {
       void refreshResult().catch(() => {
         setPollRetry((value) => value + 1);
       });
-    }, RESULT_POLL_MILLISECONDS);
+    }, delay);
     return () => {
       clearTimeout(timer);
     };
@@ -199,6 +200,8 @@ export default function EvidenceRoute() {
             verificationStatus: 'queued',
             reasonCode: null,
             expired: false,
+            serverNow: null,
+            expiresAt: null,
           });
           void api
             .getResult(submission.attemptId)

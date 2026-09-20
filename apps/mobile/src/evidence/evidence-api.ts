@@ -22,6 +22,8 @@ export type EvidenceAttemptResult = Readonly<{
   verificationStatus: 'pending' | 'queued' | 'accepted' | 'rejected';
   reasonCode: EvidenceVerificationReasonCode | null;
   expired: boolean;
+  serverNow: string | null;
+  expiresAt: string | null;
 }>;
 
 type EvidenceApiOptions = Readonly<{
@@ -91,6 +93,11 @@ function parseResult(value: unknown): EvidenceAttemptResult {
       : evidenceVerificationReasonCodeSchema.safeParse(value.reasonCode);
   if (reason !== null && !reason.success) throw new Error('evidence_reason_code_invalid');
   if (typeof value.expired !== 'boolean') throw new Error('evidence_expiry_invalid');
+  const serverNow = nonEmptyString(value.serverNow, 'evidence_server_now_invalid');
+  const expiresAt = nonEmptyString(value.expiresAt, 'evidence_expires_at_invalid');
+  if (!Number.isFinite(Date.parse(serverNow)) || !Number.isFinite(Date.parse(expiresAt))) {
+    throw new Error('evidence_expiry_time_invalid');
+  }
   return {
     attemptId: nonEmptyString(value.attemptId, 'evidence_attempt_id_invalid'),
     occurrenceId: nonEmptyString(value.occurrenceId, 'evidence_occurrence_id_invalid'),
@@ -103,6 +110,8 @@ function parseResult(value: unknown): EvidenceAttemptResult {
     verificationStatus,
     reasonCode: reason === null ? null : reason.data,
     expired: value.expired,
+    serverNow,
+    expiresAt,
   };
 }
 
