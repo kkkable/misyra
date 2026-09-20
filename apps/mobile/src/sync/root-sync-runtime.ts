@@ -1,9 +1,12 @@
 import { getCalendars } from 'expo-localization';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
 import { AppleCalendarNativeModule } from '../../modules/apple-calendar/index.js';
 import { getAuthApiBaseUrl, rootAuthController } from '../auth/auth-runtime.js';
+import { createEvidenceApi } from '../evidence/evidence-api.js';
+import { createEvidenceOfflineQueue } from '../evidence/evidence-offline-queue.js';
 import { rootNotificationRebuildLifecycle } from '../notifications/root-notification-rebuild-runtime.js';
 import { openMobileDatabase } from '../storage/database.js';
 import { createAppleCalendarCommandApi } from './apple-calendar-command-api.js';
@@ -85,6 +88,19 @@ const authenticatedRootSyncRuntime = createAuthenticatedSyncRuntime({
         completionSettlementChannel.publish(settlement);
       },
     }),
+  runEvidenceSync: ({ database, accountId, deviceId, session }) =>
+    createEvidenceOfflineQueue({
+      database,
+      accountId,
+      deviceId,
+      api: createEvidenceApi({
+        baseUrl: getAuthApiBaseUrl(),
+        accessToken: session.accessToken,
+      }),
+      files: {
+        discard: (uri) => FileSystem.deleteAsync(uri, { idempotent: true }),
+      },
+    }).processPending(),
   generateInstallationId,
   deviceMetadata,
 });

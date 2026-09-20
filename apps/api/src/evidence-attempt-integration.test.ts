@@ -84,7 +84,11 @@ async function seedOccurrence(
 function createServer(
   blobStore: Readonly<{
     put(container: string, storageKey: string, bytes: Buffer, contentType: string): Promise<void>;
-  }> = { put: vi.fn(() => Promise.resolve()) },
+    delete(container: string, storageKey: string): Promise<void>;
+  }> = {
+    put: vi.fn(() => Promise.resolve()),
+    delete: vi.fn(() => Promise.resolve()),
+  },
 ) {
   return createApiApplication({
     pool,
@@ -360,9 +364,34 @@ describe('MTS-080 evidence-attempt creation and upload', () => {
     await server.close();
   });
 
+  it('silently replaces an invalid device clock with the first server receipt time', async () => {
+    const server = createServer();
+    const occurrenceId = await seedOccurrence();
+    apiNow = new Date('2026-09-20T09:30:00.000Z');
+
+    const result = await reserveAttempt(
+      server,
+      occurrenceId,
+      randomUUID(),
+      'not-a-valid-device-timestamp',
+    );
+
+    expect(result.response.statusCode).toBe(200);
+    expect(result.payload).toMatchObject({
+      attemptNumber: 1,
+      firstSubmittedAt: '2026-09-20T09:30:00.000Z',
+      effectiveSubmittedAt: '2026-09-20T09:30:00.000Z',
+    });
+
+    await server.close();
+  });
+
   it('does not lose or double-consume an attempt when media upload fails and reservation is retried', async () => {
     const failingPut = vi.fn(() => Promise.reject(new Error('fixture upload unavailable')));
-    const failingServer = createServer({ put: failingPut });
+    const failingServer = createServer({
+      put: failingPut,
+      delete: vi.fn(() => Promise.resolve()),
+    });
     const occurrenceId = await seedOccurrence();
     const attemptId = randomUUID();
     const submittedAt = '2026-09-18T09:06:00.000Z';
@@ -399,7 +428,10 @@ describe('MTS-080 evidence-attempt creation and upload', () => {
     await failingServer.close();
 
     const succeedingPut = vi.fn(() => Promise.resolve());
-    const succeedingServer = createServer({ put: succeedingPut });
+    const succeedingServer = createServer({
+      put: succeedingPut,
+      delete: vi.fn(() => Promise.resolve()),
+    });
     const replay = await reserveAttempt(succeedingServer, occurrenceId, attemptId, submittedAt);
 
     expect(replay.response.statusCode).toBe(200);

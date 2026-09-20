@@ -7,6 +7,10 @@ import { getAuthApiBaseUrl, rootAuthController } from '../src/auth/auth-runtime.
 import type { ColorScheme } from '../src/design-system/index.js';
 import { createEvidenceApi, type EvidenceAttemptResult } from '../src/evidence/evidence-api.js';
 import {
+  createEvidenceOfflineQueue,
+  type OfflineEvidencePending,
+} from '../src/evidence/evidence-offline-queue.js';
+import {
   EvidenceCaptureScreen,
   type EvidenceCaptureMessages,
 } from '../src/evidence/evidence-capture-screen.js';
@@ -21,6 +25,7 @@ import {
   type EvidenceResultMessages,
 } from '../src/evidence/evidence-result-panel.js';
 import { useAppLanguage } from '../src/localization/use-app-language.js';
+import { openMobileDatabase } from '../src/storage/database.js';
 import { createAuthenticatedSyncApi } from '../src/sync/authenticated-sync-api.js';
 import { requireRegisteredDeviceId, rootSyncRuntime } from '../src/sync/root-sync-runtime.js';
 
@@ -58,6 +63,7 @@ export default function EvidenceRoute() {
   const [activeAttemptId, setActiveAttemptId] = useState<string | null>(null);
   const [pollRetry, setPollRetry] = useState(0);
   const [restoringLatest, setRestoringLatest] = useState(true);
+  const [offlinePending, setOfflinePending] = useState<OfflineEvidencePending | null>(null);
 
   const captureMessages: EvidenceCaptureMessages = {
     close: catalog['evidence.close'],
@@ -95,9 +101,26 @@ export default function EvidenceRoute() {
         baseUrl: getAuthApiBaseUrl(),
         accessToken: authState.session.accessToken,
       }),
-      accessToken: authState.session.accessToken,
     };
   }, []);
+
+  const authenticatedEvidenceQueue = useCallback(async () => {
+    const { accountId, api } = await authenticatedEvidenceApi();
+    const [database, deviceId] = await Promise.all([
+      openMobileDatabase(),
+      requireRegisteredDeviceId(accountId),
+    ]);
+    return {
+      api,
+      queue: createEvidenceOfflineQueue({
+        database,
+        accountId,
+        deviceId,
+        api,
+        files: runtime.files,
+      }),
+    };
+  }, [authenticatedEvidenceApi, runtime]);
 
   const refreshResult = useCallback(async () => {
     if (activeAttemptId === null) return;
@@ -117,11 +140,30 @@ export default function EvidenceRoute() {
     submissionSession.reset();
     setResult(null);
     setActiveAttemptId(null);
+    setOfflinePending(null);
     setRestoringLatest(true);
 
     const restore = async () => {
       try {
-        const { api } = await authenticatedEvidenceApi();
+        const { api, queue } = await authenticatedEvidenceQueue();
+        const pending = await queue.getPendingForOccurrence(occurrenceId);
+        if (isCancelled()) return;
+        if (pending !== null) {
+          setActiveAttemptId(pending.attemptId);
+          setOfflinePending(pending);
+          setRestoringLatest(false);
+          void queue
+            .processPending()
+            .then(() => api.getResult(pending.attemptId))
+            .then((latestResult) => {
+              if (isCancelled()) return;
+              setResult(latestResult);
+              setOfflinePending(null);
+            })
+            .catch(() => undefined);
+          return;
+        }
+
         const latestAttemptId = await api.getLatestAttemptId(occurrenceId);
         if (isCancelled()) return;
         if (latestAttemptId !== null) {
@@ -145,7 +187,7 @@ export default function EvidenceRoute() {
       lifecycle.cancelled = true;
       if (retryTimer.current !== null) clearTimeout(retryTimer.current);
     };
-  }, [authenticatedEvidenceApi, occurrenceId, submissionSession]);
+  }, [authenticatedEvidenceQueue, occurrenceId, submissionSession]);
 
   useEffect(() => {
     if (result === null) return;
@@ -179,6 +221,25 @@ export default function EvidenceRoute() {
 
   if (restoringLatest) return null;
 
+  if (offlinePending !== null && result === null) {
+    return (
+      <EvidenceResultPanel
+        colorScheme={colorScheme}
+        flow={{
+          state: 'waiting',
+          remainingAttempts: 0,
+          canRetry: false,
+          canSelfConfirm: false,
+          reasonMessageKey: null,
+        }}
+        messages={resultMessages}
+        onClose={close}
+        onRetry={() => undefined}
+        onSelfConfirm={() => Promise.resolve()}
+      />
+    );
+  }
+
   if (result === null) {
     return (
       <EvidenceCaptureScreen
@@ -187,29 +248,29 @@ export default function EvidenceRoute() {
         runtime={runtime}
         onClose={close}
         onSubmit={async (file) => {
-          const { api } = await authenticatedEvidenceApi();
+          const { api, queue } = await authenticatedEvidenceQueue();
           const submission = submissionSession.getOrCreate();
+          const pending: OfflineEvidencePending = {
+            mutationId: generateUuid(),
+            attemptId: submission.attemptId,
+            occurrenceId,
+            submittedAt: submission.submittedAt,
+            originalUri: file.uri,
+            thumbnailUris: [],
+          };
+          await queue.enqueue(pending);
           setActiveAttemptId(submission.attemptId);
-          const reservation = await api.reserveAttempt(occurrenceId, submission);
-          await api.uploadOriginal(reservation.uploadPath, file.uri);
-          setResult({
-            attemptId: reservation.attemptId,
-            occurrenceId: reservation.occurrenceId,
-            attemptNumber: reservation.attemptNumber,
-            firstSubmittedAt: reservation.firstSubmittedAt,
-            effectiveSubmittedAt: reservation.effectiveSubmittedAt,
-            verificationStatus: 'queued',
-            reasonCode: null,
-            expired: false,
-            serverNow: null,
-            expiresAt: null,
-          });
-          void api
-            .getResult(submission.attemptId)
-            .then(setResult)
-            .catch(() => {
-              setPollRetry((value) => value + 1);
-            });
+          setOfflinePending(pending);
+          setResult(null);
+
+          void queue
+            .processPending()
+            .then(() => api.getResult(submission.attemptId))
+            .then((latestResult) => {
+              setResult(latestResult);
+              setOfflinePending(null);
+            })
+            .catch(() => undefined);
         }}
       />
     );
@@ -230,6 +291,7 @@ export default function EvidenceRoute() {
       onClose={close}
       onRetry={() => {
         submissionSession.reset();
+        setOfflinePending(null);
         setResult(null);
         setActiveAttemptId(null);
       }}

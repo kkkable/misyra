@@ -21,6 +21,7 @@ export type EvidenceAttemptResult = Readonly<{
   effectiveSubmittedAt: string;
   verificationStatus: 'pending' | 'queued' | 'accepted' | 'rejected';
   reasonCode: EvidenceVerificationReasonCode | null;
+  duplicateLoser: boolean;
   expired: boolean;
   serverNow: string | null;
   expiresAt: string | null;
@@ -33,6 +34,20 @@ type EvidenceApiOptions = Readonly<{
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+export class EvidenceApiError extends Error {
+  constructor(readonly code: string) {
+    super(code);
+    this.name = 'EvidenceApiError';
+  }
+}
+
+function errorCodeFromEnvelope(value: unknown): string | null {
+  if (!isRecord(value) || value.ok !== false || !isRecord(value.error)) return null;
+  return typeof value.error.code === 'string' && value.error.code.length > 0
+    ? value.error.code
+    : null;
 }
 
 function payloadFromEnvelope(value: unknown): unknown {
@@ -109,6 +124,7 @@ function parseResult(value: unknown): EvidenceAttemptResult {
     ),
     verificationStatus,
     reasonCode: reason === null ? null : reason.data,
+    duplicateLoser: value.duplicateLoser === true,
     expired: value.expired,
     serverNow,
     expiresAt,
@@ -129,7 +145,9 @@ export function createEvidenceApi({ baseUrl, accessToken }: EvidenceApiOptions) 
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     });
     const responseBody: unknown = await response.json();
-    if (!response.ok) throw new Error('evidence_request_failed');
+    if (!response.ok) {
+      throw new EvidenceApiError(errorCodeFromEnvelope(responseBody) ?? 'evidence_request_failed');
+    }
     return payloadFromEnvelope(responseBody);
   }
 

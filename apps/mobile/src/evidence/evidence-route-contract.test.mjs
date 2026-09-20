@@ -8,6 +8,7 @@ const mobilePackagePath = fileURLToPath(new URL('../../package.json', import.met
 const evidenceRuntimePath = fileURLToPath(
   new URL('./expo-evidence-capture-runtime.tsx', import.meta.url),
 );
+const rootSyncRuntimePath = fileURLToPath(new URL('../sync/root-sync-runtime.ts', import.meta.url));
 
 describe('MTS-079 camera-only route contract', () => {
   it('wires the Evidence modal to the camera runtime without any gallery picker path', () => {
@@ -29,6 +30,20 @@ describe('MTS-079 camera-only route contract', () => {
 
     expect(mobilePackage.dependencies).not.toHaveProperty('expo-image-picker');
     expect(mobilePackage.dependencies).not.toHaveProperty('expo-media-library');
+  });
+
+  it('durably queues evidence before upload, restores local Waiting state, and drains it on root sync', () => {
+    const routeSource = readFileSync(evidenceRoutePath, 'utf8');
+    const rootSyncSource = readFileSync(rootSyncRuntimePath, 'utf8');
+
+    expect(routeSource).toMatch(/createEvidenceOfflineQueue/);
+    expect(routeSource).toMatch(/\.enqueue\(/);
+    expect(routeSource).toMatch(/getPendingForOccurrence\(occurrenceId\)/);
+    expect(routeSource).toMatch(/\.processPending\(\)/);
+
+    expect(rootSyncSource).toMatch(/createEvidenceOfflineQueue/);
+    expect(rootSyncSource).toMatch(/runEvidenceSync/);
+    expect(rootSyncSource).toMatch(/processPending\(\)/);
   });
 
   it('moves the camera original into private working storage instead of leaving a duplicate', () => {

@@ -6,6 +6,7 @@ import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { createEvidenceVerificationService } from './evidence-verification.js';
+import { createProtectedMediaService } from './protected-media.js';
 
 const postgresUser = process.env.POSTGRES_USER ?? 'misyra';
 const postgresPassword = process.env.POSTGRES_PASSWORD ?? 'misyra-local-only';
@@ -286,6 +287,98 @@ describe('MTS-081 AI evidence verification', () => {
       status: 'pending',
       verificationStatus: 'queued',
       reasonCode: null,
+    });
+  });
+
+  it('marks a post-upload duplicate loser and deletes its protected media after another device completed first', async () => {
+    const seeded = await seedQueuedAttempt();
+    await pool.query(
+      `UPDATE mission_occurrences
+          SET completion_state = 'completed',
+              evidence_state = 'not_required',
+              reward_issuance = 'issued'
+        WHERE id = $1 AND account_id = $2`,
+      [seeded.occurrenceId, accountId],
+    );
+    await pool.query(
+      `INSERT INTO mission_completions
+         (account_id, occurrence_id, completion_type, action_time)
+       VALUES ($1, $2, 'private', '2026-09-19T09:10:00.000Z')`,
+      [accountId, seeded.occurrenceId],
+    );
+    await pool.query(
+      `INSERT INTO reward_ledger
+         (account_id, occurrence_id, base_xp, proof_bonus_xp, awarded_xp)
+       VALUES ($1, $2, 100, 0, 100)`,
+      [accountId, seeded.occurrenceId],
+    );
+
+    const storageKeys = {
+      original: `${accountId}/${seeded.mediaAssetId}/original`,
+      thumbnail: `${accountId}/${seeded.mediaAssetId}/thumbnail`,
+      derivative: `${accountId}/${seeded.mediaAssetId}/derivative`,
+      temporary: `${accountId}/${seeded.mediaAssetId}/temporary`,
+    };
+    await pool.query(
+      `UPDATE media_assets
+          SET thumbnail_storage_key = $3,
+              derivative_storage_key = $4,
+              temporary_storage_key = $5
+        WHERE id = $1 AND account_id = $2`,
+      [
+        seeded.mediaAssetId,
+        accountId,
+        storageKeys.thumbnail,
+        storageKeys.derivative,
+        storageKeys.temporary,
+      ],
+    );
+    const deleteBlob = vi.fn(() => Promise.resolve());
+    const protectedMediaService = createProtectedMediaService({
+      pool,
+      signingSecret: 'fixture-protected-media-signing-secret',
+      blobStore: {
+        put: vi.fn(() => Promise.resolve()),
+        delete: deleteBlob,
+      },
+    });
+    const service = createEvidenceVerificationService({
+      pool,
+      gateway: {
+        verifyEvidence() {
+          return Promise.resolve({ verdict: 'accepted', reasonCode: 'verified' });
+        },
+      },
+      deleteMediaAsset: async (assetAccountId, mediaAssetId) => {
+        await protectedMediaService.deleteAsset(assetAccountId, mediaAssetId);
+      },
+    });
+
+    await expect(service.processOutboxEvent(seeded.event)).resolves.toMatchObject({
+      verdict: 'accepted',
+      reasonCode: 'verified',
+    });
+    expect(deleteBlob.mock.calls).toEqual([
+      ['evidence-working', storageKeys.original],
+      ['evidence-working', storageKeys.thumbnail],
+      ['evidence-working', storageKeys.derivative],
+      ['evidence-working', storageKeys.temporary],
+    ]);
+
+    const stored = await pool.query<{ status: string; deletionState: string; retryState: string }>(
+      `SELECT
+         a.status,
+         m.deletion_state AS "deletionState",
+         m.retry_state AS "retryState"
+       FROM evidence_attempts a
+       JOIN media_assets m ON m.id = a.media_asset_id AND m.account_id = a.account_id
+       WHERE a.id = $1`,
+      [seeded.attemptId],
+    );
+    expect(stored.rows[0]).toEqual({
+      status: 'duplicate_loser',
+      deletionState: 'deleted',
+      retryState: 'ready',
     });
   });
 

@@ -31,7 +31,9 @@ export interface SyncMutation<TPayload = unknown> {
 }
 
 export type MutationDestination =
-  Readonly<{ kind: 'server' }> | Readonly<{ kind: 'external_calendar'; provider: string }>;
+  | Readonly<{ kind: 'server' }>
+  | Readonly<{ kind: 'external_calendar'; provider: string }>
+  | Readonly<{ kind: 'evidence_upload' }>;
 
 export type PendingMutation = Readonly<{
   sequence: number;
@@ -145,7 +147,7 @@ function assertDestination(destination: unknown): asserts destination is Mutatio
   if (!isRecord(destination) || typeof destination.kind !== 'string') {
     throw new TypeError('Mutation destination is invalid.');
   }
-  if (destination.kind === 'server') return;
+  if (destination.kind === 'server' || destination.kind === 'evidence_upload') return;
   if (destination.kind !== 'external_calendar') {
     throw new TypeError(`Unsupported mutation destination: ${destination.kind}.`);
   }
@@ -300,6 +302,15 @@ export function createMutationQueue(database: MutationQueueDatabase, accountId: 
       }
 
       return { processed, remaining: await countPending(), stoppedOn: null };
+    },
+
+    settle: async (mutationId: string): Promise<void> => {
+      assertNonEmpty(mutationId, 'Mutation ID');
+      await database.runAsync(
+        'DELETE FROM mutation_queue WHERE account_id = ? AND mutation_id = ?',
+        accountId,
+        mutationId,
+      );
     },
 
     discardExternalCommands: async (provider: string): Promise<number> => {
