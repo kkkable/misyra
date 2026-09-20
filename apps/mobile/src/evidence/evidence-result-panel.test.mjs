@@ -88,7 +88,9 @@ describe('MTS-082 evidence result actions', () => {
     const final = renderRejected(3);
     expect(final.renderer.root.findAllByProps({ testID: 'evidence-result-retry' })).toHaveLength(0);
     expect(
-      final.renderer.root.findAllByProps({ testID: 'evidence-result-self-confirm' }),
+      final.renderer.root
+        .findAllByProps({ testID: 'evidence-result-self-confirm' })
+        .filter((node) => node.type === 'Pressable'),
     ).toHaveLength(1);
   });
 
