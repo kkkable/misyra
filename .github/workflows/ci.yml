@@ -42,11 +42,7 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
 
       - name: Install from lockfile
-        run: |
-          pnpm install --frozen-lockfile
-          pnpm add expo-media-library@~57.0.5 --filter @misyra/mobile --lockfile-only
-          git diff -- apps/mobile/package.json pnpm-lock.yaml
-          exit 1
+        run: pnpm install --frozen-lockfile
 
       - name: Install Bicep compiler in runner only
         run: az bicep install
