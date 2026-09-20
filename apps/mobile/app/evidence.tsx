@@ -109,7 +109,7 @@ export default function EvidenceRoute() {
     }
 
     let cancelled = false;
-    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    const retryTimer = { current: null as ReturnType<typeof setTimeout> | null };
     submissionSession.reset();
     setResult(null);
     setActiveAttemptId(null);
@@ -129,7 +129,7 @@ export default function EvidenceRoute() {
         setRestoringLatest(false);
       } catch {
         if (!cancelled) {
-          retryTimer = setTimeout(() => {
+          retryTimer.current = setTimeout(() => {
             void restore();
           }, RESULT_POLL_MILLISECONDS);
         }
@@ -139,7 +139,7 @@ export default function EvidenceRoute() {
     void restore();
     return () => {
       cancelled = true;
-      if (retryTimer !== null) clearTimeout(retryTimer);
+      if (retryTimer.current !== null) clearTimeout(retryTimer.current);
     };
   }, [authenticatedEvidenceApi, occurrenceId, submissionSession]);
 

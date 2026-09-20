@@ -119,7 +119,7 @@ export function createEvidenceApi({ baseUrl, accessToken }: EvidenceApiOptions) 
       },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     });
-    const responseBody = await response.json();
+    const responseBody: unknown = await response.json();
     if (!response.ok) throw new Error('evidence_request_failed');
     return payloadFromEnvelope(responseBody);
   }
