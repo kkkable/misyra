@@ -106,9 +106,8 @@ function parseUuid(value: unknown): string {
 function parseSubmittedAt(value: unknown, serverReceiptTime: Date): string {
   if (typeof value !== 'string') return serverReceiptTime.toISOString();
   const parsed = new Date(value);
-  return Number.isFinite(parsed.getTime())
-    ? parsed.toISOString()
-    : serverReceiptTime.toISOString();
+  if (Number.isFinite(parsed.getTime())) return parsed.toISOString();
+  return serverReceiptTime.toISOString();
 }
 
 function parseContentType(value: unknown): string {
