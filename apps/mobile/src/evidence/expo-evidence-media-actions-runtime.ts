@@ -16,7 +16,8 @@ const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function storageRoot(kind: 'evidence-working' | 'evidence-save'): string {
-  const root = kind === 'evidence-working' ? FileSystem.documentDirectory : FileSystem.cacheDirectory;
+  const root =
+    kind === 'evidence-working' ? FileSystem.documentDirectory : FileSystem.cacheDirectory;
   if (root === null) throw new Error('Evidence media storage is unavailable.');
   return `${root}misyra/${kind}/`;
 }
@@ -41,7 +42,9 @@ export async function bindEvidenceOriginalToAttempt(
   return destination;
 }
 
-export function createExpoEvidenceMediaActionsRuntime(options: RuntimeOptions): Readonly<{
+export function createExpoEvidenceMediaActionsRuntime(
+  options: RuntimeOptions,
+): Readonly<{
   api: EvidenceMediaActionsApi;
   photoLibrary: EvidencePhotoLibrary;
   files: EvidenceMediaFiles;
@@ -52,7 +55,9 @@ export function createExpoEvidenceMediaActionsRuntime(options: RuntimeOptions): 
   return {
     api: {
       async downloadOriginal(attemptId) {
-        if (!UUID_PATTERN.test(attemptId)) throw new Error('Invalid evidence attempt identifier.');
+        if (!UUID_PATTERN.test(attemptId)) {
+          throw new Error('Invalid evidence attempt identifier.');
+        }
         const directory = storageRoot('evidence-save');
         await FileSystem.makeDirectoryAsync(directory, { intermediates: true });
         const destination = `${directory}${attemptId}.jpg`;
