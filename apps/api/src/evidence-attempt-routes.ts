@@ -41,7 +41,7 @@ export function createEvidenceAttemptRoutes(service: EvidenceAttemptService): Ap
         const params = request.params as { attemptId?: unknown };
         try {
           const body = await service.getMediaOriginal(auth.accountId, params.attemptId);
-          return reply.type('image/jpeg').send(body);
+          return await reply.type('image/jpeg').send(body);
         } catch (error) {
           return mapError(error);
         }
