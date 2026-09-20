@@ -50,10 +50,7 @@ export default function EvidenceRoute() {
   const nativeColorScheme = useColorScheme();
   const colorScheme: ColorScheme = nativeColorScheme === 'dark' ? 'dark' : 'light';
   const runtime = useMemo(() => createExpoEvidenceCaptureRuntime(), []);
-  const submissionSession = useMemo(
-    () => createEvidenceSubmissionSession(generateUuid),
-    [],
-  );
+  const submissionSession = useMemo(() => createEvidenceSubmissionSession(generateUuid), []);
   const [result, setResult] = useState<EvidenceAttemptResult | null>(null);
   const [activeAttemptId, setActiveAttemptId] = useState<string | null>(null);
   const [pollRetry, setPollRetry] = useState(0);
