@@ -67,6 +67,7 @@ export interface MissionDetailsScreenProps {
   readonly trustMode?: boolean | undefined;
   readonly onNoEvidenceComplete?:
     ((mode: NoEvidenceCompletionMode) => void | Promise<void>) | undefined;
+  readonly onEvidencePress?: (() => void) | undefined;
   readonly onFieldChange?:
     ((field: MissionDetailsEditableField, value: string) => void) | undefined;
   readonly onSave?: ((scope?: RecurringSeriesScope) => void | Promise<void>) | undefined;
@@ -197,6 +198,7 @@ export function MissionDetailsScreen({
   language,
   trustMode = false,
   onNoEvidenceComplete,
+  onEvidencePress,
   onFieldChange,
   onSave,
   onPersonalNoteSave,
@@ -387,6 +389,24 @@ export function MissionDetailsScreen({
           {writtenEvidence}
         </Text>
       </View>
+
+      {!trustMode &&
+      details.lifecycle === 'active' &&
+      details.completionState === 'incomplete' &&
+      (details.evidenceState === 'not_submitted' || details.evidenceState === 'rejected') &&
+      onEvidencePress !== undefined ? (
+        <Pressable
+          accessibilityLabel={catalog['evidence.submit']}
+          accessibilityRole="button"
+          onPress={onEvidencePress}
+          style={[styles.primaryAction, { backgroundColor: colors.primary }]}
+          testID="mission-details-evidence-action"
+        >
+          <Text allowFontScaling style={[styles.actionText, { color: colors.primaryText }]}>
+            {catalog['evidence.submit']}
+          </Text>
+        </Pressable>
+      ) : null}
 
       {noEvidenceCompletionMode === null || onNoEvidenceComplete === undefined ? null : (
         <PrivateTrustCompletionPanel

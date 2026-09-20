@@ -360,6 +360,11 @@ export function CalendarMissionDetailsRouteScreen() {
     [details, router],
   );
 
+  const openEvidence = useCallback(() => {
+    if (details === null) return;
+    router.push({ pathname: '/evidence', params: { occurrenceId: details.id } });
+  }, [details, router]);
+
   const deleteMission = useCallback(
     async (targetMissionId: string, scope?: RecurringSeriesScope) => {
       const authState = await rootAuthController.restore();
@@ -507,6 +512,7 @@ export function CalendarMissionDetailsRouteScreen() {
         language={language}
         onDelete={deleteMission}
         onDuplicate={duplicateMission}
+        onEvidencePress={openEvidence}
         onFieldChange={changeField}
         onNoEvidenceComplete={completeWithoutEvidence}
         onPersonalNoteSave={savePersonalNote}
