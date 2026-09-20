@@ -105,6 +105,9 @@ function distantMission({
   localStart = '2020-01-15T10:30:00',
   localFinish = '2020-01-15T11:00:00',
   allDay = false,
+  completionState = 'incomplete',
+  evidenceState = 'not_submitted',
+  completionType = null,
 } = {}) {
   return {
     series: {
@@ -126,8 +129,8 @@ function distantMission({
         estimatedEffortMinutes: allDay ? 30 : null,
       },
       scheduleState: 'scheduled',
-      completionState: 'incomplete',
-      evidenceState: 'not_submitted',
+      completionState,
+      evidenceState,
       rewardEligibility: 'eligible',
       rewardIssuance: 'not_issued',
       calendarSource: 'internal',
@@ -136,6 +139,7 @@ function distantMission({
       storyState: 'none',
       deletionState: 'active',
     },
+    completionType,
   };
 }
 
@@ -264,6 +268,64 @@ describe('MTS-049 Calendar route search navigation', () => {
     expect(state.dayProps.timedMissionsByDate['2020-01-15']).toBeUndefined();
     expect(state.dayProps.allDayMissionsByDate['2020-01-15']).toEqual([
       expect.objectContaining({ id: '44444444-4444-4444-8444-444444444444' }),
+    ]);
+
+    act(() => renderer.unmount());
+  });
+});
+
+
+describe('MTS-082 Calendar evidence completion projection', () => {
+  it('keeps accepted late evidence yellow for timed missions', async () => {
+    state.listWindow.mockResolvedValue([
+      distantMission({
+        completionState: 'completed',
+        evidenceState: 'accepted',
+        completionType: 'verified_late',
+      }),
+    ]);
+
+    let renderer;
+    await act(async () => {
+      renderer = create(createElement(CalendarRouteScreen));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(state.dayProps.timedMissionsByDate['2020-01-15']).toEqual([
+      expect.objectContaining({
+        id: '44444444-4444-4444-8444-444444444444',
+        status: 'late',
+      }),
+    ]);
+
+    act(() => renderer.unmount());
+  });
+
+  it('keeps accepted late evidence yellow for all-day missions', async () => {
+    state.listWindow.mockResolvedValue([
+      distantMission({
+        localStart: '2020-01-15T00:00:00',
+        localFinish: '2020-01-16T00:00:00',
+        allDay: true,
+        completionState: 'completed',
+        evidenceState: 'accepted',
+        completionType: 'verified_late',
+      }),
+    ]);
+
+    let renderer;
+    await act(async () => {
+      renderer = create(createElement(CalendarRouteScreen));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(state.dayProps.allDayMissionsByDate['2020-01-15']).toEqual([
+      expect.objectContaining({
+        id: '44444444-4444-4444-8444-444444444444',
+        status: 'late',
+      }),
     ]);
 
     act(() => renderer.unmount());
