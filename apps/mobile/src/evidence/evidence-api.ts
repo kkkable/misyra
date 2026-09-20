@@ -35,6 +35,20 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+export class EvidenceApiError extends Error {
+  constructor(readonly code: string) {
+    super(code);
+    this.name = 'EvidenceApiError';
+  }
+}
+
+function errorCodeFromEnvelope(value: unknown): string | null {
+  if (!isRecord(value) || value.ok !== false || !isRecord(value.error)) return null;
+  return typeof value.error.code === 'string' && value.error.code.length > 0
+    ? value.error.code
+    : null;
+}
+
 function payloadFromEnvelope(value: unknown): unknown {
   if (!isRecord(value) || value.ok !== true || !Object.hasOwn(value, 'payload')) {
     throw new Error('evidence_request_failed');
@@ -129,7 +143,9 @@ export function createEvidenceApi({ baseUrl, accessToken }: EvidenceApiOptions) 
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     });
     const responseBody: unknown = await response.json();
-    if (!response.ok) throw new Error('evidence_request_failed');
+    if (!response.ok) {
+      throw new EvidenceApiError(errorCodeFromEnvelope(responseBody) ?? 'evidence_request_failed');
+    }
     return payloadFromEnvelope(responseBody);
   }
 

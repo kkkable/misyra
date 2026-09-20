@@ -53,6 +53,15 @@ type ServerSyncRunner = (
   }>,
 ) => Promise<Readonly<{ settledMutations: number; cursor: number }>>;
 
+type EvidenceSyncRunner = (
+  input: Readonly<{
+    database: SyncDatabase;
+    accountId: string;
+    deviceId: string;
+    session: AuthSession;
+  }>,
+) => Promise<Readonly<{ processed: number; remaining: number }>>;
+
 type AppleProviderLink = Readonly<{
   connectionId: string;
   provider: 'apple';
@@ -83,6 +92,7 @@ export type AuthenticatedSyncRuntimeOptions = Readonly<{
   installationStore: InstallationStore;
   openDatabase: () => Promise<SyncDatabase>;
   apiFactory: ApiFactory;
+  runEvidenceSync?: EvidenceSyncRunner;
   runServerSync?: ServerSyncRunner;
   generateInstallationId: () => string;
   deviceMetadata: () => Promise<DeviceMetadata>;
@@ -767,6 +777,7 @@ export function createAuthenticatedSyncRuntime({
   installationStore,
   openDatabase,
   apiFactory,
+  runEvidenceSync = () => Promise.resolve({ processed: 0, remaining: 0 }),
   runServerSync = runAuthenticatedServerSync,
   generateInstallationId,
   deviceMetadata,
@@ -790,6 +801,12 @@ export function createAuthenticatedSyncRuntime({
 
     const [database, settings] = await Promise.all([openDatabase(), api.getAccountSettings()]);
     await applyAccountSettings(database, session.accountId, settings, now().toISOString());
+    await runEvidenceSync({
+      database,
+      accountId: session.accountId,
+      deviceId: registration.deviceId,
+      session,
+    });
     const result = await runServerSync({ database, accountId: session.accountId, api });
     const timeZoneNotice =
       observedTimeZone === undefined

@@ -103,11 +103,12 @@ function parseUuid(value: unknown): string {
   return value;
 }
 
-function parseSubmittedAt(value: unknown): string {
-  if (typeof value !== 'string') throw new EvidenceAttemptError('validation_failed');
+function parseSubmittedAt(value: unknown, serverReceiptTime: Date): string {
+  if (typeof value !== 'string') return serverReceiptTime.toISOString();
   const parsed = new Date(value);
-  if (!Number.isFinite(parsed.getTime())) throw new EvidenceAttemptError('validation_failed');
-  return parsed.toISOString();
+  return Number.isFinite(parsed.getTime())
+    ? parsed.toISOString()
+    : serverReceiptTime.toISOString();
 }
 
 function parseContentType(value: unknown): string {
@@ -349,9 +350,9 @@ export function createEvidenceAttemptService(options: EvidenceAttemptServiceOpti
     ) {
       const occurrenceId = parseUuid(occurrenceIdSource);
       const attemptId = parseUuid(input.attemptId);
-      const effectiveSubmittedAt = parseSubmittedAt(input.submittedAt);
       const contentType = parseContentType(input.contentType);
       const currentTime = now();
+      const effectiveSubmittedAt = parseSubmittedAt(input.submittedAt, currentTime);
       const client = await options.pool.connect();
       let reserved: ExistingAttemptRow;
 
