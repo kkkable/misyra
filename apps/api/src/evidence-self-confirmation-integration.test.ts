@@ -112,13 +112,14 @@ async function insertAttempt(
   return attemptId;
 }
 
-function createServer() {
+function createServer(now = '2026-09-20T10:15:00.000Z') {
   return createApiApplication({
     pool,
     expectedAudience: { apple: 'apple-audience', google: 'google-audience' },
     issueAccessToken: () => 'fixture-access-token',
     reauthenticationProofSecret: 'fixture-reauthentication-proof-secret',
     authenticate: () => ({ accountId }),
+    now: () => new Date(now),
   });
 }
 
@@ -126,8 +127,9 @@ async function selfConfirm(
   occurrenceId: string,
   evidenceAttemptId: string | undefined,
   effectiveActionAt: string,
+  serverNow = effectiveActionAt,
 ) {
-  const server = createServer();
+  const server = createServer(serverNow);
   const response = await server.inject({
     method: 'POST',
     url: `/v1/missions/${occurrenceId}/complete`,
@@ -203,11 +205,53 @@ describe('MTS-082 evidence self-confirmation', () => {
     expect(pendingResponse.json()).toMatchObject({ error: { code: 'conflict' } });
   });
 
+  it('returns only controlled result state and locks actions after server-side expiry', async () => {
+    const mission = await createOccurrence(24);
+    const attemptId = await insertAttempt(mission.occurrenceId, mission.date, 'rejected');
+
+    const openServer = createServer('2026-09-24T10:20:00.000Z');
+    const openResult = await openServer.inject({
+      method: 'GET',
+      url: `/v1/evidence/attempts/${attemptId}`,
+    });
+    await openServer.close();
+
+    expect(openResult.statusCode).toBe(200);
+    expect(openResult.json()).toMatchObject({
+      payload: {
+        attemptId,
+        occurrenceId: mission.occurrenceId,
+        attemptNumber: 1,
+        verificationStatus: 'rejected',
+        reasonCode: 'task_mismatch',
+        expired: false,
+      },
+    });
+    expect(JSON.stringify(openResult.json())).not.toContain('model');
+
+    const expiredServer = createServer('2026-10-24T10:00:00.000Z');
+    const expiredResult = await expiredServer.inject({
+      method: 'GET',
+      url: `/v1/evidence/attempts/${attemptId}`,
+    });
+    await expiredServer.close();
+
+    expect(expiredResult.statusCode).toBe(200);
+    expect(expiredResult.json()).toMatchObject({
+      payload: { verificationStatus: 'rejected', expired: true },
+    });
+  });
+
   it('has no expired escape path after a rejected verification', async () => {
     const mission = await createOccurrence(23);
     const attemptId = await insertAttempt(mission.occurrenceId, mission.date, 'rejected');
 
-    const response = await selfConfirm(mission.occurrenceId, attemptId, '2026-10-23T10:00:00.000Z');
+    const response = await selfConfirm(
+      mission.occurrenceId,
+      attemptId,
+      '2026-09-23T10:15:00.000Z',
+      '2026-10-23T10:00:00.000Z',
+    );
 
     expect(response.statusCode).toBe(409);
     expect(response.json()).toMatchObject({
