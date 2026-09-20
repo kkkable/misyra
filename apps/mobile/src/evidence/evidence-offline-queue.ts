@@ -26,9 +26,7 @@ export type OfflineEvidenceQueueApi = Readonly<{
     }>
   >;
   uploadOriginal(uploadPath: string, fileUri: string): Promise<void>;
-  getResult(
-    attemptId: string,
-  ): Promise<
+  getResult(attemptId: string): Promise<
     Readonly<{
       verificationStatus: 'pending' | 'queued' | 'accepted' | 'rejected';
     }>
@@ -39,13 +37,15 @@ export type OfflineEvidenceFiles = Readonly<{
   discard(uri: string): Promise<void>;
 }>;
 
-export function createEvidenceOfflineQueue(_options: Readonly<{
-  database: MutationQueueDatabase;
-  accountId: string;
-  deviceId: string;
-  api: OfflineEvidenceQueueApi;
-  files: OfflineEvidenceFiles;
-}>) {
+export function createEvidenceOfflineQueue(
+  _options: Readonly<{
+    database: MutationQueueDatabase;
+    accountId: string;
+    deviceId: string;
+    api: OfflineEvidenceQueueApi;
+    files: OfflineEvidenceFiles;
+  }>,
+) {
   void _options;
   return Object.freeze({
     async enqueue(_submission: OfflineEvidenceSubmission): Promise<void> {
