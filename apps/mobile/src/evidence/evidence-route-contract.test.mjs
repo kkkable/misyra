@@ -34,19 +34,22 @@ describe('MTS-079 camera-only route contract', () => {
     expect(mobilePackage.dependencies).not.toHaveProperty('expo-media-library');
   });
 
-  it('durably queues evidence before upload, restores local Waiting state, and drains it on root sync', () => {
-    const routeSource = readFileSync(evidenceRoutePath, 'utf8');
-    const rootSyncSource = readFileSync(rootSyncRuntimePath, 'utf8');
+  it(
+    'durably queues evidence before upload, restores local Waiting state, and drains it on root sync',
+    () => {
+      const routeSource = readFileSync(evidenceRoutePath, 'utf8');
+      const rootSyncSource = readFileSync(rootSyncRuntimePath, 'utf8');
 
-    expect(routeSource).toMatch(/createEvidenceOfflineQueue/);
-    expect(routeSource).toMatch(/\.enqueue\(/);
-    expect(routeSource).toMatch(/getPendingForOccurrence\(occurrenceId\)/);
-    expect(routeSource).toMatch(/\.processPending\(\)/);
+      expect(routeSource).toMatch(/createEvidenceOfflineQueue/);
+      expect(routeSource).toMatch(/\.enqueue\(/);
+      expect(routeSource).toMatch(/getPendingForOccurrence\(occurrenceId\)/);
+      expect(routeSource).toMatch(/\.processPending\(\)/);
 
-    expect(rootSyncSource).toMatch(/createEvidenceOfflineQueue/);
-    expect(rootSyncSource).toMatch(/runEvidenceSync/);
-    expect(rootSyncSource).toMatch(/processPending\(\)/);
-  });
+      expect(rootSyncSource).toMatch(/createEvidenceOfflineQueue/);
+      expect(rootSyncSource).toMatch(/runEvidenceSync/);
+      expect(rootSyncSource).toMatch(/processPending\(\)/);
+    },
+  );
 
   it('moves the camera original into private working storage instead of leaving a duplicate', () => {
     const source = readFileSync(evidenceRuntimePath, 'utf8');
