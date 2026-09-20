@@ -17,6 +17,7 @@ export type EvidenceResultFlow = Readonly<{
   reasonMessageKey: string | null;
 }>;
 
-export function resolveEvidenceResultFlow(_input: EvidenceResultFlowInput): EvidenceResultFlow {
+export function resolveEvidenceResultFlow(input: EvidenceResultFlowInput): EvidenceResultFlow {
+  void input;
   throw new Error('MTS-082 evidence result flow not implemented');
 }

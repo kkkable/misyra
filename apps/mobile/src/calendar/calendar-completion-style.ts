@@ -9,6 +9,7 @@ export type CalendarCompletionStyleInput = Readonly<{
   completionType: AuthoritativeCompletionTypeContract | null;
 }>;
 
-export function resolveMissionCardStatus(_input: CalendarCompletionStyleInput): MissionCardStatus {
+export function resolveMissionCardStatus(input: CalendarCompletionStyleInput): MissionCardStatus {
+  void input;
   throw new Error('MTS-082 calendar completion style not implemented');
 }
