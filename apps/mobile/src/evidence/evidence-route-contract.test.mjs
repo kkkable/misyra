@@ -8,6 +8,9 @@ const mobilePackagePath = fileURLToPath(new URL('../../package.json', import.met
 const evidenceRuntimePath = fileURLToPath(
   new URL('./expo-evidence-capture-runtime.tsx', import.meta.url),
 );
+const evidenceMediaActionsPath = fileURLToPath(
+  new URL('./expo-evidence-media-actions-runtime.ts', import.meta.url),
+);
 const rootSyncRuntimePath = fileURLToPath(new URL('../sync/root-sync-runtime.ts', import.meta.url));
 
 describe('MTS-079 camera-only route contract', () => {
@@ -29,7 +32,19 @@ describe('MTS-079 camera-only route contract', () => {
     }
 
     expect(mobilePackage.dependencies).not.toHaveProperty('expo-image-picker');
-    expect(mobilePackage.dependencies).not.toHaveProperty('expo-media-library');
+    expect(mobilePackage.dependencies).toHaveProperty('expo-media-library');
+  });
+
+  it('keeps photo-library access behind the explicit evidence Save to Photos runtime', () => {
+    const routeSource = readFileSync(evidenceRoutePath, 'utf8');
+    const captureSource = readFileSync(evidenceRuntimePath, 'utf8');
+    const mediaActionsSource = readFileSync(evidenceMediaActionsPath, 'utf8');
+
+    expect(captureSource).not.toMatch(/expo-media-library/);
+    expect(mediaActionsSource).toMatch(/expo-media-library/);
+    expect(routeSource).toMatch(/createExpoEvidenceMediaActionsRuntime/);
+    expect(routeSource).toMatch(/saveToPhotos/);
+    expect(routeSource).toMatch(/deleteEvidence/);
   });
 
   it('durably queues evidence before upload, restores local Waiting state, and drains it on root sync', () => {

@@ -386,6 +386,113 @@ describe('MTS-080 evidence-attempt creation and upload', () => {
     await server.close();
   });
 
+  it('early-deletes every app-controlled evidence copy while preserving completion and XP history', async () => {
+    const deleteBlob = vi.fn(() => Promise.resolve());
+    const server = createServer({
+      put: vi.fn(() => Promise.resolve()),
+      delete: deleteBlob,
+    });
+    const occurrenceId = await seedOccurrence({ completed: true });
+    const attemptId = randomUUID();
+    const mediaAssetId = randomUUID();
+    const original = `${accountId}/${mediaAssetId}/original`;
+    const thumbnail = `${accountId}/${mediaAssetId}/thumbnail`;
+    const derivative = `${accountId}/${mediaAssetId}/derivative`;
+    const temporary = `${accountId}/${mediaAssetId}/temporary`;
+
+    await pool.query(
+      `INSERT INTO media_assets (
+         id, account_id, purpose, storage_key, original_storage_key,
+         thumbnail_storage_key, derivative_storage_key, temporary_storage_key,
+         deletion_due_at, deletion_state, retry_state
+       ) VALUES (
+         $1, $2, 'evidence-working', $3, $3,
+         $4, $5, $6,
+         '2026-10-20T09:30:00.000Z', 'active', 'ready'
+       )`,
+      [mediaAssetId, accountId, original, thumbnail, derivative, temporary],
+    );
+    await pool.query(
+      `INSERT INTO evidence_attempts (
+         id, account_id, occurrence_id, attempt_number, status, submitted_at,
+         first_submitted_at, effective_submitted_at, upload_status,
+         verification_status, reason_code, media_asset_id, deletion_deadline
+       ) VALUES (
+         $1, $2, $3, 1, 'accepted', '2026-09-18T09:01:00.000Z',
+         '2026-09-18T09:01:00.000Z', '2026-09-18T09:01:00.000Z', 'uploaded',
+         'accepted', 'verified', $4, '2026-10-20T09:30:00.000Z'
+       )`,
+      [attemptId, accountId, occurrenceId, mediaAssetId],
+    );
+    await pool.query(
+      `INSERT INTO reward_ledger
+         (account_id, occurrence_id, base_xp, proof_bonus_xp, awarded_xp)
+       VALUES ($1, $2, 100, 15, 115)`,
+      [accountId, occurrenceId],
+    );
+
+    const before = await pool.query<{
+      completionCount: number;
+      rewardCount: number;
+      awardedXp: number;
+    }>(
+      `SELECT
+         (SELECT COUNT(*)::int
+            FROM mission_completions
+           WHERE account_id = $1 AND occurrence_id = $2) AS "completionCount",
+         (SELECT COUNT(*)::int
+            FROM reward_ledger
+           WHERE account_id = $1 AND occurrence_id = $2) AS "rewardCount",
+         (SELECT awarded_xp
+            FROM reward_ledger
+           WHERE account_id = $1 AND occurrence_id = $2) AS "awardedXp"`,
+      [accountId, occurrenceId],
+    );
+
+    const deleted = await server.inject({
+      method: 'DELETE',
+      url: `/v1/evidence/attempts/${attemptId}/media`,
+    });
+
+    expect(deleted.statusCode).toBe(200);
+    expect(deleted.json()).toMatchObject({ payload: { deleted: true } });
+    expect(deleteBlob.mock.calls).toEqual([
+      ['evidence-working', original],
+      ['evidence-working', thumbnail],
+      ['evidence-working', derivative],
+      ['evidence-working', temporary],
+    ]);
+
+    const asset = await pool.query<{ deletionState: string; retryState: string }>(
+      `SELECT deletion_state AS "deletionState", retry_state AS "retryState"
+         FROM media_assets
+        WHERE id = $1 AND account_id = $2`,
+      [mediaAssetId, accountId],
+    );
+    expect(asset.rows[0]).toEqual({ deletionState: 'deleted', retryState: 'ready' });
+
+    const after = await pool.query<{
+      completionCount: number;
+      rewardCount: number;
+      awardedXp: number;
+    }>(
+      `SELECT
+         (SELECT COUNT(*)::int
+            FROM mission_completions
+           WHERE account_id = $1 AND occurrence_id = $2) AS "completionCount",
+         (SELECT COUNT(*)::int
+            FROM reward_ledger
+           WHERE account_id = $1 AND occurrence_id = $2) AS "rewardCount",
+         (SELECT awarded_xp
+            FROM reward_ledger
+           WHERE account_id = $1 AND occurrence_id = $2) AS "awardedXp"`,
+      [accountId, occurrenceId],
+    );
+    expect(after.rows[0]).toEqual(before.rows[0]);
+
+    await server.close();
+  });
+
   it('does not lose or double-consume an attempt when media upload fails and reservation is retried', async () => {
     const failingPut = vi.fn(() => Promise.reject(new Error('fixture upload unavailable')));
     const failingServer = createServer({
