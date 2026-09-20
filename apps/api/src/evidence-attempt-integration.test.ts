@@ -360,6 +360,28 @@ describe('MTS-080 evidence-attempt creation and upload', () => {
     await server.close();
   });
 
+  it('silently replaces an invalid device clock with the first server receipt time', async () => {
+    const server = createServer();
+    const occurrenceId = await seedOccurrence();
+    apiNow = new Date('2026-09-20T09:30:00.000Z');
+
+    const result = await reserveAttempt(
+      server,
+      occurrenceId,
+      randomUUID(),
+      'not-a-valid-device-timestamp',
+    );
+
+    expect(result.response.statusCode).toBe(200);
+    expect(result.payload).toMatchObject({
+      attemptNumber: 1,
+      firstSubmittedAt: '2026-09-20T09:30:00.000Z',
+      effectiveSubmittedAt: '2026-09-20T09:30:00.000Z',
+    });
+
+    await server.close();
+  });
+
   it('does not lose or double-consume an attempt when media upload fails and reservation is retried', async () => {
     const failingPut = vi.fn(() => Promise.reject(new Error('fixture upload unavailable')));
     const failingServer = createServer({ put: failingPut });

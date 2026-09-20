@@ -143,4 +143,50 @@ describe('MTS-039 signed-in runtime correction', () => {
     );
     expect(runServerSync).toHaveBeenCalledTimes(2);
   });
+
+  it('drains only the dedicated offline evidence queue before generic server sync', async () => {
+    const calls = [];
+    const runtime = createAuthenticatedSyncRuntime({
+      sessionProvider: () => Promise.resolve(session),
+      installationStore: {
+        getItem: vi.fn((key) =>
+          Promise.resolve(
+            key === 'misyra.installation-id.v1'
+              ? 'installation-stable'
+              : key.includes('device-id')
+                ? deviceId
+                : null,
+          ),
+        ),
+        setItem: vi.fn(() => Promise.resolve()),
+      },
+      openDatabase: () =>
+        Promise.resolve({
+          runAsync: vi.fn(() => Promise.resolve({ changes: 1 })),
+        }),
+      apiFactory: vi.fn(() => ({
+        registerDevice: vi.fn(() => Promise.resolve({ deviceId })),
+        getAccountSettings: vi.fn(() => Promise.resolve({ language: 'en', trustMode: false })),
+      })),
+      runEvidenceSync: vi.fn(() => {
+        calls.push('evidence');
+        return Promise.resolve({ processed: 1, remaining: 0 });
+      }),
+      runServerSync: vi.fn(() => {
+        calls.push('server');
+        return Promise.resolve({ settledMutations: 0, cursor: 0 });
+      }),
+      generateInstallationId: () => 'installation-stable',
+      deviceMetadata: () =>
+        Promise.resolve({
+          platform: 'ios',
+          appVersion: '1.2.3',
+          notificationCapability: 'denied',
+        }),
+    });
+
+    await runtime.run();
+
+    expect(calls).toEqual(['evidence', 'server']);
+  });
 });
