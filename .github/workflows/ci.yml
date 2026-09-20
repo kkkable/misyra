@@ -54,7 +54,10 @@ jobs:
         run: pnpm ci:fixtures
 
       - name: Check workspace formatting
-        run: pnpm format
+        run: |
+          pnpm exec prettier --write apps/api/src/evidence-verification.test.ts --config packages/config/prettier.config.mjs
+          git diff -- apps/api/src/evidence-verification.test.ts
+          exit 1
 
       - name: Check CI-owned formatting
         run: pnpm format:ci
