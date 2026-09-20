@@ -54,7 +54,10 @@ jobs:
         run: pnpm ci:fixtures
 
       - name: Check workspace formatting
-        run: pnpm format
+        run: |
+          pnpm exec prettier --write apps/mobile/src/calendar/calendar-mission-details-private-trust.test.mjs apps/mobile/src/calendar/calendar-route-search.test.mjs apps/mobile/src/evidence/evidence-api.ts --config packages/config/prettier.config.mjs
+          git diff -- apps/mobile/src/calendar/calendar-mission-details-private-trust.test.mjs apps/mobile/src/calendar/calendar-route-search.test.mjs apps/mobile/src/evidence/evidence-api.ts
+          exit 1
 
       - name: Check CI-owned formatting
         run: pnpm format:ci
