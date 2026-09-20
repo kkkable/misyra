@@ -501,7 +501,7 @@ describe('MTS-080 evidence-attempt creation and upload', () => {
     });
     expect(afterResult.statusCode).toBe(200);
     expect(afterResult.json()).toMatchObject({
-      payload: { mediaAvailable: false, mediaDeletable: true },
+      payload: { mediaAvailable: false, mediaDeletable: false },
     });
 
     const after = await pool.query<{

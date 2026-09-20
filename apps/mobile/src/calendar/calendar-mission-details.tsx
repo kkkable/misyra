@@ -226,6 +226,17 @@ export function MissionDetailsScreen({
     details.rewardEligibility === 'ineligible'
       ? zeroXpReasonText(details.zeroXpReason, catalog)
       : null;
+  const canSubmitEvidence =
+    !trustMode &&
+    details.lifecycle === 'active' &&
+    details.completionState === 'incomplete' &&
+    (details.evidenceState === 'not_submitted' || details.evidenceState === 'rejected');
+  const canManageEvidence =
+    details.completionState === 'completed' &&
+    (details.evidenceState === 'accepted' || details.evidenceState === 'rejected');
+  const evidenceActionLabel = canSubmitEvidence
+    ? catalog['evidence.submit']
+    : catalog['evidence.manage'];
 
   return (
     <ScrollView
@@ -390,20 +401,16 @@ export function MissionDetailsScreen({
         </Text>
       </View>
 
-      {!trustMode &&
-      details.lifecycle === 'active' &&
-      details.completionState === 'incomplete' &&
-      (details.evidenceState === 'not_submitted' || details.evidenceState === 'rejected') &&
-      onEvidencePress !== undefined ? (
+      {(canSubmitEvidence || canManageEvidence) && onEvidencePress !== undefined ? (
         <Pressable
-          accessibilityLabel={catalog['evidence.submit']}
+          accessibilityLabel={evidenceActionLabel}
           accessibilityRole="button"
           onPress={onEvidencePress}
           style={[styles.primaryAction, { backgroundColor: colors.primary }]}
           testID="mission-details-evidence-action"
         >
           <Text allowFontScaling style={[styles.actionText, { color: colors.primaryText }]}>
-            {catalog['evidence.submit']}
+            {evidenceActionLabel}
           </Text>
         </Pressable>
       ) : null}
