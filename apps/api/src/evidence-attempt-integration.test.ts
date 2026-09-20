@@ -83,12 +83,15 @@ async function seedOccurrence(
 
 function createServer(
   blobStore: Readonly<{
-    put(container: string, storageKey: string, bytes: Buffer, contentType: string): Promise<void>;
-    delete(container: string, storageKey: string): Promise<void>;
-  }> = {
-    put: vi.fn(() => Promise.resolve()),
-    delete: vi.fn(() => Promise.resolve()),
-  },
+    put?: (
+      container: string,
+      storageKey: string,
+      bytes: Buffer,
+      contentType: string,
+    ) => Promise<void>;
+    get?: (container: string, storageKey: string) => Promise<Buffer>;
+    delete?: (container: string, storageKey: string) => Promise<void>;
+  }> = {},
 ) {
   return createApiApplication({
     pool,
@@ -97,7 +100,11 @@ function createServer(
     reauthenticationProofSecret: 'fixture-reauthentication-proof-secret',
     now: () => apiNow,
     authenticate: () => ({ accountId }),
-    mediaBlobStore: blobStore,
+    mediaBlobStore: {
+      put: blobStore.put ?? vi.fn(() => Promise.resolve()),
+      get: blobStore.get ?? vi.fn(() => Promise.resolve(Buffer.from('evidence-image'))),
+      delete: blobStore.delete ?? vi.fn(() => Promise.resolve()),
+    },
   });
 }
 
