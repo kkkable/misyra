@@ -48,16 +48,16 @@ export function createEvidenceOfflineQueue(
 ) {
   void _options;
   return Object.freeze({
-    async enqueue(_submission: OfflineEvidenceSubmission): Promise<void> {
+    enqueue(_submission: OfflineEvidenceSubmission): Promise<void> {
       void _submission;
-      throw new Error('MTS-083 offline evidence queue not implemented');
+      return Promise.reject(new Error('MTS-083 offline evidence queue not implemented'));
     },
-    async getPendingForOccurrence(_occurrenceId: string): Promise<OfflineEvidencePending | null> {
+    getPendingForOccurrence(_occurrenceId: string): Promise<OfflineEvidencePending | null> {
       void _occurrenceId;
-      throw new Error('MTS-083 offline evidence queue not implemented');
+      return Promise.reject(new Error('MTS-083 offline evidence queue not implemented'));
     },
-    async processPending(): Promise<Readonly<{ processed: number; remaining: number }>> {
-      throw new Error('MTS-083 offline evidence queue not implemented');
+    processPending(): Promise<Readonly<{ processed: number; remaining: number }>> {
+      return Promise.reject(new Error('MTS-083 offline evidence queue not implemented'));
     },
   });
 }
