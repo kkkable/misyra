@@ -72,7 +72,6 @@ export function resolveEvidenceResultFlow(input: EvidenceResultFlowInput): Evide
   };
 }
 
-
 export type EvidenceResultRefreshInput = Readonly<{
   verificationStatus: 'pending' | 'queued' | 'accepted' | 'rejected';
   expired: boolean;
@@ -80,9 +79,7 @@ export type EvidenceResultRefreshInput = Readonly<{
   expiresAt: string | null;
 }>;
 
-export function resolveEvidenceResultRefreshDelay(
-  input: EvidenceResultRefreshInput,
-): number | null {
+export function resolveEvidenceResultRefreshDelay(input: EvidenceResultRefreshInput): number | null {
   if (input.expired || input.verificationStatus === 'accepted') return null;
   if (input.verificationStatus === 'pending' || input.verificationStatus === 'queued') {
     return ACTIVE_VERIFICATION_REFRESH_MILLISECONDS;

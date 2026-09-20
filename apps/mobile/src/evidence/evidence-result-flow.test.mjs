@@ -115,7 +115,6 @@ describe('MTS-082 evidence result flow matrix', () => {
   });
 });
 
-
 describe('MTS-082 evidence result server-time refresh', () => {
   it('polls active verification every second without needing expiry metadata', () => {
     expect(
