@@ -10,6 +10,20 @@ export type CalendarCompletionStyleInput = Readonly<{
 }>;
 
 export function resolveMissionCardStatus(input: CalendarCompletionStyleInput): MissionCardStatus {
-  void input;
-  throw new Error('MTS-082 calendar completion style not implemented');
+  if (input.completionState === 'incomplete') return 'unfinished';
+
+  switch (input.completionType) {
+    case 'verified_on_time':
+      return 'verified';
+    case 'verified_late':
+    case 'self_confirmed':
+      return 'late';
+    case 'private':
+    case 'trust_mode':
+      return 'private';
+    case null:
+      if (input.evidenceState === 'not_required') return 'private';
+      if (input.evidenceState === 'accepted') return 'verified';
+      return 'late';
+  }
 }

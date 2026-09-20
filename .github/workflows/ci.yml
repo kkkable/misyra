@@ -69,7 +69,7 @@ jobs:
         run: pnpm typecheck
 
       - name: Run unit, integration, and mobile component tests
-        run: pnpm --filter @misyra/api exec vitest run src/evidence-self-confirmation-integration.test.ts --config ../../packages/config/vitest.config.mjs
+        run: pnpm test
 
       - name: Build all workspaces
         run: pnpm build
