@@ -12,20 +12,24 @@ import {
 } from './authoritative-completion.js';
 import { ApiError, type ApiRouteDefinition } from './index.js';
 
-type NoEvidenceCompletionRequest = CompleteMissionRequest &
-  Readonly<{ completionMode: 'private' | 'trust' }>;
+type UserCompletionRequest = CompleteMissionRequest &
+  Readonly<{ completionMode: 'self_confirmed' | 'private' | 'trust' }>;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function parseCompletionBody(value: unknown): NoEvidenceCompletionRequest {
+function parseCompletionBody(value: unknown): UserCompletionRequest {
   const parsed = completeMissionRequestSchema.safeParse(value);
   if (!parsed.success) throw new ApiError('validation_failed');
-  if (parsed.data.completionMode !== 'private' && parsed.data.completionMode !== 'trust') {
+  if (
+    parsed.data.completionMode !== 'self_confirmed' &&
+    parsed.data.completionMode !== 'private' &&
+    parsed.data.completionMode !== 'trust'
+  ) {
     throw new ApiError('validation_failed');
   }
-  return parsed.data as NoEvidenceCompletionRequest;
+  return parsed.data as UserCompletionRequest;
 }
 
 function occurrenceIdFrom(value: unknown): string {
@@ -50,7 +54,10 @@ function mapCompletionError(error: unknown): never {
   }
 }
 
-export function createCompletionRoutes(pool: Pool): ApiRouteDefinition[] {
+export function createCompletionRoutes(
+  pool: Pool,
+  now: () => Date = () => new Date(),
+): ApiRouteDefinition[] {
   return [
     {
       method: 'POST',
@@ -62,10 +69,16 @@ export function createCompletionRoutes(pool: Pool): ApiRouteDefinition[] {
           const result = await completeMissionAuthoritatively(pool, {
             accountId: auth.accountId,
             occurrenceId,
-            completionType: body.completionMode === 'private' ? 'private' : 'trust_mode',
-            effectiveActionAt: body.effectiveActionAt,
+            completionType: body.completionMode === 'trust' ? 'trust_mode' : body.completionMode,
+            effectiveActionAt:
+              body.completionMode === 'self_confirmed'
+                ? now().toISOString()
+                : body.effectiveActionAt,
             deviceId: body.deviceId,
             idempotencyKey: body.idempotencyKey,
+            ...(body.evidenceAttemptId === undefined
+              ? {}
+              : { evidenceAttemptId: body.evidenceAttemptId }),
           });
           return completeMissionResultSchema.parse(result);
         } catch (error) {

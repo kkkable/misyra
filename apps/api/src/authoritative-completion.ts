@@ -254,6 +254,33 @@ async function assertCompletionModeAllowed(
     return;
   }
 
+  if (input.completionType === 'self_confirmed') {
+    if (occurrence.evidenceState !== 'rejected' || input.evidenceAttemptId === undefined) {
+      throw new CompletionRejectedError('completion_mode_not_allowed');
+    }
+    const attempts = await client.query<EvidenceAttemptStateRow>(
+      `SELECT EXISTS (
+         SELECT 1
+           FROM evidence_attempts candidate
+          WHERE candidate.account_id = $1
+            AND candidate.occurrence_id = $2
+            AND candidate.id = $3
+            AND candidate.verification_status = 'rejected'
+            AND candidate.attempt_number = (
+              SELECT max(latest.attempt_number)
+                FROM evidence_attempts latest
+               WHERE latest.account_id = $1
+                 AND latest.occurrence_id = $2
+            )
+       ) AS "hasEvidenceAttempt"`,
+      [input.accountId, input.occurrenceId, input.evidenceAttemptId],
+    );
+    if (attempts.rows[0]?.hasEvidenceAttempt !== true) {
+      throw new CompletionRejectedError('completion_mode_not_allowed');
+    }
+    return;
+  }
+
   if (input.completionType === 'trust_mode') {
     const settings = await client.query<TrustModeRow>(
       `SELECT trust_mode AS "trustMode"
@@ -331,7 +358,8 @@ async function resolveBaseXp(
 
 function evidenceStateFor(
   completionType: AuthoritativeCompletionType,
-): 'accepted' | 'not_required' {
+): 'accepted' | 'rejected' | 'not_required' {
+  if (completionType === 'self_confirmed') return 'rejected';
   return completionType === 'private' || completionType === 'trust_mode'
     ? 'not_required'
     : 'accepted';
@@ -339,7 +367,8 @@ function evidenceStateFor(
 
 function authoritativeMissionPayload(
   occurrence: LockedOccurrenceRow,
-  evidenceState: 'accepted' | 'not_required',
+  evidenceState: 'accepted' | 'rejected' | 'not_required',
+  completionType: AuthoritativeCompletionType,
 ) {
   return {
     version: occurrence.version + 1,
@@ -363,6 +392,7 @@ function authoritativeMissionPayload(
       storyState: occurrence.storyState,
       deletionState: occurrence.deletionState,
     },
+    completionType,
     location: occurrence.location,
     notes: occurrence.notes,
   } as const;
@@ -451,7 +481,7 @@ export async function completeMissionAuthoritatively(
         entityType: 'mission',
         entityId: input.occurrenceId,
         operation: 'upsert',
-        payload: authoritativeMissionPayload(occurrence, evidenceState),
+        payload: authoritativeMissionPayload(occurrence, evidenceState, input.completionType),
       });
 
       const progressProjection = await buildAuthoritativeProgressProjection(context.client, {

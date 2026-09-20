@@ -1,3 +1,4 @@
+import type { AuthoritativeCompletionTypeContract } from '@misyra/contracts';
 import {
   createMissionOccurrence,
   createMissionSeries,
@@ -24,6 +25,7 @@ export interface CalendarWindow {
 export interface LocalMission {
   readonly series: MissionSeries;
   readonly occurrence: MissionOccurrence;
+  readonly completionType: AuthoritativeCompletionTypeContract | null;
 }
 
 export interface MissionDetails extends LocalMission {
@@ -195,11 +197,18 @@ function parseJson(source: string): unknown {
 }
 
 function mapMission(row: MissionRow): LocalMission {
+  const occurrencePayload = parseJson(row.occurrence_payload_json);
+  const completionType =
+    typeof occurrencePayload === 'object' &&
+    occurrencePayload !== null &&
+    !Array.isArray(occurrencePayload) &&
+    'completionType' in occurrencePayload
+      ? (occurrencePayload.completionType as AuthoritativeCompletionTypeContract)
+      : null;
   return {
     series: createMissionSeries(parseJson(row.series_payload_json) as MissionSeriesInput),
-    occurrence: createMissionOccurrence(
-      parseJson(row.occurrence_payload_json) as MissionOccurrenceInput,
-    ),
+    occurrence: createMissionOccurrence(occurrencePayload as MissionOccurrenceInput),
+    completionType,
   };
 }
 

@@ -53,7 +53,12 @@ const activeDetails = {
   cancellationAttribution: null,
 };
 
-function renderDetails({ details = activeDetails, trustMode = false, onComplete = vi.fn() } = {}) {
+function renderDetails({
+  details = activeDetails,
+  trustMode = false,
+  onComplete = vi.fn(),
+  onEvidencePress = vi.fn(),
+} = {}) {
   let renderer;
   act(() => {
     renderer = create(
@@ -63,10 +68,11 @@ function renderDetails({ details = activeDetails, trustMode = false, onComplete 
         language: 'en',
         trustMode,
         onNoEvidenceComplete: onComplete,
+        onEvidencePress,
       }),
     );
   });
-  return { renderer, onComplete };
+  return { renderer, onComplete, onEvidencePress };
 }
 
 describe('MTS-059 Mission Details completion integration', () => {
@@ -103,6 +109,30 @@ describe('MTS-059 Mission Details completion integration', () => {
     );
 
     expect(onComplete).toHaveBeenCalledWith('trust');
+  });
+
+  it('opens camera evidence from an active Normal Mode mission', () => {
+    const { renderer, onEvidencePress } = renderDetails();
+
+    act(() =>
+      renderer.root.findByProps({ testID: 'mission-details-evidence-action' }).props.onPress(),
+    );
+
+    expect(onEvidencePress).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not expose camera evidence while Trust Mode is active or verification is pending', () => {
+    const trust = renderDetails({ trustMode: true });
+    expect(
+      trust.renderer.root.findAllByProps({ testID: 'mission-details-evidence-action' }),
+    ).toHaveLength(0);
+
+    const pending = renderDetails({
+      details: { ...activeDetails, evidenceState: 'pending' },
+    });
+    expect(
+      pending.renderer.root.findAllByProps({ testID: 'mission-details-evidence-action' }),
+    ).toHaveLength(0);
   });
 
   it('does not expose a no-evidence completion path during active evidence processing', () => {
