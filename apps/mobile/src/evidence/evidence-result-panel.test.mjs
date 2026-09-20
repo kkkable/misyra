@@ -82,9 +82,11 @@ describe('MTS-082 evidence result actions', () => {
 
   it('shows the remaining retry count without adding a Calendar label', () => {
     const { renderer } = renderRejected(1);
-    expect(
-      renderer.root.findByProps({ testID: 'evidence-result-remaining-attempts' }).children.join(''),
-    ).toBe('2 evidence attempts remaining');
+    const label = renderer.root
+      .findAllByProps({ testID: 'evidence-result-remaining-attempts' })
+      .find((node) => node.type === 'Text');
+
+    expect(label?.children.join('')).toBe('2 evidence attempts remaining');
   });
 
   it('offers retry only while submitted attempts remain', () => {

@@ -270,6 +270,7 @@ describe('MTS-058 authoritative completion transaction', () => {
           title: 'Completion transaction mission',
           recurrence: null,
         },
+        completionType: 'verified_on_time',
         occurrence: {
           id: occurrenceId,
           seriesId,
