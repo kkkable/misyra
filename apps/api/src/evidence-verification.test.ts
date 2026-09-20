@@ -313,17 +313,15 @@ describe('MTS-081 AI evidence verification', () => {
     );
 
     const deleteMediaAsset = vi.fn(() => Promise.resolve());
-    const service = createEvidenceVerificationService(
-      {
-        pool,
-        gateway: {
-          verifyEvidence() {
-            return Promise.resolve({ verdict: 'accepted', reasonCode: 'verified' });
-          },
+    const service = createEvidenceVerificationService({
+      pool,
+      gateway: {
+        verifyEvidence() {
+          return Promise.resolve({ verdict: 'accepted', reasonCode: 'verified' });
         },
-        deleteMediaAsset,
-      } as unknown as Parameters<typeof createEvidenceVerificationService>[0],
-    );
+      },
+      deleteMediaAsset,
+    } as unknown as Parameters<typeof createEvidenceVerificationService>[0]);
 
     await expect(service.processOutboxEvent(seeded.event)).resolves.toMatchObject({
       verdict: 'accepted',
