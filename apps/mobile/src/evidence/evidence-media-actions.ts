@@ -13,11 +13,13 @@ export type EvidenceMediaFiles = Readonly<{
   deleteAttemptCopies(attemptId: string): Promise<void>;
 }>;
 
-export function createEvidenceMediaActions(_input: Readonly<{
-  api: EvidenceMediaActionsApi;
-  photoLibrary: EvidencePhotoLibrary;
-  files: EvidenceMediaFiles;
-}>) {
+export function createEvidenceMediaActions(
+  _input: Readonly<{
+    api: EvidenceMediaActionsApi;
+    photoLibrary: EvidencePhotoLibrary;
+    files: EvidenceMediaFiles;
+  }>,
+) {
   void _input;
   return Object.freeze({
     saveToPhotos(_attemptId: string): Promise<Readonly<{ saved: boolean }>> {
