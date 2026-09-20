@@ -67,7 +67,9 @@ describe('MTS-082 evidence result actions', () => {
     });
 
     expect(onSelfConfirm).not.toHaveBeenCalled();
-    expect(renderer.root.findByProps({ testID: 'evidence-result-self-confirm-prompt' })).toBeDefined();
+    expect(
+      renderer.root.findByProps({ testID: 'evidence-result-self-confirm-prompt' }),
+    ).toBeDefined();
 
     act(() => {
       renderer.root.findByProps({ testID: 'evidence-result-self-confirm-confirm' }).props.onPress();
@@ -94,6 +96,8 @@ describe('MTS-082 evidence result actions', () => {
     const { renderer } = renderRejected(1, true);
 
     expect(renderer.root.findAllByProps({ testID: 'evidence-result-retry' })).toHaveLength(0);
-    expect(renderer.root.findAllByProps({ testID: 'evidence-result-self-confirm' })).toHaveLength(0);
+    expect(renderer.root.findAllByProps({ testID: 'evidence-result-self-confirm' })).toHaveLength(
+      0,
+    );
   });
 });
