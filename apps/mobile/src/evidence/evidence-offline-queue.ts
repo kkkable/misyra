@@ -15,18 +15,24 @@ export type OfflineEvidenceQueueApi = Readonly<{
   reserveAttempt(
     occurrenceId: string,
     input: Readonly<{ attemptId: string; submittedAt: string }>,
-  ): Promise<Readonly<{
-    attemptId: string;
-    occurrenceId: string;
-    attemptNumber: 1 | 2 | 3;
-    firstSubmittedAt: string;
-    effectiveSubmittedAt: string;
-    uploadPath: string;
-  }>>;
+  ): Promise<
+    Readonly<{
+      attemptId: string;
+      occurrenceId: string;
+      attemptNumber: 1 | 2 | 3;
+      firstSubmittedAt: string;
+      effectiveSubmittedAt: string;
+      uploadPath: string;
+    }>
+  >;
   uploadOriginal(uploadPath: string, fileUri: string): Promise<void>;
-  getResult(attemptId: string): Promise<Readonly<{
-    verificationStatus: 'pending' | 'queued' | 'accepted' | 'rejected';
-  }>>;
+  getResult(
+    attemptId: string,
+  ): Promise<
+    Readonly<{
+      verificationStatus: 'pending' | 'queued' | 'accepted' | 'rejected';
+    }>
+  >;
 }>;
 
 export type OfflineEvidenceFiles = Readonly<{
