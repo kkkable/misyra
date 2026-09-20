@@ -289,6 +289,55 @@ describe('MTS-081 AI evidence verification', () => {
     });
   });
 
+  it('marks a post-upload duplicate loser and deletes its protected media after another device completed first', async () => {
+    const seeded = await seedQueuedAttempt();
+    await pool.query(
+      `UPDATE mission_occurrences
+          SET completion_state = 'completed',
+              evidence_state = 'not_required',
+              reward_issuance = 'issued'
+        WHERE id = $1 AND account_id = $2`,
+      [seeded.occurrenceId, accountId],
+    );
+    await pool.query(
+      `INSERT INTO mission_completions
+         (account_id, occurrence_id, completion_type, action_time)
+       VALUES ($1, $2, 'private', '2026-09-19T09:10:00.000Z')`,
+      [accountId, seeded.occurrenceId],
+    );
+    await pool.query(
+      `INSERT INTO reward_ledger
+         (account_id, occurrence_id, base_xp, proof_bonus_xp, awarded_xp)
+       VALUES ($1, $2, 100, 0, 100)`,
+      [accountId, seeded.occurrenceId],
+    );
+
+    const deleteMediaAsset = vi.fn(() => Promise.resolve());
+    const service = createEvidenceVerificationService(
+      {
+        pool,
+        gateway: {
+          verifyEvidence() {
+            return Promise.resolve({ verdict: 'accepted', reasonCode: 'verified' });
+          },
+        },
+        deleteMediaAsset,
+      } as unknown as Parameters<typeof createEvidenceVerificationService>[0],
+    );
+
+    await expect(service.processOutboxEvent(seeded.event)).resolves.toMatchObject({
+      verdict: 'accepted',
+      reasonCode: 'verified',
+    });
+    expect(deleteMediaAsset).toHaveBeenCalledWith(accountId, seeded.mediaAssetId);
+
+    const stored = await pool.query<{ status: string }>(
+      'SELECT status FROM evidence_attempts WHERE id = $1',
+      [seeded.attemptId],
+    );
+    expect(stored.rows[0]?.status).toBe('duplicate_loser');
+  });
+
   it('completes a successful retry authoritatively and awards the proof bonus from first-submit timing', async () => {
     const seeded = await seedQueuedAttempt({ attemptNumber: 2 });
     const service = createEvidenceVerificationService({
