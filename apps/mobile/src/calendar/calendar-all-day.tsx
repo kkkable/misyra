@@ -5,6 +5,7 @@ import { layout, radius, space, typography } from '@misyra/design-tokens';
 import { localizationCatalogs, type LocalizationLocale } from '@misyra/localization';
 
 import { themeColors, type ColorScheme } from '../design-system/index.js';
+import { missionCardPalette, type MissionCardStatus } from './calendar-mission-layout.js';
 
 const COLLAPSED_CARD_LIMIT = 3;
 
@@ -13,6 +14,7 @@ export interface AllDayMissionSummary {
   readonly title: string;
   readonly orderKey: string;
   readonly completed: boolean;
+  readonly status?: MissionCardStatus;
 }
 
 export interface AllDayMissionProjection {
@@ -109,6 +111,8 @@ export function AllDayMissionList({
       {projection.missions.map((mission) => {
         const selected =
           selectedMissionId === mission.id || highlightedMissionIds?.includes(mission.id) === true;
+        const status = mission.status ?? (mission.completed ? 'verified' : 'unfinished');
+        const palette = missionCardPalette(status, colorScheme);
         return (
           <Pressable
             accessibilityLabel={mission.title}
@@ -121,8 +125,8 @@ export function AllDayMissionList({
             style={({ pressed }) => [
               styles.card,
               {
-                backgroundColor: pressed ? colors.primarySoft : colors.surface,
-                borderColor: selected ? colors.focusRing : colors.border,
+                backgroundColor: pressed ? colors.primarySoft : palette.backgroundColor,
+                borderColor: selected ? colors.focusRing : palette.borderColor,
                 borderWidth: selected ? 2 : 1,
                 minHeight: layout.minimumTouchTarget,
               },

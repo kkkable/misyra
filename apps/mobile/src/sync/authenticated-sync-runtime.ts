@@ -2,6 +2,7 @@ import {
   accountSettingsSchema,
   mobileMissionPersonalNoteSchema,
   type AccountSettings,
+  type AuthoritativeCompletionTypeContract,
 } from '@misyra/contracts';
 import {
   createMissionOccurrence,
@@ -68,6 +69,7 @@ type MissionProjection = Readonly<{
   location: string | null;
   notes: string | null;
   providerLink: AppleProviderLink | null;
+  completionType: AuthoritativeCompletionTypeContract | null;
   version: number;
 }>;
 
@@ -198,6 +200,23 @@ function optionalPayloadString(payload: Record<string, unknown>, key: string): s
   return trimmed.length === 0 ? null : trimmed;
 }
 
+function completionTypeFromPayload(
+  payload: Record<string, unknown>,
+): AuthoritativeCompletionTypeContract | null {
+  const value = payload.completionType;
+  if (value === undefined || value === null) return null;
+  if (
+    value !== 'verified_on_time' &&
+    value !== 'verified_late' &&
+    value !== 'self_confirmed' &&
+    value !== 'private' &&
+    value !== 'trust_mode'
+  ) {
+    throw new Error('Mission change completionType is invalid.');
+  }
+  return value;
+}
+
 function missionVersion(payload: Record<string, unknown>): number {
   const value = payload.version;
   if (value === undefined) return 1;
@@ -289,6 +308,7 @@ function missionFromChange(change: ServerAccountChange): MissionProjection | nul
     location: optionalPayloadString(payload, 'location'),
     notes: optionalPayloadString(payload, 'notes'),
     providerLink: appleProviderLinkFromPayload(payload, occurrence),
+    completionType: completionTypeFromPayload(payload),
     version: missionVersion(payload),
   };
 }
@@ -299,7 +319,7 @@ async function applyMissionProjection(
   projection: MissionProjection,
   updatedAt: string,
 ) {
-  const { mission, location, notes, providerLink, version } = projection;
+  const { mission, location, notes, providerLink, completionType, version } = projection;
   const tombstone = await transaction.getFirstAsync<{ occurrence_id: string }>(
     `SELECT occurrence_id
        FROM mission_occurrence_tombstones
@@ -351,7 +371,10 @@ async function applyMissionProjection(
     schedule.allDay ? null : schedule.localStart.slice(11, 16),
     schedule.allDay ? null : schedule.localFinish.slice(11, 16),
     schedule.allDay ? 1 : 0,
-    JSON.stringify(mission.occurrence),
+    JSON.stringify({
+      ...mission.occurrence,
+      ...(completionType === null ? {} : { completionType }),
+    }),
     version,
     updatedAt,
   );

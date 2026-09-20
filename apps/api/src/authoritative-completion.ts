@@ -368,6 +368,7 @@ function evidenceStateFor(
 function authoritativeMissionPayload(
   occurrence: LockedOccurrenceRow,
   evidenceState: 'accepted' | 'rejected' | 'not_required',
+  completionType: AuthoritativeCompletionType,
 ) {
   return {
     version: occurrence.version + 1,
@@ -391,6 +392,7 @@ function authoritativeMissionPayload(
       storyState: occurrence.storyState,
       deletionState: occurrence.deletionState,
     },
+    completionType,
     location: occurrence.location,
     notes: occurrence.notes,
   } as const;
@@ -479,7 +481,7 @@ export async function completeMissionAuthoritatively(
         entityType: 'mission',
         entityId: input.occurrenceId,
         operation: 'upsert',
-        payload: authoritativeMissionPayload(occurrence, evidenceState),
+        payload: authoritativeMissionPayload(occurrence, evidenceState, input.completionType),
       });
 
       const progressProjection = await buildAuthoritativeProgressProjection(context.client, {

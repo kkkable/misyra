@@ -19,6 +19,7 @@ import { openMobileDatabase } from '../storage/database.js';
 import { createLocalRepositories, type LocalMission } from '../storage/local-repositories.js';
 import { requireRegisteredDeviceId } from '../sync/root-sync-runtime.js';
 import type { AllDayMissionSummary } from './calendar-all-day.js';
+import { resolveMissionCardStatus } from './calendar-completion-style.js';
 import { CalendarDayScreen, type CalendarSearchFocusTarget } from './calendar-day-screen.js';
 import {
   createMissionAdjustmentUndoController,
@@ -78,11 +79,11 @@ function minuteFromLocalDateTime(value: string): number {
 }
 
 function missionStatus(mission: LocalMission): MissionCardStatus {
-  const occurrence = mission.occurrence;
-  if (occurrence.completionState === 'incomplete') return 'unfinished';
-  if (occurrence.evidenceState === 'not_required') return 'private';
-  if (occurrence.evidenceState === 'accepted') return 'verified';
-  return 'late';
+  return resolveMissionCardStatus({
+    completionState: mission.occurrence.completionState,
+    evidenceState: mission.occurrence.evidenceState,
+    completionType: mission.completionType,
+  });
 }
 
 function calendarMissionMaps(missions: readonly LocalMission[]): Readonly<{
@@ -105,6 +106,7 @@ function calendarMissionMaps(missions: readonly LocalMission[]): Readonly<{
         title: mission.series.title,
         orderKey,
         completed: occurrence.completionState === 'completed',
+        status: missionStatus(mission),
       });
       allDay[localDate] = bucket;
       continue;
