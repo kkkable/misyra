@@ -79,7 +79,9 @@ export type EvidenceResultRefreshInput = Readonly<{
   expiresAt: string | null;
 }>;
 
-export function resolveEvidenceResultRefreshDelay(input: EvidenceResultRefreshInput): number | null {
+export function resolveEvidenceResultRefreshDelay(
+  input: EvidenceResultRefreshInput,
+): number | null {
   if (input.expired || input.verificationStatus === 'accepted') return null;
   if (input.verificationStatus === 'pending' || input.verificationStatus === 'queued') {
     return ACTIVE_VERIFICATION_REFRESH_MILLISECONDS;
