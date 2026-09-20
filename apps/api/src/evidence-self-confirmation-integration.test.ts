@@ -144,80 +144,70 @@ async function selfConfirm(
 }
 
 describe('MTS-082 evidence self-confirmation', () => {
-  it(
-    'double-confirmed self-confirm reaches the authoritative path with base XP and keeps rejected evidence yellow',
-    async () => {
-      const mission = await createOccurrence(20);
-      const attemptId = await insertAttempt(mission.occurrenceId, mission.date, 'rejected');
-
-      const response = await selfConfirm(
-        mission.occurrenceId,
-        attemptId,
-        `${mission.date}T10:15:00.000Z`,
-      );
-
-      expect(response.statusCode).toBe(200);
-      expect(response.json()).toMatchObject({
-        ok: true,
-        payload: {
-          completionType: 'self_confirmed',
-          reward: { baseXp: 100, proofBonusXp: 0, awardedXp: 100 },
-        },
-      });
-
-      const stored = await pool.query<{
-        completionState: string;
-        evidenceState: string;
-        rewardIssuance: string;
-      }>(
-        `SELECT completion_state AS "completionState",
-                evidence_state AS "evidenceState",
-                reward_issuance AS "rewardIssuance"
-           FROM mission_occurrences
-          WHERE id = $1 AND account_id = $2`,
-        [mission.occurrenceId, accountId],
-      );
-      expect(stored.rows[0]).toEqual({
-        completionState: 'completed',
-        evidenceState: 'rejected',
-        rewardIssuance: 'issued',
-      });
-    },
-  );
-
-  it(
-    'requires a rejected evidence attempt and refuses self-confirm while verification is still active',
-    async () => {
-      const missing = await createOccurrence(21);
-      const missingResponse = await selfConfirm(
-        missing.occurrenceId,
-        undefined,
-        `${missing.date}T10:15:00.000Z`,
-      );
-      expect(missingResponse.statusCode).toBe(409);
-      expect(missingResponse.json()).toMatchObject({ error: { code: 'conflict' } });
-
-      const pending = await createOccurrence(22, 'pending');
-      const pendingAttemptId = await insertAttempt(pending.occurrenceId, pending.date, 'queued');
-      const pendingResponse = await selfConfirm(
-        pending.occurrenceId,
-        pendingAttemptId,
-        `${pending.date}T10:15:00.000Z`,
-      );
-      expect(pendingResponse.statusCode).toBe(409);
-      expect(pendingResponse.json()).toMatchObject({ error: { code: 'conflict' } });
-    },
-  );
-
-  it('has no expired escape path after a rejected verification', async () => {
-    const mission = await createOccurrence(23);
+  it('double-confirmed self-confirm reaches the authoritative path with base XP and keeps rejected evidence yellow', async () => {
+    const mission = await createOccurrence(20);
     const attemptId = await insertAttempt(mission.occurrenceId, mission.date, 'rejected');
 
     const response = await selfConfirm(
       mission.occurrenceId,
       attemptId,
-      '2026-10-23T10:00:00.000Z',
+      `${mission.date}T10:15:00.000Z`,
     );
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      ok: true,
+      payload: {
+        completionType: 'self_confirmed',
+        reward: { baseXp: 100, proofBonusXp: 0, awardedXp: 100 },
+      },
+    });
+
+    const stored = await pool.query<{
+      completionState: string;
+      evidenceState: string;
+      rewardIssuance: string;
+    }>(
+      `SELECT completion_state AS "completionState",
+              evidence_state AS "evidenceState",
+              reward_issuance AS "rewardIssuance"
+         FROM mission_occurrences
+        WHERE id = $1 AND account_id = $2`,
+      [mission.occurrenceId, accountId],
+    );
+    expect(stored.rows[0]).toEqual({
+      completionState: 'completed',
+      evidenceState: 'rejected',
+      rewardIssuance: 'issued',
+    });
+  });
+
+  it('requires a rejected evidence attempt and refuses self-confirm while verification is still active', async () => {
+    const missing = await createOccurrence(21);
+    const missingResponse = await selfConfirm(
+      missing.occurrenceId,
+      undefined,
+      `${missing.date}T10:15:00.000Z`,
+    );
+    expect(missingResponse.statusCode).toBe(409);
+    expect(missingResponse.json()).toMatchObject({ error: { code: 'conflict' } });
+
+    const pending = await createOccurrence(22, 'pending');
+    const pendingAttemptId = await insertAttempt(pending.occurrenceId, pending.date, 'queued');
+    const pendingResponse = await selfConfirm(
+      pending.occurrenceId,
+      pendingAttemptId,
+      `${pending.date}T10:15:00.000Z`,
+    );
+    expect(pendingResponse.statusCode).toBe(409);
+    expect(pendingResponse.json()).toMatchObject({ error: { code: 'conflict' } });
+  });
+
+  it('has no expired escape path after a rejected verification', async () => {
+    const mission = await createOccurrence(23);
+    const attemptId = await insertAttempt(mission.occurrenceId, mission.date, 'rejected');
+
+    const response = await selfConfirm(mission.occurrenceId, attemptId, '2026-10-23T10:00:00.000Z');
 
     expect(response.statusCode).toBe(409);
     expect(response.json()).toMatchObject({
