@@ -20,25 +20,20 @@ function harness(permission = 'granted') {
 }
 
 describe('MTS-084 evidence media actions', () => {
-  it(
-    'requests photo-save permission only when the user explicitly invokes Save to Photos',
-    async () => {
-      const { actions, api, photoLibrary, files } = harness();
+  it('requests photo-save permission only when the user explicitly invokes Save to Photos', async () => {
+    const { actions, api, photoLibrary, files } = harness();
 
-      expect(photoLibrary.requestSavePermission).not.toHaveBeenCalled();
-      expect(photoLibrary.saveToPhotos).not.toHaveBeenCalled();
-      expect(api.downloadOriginal).not.toHaveBeenCalled();
+    expect(photoLibrary.requestSavePermission).not.toHaveBeenCalled();
+    expect(photoLibrary.saveToPhotos).not.toHaveBeenCalled();
+    expect(api.downloadOriginal).not.toHaveBeenCalled();
 
-      await expect(actions.saveToPhotos('attempt-a')).resolves.toEqual({ saved: true });
+    await expect(actions.saveToPhotos('attempt-a')).resolves.toEqual({ saved: true });
 
-      expect(photoLibrary.requestSavePermission).toHaveBeenCalledTimes(1);
-      expect(api.downloadOriginal).toHaveBeenCalledWith('attempt-a');
-      expect(photoLibrary.saveToPhotos).toHaveBeenCalledWith(
-        'file:///private/tmp/evidence-save.jpg',
-      );
-      expect(files.discard).toHaveBeenCalledWith('file:///private/tmp/evidence-save.jpg');
-    },
-  );
+    expect(photoLibrary.requestSavePermission).toHaveBeenCalledTimes(1);
+    expect(api.downloadOriginal).toHaveBeenCalledWith('attempt-a');
+    expect(photoLibrary.saveToPhotos).toHaveBeenCalledWith('file:///private/tmp/evidence-save.jpg');
+    expect(files.discard).toHaveBeenCalledWith('file:///private/tmp/evidence-save.jpg');
+  });
 
   it('does not download or write anything when photo-save permission is denied', async () => {
     const { actions, api, photoLibrary, files } = harness('denied');
@@ -51,21 +46,18 @@ describe('MTS-084 evidence media actions', () => {
     expect(files.discard).not.toHaveBeenCalled();
   });
 
-  it(
-    'deletes app-controlled local/server copies without touching the saved phone copy',
-    async () => {
-      const { actions, api, photoLibrary, files } = harness();
+  it('deletes app-controlled local/server copies without touching the saved phone copy', async () => {
+    const { actions, api, photoLibrary, files } = harness();
 
-      await actions.saveToPhotos('attempt-a');
-      photoLibrary.requestSavePermission.mockClear();
-      photoLibrary.saveToPhotos.mockClear();
+    await actions.saveToPhotos('attempt-a');
+    photoLibrary.requestSavePermission.mockClear();
+    photoLibrary.saveToPhotos.mockClear();
 
-      await expect(actions.deleteEvidence('attempt-a')).resolves.toBeUndefined();
+    await expect(actions.deleteEvidence('attempt-a')).resolves.toBeUndefined();
 
-      expect(api.deleteMedia).toHaveBeenCalledWith('attempt-a');
-      expect(files.deleteAttemptCopies).toHaveBeenCalledWith('attempt-a');
-      expect(photoLibrary.requestSavePermission).not.toHaveBeenCalled();
-      expect(photoLibrary.saveToPhotos).not.toHaveBeenCalled();
-    },
-  );
+    expect(api.deleteMedia).toHaveBeenCalledWith('attempt-a');
+    expect(files.deleteAttemptCopies).toHaveBeenCalledWith('attempt-a');
+    expect(photoLibrary.requestSavePermission).not.toHaveBeenCalled();
+    expect(photoLibrary.saveToPhotos).not.toHaveBeenCalled();
+  });
 });
