@@ -509,7 +509,6 @@ export function createProtectedMediaService(options: ProtectedMediaServiceOption
         client.release();
       }
 
-      if (asset === undefined) throw new ProtectedMediaError('not_found');
       if (asset.deletionState === 'deleted') {
         return { assetId, deleted: true as const };
       }
