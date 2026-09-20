@@ -84,7 +84,11 @@ async function seedOccurrence(
 function createServer(
   blobStore: Readonly<{
     put(container: string, storageKey: string, bytes: Buffer, contentType: string): Promise<void>;
-  }> = { put: vi.fn(() => Promise.resolve()) },
+    delete(container: string, storageKey: string): Promise<void>;
+  }> = {
+    put: vi.fn(() => Promise.resolve()),
+    delete: vi.fn(() => Promise.resolve()),
+  },
 ) {
   return createApiApplication({
     pool,

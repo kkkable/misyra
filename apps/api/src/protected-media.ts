@@ -15,6 +15,7 @@ export type ProtectedMediaBlobStore = Readonly<{
     bytes: Buffer,
     contentType: string,
   ): Promise<void>;
+  delete(container: MediaUploadPurpose, storageKey: string): Promise<void>;
 }>;
 
 export type ProtectedMediaUploadCommitted = Readonly<{
@@ -249,6 +250,16 @@ function createAzuriteBlobStore(env: NodeJS.ProcessEnv): ProtectedMediaBlobStore
         throw new Error('Protected media upload failed');
       }
     },
+    async delete(container, key) {
+      const url = new URL(`${endpoint}/${container}/${encodeBlobKey(key)}`);
+      const response = await fetch(url, {
+        method: 'DELETE',
+        headers: signedAzuriteHeaders('DELETE', url, undefined),
+      });
+      if (!response.ok && response.status !== 404) {
+        throw new Error('Protected media deletion failed');
+      }
+    },
   };
 }
 
@@ -307,6 +318,22 @@ function createAzureManagedIdentityBlobStore(env: NodeJS.ProcessEnv): ProtectedM
         throw new Error('Protected media upload failed');
       }
     },
+    async delete(container, key) {
+      const token = await managedIdentityAccessToken(env);
+      const url = new URL(
+        `https://${accountName}.blob.core.windows.net/${container}/${encodeBlobKey(key)}`,
+      );
+      const response = await fetch(url, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'x-ms-version': AZURE_STORAGE_VERSION,
+        },
+      });
+      if (!response.ok && response.status !== 404) {
+        throw new Error('Protected media deletion failed');
+      }
+    },
   };
 }
 
@@ -351,8 +378,14 @@ export function createProtectedMediaService(options: ProtectedMediaServiceOption
 
       try {
         await client.query('BEGIN');
-        const existing = await client.query<{ accountId: string; purpose: string }>(
-          `SELECT account_id AS "accountId", purpose
+        const existing = await client.query<{
+          accountId: string;
+          purpose: string;
+          deletionState: string;
+        }>(
+          `SELECT account_id AS "accountId",
+                  purpose,
+                  deletion_state AS "deletionState"
              FROM media_assets
             WHERE id = $1
             FOR UPDATE`,
@@ -361,7 +394,9 @@ export function createProtectedMediaService(options: ProtectedMediaServiceOption
         const current = existing.rows[0];
         if (current !== undefined) {
           if (current.accountId !== accountId) throw new ProtectedMediaError('not_found');
-          if (current.purpose !== input.purpose) throw new ProtectedMediaError('conflict');
+          if (current.purpose !== input.purpose || current.deletionState !== 'active') {
+            throw new ProtectedMediaError('conflict');
+          }
           await client.query(
             `UPDATE media_assets
                 SET ${column} = $3
@@ -410,6 +445,105 @@ export function createProtectedMediaService(options: ProtectedMediaServiceOption
         uploadPath: `/v1/media/uploads/${token}`,
         expiresAt: expiresAt.toISOString(),
       };
+    },
+
+    async deleteAsset(accountId: string, assetId: string) {
+      if (!UUID_PATTERN.test(assetId)) {
+        throw new ProtectedMediaError('validation_failed');
+      }
+
+      const client = await options.pool.connect();
+      let asset:
+        | Readonly<{
+            purpose: MediaUploadPurpose;
+            originalStorageKey: string | null;
+            thumbnailStorageKey: string | null;
+            derivativeStorageKey: string | null;
+            temporaryStorageKey: string | null;
+            deletionState: string;
+          }>
+        | undefined;
+      try {
+        await client.query('BEGIN');
+        const result = await client.query<{
+          purpose: string;
+          originalStorageKey: string | null;
+          thumbnailStorageKey: string | null;
+          derivativeStorageKey: string | null;
+          temporaryStorageKey: string | null;
+          deletionState: string;
+        }>(
+          `SELECT
+             purpose,
+             original_storage_key AS "originalStorageKey",
+             thumbnail_storage_key AS "thumbnailStorageKey",
+             derivative_storage_key AS "derivativeStorageKey",
+             temporary_storage_key AS "temporaryStorageKey",
+             deletion_state AS "deletionState"
+           FROM media_assets
+           WHERE id = $1 AND account_id = $2
+           FOR UPDATE`,
+          [assetId, accountId],
+        );
+        const current = result.rows[0];
+        if (current === undefined) throw new ProtectedMediaError('not_found');
+        if (!isPurpose(current.purpose)) throw new ProtectedMediaError('conflict');
+        asset = {
+          ...current,
+          purpose: current.purpose,
+        };
+        if (current.deletionState !== 'deleted') {
+          await client.query(
+            `UPDATE media_assets
+                SET deletion_state = 'deleting',
+                    retry_state = 'ready'
+              WHERE id = $1 AND account_id = $2`,
+            [assetId, accountId],
+          );
+        }
+        await client.query('COMMIT');
+      } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+      } finally {
+        client.release();
+      }
+
+      if (asset === undefined) throw new ProtectedMediaError('not_found');
+      if (asset.deletionState === 'deleted') {
+        return { assetId, deleted: true as const };
+      }
+
+      const keys = [
+        asset.originalStorageKey,
+        asset.thumbnailStorageKey,
+        asset.derivativeStorageKey,
+        asset.temporaryStorageKey,
+      ].filter((key): key is string => key !== null);
+      const uniqueKeys = [...new Set(keys)];
+
+      try {
+        for (const key of uniqueKeys) {
+          await options.blobStore.delete(asset.purpose, key);
+        }
+      } catch (error) {
+        await options.pool.query(
+          `UPDATE media_assets
+              SET retry_state = 'retry_pending'
+            WHERE id = $1 AND account_id = $2 AND deletion_state = 'deleting'`,
+          [assetId, accountId],
+        );
+        throw error;
+      }
+
+      await options.pool.query(
+        `UPDATE media_assets
+            SET deletion_state = 'deleted',
+                retry_state = 'ready'
+          WHERE id = $1 AND account_id = $2 AND deletion_state = 'deleting'`,
+        [assetId, accountId],
+      );
+      return { assetId, deleted: true as const };
     },
 
     async upload(accountId: string, token: string, body: unknown) {

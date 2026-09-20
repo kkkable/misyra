@@ -6,6 +6,7 @@ import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { createEvidenceVerificationService } from './evidence-verification.js';
+import { createProtectedMediaService } from './protected-media.js';
 
 const postgresUser = process.env.POSTGRES_USER ?? 'misyra';
 const postgresPassword = process.env.POSTGRES_PASSWORD ?? 'misyra-local-only';
@@ -312,7 +313,35 @@ describe('MTS-081 AI evidence verification', () => {
       [accountId, seeded.occurrenceId],
     );
 
-    const deleteMediaAsset = vi.fn(() => Promise.resolve());
+    const storageKeys = {
+      original: `${accountId}/${seeded.mediaAssetId}/original`,
+      thumbnail: `${accountId}/${seeded.mediaAssetId}/thumbnail`,
+      derivative: `${accountId}/${seeded.mediaAssetId}/derivative`,
+      temporary: `${accountId}/${seeded.mediaAssetId}/temporary`,
+    };
+    await pool.query(
+      `UPDATE media_assets
+          SET thumbnail_storage_key = $3,
+              derivative_storage_key = $4,
+              temporary_storage_key = $5
+        WHERE id = $1 AND account_id = $2`,
+      [
+        seeded.mediaAssetId,
+        accountId,
+        storageKeys.thumbnail,
+        storageKeys.derivative,
+        storageKeys.temporary,
+      ],
+    );
+    const deleteBlob = vi.fn(() => Promise.resolve());
+    const protectedMediaService = createProtectedMediaService({
+      pool,
+      signingSecret: 'fixture-protected-media-signing-secret',
+      blobStore: {
+        put: vi.fn(() => Promise.resolve()),
+        delete: deleteBlob,
+      },
+    });
     const service = createEvidenceVerificationService({
       pool,
       gateway: {
@@ -320,20 +349,37 @@ describe('MTS-081 AI evidence verification', () => {
           return Promise.resolve({ verdict: 'accepted', reasonCode: 'verified' });
         },
       },
-      deleteMediaAsset,
+      deleteMediaAsset: async (assetAccountId, mediaAssetId) => {
+        await protectedMediaService.deleteAsset(assetAccountId, mediaAssetId);
+      },
     });
 
     await expect(service.processOutboxEvent(seeded.event)).resolves.toMatchObject({
       verdict: 'accepted',
       reasonCode: 'verified',
     });
-    expect(deleteMediaAsset).toHaveBeenCalledWith(accountId, seeded.mediaAssetId);
+    expect(deleteBlob.mock.calls).toEqual([
+      ['evidence-working', storageKeys.original],
+      ['evidence-working', storageKeys.thumbnail],
+      ['evidence-working', storageKeys.derivative],
+      ['evidence-working', storageKeys.temporary],
+    ]);
 
-    const stored = await pool.query<{ status: string }>(
-      'SELECT status FROM evidence_attempts WHERE id = $1',
+    const stored = await pool.query<{ status: string; deletionState: string; retryState: string }>(
+      `SELECT
+         a.status,
+         m.deletion_state AS "deletionState",
+         m.retry_state AS "retryState"
+       FROM evidence_attempts a
+       JOIN media_assets m ON m.id = a.media_asset_id AND m.account_id = a.account_id
+       WHERE a.id = $1`,
       [seeded.attemptId],
     );
-    expect(stored.rows[0]?.status).toBe('duplicate_loser');
+    expect(stored.rows[0]).toEqual({
+      status: 'duplicate_loser',
+      deletionState: 'deleted',
+      retryState: 'ready',
+    });
   });
 
   it('completes a successful retry authoritatively and awards the proof bonus from first-submit timing', async () => {
