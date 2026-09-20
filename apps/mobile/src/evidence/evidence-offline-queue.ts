@@ -147,11 +147,11 @@ export function createEvidenceOfflineQueue(
       });
     },
 
-    async getPendingForOccurrence(
-      occurrenceId: string,
-    ): Promise<OfflineEvidencePending | null> {
+    async getPendingForOccurrence(occurrenceId: string): Promise<OfflineEvidencePending | null> {
       const items = await evidencePending();
-      return items.find((item) => item.submission.occurrenceId === occurrenceId)?.submission ?? null;
+      return (
+        items.find((item) => item.submission.occurrenceId === occurrenceId)?.submission ?? null
+      );
     },
 
     async processPending(): Promise<Readonly<{ processed: number; remaining: number }>> {
