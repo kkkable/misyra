@@ -112,6 +112,7 @@ export default function EvidenceRoute() {
     }
 
     const lifecycle = { cancelled: false };
+    const isCancelled = () => lifecycle.cancelled;
     const retryTimer = { current: null as ReturnType<typeof setTimeout> | null };
     submissionSession.reset();
     setResult(null);
@@ -122,16 +123,16 @@ export default function EvidenceRoute() {
       try {
         const { api } = await authenticatedEvidenceApi();
         const latestAttemptId = await api.getLatestAttemptId(occurrenceId);
-        if (lifecycle.cancelled) return;
+        if (isCancelled()) return;
         if (latestAttemptId !== null) {
           const latestResult = await api.getResult(latestAttemptId);
-          if (lifecycle.cancelled) return;
+          if (isCancelled()) return;
           setActiveAttemptId(latestAttemptId);
           setResult(latestResult);
         }
         setRestoringLatest(false);
       } catch {
-        if (!lifecycle.cancelled) {
+        if (!isCancelled()) {
           retryTimer.current = setTimeout(() => {
             void restore();
           }, RESULT_POLL_MILLISECONDS);
