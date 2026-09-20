@@ -12,6 +12,7 @@ import {
 } from '../src/evidence/evidence-capture-screen.js';
 import { createExpoEvidenceCaptureRuntime } from '../src/evidence/expo-evidence-capture-runtime.js';
 import { resolveEvidenceResultFlow } from '../src/evidence/evidence-result-flow.js';
+import { createEvidenceSubmissionSession } from '../src/evidence/evidence-submission-session.js';
 import {
   EvidenceResultPanel,
   type EvidenceResultMessages,
@@ -49,8 +50,13 @@ export default function EvidenceRoute() {
   const nativeColorScheme = useColorScheme();
   const colorScheme: ColorScheme = nativeColorScheme === 'dark' ? 'dark' : 'light';
   const runtime = useMemo(() => createExpoEvidenceCaptureRuntime(), []);
+  const submissionSession = useMemo(
+    () => createEvidenceSubmissionSession(generateUuid),
+    [],
+  );
   const [result, setResult] = useState<EvidenceAttemptResult | null>(null);
   const [activeAttemptId, setActiveAttemptId] = useState<string | null>(null);
+  const [pollRetry, setPollRetry] = useState(0);
 
   const captureMessages: EvidenceCaptureMessages = {
     close: catalog['evidence.close'],
@@ -106,12 +112,14 @@ export default function EvidenceRoute() {
       return;
     }
     const timer = setTimeout(() => {
-      void refreshResult().catch(() => undefined);
+      void refreshResult().catch(() => {
+        setPollRetry((value) => value + 1);
+      });
     }, RESULT_POLL_MILLISECONDS);
     return () => {
       clearTimeout(timer);
     };
-  }, [refreshResult, result]);
+  }, [pollRetry, refreshResult, result]);
 
   useEffect(() => {
     if (result?.verificationStatus === 'accepted') {
@@ -137,14 +145,26 @@ export default function EvidenceRoute() {
         onClose={close}
         onSubmit={async (file) => {
           const { api } = await authenticatedEvidenceApi();
-          const attemptId = generateUuid();
-          const reservation = await api.reserveAttempt(occurrenceId, {
-            attemptId,
-            submittedAt: new Date().toISOString(),
-          });
+          const submission = submissionSession.getOrCreate();
+          setActiveAttemptId(submission.attemptId);
+          const reservation = await api.reserveAttempt(occurrenceId, submission);
           await api.uploadOriginal(reservation.uploadPath, file.uri);
-          setActiveAttemptId(attemptId);
-          setResult(await api.getResult(attemptId));
+          setResult({
+            attemptId: reservation.attemptId,
+            occurrenceId: reservation.occurrenceId,
+            attemptNumber: reservation.attemptNumber,
+            firstSubmittedAt: reservation.firstSubmittedAt,
+            effectiveSubmittedAt: reservation.effectiveSubmittedAt,
+            verificationStatus: 'queued',
+            reasonCode: null,
+            expired: false,
+          });
+          void api
+            .getResult(submission.attemptId)
+            .then(setResult)
+            .catch(() => {
+              setPollRetry((value) => value + 1);
+            });
         }}
       />
     );
@@ -164,6 +184,7 @@ export default function EvidenceRoute() {
       messages={resultMessages}
       onClose={close}
       onRetry={() => {
+        submissionSession.reset();
         setResult(null);
         setActiveAttemptId(null);
       }}
