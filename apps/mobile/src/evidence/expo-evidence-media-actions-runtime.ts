@@ -12,8 +12,7 @@ type RuntimeOptions = Readonly<{
   accessToken: string;
 }>;
 
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function storageRoot(kind: 'evidence-working' | 'evidence-save'): string {
   const root =
@@ -42,9 +41,7 @@ export async function bindEvidenceOriginalToAttempt(
   return destination;
 }
 
-export function createExpoEvidenceMediaActionsRuntime(
-  options: RuntimeOptions,
-): Readonly<{
+export function createExpoEvidenceMediaActionsRuntime(options: RuntimeOptions): Readonly<{
   api: EvidenceMediaActionsApi;
   photoLibrary: EvidencePhotoLibrary;
   files: EvidenceMediaFiles;
