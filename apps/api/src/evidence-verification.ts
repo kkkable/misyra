@@ -37,6 +37,7 @@ export class EvidenceVerificationStateError extends Error {
 
 interface VerificationAttemptRow extends QueryResultRow {
   id: string;
+  status: string;
   occurrenceId: string;
   attemptNumber: number;
   firstSubmittedAt: Date;
@@ -98,8 +99,8 @@ async function ensureAcceptedCompletion(
   pool: Pool,
   accountId: string,
   attempt: VerificationAttemptRow,
-): Promise<void> {
-  await completeMissionAuthoritatively(pool, {
+) {
+  return completeMissionAuthoritatively(pool, {
     accountId,
     occurrenceId: attempt.occurrenceId,
     completionType: completionTypeFor(attempt),
@@ -166,7 +167,26 @@ function assertVerificationEvent(event: ClaimedOutboxEvent): string {
 export function createEvidenceVerificationService(input: {
   readonly pool: Pool;
   readonly gateway: Pick<AiGateway, 'verifyEvidence'>;
+  readonly deleteMediaAsset?: (accountId: string, mediaAssetId: string) => Promise<void>;
 }) {
+  const markDuplicateLoser = async (
+    accountId: string,
+    attempt: VerificationAttemptRow,
+  ): Promise<void> => {
+    await input.pool.query(
+      `UPDATE evidence_attempts
+          SET status = 'duplicate_loser'
+        WHERE id = $1 AND account_id = $2`,
+      [attempt.id, accountId],
+    );
+    if (attempt.mediaAssetId === null) return;
+    if (input.deleteMediaAsset === undefined) {
+      throw new EvidenceVerificationStateError(
+        'Duplicate evidence cleanup requires a protected-media deletion handler',
+      );
+    }
+    await input.deleteMediaAsset(accountId, attempt.mediaAssetId);
+  };
   return Object.freeze({
     async processOutboxEvent(event: ClaimedOutboxEvent): Promise<EvidenceVerificationResult> {
       const accountId = assertVerificationEvent(event);
@@ -174,8 +194,22 @@ export function createEvidenceVerificationService(input: {
 
       if (attempt.verificationStatus === 'accepted' || attempt.verificationStatus === 'rejected') {
         const result = resultFromTerminalAttempt(attempt);
+        if (attempt.status === 'duplicate_loser') {
+          if (attempt.mediaAssetId !== null) {
+            if (input.deleteMediaAsset === undefined) {
+              throw new EvidenceVerificationStateError(
+                'Duplicate evidence cleanup requires a protected-media deletion handler',
+              );
+            }
+            await input.deleteMediaAsset(accountId, attempt.mediaAssetId);
+          }
+          return result;
+        }
         if (result.verdict === 'accepted') {
-          await ensureAcceptedCompletion(input.pool, accountId, attempt);
+          const completion = await ensureAcceptedCompletion(input.pool, accountId, attempt);
+          if (completion.status === 'already_completed') {
+            await markDuplicateLoser(accountId, attempt);
+          }
         }
         return result;
       }
@@ -254,7 +288,9 @@ export function createEvidenceVerificationService(input: {
                   ) THEN 'pending'
                   ELSE 'rejected'
                 END
-              WHERE o.id = $1 AND o.account_id = $2`,
+              WHERE o.id = $1
+                AND o.account_id = $2
+                AND o.completion_state = 'incomplete'`,
             [attempt.occurrenceId, accountId],
           );
           await client.query('COMMIT');
@@ -277,7 +313,10 @@ export function createEvidenceVerificationService(input: {
       }
 
       if (parsedOutput.data.verdict === 'accepted') {
-        await ensureAcceptedCompletion(input.pool, accountId, attempt);
+        const completion = await ensureAcceptedCompletion(input.pool, accountId, attempt);
+        if (completion.status === 'already_completed') {
+          await markDuplicateLoser(accountId, attempt);
+        }
       }
 
       return Object.freeze({

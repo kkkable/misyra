@@ -78,6 +78,7 @@ interface LatestAttemptIdRow extends QueryResultRow {
 
 interface AttemptResultRow extends QueryResultRow {
   id: string;
+  status: string;
   occurrenceId: string;
   attemptNumber: number;
   firstSubmittedAt: Date;
@@ -277,6 +278,7 @@ export function createEvidenceAttemptService(options: EvidenceAttemptServiceOpti
       const result = await options.pool.query<AttemptResultRow>(
         `SELECT
            a.id,
+           a.status,
            a.occurrence_id AS "occurrenceId",
            a.attempt_number AS "attemptNumber",
            a.first_submitted_at AS "firstSubmittedAt",
@@ -336,6 +338,7 @@ export function createEvidenceAttemptService(options: EvidenceAttemptServiceOpti
         effectiveSubmittedAt: attempt.effectiveSubmittedAt.toISOString(),
         verificationStatus: attempt.verificationStatus,
         reasonCode: reasonCode === null ? null : reasonCode.data,
+        duplicateLoser: attempt.status === 'duplicate_loser',
         expired: eligibility.state === 'expired',
         serverNow: currentTime.toISOString(),
         expiresAt: eligibility.expiresAt,
