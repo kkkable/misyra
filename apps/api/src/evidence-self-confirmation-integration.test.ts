@@ -43,7 +43,10 @@ afterAll(async () => {
   await admin.end();
 });
 
-async function createOccurrence(\n  day: number,\n  evidenceState: 'rejected' | 'pending' = 'rejected',\n) {
+async function createOccurrence(
+  day: number,
+  evidenceState: 'rejected' | 'pending' = 'rejected',
+) {
   const seriesId = randomUUID();
   const occurrenceId = randomUUID();
   const date = `2026-09-${String(day).padStart(2, '0')}`;
