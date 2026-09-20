@@ -35,6 +35,31 @@ export function createEvidenceAttemptRoutes(service: EvidenceAttemptService): Ap
       },
     },
     {
+      method: 'GET',
+      path: '/evidence/attempts/:attemptId/media/original',
+      handler: async (request, reply, auth) => {
+        const params = request.params as { attemptId?: unknown };
+        try {
+          const body = await service.getMediaOriginal(auth.accountId, params.attemptId);
+          return reply.type('image/jpeg').send(body);
+        } catch (error) {
+          return mapError(error);
+        }
+      },
+    },
+    {
+      method: 'DELETE',
+      path: '/evidence/attempts/:attemptId/media',
+      handler: async (request, _reply, auth) => {
+        const params = request.params as { attemptId?: unknown };
+        try {
+          return await service.deleteMedia(auth.accountId, params.attemptId);
+        } catch (error) {
+          return mapError(error);
+        }
+      },
+    },
+    {
       method: 'POST',
       path: '/evidence/occurrences/:occurrenceId/attempts',
       handler: async (request, _reply, auth) => {

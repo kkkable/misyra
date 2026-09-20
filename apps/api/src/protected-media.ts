@@ -15,6 +15,7 @@ export type ProtectedMediaBlobStore = Readonly<{
     bytes: Buffer,
     contentType: string,
   ): Promise<void>;
+  get(container: MediaUploadPurpose, storageKey: string): Promise<Buffer>;
   delete(container: MediaUploadPurpose, storageKey: string): Promise<void>;
 }>;
 
@@ -250,6 +251,15 @@ function createAzuriteBlobStore(env: NodeJS.ProcessEnv): ProtectedMediaBlobStore
         throw new Error('Protected media upload failed');
       }
     },
+    async get(container, key) {
+      const url = new URL(`${endpoint}/${container}/${encodeBlobKey(key)}`);
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: signedAzuriteHeaders('GET', url, undefined),
+      });
+      if (!response.ok) throw new Error('Protected media read failed');
+      return Buffer.from(await response.arrayBuffer());
+    },
     async delete(container, key) {
       const url = new URL(`${endpoint}/${container}/${encodeBlobKey(key)}`);
       const response = await fetch(url, {
@@ -317,6 +327,20 @@ function createAzureManagedIdentityBlobStore(env: NodeJS.ProcessEnv): ProtectedM
       if (!response.ok && !isImmutableOriginalAlreadyStored(response, immutableOriginal)) {
         throw new Error('Protected media upload failed');
       }
+    },
+    async get(container, key) {
+      const token = await managedIdentityAccessToken(env);
+      const url = new URL(
+        `https://${accountName}.blob.core.windows.net/${container}/${encodeBlobKey(key)}`,
+      );
+      const response = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'x-ms-version': AZURE_STORAGE_VERSION,
+        },
+      });
+      if (!response.ok) throw new Error('Protected media read failed');
+      return Buffer.from(await response.arrayBuffer());
     },
     async delete(container, key) {
       const token = await managedIdentityAccessToken(env);
@@ -445,6 +469,31 @@ export function createProtectedMediaService(options: ProtectedMediaServiceOption
         uploadPath: `/v1/media/uploads/${token}`,
         expiresAt: expiresAt.toISOString(),
       };
+    },
+
+    async readAssetOriginal(accountId: string, assetId: string) {
+      if (!UUID_PATTERN.test(assetId)) {
+        throw new ProtectedMediaError('validation_failed');
+      }
+      const result = await options.pool.query<{
+        purpose: string;
+        originalStorageKey: string | null;
+      }>(
+        `SELECT purpose, original_storage_key AS "originalStorageKey"
+           FROM media_assets
+          WHERE id = $1
+            AND account_id = $2
+            AND deletion_state = 'active'`,
+        [assetId, accountId],
+      );
+      const asset = result.rows[0];
+      if (asset === undefined || asset.originalStorageKey === null) {
+        throw new ProtectedMediaError('not_found');
+      }
+      if (asset.purpose !== 'evidence-working') {
+        throw new ProtectedMediaError('conflict');
+      }
+      return options.blobStore.get('evidence-working', asset.originalStorageKey);
     },
 
     async deleteAsset(accountId: string, assetId: string) {
