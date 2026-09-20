@@ -123,9 +123,9 @@ describe('MTS-059 Mission Details completion integration', () => {
 
   it('does not expose camera evidence while Trust Mode is active or verification is pending', () => {
     const trust = renderDetails({ trustMode: true });
-    expect(trust.renderer.root.findAllByProps({ testID: 'mission-details-evidence-action' })).toHaveLength(
-      0,
-    );
+    expect(
+      trust.renderer.root.findAllByProps({ testID: 'mission-details-evidence-action' }),
+    ).toHaveLength(0);
 
     const pending = renderDetails({
       details: { ...activeDetails, evidenceState: 'pending' },

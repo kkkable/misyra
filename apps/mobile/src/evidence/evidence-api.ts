@@ -78,7 +78,9 @@ function parseResult(value: unknown): EvidenceAttemptResult {
     throw new Error('evidence_verification_status_invalid');
   }
   const reason =
-    value.reasonCode === null ? null : evidenceVerificationReasonCodeSchema.safeParse(value.reasonCode);
+    value.reasonCode === null
+      ? null
+      : evidenceVerificationReasonCodeSchema.safeParse(value.reasonCode);
   if (reason !== null && !reason.success) throw new Error('evidence_reason_code_invalid');
   if (typeof value.expired !== 'boolean') throw new Error('evidence_expiry_invalid');
   return {

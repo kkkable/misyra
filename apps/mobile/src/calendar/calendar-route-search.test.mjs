@@ -274,7 +274,6 @@ describe('MTS-049 Calendar route search navigation', () => {
   });
 });
 
-
 describe('MTS-082 Calendar evidence completion projection', () => {
   it('keeps accepted late evidence yellow for timed missions', async () => {
     state.listWindow.mockResolvedValue([
