@@ -85,6 +85,7 @@ async function insertAttempt(
   occurrenceId: string,
   date: string,
   verificationStatus: 'rejected' | 'queued',
+  attemptNumber = 1,
 ) {
   const attemptId = randomUUID();
   const rejected = verificationStatus === 'rejected';
@@ -94,14 +95,15 @@ async function insertAttempt(
        first_submitted_at, effective_submitted_at, upload_status,
        verification_status, reason_code, deletion_deadline
      ) VALUES (
-       $1, $2, $3, 1, $4, $5,
-       $5, $5, 'uploaded',
-       $6, $7, $8
+       $1, $2, $3, $4, $5, $6,
+       $6, $6, 'uploaded',
+       $7, $8, $9
      )`,
     [
       attemptId,
       accountId,
       occurrenceId,
+      attemptNumber,
       rejected ? 'rejected' : 'pending',
       `${date}T10:11:00Z`,
       verificationStatus,
@@ -239,6 +241,24 @@ describe('MTS-082 evidence self-confirmation', () => {
     expect(expiredResult.statusCode).toBe(200);
     expect(expiredResult.json()).toMatchObject({
       payload: { verificationStatus: 'rejected', expired: true },
+    });
+  });
+
+  it('returns the latest durable attempt so rejected flows can resume after remount', async () => {
+    const mission = await createOccurrence(25);
+    await insertAttempt(mission.occurrenceId, mission.date, 'rejected', 1);
+    const latestAttemptId = await insertAttempt(mission.occurrenceId, mission.date, 'rejected', 2);
+
+    const server = createServer('2026-09-25T10:20:00.000Z');
+    const response = await server.inject({
+      method: 'GET',
+      url: `/v1/evidence/occurrences/${mission.occurrenceId}/latest-attempt`,
+    });
+    await server.close();
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      payload: { attemptId: latestAttemptId },
     });
   });
 

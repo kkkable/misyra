@@ -50,6 +50,14 @@ function attemptNumber(value: unknown): 1 | 2 | 3 {
   return value;
 }
 
+function parseLatestAttemptId(value: unknown): string | null {
+  if (!isRecord(value) || !Object.hasOwn(value, 'attemptId')) {
+    throw new Error('evidence_latest_attempt_invalid');
+  }
+  if (value.attemptId === null) return null;
+  return nonEmptyString(value.attemptId, 'evidence_attempt_id_invalid');
+}
+
 function parseReservation(value: unknown): EvidenceAttemptReservation {
   if (!isRecord(value)) throw new Error('evidence_reservation_invalid');
   return {
@@ -117,6 +125,15 @@ export function createEvidenceApi({ baseUrl, accessToken }: EvidenceApiOptions) 
   }
 
   return Object.freeze({
+    async getLatestAttemptId(occurrenceId: string) {
+      return parseLatestAttemptId(
+        await jsonRequest(
+          `/v1/evidence/occurrences/${encodeURIComponent(occurrenceId)}/latest-attempt`,
+          'GET',
+        ),
+      );
+    },
+
     async reserveAttempt(
       occurrenceId: string,
       input: Readonly<{ attemptId: string; submittedAt: string }>,

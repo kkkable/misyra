@@ -16,6 +16,7 @@ describe('MTS-079 camera-only route contract', () => {
 
     expect(source).toMatch(/EvidenceCaptureScreen/);
     expect(source).toMatch(/createExpoEvidenceCaptureRuntime/);
+    expect(source).toMatch(/getLatestAttemptId\(occurrenceId\)/);
 
     for (const forbidden of [
       /expo-image-picker/,

@@ -72,6 +72,10 @@ interface UploadedAttemptRow extends QueryResultRow {
   verificationStatus: string;
 }
 
+interface LatestAttemptIdRow extends QueryResultRow {
+  id: string;
+}
+
 interface AttemptResultRow extends QueryResultRow {
   id: string;
   occurrenceId: string;
@@ -255,6 +259,19 @@ export function createEvidenceAttemptService(options: EvidenceAttemptServiceOpti
   }
 
   return {
+    async getLatestAttemptId(accountId: string, occurrenceIdSource: unknown) {
+      const occurrenceId = parseUuid(occurrenceIdSource);
+      const result = await options.pool.query<LatestAttemptIdRow>(
+        `SELECT id
+           FROM evidence_attempts
+          WHERE account_id = $1 AND occurrence_id = $2
+          ORDER BY attempt_number DESC
+          LIMIT 1`,
+        [accountId, occurrenceId],
+      );
+      return { attemptId: result.rows[0]?.id ?? null } as const;
+    },
+
     async getResult(accountId: string, attemptIdSource: unknown) {
       const attemptId = parseUuid(attemptIdSource);
       const result = await options.pool.query<AttemptResultRow>(

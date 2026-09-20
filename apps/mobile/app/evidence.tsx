@@ -54,6 +54,7 @@ export default function EvidenceRoute() {
   const [result, setResult] = useState<EvidenceAttemptResult | null>(null);
   const [activeAttemptId, setActiveAttemptId] = useState<string | null>(null);
   const [pollRetry, setPollRetry] = useState(0);
+  const [restoringLatest, setRestoringLatest] = useState(true);
 
   const captureMessages: EvidenceCaptureMessages = {
     close: catalog['evidence.close'],
@@ -102,6 +103,47 @@ export default function EvidenceRoute() {
   }, [activeAttemptId, authenticatedEvidenceApi]);
 
   useEffect(() => {
+    if (occurrenceId === null) {
+      setRestoringLatest(false);
+      return;
+    }
+
+    let cancelled = false;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    submissionSession.reset();
+    setResult(null);
+    setActiveAttemptId(null);
+    setRestoringLatest(true);
+
+    const restore = async () => {
+      try {
+        const { api } = await authenticatedEvidenceApi();
+        const latestAttemptId = await api.getLatestAttemptId(occurrenceId);
+        if (cancelled) return;
+        if (latestAttemptId !== null) {
+          const latestResult = await api.getResult(latestAttemptId);
+          if (cancelled) return;
+          setActiveAttemptId(latestAttemptId);
+          setResult(latestResult);
+        }
+        setRestoringLatest(false);
+      } catch {
+        if (!cancelled) {
+          retryTimer = setTimeout(() => {
+            void restore();
+          }, RESULT_POLL_MILLISECONDS);
+        }
+      }
+    };
+
+    void restore();
+    return () => {
+      cancelled = true;
+      if (retryTimer !== null) clearTimeout(retryTimer);
+    };
+  }, [authenticatedEvidenceApi, occurrenceId, submissionSession]);
+
+  useEffect(() => {
     if (
       result === null ||
       (result.verificationStatus !== 'pending' && result.verificationStatus !== 'queued')
@@ -132,6 +174,8 @@ export default function EvidenceRoute() {
     close();
     return null;
   }
+
+  if (restoringLatest) return null;
 
   if (result === null) {
     return (
