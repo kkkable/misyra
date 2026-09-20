@@ -388,7 +388,10 @@ describe('MTS-080 evidence-attempt creation and upload', () => {
 
   it('does not lose or double-consume an attempt when media upload fails and reservation is retried', async () => {
     const failingPut = vi.fn(() => Promise.reject(new Error('fixture upload unavailable')));
-    const failingServer = createServer({ put: failingPut });
+    const failingServer = createServer({
+      put: failingPut,
+      delete: vi.fn(() => Promise.resolve()),
+    });
     const occurrenceId = await seedOccurrence();
     const attemptId = randomUUID();
     const submittedAt = '2026-09-18T09:06:00.000Z';
@@ -425,7 +428,10 @@ describe('MTS-080 evidence-attempt creation and upload', () => {
     await failingServer.close();
 
     const succeedingPut = vi.fn(() => Promise.resolve());
-    const succeedingServer = createServer({ put: succeedingPut });
+    const succeedingServer = createServer({
+      put: succeedingPut,
+      delete: vi.fn(() => Promise.resolve()),
+    });
     const replay = await reserveAttempt(succeedingServer, occurrenceId, attemptId, submittedAt);
 
     expect(replay.response.statusCode).toBe(200);
