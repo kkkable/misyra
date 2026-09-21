@@ -11,12 +11,14 @@ export class PlannerExtractionInvalidOutputError extends Error {
   }
 }
 
-export function createPlannerExtractionService(_input: {
+export function createPlannerExtractionService(input: {
   readonly gateway: Pick<AiGateway, 'extractPlannerSchedule'>;
 }) {
   return Object.freeze({
-    async extract(_request: PlannerExtractionInput): Promise<PlannerExtractionResult> {
+    async extract(request: PlannerExtractionInput): Promise<PlannerExtractionResult> {
       await Promise.resolve();
+      void input;
+      void request;
       throw new Error('MTS-087 planner extraction is not implemented.');
     },
   });
