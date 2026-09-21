@@ -505,6 +505,7 @@ export function createProtectedMediaService(options: ProtectedMediaServiceOption
       let asset:
         | Readonly<{
             purpose: MediaUploadPurpose;
+            storageKey: string;
             originalStorageKey: string | null;
             thumbnailStorageKey: string | null;
             derivativeStorageKey: string | null;
@@ -516,6 +517,7 @@ export function createProtectedMediaService(options: ProtectedMediaServiceOption
         await client.query('BEGIN');
         const result = await client.query<{
           purpose: string;
+          storageKey: string;
           originalStorageKey: string | null;
           thumbnailStorageKey: string | null;
           derivativeStorageKey: string | null;
@@ -524,6 +526,7 @@ export function createProtectedMediaService(options: ProtectedMediaServiceOption
         }>(
           `SELECT
              purpose,
+             storage_key AS "storageKey",
              original_storage_key AS "originalStorageKey",
              thumbnail_storage_key AS "thumbnailStorageKey",
              derivative_storage_key AS "derivativeStorageKey",
@@ -563,6 +566,7 @@ export function createProtectedMediaService(options: ProtectedMediaServiceOption
       }
 
       const keys = [
+        asset.storageKey,
         asset.originalStorageKey,
         asset.thumbnailStorageKey,
         asset.derivativeStorageKey,
