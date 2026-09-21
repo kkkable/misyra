@@ -1,7 +1,4 @@
-import type {
-  PlannerExtractionGatewayRequest,
-  PlannerExtractionInput,
-} from '@misyra/contracts';
+import type { PlannerExtractionGatewayRequest, PlannerExtractionInput } from '@misyra/contracts';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
@@ -161,9 +158,7 @@ describe('MTS-087 schedule extraction gateway', () => {
       },
     });
 
-    await expect(service.extract(input)).rejects.toBeInstanceOf(
-      PlannerExtractionInvalidOutputError,
-    );
+    await expect(service.extract(input)).rejects.toBeInstanceOf(PlannerExtractionInvalidOutputError);
   });
 
   it('rejects malformed provider output', async () => {
@@ -187,8 +182,6 @@ describe('MTS-087 schedule extraction gateway', () => {
       },
     });
 
-    await expect(service.extract(input)).rejects.toBeInstanceOf(
-      PlannerExtractionInvalidOutputError,
-    );
+    await expect(service.extract(input)).rejects.toBeInstanceOf(PlannerExtractionInvalidOutputError);
   });
 });
