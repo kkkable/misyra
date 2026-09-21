@@ -33,7 +33,10 @@ const plannerTextSchema = z.string().refine(
 const plannerImageAssetIdsSchema = z
   .array(z.string().uuid())
   .max(MAX_PLANNER_IMAGES)
-  .refine((ids) => new Set(ids).size === ids.length, 'Planner image asset ids must be unique');
+  .refine(
+    (ids) => new Set(ids).size === ids.length,
+    'Planner image asset ids must be unique',
+  );
 const appTimeZoneSchema = z.string().min(1).refine(isValidTimeZone, 'Invalid IANA time zone');
 const plannerLocaleSchema = z.enum(['en', 'zh-HK']);
 const localDateSchema = z.string().refine(isValidLocalDate, 'Invalid local date');
