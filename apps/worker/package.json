@@ -12,6 +12,11 @@
     "test": "vitest run --config ../../packages/config/vitest.config.mjs --passWithNoTests"
   },
   "devDependencies": {
-    "tsx": "4.20.6"
+    "tsx": "4.20.6",
+    "@types/pg": "8.23.1"
+  },
+  "dependencies": {
+    "@misyra/database": "workspace:*",
+    "pg": "8.23.0"
   }
 }
