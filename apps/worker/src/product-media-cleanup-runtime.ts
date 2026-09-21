@@ -68,20 +68,9 @@ function signedAzuriteDeleteHeaders(url: URL) {
     'x-ms-delete-snapshots': 'include',
     'x-ms-version': AZURE_STORAGE_VERSION,
   };
-  const stringToSign = `${[
-    'DELETE',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-  ].join('\n')}\n${canonicalizedAzuriteHeaders(headers)}${canonicalizedAzuriteResource(url)}`;
+  const stringToSign = `${['DELETE', '', '', '', '', '', '', '', '', '', '', ''].join(
+    '\n',
+  )}\n${canonicalizedAzuriteHeaders(headers)}${canonicalizedAzuriteResource(url)}`;
   const signature = createHmac('sha256', Buffer.from(AZURITE_DEVELOPMENT_CREDENTIAL, 'base64'))
     .update(stringToSign, 'utf8')
     .digest('base64');
