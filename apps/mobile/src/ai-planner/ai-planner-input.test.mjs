@@ -52,9 +52,9 @@ describe('MTS-086 AI Planner input limits', () => {
       text: 'Lunch at 12:30 tomorrow',
       imageAssetIds: firstThree,
     });
-    expect(
-      appendPlannerImageAssetIds(firstThree.slice(0, 2), [firstThree[2]]),
-    ).toEqual(firstThree);
+    expect(appendPlannerImageAssetIds(firstThree.slice(0, 2), [firstThree[2]])).toEqual(
+      firstThree,
+    );
     expect(() =>
       appendPlannerImageAssetIds(firstThree, ['44444444-4444-4444-8444-444444444444']),
     ).toThrow(/three|3/i);

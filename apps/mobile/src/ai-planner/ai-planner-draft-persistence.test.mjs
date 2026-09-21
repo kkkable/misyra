@@ -92,7 +92,10 @@ describe('MTS-086 AI Planner draft persistence', () => {
     });
 
     expect(
-      await database.getFirstAsync('SELECT COUNT(*) AS count FROM planner_drafts WHERE account_id = ?', accountId),
+      await database.getFirstAsync(
+        'SELECT COUNT(*) AS count FROM planner_drafts WHERE account_id = ?',
+        accountId,
+      ),
     ).toEqual({ count: 1 });
 
     const restartedStore = createAiPlannerDraftPersistence(options);
