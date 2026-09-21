@@ -1,8 +1,9 @@
 import { EvidenceAttemptError, type EvidenceAttemptService } from './evidence-attempt.js';
+import { ProtectedMediaError } from './protected-media.js';
 import { ApiError, type ApiRouteDefinition } from './index.js';
 
 function mapError(error: unknown): never {
-  if (error instanceof EvidenceAttemptError) {
+  if (error instanceof EvidenceAttemptError || error instanceof ProtectedMediaError) {
     throw new ApiError(error.code);
   }
   throw error;
