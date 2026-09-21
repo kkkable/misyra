@@ -57,11 +57,7 @@ function normalizeIncludedCandidate(
   if (estimatedMinutes === undefined) {
     if (!candidate.allDay && startLocalTime !== undefined && endLocalTime === undefined) {
       estimatedMinutes = 30;
-    } else if (
-      !candidate.allDay &&
-      startLocalTime !== undefined &&
-      endLocalTime !== undefined
-    ) {
+    } else if (!candidate.allDay && startLocalTime !== undefined && endLocalTime !== undefined) {
       const derived = minutesSinceMidnight(endLocalTime) - minutesSinceMidnight(startLocalTime);
       if (derived <= 0) throw new PlannerExtractionInvalidOutputError();
       estimatedMinutes = derived;
