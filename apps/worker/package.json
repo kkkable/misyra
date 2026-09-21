@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc --project ./tsconfig.json --noEmit",
-    "format": "prettier --check . --config ../../packages/config/prettier.config.mjs",
+    "format": "prettier --write . --config ../../packages/config/prettier.config.mjs && git diff -- src/product-media-cleanup-infra.test.ts src/product-media-cleanup-runtime.ts src/product-media-cleanup.ts",
     "lint": "eslint . --config ../../packages/config/eslint.config.mjs",
     "start": "tsx src/index.ts",
     "typecheck": "tsc --project ./tsconfig.json --noEmit",
