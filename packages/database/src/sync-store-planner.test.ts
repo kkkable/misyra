@@ -52,6 +52,18 @@ describe('MTS-086 Planner sync persistence', () => {
       notificationCapability: 'denied',
     });
     const store = createPostgresSyncStore(pool, () => new Date('2026-09-21T09:45:00.000Z'));
+    const imageAssetId = randomUUID();
+    await pool.query(
+      `INSERT INTO media_assets
+         (id, account_id, purpose, storage_key, deletion_due_at)
+       VALUES ($1, $2, 'planner-working', $3, $4)`,
+      [
+        imageAssetId,
+        account.id,
+        `${account.id}/${imageAssetId}/original`,
+        new Date('2026-10-21T09:45:00.000Z'),
+      ],
+    );
 
     const firstMutationId = randomUUID();
     await expect(
@@ -82,7 +94,10 @@ describe('MTS-086 Planner sync persistence', () => {
           operation: 'update',
           baseVersion: null,
           clientOccurredAt: '2026-09-21T09:44:30.000Z',
-          payload: { text: 'Breakfast at 8 and train at 9', imageAssetIds: [] },
+          payload: {
+            text: 'Breakfast at 8 and train at 9',
+            imageAssetIds: [imageAssetId],
+          },
         },
       ]),
     ).resolves.toEqual({ acceptedMutationIds: [secondMutationId] });
@@ -118,7 +133,7 @@ describe('MTS-086 Planner sync persistence', () => {
       {
         id: account.id,
         inputText: 'Breakfast at 8 and train at 9',
-        imageAssetIds: [],
+        imageAssetIds: [imageAssetId],
       },
     ]);
 
@@ -132,7 +147,7 @@ describe('MTS-086 Planner sync persistence', () => {
           operation: 'upsert',
           payload: {
             text: 'Breakfast at 8 and train at 9',
-            imageAssetIds: [],
+            imageAssetIds: [imageAssetId],
           },
         },
       ],
@@ -145,7 +160,7 @@ describe('MTS-086 Planner sync persistence', () => {
           operation: 'upsert',
           payload: {
             text: 'Breakfast at 8 and train at 9',
-            imageAssetIds: [],
+            imageAssetIds: [imageAssetId],
           },
         },
       ],
