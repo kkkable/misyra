@@ -1,9 +1,5 @@
-import { Text, View } from 'react-native';
+import { AiPlannerRouteScreen } from '../../src/ai-planner/ai-planner-route-screen.js';
 
-export default function AiPlannerPlaceholder() {
-  return (
-    <View>
-      <Text>AI Planner</Text>
-    </View>
-  );
+export default function AiPlannerRoute() {
+  return <AiPlannerRouteScreen />;
 }

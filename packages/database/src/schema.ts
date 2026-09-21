@@ -427,10 +427,22 @@ export const aiPlannerDrafts = pgTable(
       .notNull()
       .references(() => accounts.id, { onDelete: 'cascade' }),
     status: text('status').notNull().default('draft'),
+    inputText: text('input_text').notNull().default(''),
+    imageAssetIds: uuid('image_asset_ids')
+      .array()
+      .notNull()
+      .default(sql`ARRAY[]::uuid[]`),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (table) => [uniqueIndex('ai_planner_drafts_account_uidx').on(table.accountId)],
+  (table) => [
+    uniqueIndex('ai_planner_drafts_account_uidx').on(table.accountId),
+    check(
+      'ai_planner_drafts_input_text_length_check',
+      sql`char_length(${table.inputText}) <= 2000`,
+    ),
+    check('ai_planner_drafts_image_count_check', sql`cardinality(${table.imageAssetIds}) <= 3`),
+  ],
 );
 
 export const aiPlannerItems = pgTable(

@@ -184,6 +184,11 @@ type MissionDetailsUpdatePayload = Readonly<{
 
 type MissionUpdatePayload = MissionAdjustmentUpdatePayload | MissionDetailsUpdatePayload;
 
+type PlannerDraftPayload = Readonly<{
+  text: string;
+  imageAssetIds: readonly string[];
+}>;
+
 type ClientTiming = Readonly<{
   clientOccurredAt: Date;
   effectiveTime: Date;
@@ -193,6 +198,8 @@ type ClientTiming = Readonly<{
 const HISTORICAL_WINDOW_MILLISECONDS = 30 * 24 * 60 * 60 * 1000;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const LOCAL_DATE_TIME_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/;
+const MAX_PLANNER_TEXT_CHARACTERS = 2_000;
+const MAX_PLANNER_IMAGES = 3;
 
 function resolveClientTiming(source: string, serverReceiptTime: Date): ClientTiming {
   const parsed = new Date(source);
@@ -211,6 +218,24 @@ function resolveClientTiming(source: string, serverReceiptTime: Date): ClientTim
 }
 
 function assertExecutableMutationShape(mutation: StoredSyncMutation): void {
+  if (mutation.entityType === 'planner') {
+    if (mutation.entityId !== mutation.accountId) {
+      throw new SyncMutationValidationError(
+        'Planner mutations must target the authenticated account',
+      );
+    }
+    if (mutation.operation !== 'update') {
+      throw new SyncMutationValidationError(
+        'Planner synchronization only supports update operations',
+      );
+    }
+    if (mutation.baseVersion !== null) {
+      throw new SyncMutationValidationError('Planner updates cannot provide a base version');
+    }
+    parsePlannerDraftPayload(mutation.payload);
+    return;
+  }
+
   if (mutation.entityType === 'settings') {
     if (mutation.entityId !== mutation.accountId) {
       throw new SyncMutationValidationError(
@@ -290,6 +315,38 @@ function asRecord(value: unknown, label: string): Record<string, unknown> {
     throw new SyncMutationValidationError(`${label} must be an object`);
   }
   return value as Record<string, unknown>;
+}
+
+function parsePlannerDraftPayload(payload: unknown): PlannerDraftPayload {
+  const source = asRecord(payload, 'Planner draft payload');
+  const keys = Object.keys(source);
+  if (keys.length !== 2 || keys.some((key) => key !== 'text' && key !== 'imageAssetIds')) {
+    throw new SyncMutationValidationError(
+      'Planner draft payload must contain only text and imageAssetIds',
+    );
+  }
+  if (typeof source.text !== 'string') {
+    throw new SyncMutationValidationError('Planner draft text must be a string');
+  }
+  if (Array.from(source.text).length > MAX_PLANNER_TEXT_CHARACTERS) {
+    throw new SyncMutationValidationError('Planner draft text cannot exceed 2,000 characters');
+  }
+  if (!Array.isArray(source.imageAssetIds)) {
+    throw new SyncMutationValidationError('Planner draft imageAssetIds must be an array');
+  }
+  if (source.imageAssetIds.length > MAX_PLANNER_IMAGES) {
+    throw new SyncMutationValidationError('Planner draft can contain at most three images');
+  }
+  const imageAssetIds = source.imageAssetIds.map((value) => {
+    if (typeof value !== 'string' || !UUID_PATTERN.test(value)) {
+      throw new SyncMutationValidationError('Planner draft image asset ids must be UUIDs');
+    }
+    return value;
+  });
+  if (new Set(imageAssetIds).size !== imageAssetIds.length) {
+    throw new SyncMutationValidationError('Planner draft image asset ids must be unique');
+  }
+  return { text: source.text, imageAssetIds };
 }
 
 function requireString(source: Record<string, unknown>, key: string, label: string): string {
@@ -780,6 +837,66 @@ async function existingMutationMatches(
   return result.rows[0]?.exactMatch ?? null;
 }
 
+async function applyPlannerMutation(
+  client: PoolClient,
+  mutation: StoredSyncMutation,
+  effectiveTime: Date,
+): Promise<PlannerDraftPayload> {
+  const payload = parsePlannerDraftPayload(mutation.payload);
+  if (payload.imageAssetIds.length > 0) {
+    const media = await client.query<{ id: string }>(
+      `SELECT id
+         FROM media_assets
+        WHERE account_id = $1
+          AND id = ANY($2::uuid[])
+          AND purpose = 'planner-working'
+          AND deletion_state = 'active'
+        FOR SHARE`,
+      [mutation.accountId, payload.imageAssetIds],
+    );
+    if (media.rows.length !== payload.imageAssetIds.length) {
+      throw new SyncMutationValidationError(
+        'Planner draft images must be active planner-working assets owned by the account',
+      );
+    }
+  }
+
+  const result = await client.query<{
+    inputText: string;
+    imageAssetIds: string[];
+  }>(
+    `INSERT INTO ai_planner_drafts
+       (id, account_id, status, input_text, image_asset_ids, updated_at)
+     VALUES ($1, $1, 'draft', $2, $3::uuid[], $4)
+     ON CONFLICT (account_id)
+     DO UPDATE SET
+       status = 'draft',
+       input_text = EXCLUDED.input_text,
+       image_asset_ids = EXCLUDED.image_asset_ids,
+       updated_at = EXCLUDED.updated_at
+     WHERE ai_planner_drafts.updated_at <= EXCLUDED.updated_at
+     RETURNING input_text AS "inputText", image_asset_ids AS "imageAssetIds"`,
+    [mutation.accountId, payload.text, payload.imageAssetIds, effectiveTime],
+  );
+  const row = result.rows[0];
+  if (row !== undefined) {
+    return { text: row.inputText, imageAssetIds: row.imageAssetIds };
+  }
+
+  const current = await client.query<{
+    inputText: string;
+    imageAssetIds: string[];
+  }>(
+    `SELECT input_text AS "inputText", image_asset_ids AS "imageAssetIds"
+       FROM ai_planner_drafts
+      WHERE account_id = $1`,
+    [mutation.accountId],
+  );
+  const currentRow = current.rows[0];
+  if (currentRow === undefined) throw new Error('Planner sync update returned no row');
+  return { text: currentRow.inputText, imageAssetIds: currentRow.imageAssetIds };
+}
+
 async function applySettingsMutation(
   client: PoolClient,
   accountId: string,
@@ -1234,6 +1351,9 @@ async function applyExecutableMutation(
   mutation: StoredSyncMutation,
   timing: ClientTiming,
 ): Promise<unknown> {
+  if (mutation.entityType === 'planner') {
+    return applyPlannerMutation(client, mutation, timing.effectiveTime);
+  }
   if (mutation.entityType === 'settings') {
     return applySettingsMutation(client, mutation.accountId, mutation.operation, mutation.payload);
   }

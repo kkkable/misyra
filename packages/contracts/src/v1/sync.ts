@@ -143,6 +143,7 @@ export const syncMutationEntityTypeSchema = z.enum([
   'story',
   'completion',
   'evidence',
+  'planner',
   'settings',
 ]);
 export const syncMutationOperationSchema = z.enum([
