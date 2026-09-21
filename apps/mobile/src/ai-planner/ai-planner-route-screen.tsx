@@ -153,11 +153,7 @@ export function AiPlannerRouteScreen() {
         const draftBeforeSync = draftRef.current;
         await rootSyncRuntime.run().catch(() => undefined);
         const synchronizedDraft = await persistence.load();
-        if (
-          isActive() &&
-          draftRef.current === draftBeforeSync &&
-          synchronizedDraft !== null
-        ) {
+        if (isActive() && draftRef.current === draftBeforeSync && synchronizedDraft !== null) {
           setCurrentDraft(synchronizedDraft.input);
           setSavedAt(synchronizedDraft.updatedAt);
         }
