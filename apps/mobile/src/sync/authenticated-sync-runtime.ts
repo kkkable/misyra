@@ -21,6 +21,7 @@ import {
   type SyncMutation,
 } from '../storage/mutation-queue.js';
 import { createAuthenticatedSyncApi, type AuthenticatedSyncApi } from './authenticated-sync-api.js';
+import { createAiPlannerDraftInput } from '../ai-planner/ai-planner-input.js';
 import { applyProgressProjectionChange } from './progress-projection.js';
 import {
   createServerSync,
@@ -184,6 +185,32 @@ async function applyAccountSettings(
     settings.appTimeZone,
     updatedAt,
   );
+}
+
+function plannerDraftFromChange(
+  change: ServerAccountChange,
+  accountId: string,
+): ReturnType<typeof createAiPlannerDraftInput> | null {
+  if (change.entityType !== 'planner') return null;
+  if (change.operation !== 'upsert') {
+    throw new Error('Unsupported Planner draft change operation.');
+  }
+  if (change.entityId !== accountId || !isRecord(change.payload)) {
+    throw new Error('Planner draft change does not target the authenticated account.');
+  }
+  const text = change.payload.text;
+  const imageAssetIds = change.payload.imageAssetIds;
+  if (
+    typeof text !== 'string' ||
+    !Array.isArray(imageAssetIds) ||
+    imageAssetIds.some((value) => typeof value !== 'string')
+  ) {
+    throw new Error('Planner draft change payload is invalid.');
+  }
+  return createAiPlannerDraftInput({
+    text,
+    imageAssetIds: imageAssetIds as string[],
+  });
 }
 
 function settingsFromChange(change: ServerAccountChange): AccountSettings | null {
@@ -514,6 +541,23 @@ async function applyAuthoritativeChanges(
   changes: readonly ServerAccountChange[],
 ) {
   for (const change of changes) {
+    const plannerDraft = plannerDraftFromChange(change, accountId);
+    if (plannerDraft !== null) {
+      const updatedAt = new Date().toISOString();
+      await transaction.runAsync(
+        `INSERT INTO planner_drafts (account_id, draft_id, content_json, updated_at)
+         VALUES (?, ?, ?, ?)
+         ON CONFLICT(account_id) DO UPDATE SET
+           draft_id = excluded.draft_id,
+           content_json = excluded.content_json,
+           updated_at = excluded.updated_at`,
+        accountId,
+        accountId,
+        JSON.stringify(plannerDraft),
+        updatedAt,
+      );
+      continue;
+    }
     const settings = settingsFromChange(change);
     if (settings !== null) {
       const settingsUpdatedAt = new Date().toISOString();

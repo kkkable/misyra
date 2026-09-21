@@ -7,6 +7,7 @@ const ENTITY_TYPES = [
   'story',
   'completion',
   'evidence',
+  'planner',
   'settings',
 ] as const;
 const OPERATIONS = ['create', 'update', 'delete', 'complete', 'submit'] as const;

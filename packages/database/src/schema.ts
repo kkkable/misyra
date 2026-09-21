@@ -427,6 +427,11 @@ export const aiPlannerDrafts = pgTable(
       .notNull()
       .references(() => accounts.id, { onDelete: 'cascade' }),
     status: text('status').notNull().default('draft'),
+    inputText: text('input_text').notNull().default(''),
+    imageAssetIds: uuid('image_asset_ids')
+      .array()
+      .notNull()
+      .default(sql`ARRAY[]::uuid[]`),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
