@@ -399,7 +399,8 @@ export function createEvidenceAttemptService(options: EvidenceAttemptServiceOpti
         mediaAvailable: attempt.mediaDeletionState === 'active',
         mediaDeletable:
           attempt.mediaDeletionState === 'active' &&
-          (attempt.verificationStatus === 'accepted' || attempt.verificationStatus === 'rejected'),
+          (attempt.verificationStatus === 'accepted' ||
+            attempt.verificationStatus === 'rejected'),
         expired: eligibility.state === 'expired',
         serverNow: currentTime.toISOString(),
         expiresAt: eligibility.expiresAt,
