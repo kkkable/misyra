@@ -71,6 +71,7 @@ describe('MTS-087 schedule extraction gateway', () => {
             confidence: 0.2,
           },
         ],
+        omittedUncertainContent: false,
       });
     });
     const service = createPlannerExtractionService({
@@ -112,6 +113,7 @@ describe('MTS-087 schedule extraction gateway', () => {
                 confidence: 0.98,
               },
             ],
+            omittedUncertainContent: false,
           });
         },
       },
@@ -134,6 +136,45 @@ describe('MTS-087 schedule extraction gateway', () => {
     });
   });
 
+  it('surfaces partial import when an included item omits an uncertain field', async () => {
+    const service = createPlannerExtractionService({
+      gateway: {
+        extractPlannerSchedule() {
+          return Promise.resolve({
+            candidates: [
+              {
+                disposition: 'include',
+                title: 'Dinner',
+                localDate: '2026-09-22',
+                startLocalTime: '19:00',
+                allDay: false,
+                estimatedMinutes: 60,
+                location: null,
+                notes: null,
+                confidence: 0.88,
+              },
+            ],
+            omittedUncertainContent: true,
+          });
+        },
+      },
+    });
+
+    await expect(service.extract(input)).resolves.toEqual({
+      items: [
+        {
+          title: 'Dinner',
+          localDate: '2026-09-22',
+          startLocalTime: '19:00',
+          allDay: false,
+          estimatedMinutes: 60,
+          confidence: 0.88,
+        },
+      ],
+      omittedUncertainContent: true,
+    });
+  });
+
   it('defaults an all-day item with insufficient effort detail to 30 minutes', async () => {
     const service = createPlannerExtractionService({
       gateway: {
@@ -151,6 +192,7 @@ describe('MTS-087 schedule extraction gateway', () => {
                 confidence: 0.91,
               },
             ],
+            omittedUncertainContent: false,
           });
         },
       },
@@ -189,6 +231,7 @@ describe('MTS-087 schedule extraction gateway', () => {
                 confidence: 0.9,
               },
             ],
+            omittedUncertainContent: false,
           });
         },
       },
@@ -212,6 +255,7 @@ describe('MTS-087 schedule extraction gateway', () => {
                 confidence: 2,
               },
             ],
+            omittedUncertainContent: false,
             activateMissions: true,
           });
         },
