@@ -1,7 +1,4 @@
-import type {
-  PlannerExtractionInput,
-  PlannerExtractionResult,
-} from '@misyra/contracts';
+import type { PlannerExtractionInput, PlannerExtractionResult } from '@misyra/contracts';
 
 import type { AiGateway } from './ai-gateway.js';
 
