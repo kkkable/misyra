@@ -225,7 +225,9 @@ function assertExecutableMutationShape(mutation: StoredSyncMutation): void {
       );
     }
     if (mutation.operation !== 'update') {
-      throw new SyncMutationValidationError('Planner synchronization only supports update operations');
+      throw new SyncMutationValidationError(
+        'Planner synchronization only supports update operations',
+      );
     }
     if (mutation.baseVersion !== null) {
       throw new SyncMutationValidationError('Planner updates cannot provide a base version');
