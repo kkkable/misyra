@@ -23,7 +23,7 @@ describe('MTS-087 schedule extraction gateway', () => {
       'Do not judge lifestyle or schedule density. Do not add breaks.',
       'Use the supplied app time zone for local dates and times.',
       'Omit highly uncertain candidates instead of inventing details.',
-      'For a timed item with a known start and no reasonable duration, a 30-minute duration may be used.',
+      'Use a 30-minute default when duration or all-day effort is missing and that default is reasonable.',
       'Mark omitted uncertain content so the caller can show a partial-import indicator.',
     ].join('\n');
 
@@ -35,7 +35,7 @@ describe('MTS-087 schedule extraction gateway', () => {
       Do not judge lifestyle or schedule density. Do not add breaks.
       Use the supplied app time zone for local dates and times.
       Omit highly uncertain candidates instead of inventing details.
-      For a timed item with a known start and no reasonable duration, a 30-minute duration may be used.
+      Use a 30-minute default when duration or all-day effort is missing and that default is reasonable.
       Mark omitted uncertain content so the caller can show a partial-import indicator."
     `);
   });
@@ -128,6 +128,42 @@ describe('MTS-087 schedule extraction gateway', () => {
           estimatedMinutes: 75,
           location: 'Shenzhen Station',
           confidence: 0.98,
+        },
+      ],
+      omittedUncertainContent: false,
+    });
+  });
+
+  it('defaults an all-day item with insufficient effort detail to 30 minutes', async () => {
+    const service = createPlannerExtractionService({
+      gateway: {
+        extractPlannerSchedule() {
+          return Promise.resolve({
+            candidates: [
+              {
+                disposition: 'include',
+                title: 'Conference day',
+                localDate: '2026-09-23',
+                allDay: true,
+                estimatedMinutes: null,
+                location: null,
+                notes: null,
+                confidence: 0.91,
+              },
+            ],
+          });
+        },
+      },
+    });
+
+    await expect(service.extract(input)).resolves.toEqual({
+      items: [
+        {
+          title: 'Conference day',
+          localDate: '2026-09-23',
+          allDay: true,
+          estimatedMinutes: 30,
+          confidence: 0.91,
         },
       ],
       omittedUncertainContent: false,
