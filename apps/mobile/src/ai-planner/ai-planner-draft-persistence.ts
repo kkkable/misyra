@@ -61,8 +61,6 @@ export function createAiPlannerDraftPersistence(options: AiPlannerDraftPersisten
       mutation,
       destination: { kind: 'server' as const },
     });
-    let applied = false;
-
     await options.database.withExclusiveTransactionAsync(async (transaction) => {
       await transaction.runAsync(
         `INSERT INTO planner_drafts (account_id, draft_id, content_json, updated_at)
@@ -102,10 +100,9 @@ export function createAiPlannerDraftPersistence(options: AiPlannerDraftPersisten
         envelope,
         updatedAt,
       );
-      applied = true;
     });
 
-    if (applied) publishLocalMutationApplied({ entityType: 'planner' });
+    publishLocalMutationApplied({ entityType: 'planner' });
     return { draftId: options.accountId, input: validated, updatedAt };
   };
 
