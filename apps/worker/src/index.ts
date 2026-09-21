@@ -2,6 +2,8 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { connect } from 'node:net';
 import { pathToFileURL } from 'node:url';
 
+import { runProductMediaCleanupCommand } from './product-media-cleanup-runtime.js';
+
 export type ReadinessCheck = () => boolean | Promise<boolean>;
 
 type WorkerHealthOptions = {
@@ -107,6 +109,16 @@ export function startWorker(options: WorkerStartOptions = {}) {
   return { status: 'started', healthServer } as const;
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+async function startFromCommandLine() {
+  if (process.argv[2] === 'cleanup') {
+    await runProductMediaCleanupCommand();
+    return;
+  }
   startWorker();
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  void startFromCommandLine().catch(() => {
+    process.exitCode = 1;
+  });
 }
