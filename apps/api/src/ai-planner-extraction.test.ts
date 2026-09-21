@@ -212,6 +212,64 @@ describe('MTS-087 schedule extraction gateway', () => {
     });
   });
 
+  it('rejects a timed item with no start time', async () => {
+    const service = createPlannerExtractionService({
+      gateway: {
+        extractPlannerSchedule() {
+          return Promise.resolve({
+            candidates: [
+              {
+                disposition: 'include',
+                title: 'Unscheduled meeting',
+                localDate: '2026-09-22',
+                allDay: false,
+                estimatedMinutes: 30,
+                location: null,
+                notes: null,
+                confidence: 0.8,
+              },
+            ],
+            omittedUncertainContent: false,
+          });
+        },
+      },
+    });
+
+    await expect(service.extract(input)).rejects.toBeInstanceOf(
+      PlannerExtractionInvalidOutputError,
+    );
+  });
+
+  it('rejects a duration that contradicts the supplied start/end interval', async () => {
+    const service = createPlannerExtractionService({
+      gateway: {
+        extractPlannerSchedule() {
+          return Promise.resolve({
+            candidates: [
+              {
+                disposition: 'include',
+                title: 'Conflicting meeting',
+                localDate: '2026-09-22',
+                startLocalTime: '09:00',
+                endLocalTime: '10:00',
+                allDay: false,
+                estimatedMinutes: 30,
+                location: null,
+                notes: null,
+                confidence: 0.9,
+              },
+            ],
+            omittedUncertainContent: false,
+          });
+        },
+      },
+    });
+
+    await expect(service.extract(input)).rejects.toBeInstanceOf(
+      PlannerExtractionInvalidOutputError,
+    );
+  });
+
   it('rejects an impossible same-day time range even when a duration is supplied', async () => {
     const service = createPlannerExtractionService({
       gateway: {
