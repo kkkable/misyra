@@ -267,13 +267,28 @@ describe('MTS-085 product-media cleanup and reconciliation', () => {
     expect(finalRow.rows[0]).toEqual({ deletionState: 'deleted', retryState: 'ready' });
   });
 
-  it('excludes feedback-retained assets even when a malformed due timestamp would otherwise make them selectable', async () => {
-    const key = `${accountId}/feedback/screenshot`;
-    const assetId = await seedAsset({
-      purpose: 'feedback-retained',
-      createdAt: '2026-01-01T00:00:00.000Z',
-      deletionDueAt: '2026-01-31T00:00:00.000Z',
-      keys: [key],
+  it('excludes separately retained feedback media while deleting due product media', async () => {
+    const feedbackReportId = randomUUID();
+    const feedbackAssetId = randomUUID();
+    const feedbackKey = `${accountId}/feedback/screenshot`;
+    await pool.query(
+      `INSERT INTO feedback_reports (id, account_id, description, submitted_at)
+       VALUES ($1, $2, 'MTS-085 retained feedback fixture', $3)`,
+      [feedbackReportId, accountId, '2026-01-01T00:00:00.000Z'],
+    );
+    await pool.query(
+      `INSERT INTO feedback_media_assets (id, feedback_report_id, storage_key, created_at)
+       VALUES ($1, $2, $3, $4)`,
+      [feedbackAssetId, feedbackReportId, feedbackKey, '2026-01-01T00:00:00.000Z'],
+    );
+    await putBlob('feedback-retained', feedbackKey);
+
+    const productKey = `${accountId}/feedback-exclusion/product-cache`;
+    await seedAsset({
+      purpose: 'planner-working',
+      createdAt: '2026-08-01T00:00:00.000Z',
+      deletionDueAt: '2026-08-31T00:00:00.000Z',
+      keys: [productKey],
     });
     const service = createProductMediaCleanupService({
       pool,
@@ -281,12 +296,13 @@ describe('MTS-085 product-media cleanup and reconciliation', () => {
       now: () => now,
     });
 
-    await expect(service.runOnce()).resolves.toEqual({ scanned: 0, deleted: 0, retryPending: 0 });
-    expect(await blobExists('feedback-retained', key)).toBe(true);
-    const row = await pool.query<{ deletionState: string }>(
-      `SELECT deletion_state AS "deletionState" FROM media_assets WHERE id = $1`,
-      [assetId],
+    await expect(service.runOnce()).resolves.toEqual({ scanned: 1, deleted: 1, retryPending: 0 });
+    expect(await blobExists('planner-working', productKey)).toBe(false);
+    expect(await blobExists('feedback-retained', feedbackKey)).toBe(true);
+    const feedbackRow = await pool.query<{ storageKey: string }>(
+      `SELECT storage_key AS "storageKey" FROM feedback_media_assets WHERE id = $1`,
+      [feedbackAssetId],
     );
-    expect(row.rows[0]?.deletionState).toBe('active');
+    expect(feedbackRow.rows[0]?.storageKey).toBe(feedbackKey);
   });
 });
