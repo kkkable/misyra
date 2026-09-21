@@ -535,6 +535,21 @@ async function applyMissionDeleteProjection(
   }
 }
 
+async function hasPendingPlannerMutation(
+  transaction: ServerSyncDatabase,
+  accountId: string,
+): Promise<boolean> {
+  const row = await transaction.getFirstAsync<{ mutation_id: string }>(
+    `SELECT mutation_id
+       FROM mutation_queue
+      WHERE account_id = ?
+        AND json_extract(command_json, '$.mutation.entityType') = 'planner'
+      LIMIT 1`,
+    accountId,
+  );
+  return row !== null;
+}
+
 async function applyAuthoritativeChanges(
   transaction: ServerSyncDatabase,
   accountId: string,
@@ -543,6 +558,7 @@ async function applyAuthoritativeChanges(
   for (const change of changes) {
     const plannerDraft = plannerDraftFromChange(change, accountId);
     if (plannerDraft !== null) {
+      if (await hasPendingPlannerMutation(transaction, accountId)) continue;
       const updatedAt = new Date().toISOString();
       await transaction.runAsync(
         `INSERT INTO planner_drafts (account_id, draft_id, content_json, updated_at)
