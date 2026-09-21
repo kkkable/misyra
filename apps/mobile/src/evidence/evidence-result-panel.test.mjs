@@ -112,34 +112,34 @@ describe('MTS-084 retained evidence actions', () => {
   );
 
   it('hides retained-media actions after app-controlled media is deleted', () => {
-      const flow = resolveEvidenceResultFlow({
-        verificationStatus: 'accepted',
-        attemptNumber: 1,
-        expired: false,
-        reasonCode: 'verified',
-      });
-      let renderer;
-      act(() => {
-        renderer = create(
-          createElement(EvidenceResultPanel, {
-            flow,
-            messages,
-            mediaAvailable: false,
-            mediaDeletable: false,
-            onRetry: vi.fn(),
-            onSelfConfirm: vi.fn(),
-            onSaveToPhotos: vi.fn(),
-            onDeleteEvidence: vi.fn(),
-          }),
-        );
-      });
+    const flow = resolveEvidenceResultFlow({
+      verificationStatus: 'accepted',
+      attemptNumber: 1,
+      expired: false,
+      reasonCode: 'verified',
+    });
+    let renderer;
+    act(() => {
+      renderer = create(
+        createElement(EvidenceResultPanel, {
+          flow,
+          messages,
+          mediaAvailable: false,
+          mediaDeletable: false,
+          onRetry: vi.fn(),
+          onSelfConfirm: vi.fn(),
+          onSaveToPhotos: vi.fn(),
+          onDeleteEvidence: vi.fn(),
+        }),
+      );
+    });
 
-      expect(
-        renderer.root.findAllByProps({ testID: 'evidence-result-save-to-photos' }),
-      ).toHaveLength(0);
-      expect(
-        renderer.root.findAllByProps({ testID: 'evidence-result-delete-media' }),
-      ).toHaveLength(0);
+    expect(
+      renderer.root.findAllByProps({ testID: 'evidence-result-save-to-photos' }),
+    ).toHaveLength(0);
+    expect(
+      renderer.root.findAllByProps({ testID: 'evidence-result-delete-media' }),
+    ).toHaveLength(0);
   });
 });
 
