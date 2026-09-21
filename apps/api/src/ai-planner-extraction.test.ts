@@ -135,24 +135,24 @@ describe('MTS-087 schedule extraction gateway', () => {
     'rejects malformed provider output instead of producing or activating missions',
     async () => {
       const service = createPlannerExtractionService({
-      gateway: {
-        extractPlannerSchedule() {
-          return Promise.resolve({
-            candidates: [
-              {
-                disposition: 'include',
-                title: 'Bad item',
-                localDate: 'not-a-date',
-                allDay: false,
-                estimatedMinutes: -5,
-                confidence: 2,
-              },
-            ],
-            activateMissions: true,
-          });
+        gateway: {
+          extractPlannerSchedule() {
+            return Promise.resolve({
+              candidates: [
+                {
+                  disposition: 'include',
+                  title: 'Bad item',
+                  localDate: 'not-a-date',
+                  allDay: false,
+                  estimatedMinutes: -5,
+                  confidence: 2,
+                },
+              ],
+              activateMissions: true,
+            });
+          },
         },
-      },
-    });
+      });
 
       await expect(service.extract(input)).rejects.toBeInstanceOf(
         PlannerExtractionInvalidOutputError,
