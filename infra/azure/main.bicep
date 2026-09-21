@@ -78,6 +78,7 @@ module data './modules/data.bicep' = {
     allowPublicDataPlaneAccess: allowPublicDataPlaneAccess
     privateEndpointSubnetId: network.outputs.privateEndpointsSubnetId
     apiPrincipalId: compute.outputs.apiPrincipalId
+    cleanupJobPrincipalId: compute.outputs.cleanupJobPrincipalId
     postgresqlAdministratorLogin: postgresqlAdministratorLogin
     postgresqlAdministratorPassword: postgresqlAdministratorPassword
   }
