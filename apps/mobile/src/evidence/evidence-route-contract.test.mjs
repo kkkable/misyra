@@ -62,6 +62,8 @@ describe('MTS-079 camera-only route contract', () => {
     expect(routeSource).toMatch(/createExpoEvidenceMediaActionsRuntime/);
     expect(routeSource).toMatch(/saveToPhotos/);
     expect(routeSource).toMatch(/deleteEvidence/);
+    expect(mediaActionsSource).toMatch(/deleteAsync\(attemptDirectory\(attemptId\)/);
+    expect(mediaActionsSource).toMatch(/deleteAsync\(saveDownloadPath\(attemptId\)/);
   });
 
   it('durably queues evidence before upload, restores local Waiting state, and drains it on root sync', () => {
