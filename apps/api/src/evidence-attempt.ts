@@ -304,10 +304,7 @@ export function createEvidenceAttemptService(options: EvidenceAttemptServiceOpti
       if (attempt === undefined || attempt.mediaAssetId === null) {
         throw new EvidenceAttemptError('not_found');
       }
-      if (
-        attempt.verificationStatus !== 'accepted' &&
-        attempt.verificationStatus !== 'rejected'
-      ) {
+      if (attempt.verificationStatus !== 'accepted' && attempt.verificationStatus !== 'rejected') {
         throw new EvidenceAttemptError('conflict');
       }
       await options.protectedMediaService.deleteAsset(accountId, attempt.mediaAssetId);
@@ -399,8 +396,7 @@ export function createEvidenceAttemptService(options: EvidenceAttemptServiceOpti
         mediaAvailable: attempt.mediaDeletionState === 'active',
         mediaDeletable:
           attempt.mediaDeletionState === 'active' &&
-          (attempt.verificationStatus === 'accepted' ||
-            attempt.verificationStatus === 'rejected'),
+          (attempt.verificationStatus === 'accepted' || attempt.verificationStatus === 'rejected'),
         expired: eligibility.state === 'expired',
         serverNow: currentTime.toISOString(),
         expiresAt: eligibility.expiresAt,
