@@ -31,7 +31,9 @@ export class PlannerExtractionInvalidOutputError extends Error {
 
 function minutesSinceMidnight(value: string): number {
   const [hour, minute] = value.split(':').map(Number);
-  if (hour === undefined || minute === undefined) throw new PlannerExtractionInvalidOutputError();
+  if (hour === undefined || minute === undefined) {
+    throw new PlannerExtractionInvalidOutputError();
+  }
   return hour * 60 + minute;
 }
 
@@ -79,7 +81,9 @@ function normalizeIncludedCandidate(
     ...(candidate.location === undefined || candidate.location === null
       ? {}
       : { location: candidate.location }),
-    ...(candidate.notes === undefined || candidate.notes === null ? {} : { notes: candidate.notes }),
+    ...(candidate.notes === undefined || candidate.notes === null
+      ? {}
+      : { notes: candidate.notes }),
   };
   return item;
 }
