@@ -13,7 +13,7 @@ describe('MTS-085 cleanup job infrastructure', () => {
     expect(compute).toMatch(/name:\s*'cleanup'/);
     expect(compute).toMatch(/triggerType:\s*'Schedule'/);
     expect(compute).toMatch(/scheduleTriggerConfig:\s*\{/);
-    expect(compute).toMatch(/cronExpression:\s*'[^']+'/);
+    expect(compute).toMatch(/cronExpression:\s*'\*\/1 \* \* \* \*'/);
     expect(compute).toMatch(/'dist\/index\.js'[\s\S]*'cleanup'/);
     expect(compute).toMatch(
       /name:\s*'AZURE_STORAGE_ACCOUNT_NAME'[\s\S]*value:\s*storageAccountName/,
