@@ -17,10 +17,12 @@ export type ProductMediaCleanupResult = Readonly<{
   retryPending: number;
 }>;
 
-export function createProductMediaCleanupService(_options: ProductMediaCleanupServiceOptions) {
+export function createProductMediaCleanupService(options: ProductMediaCleanupServiceOptions) {
+  void options;
+
   return {
-    async runOnce(): Promise<ProductMediaCleanupResult> {
-      throw new Error('MTS-085 product-media cleanup is not implemented');
+    runOnce(): Promise<ProductMediaCleanupResult> {
+      return Promise.reject(new Error('MTS-085 product-media cleanup is not implemented'));
     },
   };
 }
