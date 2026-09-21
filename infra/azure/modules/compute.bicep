@@ -104,10 +104,11 @@ resource cleanupJob 'Microsoft.App/jobs@2024-03-01' = {
   properties: {
     environmentId: environment.id
     configuration: {
-      triggerType: 'Manual'
+      triggerType: 'Schedule'
       replicaTimeout: 1800
       replicaRetryLimit: 1
-      manualTriggerConfig: {
+      scheduleTriggerConfig: {
+        cronExpression: '*/5 * * * *'
         parallelism: 1
         replicaCompletionCount: 1
       }
@@ -121,6 +122,12 @@ resource cleanupJob 'Microsoft.App/jobs@2024-03-01' = {
             'node'
             'dist/index.js'
             'cleanup'
+          ]
+          env: [
+            {
+              name: 'AZURE_STORAGE_ACCOUNT_NAME'
+              value: storageAccountName
+            }
           ]
           resources: {
             cpu: json(containerCpu)
@@ -174,4 +181,5 @@ output apiContainerAppId string = api.id
 output apiPrincipalId string = api.identity.principalId
 output workerContainerAppId string = worker.id
 output cleanupJobId string = cleanupJob.id
+output cleanupJobPrincipalId string = cleanupJob.identity.principalId
 output repairJobId string = repairJob.id
