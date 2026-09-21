@@ -441,10 +441,7 @@ export const aiPlannerDrafts = pgTable(
       'ai_planner_drafts_input_text_length_check',
       sql`char_length(${table.inputText}) <= 2000`,
     ),
-    check(
-      'ai_planner_drafts_image_count_check',
-      sql`cardinality(${table.imageAssetIds}) <= 3`,
-    ),
+    check('ai_planner_drafts_image_count_check', sql`cardinality(${table.imageAssetIds}) <= 3`),
   ],
 );
 
