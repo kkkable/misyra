@@ -89,7 +89,6 @@ interface AttemptResultRow extends QueryResultRow {
   verificationStatus: string;
   reasonCode: string | null;
   mediaDeletionState: string | null;
-  hasCompletion: boolean;
   localStart: string;
   localFinish: string;
   startInstant: Date;
@@ -292,16 +291,11 @@ export function createEvidenceAttemptService(options: EvidenceAttemptServiceOpti
       const attemptId = parseUuid(attemptIdSource);
       const result = await options.pool.query<{
         mediaAssetId: string | null;
-        hasCompletion: boolean;
+        verificationStatus: string;
       }>(
         `SELECT
            a.media_asset_id AS "mediaAssetId",
-           EXISTS (
-             SELECT 1
-               FROM mission_completions c
-              WHERE c.account_id = a.account_id
-                AND c.occurrence_id = a.occurrence_id
-           ) AS "hasCompletion"
+           a.verification_status AS "verificationStatus"
          FROM evidence_attempts a
          WHERE a.id = $1 AND a.account_id = $2`,
         [attemptId, accountId],
@@ -310,7 +304,10 @@ export function createEvidenceAttemptService(options: EvidenceAttemptServiceOpti
       if (attempt === undefined || attempt.mediaAssetId === null) {
         throw new EvidenceAttemptError('not_found');
       }
-      if (!attempt.hasCompletion) {
+      if (
+        attempt.verificationStatus !== 'accepted' &&
+        attempt.verificationStatus !== 'rejected'
+      ) {
         throw new EvidenceAttemptError('conflict');
       }
       await options.protectedMediaService.deleteAsset(accountId, attempt.mediaAssetId);
@@ -343,12 +340,6 @@ export function createEvidenceAttemptService(options: EvidenceAttemptServiceOpti
            a.verification_status AS "verificationStatus",
            a.reason_code AS "reasonCode",
            m.deletion_state AS "mediaDeletionState",
-           EXISTS (
-             SELECT 1
-               FROM mission_completions c
-              WHERE c.account_id = a.account_id
-                AND c.occurrence_id = a.occurrence_id
-           ) AS "hasCompletion",
            o.local_start AS "localStart",
            o.local_finish AS "localFinish",
            o.start_instant AS "startInstant",
@@ -406,7 +397,9 @@ export function createEvidenceAttemptService(options: EvidenceAttemptServiceOpti
         reasonCode: reasonCode === null ? null : reasonCode.data,
         duplicateLoser: attempt.status === 'duplicate_loser',
         mediaAvailable: attempt.mediaDeletionState === 'active',
-        mediaDeletable: attempt.mediaDeletionState === 'active' && attempt.hasCompletion,
+        mediaDeletable:
+          attempt.mediaDeletionState === 'active' &&
+          (attempt.verificationStatus === 'accepted' || attempt.verificationStatus === 'rejected'),
         expired: eligibility.state === 'expired',
         serverNow: currentTime.toISOString(),
         expiresAt: eligibility.expiresAt,
