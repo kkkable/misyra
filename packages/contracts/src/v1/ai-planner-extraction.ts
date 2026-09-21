@@ -85,6 +85,7 @@ export const plannerExtractionProviderCandidateSchema = z
 export const plannerExtractionProviderOutputSchema = z
   .object({
     candidates: z.array(plannerExtractionProviderCandidateSchema),
+    omittedUncertainContent: z.boolean(),
   })
   .strict();
 
