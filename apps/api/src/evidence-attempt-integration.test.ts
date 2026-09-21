@@ -526,6 +526,64 @@ describe('MTS-080 evidence-attempt creation and upload', () => {
     await server.close();
   });
 
+  it('allows settled rejected evidence to be deleted before self-confirmation', async () => {
+    const deleteBlob = vi.fn(() => Promise.resolve());
+    const server = createServer({ delete: deleteBlob });
+    const occurrenceId = await seedOccurrence();
+    const attemptId = randomUUID();
+    const mediaAssetId = randomUUID();
+    const original = `${accountId}/${mediaAssetId}/original`;
+
+    await pool.query(
+      `INSERT INTO media_assets (
+         id, account_id, purpose, storage_key, original_storage_key,
+         deletion_due_at, deletion_state, retry_state
+       ) VALUES (
+         $1, $2, 'evidence-working', $3, $3,
+         '2026-10-20T09:30:00.000Z', 'active', 'ready'
+       )`,
+      [mediaAssetId, accountId, original],
+    );
+    await pool.query(
+      `INSERT INTO evidence_attempts (
+         id, account_id, occurrence_id, attempt_number, status, submitted_at,
+         first_submitted_at, effective_submitted_at, upload_status,
+         verification_status, reason_code, media_asset_id, deletion_deadline
+       ) VALUES (
+         $1, $2, $3, 1, 'rejected', '2026-09-18T09:01:00.000Z',
+         '2026-09-18T09:01:00.000Z', '2026-09-18T09:01:00.000Z', 'uploaded',
+         'rejected', 'task_mismatch', $4, '2026-10-20T09:30:00.000Z'
+       )`,
+      [attemptId, accountId, occurrenceId, mediaAssetId],
+    );
+
+    const beforeResult = await server.inject({
+      method: 'GET',
+      url: `/v1/evidence/attempts/${attemptId}`,
+    });
+    expect(beforeResult.statusCode).toBe(200);
+    expect(beforeResult.json()).toMatchObject({
+      payload: { mediaAvailable: true, mediaDeletable: true },
+    });
+
+    const deleted = await server.inject({
+      method: 'DELETE',
+      url: `/v1/evidence/attempts/${attemptId}/media`,
+    });
+    expect(deleted.statusCode).toBe(200);
+    expect(deleteBlob).toHaveBeenCalledWith('evidence-working', original);
+
+    const completion = await pool.query(
+      `SELECT 1
+         FROM mission_completions
+        WHERE account_id = $1 AND occurrence_id = $2`,
+      [accountId, occurrenceId],
+    );
+    expect(completion.rowCount).toBe(0);
+
+    await server.close();
+  });
+
   it('does not lose or double-consume an attempt when media upload fails and reservation is retried', async () => {
     const failingPut = vi.fn(() => Promise.reject(new Error('fixture upload unavailable')));
     const failingServer = createServer({
