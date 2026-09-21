@@ -136,9 +136,12 @@ export function createProductMediaCleanupService(options: ProductMediaCleanupSer
           await client.query(
             `UPDATE media_assets
                 SET deletion_state = 'deleting',
-                    retry_state = 'ready'
+                    retry_state = 'ready',
+                    deletion_attempt_count = deletion_attempt_count + 1,
+                    last_deletion_attempt_at = $2,
+                    deleted_at = NULL
               WHERE id = $1`,
-            [asset.id],
+            [asset.id, now],
           );
 
           try {
@@ -161,9 +164,10 @@ export function createProductMediaCleanupService(options: ProductMediaCleanupSer
           await client.query(
             `UPDATE media_assets
                 SET deletion_state = 'deleted',
-                    retry_state = 'ready'
+                    retry_state = 'ready',
+                    deleted_at = $2
               WHERE id = $1`,
-            [asset.id],
+            [asset.id, now],
           );
           await client.query('COMMIT');
           deleted += 1;
