@@ -15,8 +15,10 @@ const input = {
 } as const;
 
 describe('MTS-087 schedule extraction gateway', () => {
-  it('locks the extraction-only prompt boundary with no optimization or clarification conversation', () => {
-    expect(PLANNER_EXTRACTION_SYSTEM_PROMPT).toMatchInlineSnapshot(`
+  it(
+    'locks the extraction-only prompt boundary with no optimization or clarification conversation',
+    () => {
+      expect(PLANNER_EXTRACTION_SYSTEM_PROMPT).toMatchInlineSnapshot(`
       "Extract schedule information only.
       Return one structured response and never ask follow-up questions.
       Preserve the user's order. Do not rearrange or optimize the schedule.
@@ -25,8 +27,9 @@ describe('MTS-087 schedule extraction gateway', () => {
       Omit highly uncertain candidates instead of inventing details.
       For a timed item with a known start and no reasonable duration, a 30-minute duration may be used.
       Mark omitted uncertain content so the caller can show a partial-import indicator."
-    `);
-  });
+      `);
+    },
+  );
 
   it(
     'omits uncertain candidates, keeps source order, and defaults a reasonable missing timed duration to 30 minutes',
@@ -128,8 +131,10 @@ describe('MTS-087 schedule extraction gateway', () => {
     },
   );
 
-  it('rejects malformed provider output instead of producing or activating missions', async () => {
-    const service = createPlannerExtractionService({
+  it(
+    'rejects malformed provider output instead of producing or activating missions',
+    async () => {
+      const service = createPlannerExtractionService({
       gateway: {
         extractPlannerSchedule() {
           return Promise.resolve({
@@ -149,6 +154,9 @@ describe('MTS-087 schedule extraction gateway', () => {
       },
     });
 
-    await expect(service.extract(input)).rejects.toBeInstanceOf(PlannerExtractionInvalidOutputError);
-  });
+      await expect(service.extract(input)).rejects.toBeInstanceOf(
+        PlannerExtractionInvalidOutputError,
+      );
+    },
+  );
 });
