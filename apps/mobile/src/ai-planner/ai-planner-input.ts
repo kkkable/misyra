@@ -19,24 +19,30 @@ export type SystemFilePicker = (
   }>,
 ) => Promise<readonly SystemPickedImage[]>;
 
-export function countPlannerCharacters(_text: string): number {
+export function countPlannerCharacters(text: string): number {
+  void text;
   return 0;
 }
 
-export function createAiPlannerDraftInput(_input: AiPlannerDraftInput): AiPlannerDraftInput {
+export function createAiPlannerDraftInput(input: AiPlannerDraftInput): AiPlannerDraftInput {
+  void input;
   throw new Error('MTS-086 planner input is not implemented.');
 }
 
 export function appendPlannerImageAssetIds(
-  _current: readonly string[],
-  _added: readonly string[],
+  current: readonly string[],
+  added: readonly string[],
 ): readonly string[] {
+  void current;
+  void added;
   throw new Error('MTS-086 planner image limits are not implemented.');
 }
 
-export function createPlannerSystemImagePicker(_pickFiles: SystemFilePicker) {
+export function createPlannerSystemImagePicker(pickFiles: SystemFilePicker) {
   return Object.freeze({
     async pickImages(): Promise<readonly SystemPickedImage[]> {
+      await Promise.resolve();
+      void pickFiles;
       throw new Error('MTS-086 system image picker is not implemented.');
     },
   });
