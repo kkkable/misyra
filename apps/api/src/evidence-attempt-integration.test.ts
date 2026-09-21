@@ -504,6 +504,12 @@ describe('MTS-080 evidence-attempt creation and upload', () => {
       payload: { mediaAvailable: false, mediaDeletable: false },
     });
 
+    const deletedOriginalRead = await server.inject({
+      method: 'GET',
+      url: `/v1/evidence/attempts/${attemptId}/media/original`,
+    });
+    expect(deletedOriginalRead.statusCode).toBe(404);
+
     const after = await pool.query<{
       completionCount: number;
       rewardCount: number;
