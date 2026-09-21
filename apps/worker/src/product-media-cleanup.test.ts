@@ -4,6 +4,7 @@ import { applyMigrations } from '@misyra/database';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
+import { createProductMediaCleanupBlobStore } from './product-media-cleanup-runtime.js';
 import {
   createProductMediaCleanupService,
   type ProductMediaCleanupBlobStore,
@@ -116,13 +117,10 @@ async function blobExists(container: string, key: string) {
   return true;
 }
 
-const azuriteBlobStore: ProductMediaCleanupBlobStore = {
-  async delete(container, key) {
-    const url = new URL(`${azuriteEndpoint}/${container}/${key}`);
-    const response = await fetch(url, { method: 'DELETE', headers: signedHeaders('DELETE', url) });
-    if (!response.ok && response.status !== 404) throw new Error('Azurite delete failed');
-  },
-};
+const azuriteBlobStore = createProductMediaCleanupBlobStore({
+  NODE_ENV: 'test',
+  AZURITE_BLOB_PORT: azuritePort,
+});
 
 async function seedAsset(input: {
   purpose: string;
