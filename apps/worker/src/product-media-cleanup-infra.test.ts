@@ -45,7 +45,7 @@ describe('MTS-085 cleanup job infrastructure', () => {
     expect(data).toMatch(/deleteRetentionPolicy:\s*\{[\s\S]*?enabled:\s*false/);
     expect(data).toMatch(/containerDeleteRetentionPolicy:\s*\{[\s\S]*?enabled:\s*false/);
     expect(data).toMatch(/name:\s*'product-media-day-31-defense-in-depth'/);
-    expect(data).toMatch(/daysAfterCreationGreaterThan:\s*31/);
+    expect(data).toMatch(/daysAfterCreationGreaterThan:\s*30/);
     for (const prefix of [
       'evidence-working/',
       'story-working/',
