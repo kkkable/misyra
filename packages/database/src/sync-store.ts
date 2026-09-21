@@ -320,10 +320,7 @@ function asRecord(value: unknown, label: string): Record<string, unknown> {
 function parsePlannerDraftPayload(payload: unknown): PlannerDraftPayload {
   const source = asRecord(payload, 'Planner draft payload');
   const keys = Object.keys(source);
-  if (
-    keys.length !== 2 ||
-    keys.some((key) => key !== 'text' && key !== 'imageAssetIds')
-  ) {
+  if (keys.length !== 2 || keys.some((key) => key !== 'text' && key !== 'imageAssetIds')) {
     throw new SyncMutationValidationError(
       'Planner draft payload must contain only text and imageAssetIds',
     );
