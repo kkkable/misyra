@@ -111,9 +111,7 @@ describe('MTS-084 retained evidence actions', () => {
     },
   );
 
-  it(
-    'hides retained-media actions after app-controlled media is deleted',
-    () => {
+  it('hides retained-media actions after app-controlled media is deleted', () => {
       const flow = resolveEvidenceResultFlow({
         verificationStatus: 'accepted',
         attemptNumber: 1,
@@ -142,8 +140,7 @@ describe('MTS-084 retained evidence actions', () => {
       expect(
         renderer.root.findAllByProps({ testID: 'evidence-result-delete-media' }),
       ).toHaveLength(0);
-    },
-  );
+  });
 });
 
 describe('MTS-082 evidence result actions', () => {
