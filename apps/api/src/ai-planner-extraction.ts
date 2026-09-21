@@ -50,7 +50,7 @@ function normalizeIncludedCandidate(
   if (candidate.allDay && (startLocalTime !== undefined || endLocalTime !== undefined)) {
     throw new PlannerExtractionInvalidOutputError();
   }
-  if (!candidate.allDay && endLocalTime !== undefined && startLocalTime === undefined) {
+  if (!candidate.allDay && startLocalTime === undefined) {
     throw new PlannerExtractionInvalidOutputError();
   }
 
@@ -59,6 +59,13 @@ function normalizeIncludedCandidate(
       ? minutesSinceMidnight(endLocalTime) - minutesSinceMidnight(startLocalTime)
       : null;
   if (derivedDuration !== null && derivedDuration <= 0) {
+    throw new PlannerExtractionInvalidOutputError();
+  }
+  if (
+    derivedDuration !== null &&
+    candidate.estimatedMinutes !== null &&
+    candidate.estimatedMinutes !== derivedDuration
+  ) {
     throw new PlannerExtractionInvalidOutputError();
   }
 
