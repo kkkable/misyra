@@ -5,8 +5,12 @@ import { describe, expect, it } from 'vitest';
 
 const evidenceRoutePath = fileURLToPath(new URL('../../app/evidence.tsx', import.meta.url));
 const mobilePackagePath = fileURLToPath(new URL('../../package.json', import.meta.url));
+const mobileAppConfigPath = fileURLToPath(new URL('../../app.config.ts', import.meta.url));
 const evidenceRuntimePath = fileURLToPath(
   new URL('./expo-evidence-capture-runtime.tsx', import.meta.url),
+);
+const evidenceMediaActionsPath = fileURLToPath(
+  new URL('./expo-evidence-media-actions-runtime.ts', import.meta.url),
 );
 const rootSyncRuntimePath = fileURLToPath(new URL('../sync/root-sync-runtime.ts', import.meta.url));
 
@@ -29,7 +33,37 @@ describe('MTS-079 camera-only route contract', () => {
     }
 
     expect(mobilePackage.dependencies).not.toHaveProperty('expo-image-picker');
-    expect(mobilePackage.dependencies).not.toHaveProperty('expo-media-library');
+    expect(mobilePackage.dependencies).toHaveProperty('expo-media-library');
+  });
+
+  it('keeps photo-library access behind the explicit evidence Save to Photos runtime', () => {
+    const routeSource = readFileSync(evidenceRoutePath, 'utf8');
+    const captureSource = readFileSync(evidenceRuntimePath, 'utf8');
+    const mediaActionsSource = readFileSync(evidenceMediaActionsPath, 'utf8');
+    const appConfigSource = readFileSync(mobileAppConfigPath, 'utf8');
+
+    expect(captureSource).not.toMatch(/expo-media-library/);
+    expect(mediaActionsSource).toMatch(/expo-media-library/);
+    expect(mediaActionsSource).toMatch(/requestPermissionsAsync\(true, \[\]\)/);
+    expect(appConfigSource).toMatch(/granularPermissions:\s*\[\]/);
+    expect(appConfigSource).toMatch(/blockedPermissions/);
+    expect(appConfigSource).not.toMatch(
+      /ANDROID_BLOCKED_MEDIA_LIBRARY_PERMISSIONS[\s\S]*WRITE_EXTERNAL_STORAGE/,
+    );
+    for (const permission of [
+      'android.permission.READ_EXTERNAL_STORAGE',
+      'android.permission.READ_MEDIA_IMAGES',
+      'android.permission.READ_MEDIA_VIDEO',
+      'android.permission.READ_MEDIA_AUDIO',
+      'android.permission.READ_MEDIA_VISUAL_USER_SELECTED',
+    ]) {
+      expect(appConfigSource).toContain(permission);
+    }
+    expect(routeSource).toMatch(/createExpoEvidenceMediaActionsRuntime/);
+    expect(routeSource).toMatch(/saveToPhotos/);
+    expect(routeSource).toMatch(/deleteEvidence/);
+    expect(mediaActionsSource).toMatch(/deleteAsync\(attemptDirectory\(attemptId\)/);
+    expect(mediaActionsSource).toMatch(/deleteAsync\(saveDownloadPath\(attemptId\)/);
   });
 
   it('durably queues evidence before upload, restores local Waiting state, and drains it on root sync', () => {

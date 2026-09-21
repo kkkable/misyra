@@ -23,7 +23,10 @@ export class EvidenceAttemptError extends Error {
 
 type EvidenceAttemptServiceOptions = Readonly<{
   pool: Pool;
-  protectedMediaService: Pick<ProtectedMediaService, 'authorizeUpload'>;
+  protectedMediaService: Pick<
+    ProtectedMediaService,
+    'authorizeUpload' | 'readAssetOriginal' | 'deleteAsset'
+  >;
   now?: () => Date;
 }>;
 
@@ -85,6 +88,7 @@ interface AttemptResultRow extends QueryResultRow {
   effectiveSubmittedAt: Date;
   verificationStatus: string;
   reasonCode: string | null;
+  mediaDeletionState: string | null;
   localStart: string;
   localFinish: string;
   startInstant: Date;
@@ -260,6 +264,53 @@ export function createEvidenceAttemptService(options: EvidenceAttemptServiceOpti
   }
 
   return {
+    async getMediaOriginal(accountId: string, attemptIdSource: unknown) {
+      const attemptId = parseUuid(attemptIdSource);
+      const result = await options.pool.query<{
+        mediaAssetId: string | null;
+        uploadStatus: string;
+      }>(
+        `SELECT
+           media_asset_id AS "mediaAssetId",
+           upload_status AS "uploadStatus"
+         FROM evidence_attempts
+         WHERE id = $1 AND account_id = $2`,
+        [attemptId, accountId],
+      );
+      const attempt = result.rows[0];
+      if (attempt === undefined || attempt.mediaAssetId === null) {
+        throw new EvidenceAttemptError('not_found');
+      }
+      if (attempt.uploadStatus !== 'uploaded') {
+        throw new EvidenceAttemptError('conflict');
+      }
+      return options.protectedMediaService.readAssetOriginal(accountId, attempt.mediaAssetId);
+    },
+
+    async deleteMedia(accountId: string, attemptIdSource: unknown) {
+      const attemptId = parseUuid(attemptIdSource);
+      const result = await options.pool.query<{
+        mediaAssetId: string | null;
+        verificationStatus: string;
+      }>(
+        `SELECT
+           a.media_asset_id AS "mediaAssetId",
+           a.verification_status AS "verificationStatus"
+         FROM evidence_attempts a
+         WHERE a.id = $1 AND a.account_id = $2`,
+        [attemptId, accountId],
+      );
+      const attempt = result.rows[0];
+      if (attempt === undefined || attempt.mediaAssetId === null) {
+        throw new EvidenceAttemptError('not_found');
+      }
+      if (attempt.verificationStatus !== 'accepted' && attempt.verificationStatus !== 'rejected') {
+        throw new EvidenceAttemptError('conflict');
+      }
+      await options.protectedMediaService.deleteAsset(accountId, attempt.mediaAssetId);
+      return { deleted: true as const };
+    },
+
     async getLatestAttemptId(accountId: string, occurrenceIdSource: unknown) {
       const occurrenceId = parseUuid(occurrenceIdSource);
       const result = await options.pool.query<LatestAttemptIdRow>(
@@ -285,6 +336,7 @@ export function createEvidenceAttemptService(options: EvidenceAttemptServiceOpti
            a.effective_submitted_at AS "effectiveSubmittedAt",
            a.verification_status AS "verificationStatus",
            a.reason_code AS "reasonCode",
+           m.deletion_state AS "mediaDeletionState",
            o.local_start AS "localStart",
            o.local_finish AS "localFinish",
            o.start_instant AS "startInstant",
@@ -296,6 +348,8 @@ export function createEvidenceAttemptService(options: EvidenceAttemptServiceOpti
          FROM evidence_attempts a
          JOIN mission_occurrences o
            ON o.id = a.occurrence_id AND o.account_id = a.account_id
+         LEFT JOIN media_assets m
+           ON m.id = a.media_asset_id AND m.account_id = a.account_id
          WHERE a.id = $1 AND a.account_id = $2`,
         [attemptId, accountId],
       );
@@ -339,6 +393,10 @@ export function createEvidenceAttemptService(options: EvidenceAttemptServiceOpti
         verificationStatus: attempt.verificationStatus,
         reasonCode: reasonCode === null ? null : reasonCode.data,
         duplicateLoser: attempt.status === 'duplicate_loser',
+        mediaAvailable: attempt.mediaDeletionState === 'active',
+        mediaDeletable:
+          attempt.mediaDeletionState === 'active' &&
+          (attempt.verificationStatus === 'accepted' || attempt.verificationStatus === 'rejected'),
         expired: eligibility.state === 'expired',
         serverNow: currentTime.toISOString(),
         expiresAt: eligibility.expiresAt,

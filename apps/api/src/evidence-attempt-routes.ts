@@ -1,8 +1,9 @@
 import { EvidenceAttemptError, type EvidenceAttemptService } from './evidence-attempt.js';
+import { ProtectedMediaError } from './protected-media.js';
 import { ApiError, type ApiRouteDefinition } from './index.js';
 
 function mapError(error: unknown): never {
-  if (error instanceof EvidenceAttemptError) {
+  if (error instanceof EvidenceAttemptError || error instanceof ProtectedMediaError) {
     throw new ApiError(error.code);
   }
   throw error;
@@ -29,6 +30,31 @@ export function createEvidenceAttemptRoutes(service: EvidenceAttemptService): Ap
         const params = request.params as { attemptId?: unknown };
         try {
           return await service.getResult(auth.accountId, params.attemptId);
+        } catch (error) {
+          return mapError(error);
+        }
+      },
+    },
+    {
+      method: 'GET',
+      path: '/evidence/attempts/:attemptId/media/original',
+      handler: async (request, reply, auth) => {
+        const params = request.params as { attemptId?: unknown };
+        try {
+          const body = await service.getMediaOriginal(auth.accountId, params.attemptId);
+          return await reply.type('image/jpeg').send(body);
+        } catch (error) {
+          return mapError(error);
+        }
+      },
+    },
+    {
+      method: 'DELETE',
+      path: '/evidence/attempts/:attemptId/media',
+      handler: async (request, _reply, auth) => {
+        const params = request.params as { attemptId?: unknown };
+        try {
+          return await service.deleteMedia(auth.accountId, params.attemptId);
         } catch (error) {
           return mapError(error);
         }

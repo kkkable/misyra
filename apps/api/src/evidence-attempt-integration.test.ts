@@ -83,12 +83,15 @@ async function seedOccurrence(
 
 function createServer(
   blobStore: Readonly<{
-    put(container: string, storageKey: string, bytes: Buffer, contentType: string): Promise<void>;
-    delete(container: string, storageKey: string): Promise<void>;
-  }> = {
-    put: vi.fn(() => Promise.resolve()),
-    delete: vi.fn(() => Promise.resolve()),
-  },
+    put?: (
+      container: string,
+      storageKey: string,
+      bytes: Buffer,
+      contentType: string,
+    ) => Promise<void>;
+    get?: (container: string, storageKey: string) => Promise<Buffer>;
+    delete?: (container: string, storageKey: string) => Promise<void>;
+  }> = {},
 ) {
   return createApiApplication({
     pool,
@@ -97,7 +100,11 @@ function createServer(
     reauthenticationProofSecret: 'fixture-reauthentication-proof-secret',
     now: () => apiNow,
     authenticate: () => ({ accountId }),
-    mediaBlobStore: blobStore,
+    mediaBlobStore: {
+      put: blobStore.put ?? vi.fn(() => Promise.resolve()),
+      get: blobStore.get ?? vi.fn(() => Promise.resolve(Buffer.from('evidence-image'))),
+      delete: blobStore.delete ?? vi.fn(() => Promise.resolve()),
+    },
   });
 }
 
@@ -382,6 +389,203 @@ describe('MTS-080 evidence-attempt creation and upload', () => {
       firstSubmittedAt: '2026-09-20T09:30:00.000Z',
       effectiveSubmittedAt: '2026-09-20T09:30:00.000Z',
     });
+
+    await server.close();
+  });
+
+  it('early-deletes every app-controlled evidence copy while preserving completion and XP history', async () => {
+    const deleteBlob = vi.fn(() => Promise.resolve());
+    const server = createServer({
+      put: vi.fn(() => Promise.resolve()),
+      delete: deleteBlob,
+    });
+    const occurrenceId = await seedOccurrence({ completed: true });
+    const attemptId = randomUUID();
+    const mediaAssetId = randomUUID();
+    const original = `${accountId}/${mediaAssetId}/original`;
+    const thumbnail = `${accountId}/${mediaAssetId}/thumbnail`;
+    const derivative = `${accountId}/${mediaAssetId}/derivative`;
+    const temporary = `${accountId}/${mediaAssetId}/temporary`;
+
+    await pool.query(
+      `INSERT INTO media_assets (
+         id, account_id, purpose, storage_key, original_storage_key,
+         thumbnail_storage_key, derivative_storage_key, temporary_storage_key,
+         deletion_due_at, deletion_state, retry_state
+       ) VALUES (
+         $1, $2, 'evidence-working', $3, $3,
+         $4, $5, $6,
+         '2026-10-20T09:30:00.000Z', 'active', 'ready'
+       )`,
+      [mediaAssetId, accountId, original, thumbnail, derivative, temporary],
+    );
+    await pool.query(
+      `INSERT INTO evidence_attempts (
+         id, account_id, occurrence_id, attempt_number, status, submitted_at,
+         first_submitted_at, effective_submitted_at, upload_status,
+         verification_status, reason_code, media_asset_id, deletion_deadline
+       ) VALUES (
+         $1, $2, $3, 1, 'accepted', '2026-09-18T09:01:00.000Z',
+         '2026-09-18T09:01:00.000Z', '2026-09-18T09:01:00.000Z', 'uploaded',
+         'accepted', 'verified', $4, '2026-10-20T09:30:00.000Z'
+       )`,
+      [attemptId, accountId, occurrenceId, mediaAssetId],
+    );
+    await pool.query(
+      `INSERT INTO reward_ledger
+         (account_id, occurrence_id, base_xp, proof_bonus_xp, awarded_xp)
+       VALUES ($1, $2, 100, 15, 115)`,
+      [accountId, occurrenceId],
+    );
+
+    const before = await pool.query<{
+      completionCount: number;
+      rewardCount: number;
+      awardedXp: number;
+    }>(
+      `SELECT
+         (SELECT COUNT(*)::int
+            FROM mission_completions
+           WHERE account_id = $1 AND occurrence_id = $2) AS "completionCount",
+         (SELECT COUNT(*)::int
+            FROM reward_ledger
+           WHERE account_id = $1 AND occurrence_id = $2) AS "rewardCount",
+         (SELECT awarded_xp
+            FROM reward_ledger
+           WHERE account_id = $1 AND occurrence_id = $2) AS "awardedXp"`,
+      [accountId, occurrenceId],
+    );
+
+    const beforeResult = await server.inject({
+      method: 'GET',
+      url: `/v1/evidence/attempts/${attemptId}`,
+    });
+    expect(beforeResult.statusCode).toBe(200);
+    expect(beforeResult.json()).toMatchObject({
+      payload: { mediaAvailable: true, mediaDeletable: true },
+    });
+
+    const originalRead = await server.inject({
+      method: 'GET',
+      url: `/v1/evidence/attempts/${attemptId}/media/original`,
+    });
+    expect(originalRead.statusCode).toBe(200);
+    expect(originalRead.headers['content-type']).toMatch(/^image\/jpeg/);
+    expect(originalRead.body).toBe('evidence-image');
+
+    const deleted = await server.inject({
+      method: 'DELETE',
+      url: `/v1/evidence/attempts/${attemptId}/media`,
+    });
+
+    expect(deleted.statusCode).toBe(200);
+    expect(deleted.json()).toMatchObject({ payload: { deleted: true } });
+    expect(deleteBlob.mock.calls).toEqual([
+      ['evidence-working', original],
+      ['evidence-working', thumbnail],
+      ['evidence-working', derivative],
+      ['evidence-working', temporary],
+    ]);
+
+    const asset = await pool.query<{ deletionState: string; retryState: string }>(
+      `SELECT deletion_state AS "deletionState", retry_state AS "retryState"
+         FROM media_assets
+        WHERE id = $1 AND account_id = $2`,
+      [mediaAssetId, accountId],
+    );
+    expect(asset.rows[0]).toEqual({ deletionState: 'deleted', retryState: 'ready' });
+
+    const afterResult = await server.inject({
+      method: 'GET',
+      url: `/v1/evidence/attempts/${attemptId}`,
+    });
+    expect(afterResult.statusCode).toBe(200);
+    expect(afterResult.json()).toMatchObject({
+      payload: { mediaAvailable: false, mediaDeletable: false },
+    });
+
+    const deletedOriginalRead = await server.inject({
+      method: 'GET',
+      url: `/v1/evidence/attempts/${attemptId}/media/original`,
+    });
+    expect(deletedOriginalRead.statusCode).toBe(404);
+
+    const after = await pool.query<{
+      completionCount: number;
+      rewardCount: number;
+      awardedXp: number;
+    }>(
+      `SELECT
+         (SELECT COUNT(*)::int
+            FROM mission_completions
+           WHERE account_id = $1 AND occurrence_id = $2) AS "completionCount",
+         (SELECT COUNT(*)::int
+            FROM reward_ledger
+           WHERE account_id = $1 AND occurrence_id = $2) AS "rewardCount",
+         (SELECT awarded_xp
+            FROM reward_ledger
+           WHERE account_id = $1 AND occurrence_id = $2) AS "awardedXp"`,
+      [accountId, occurrenceId],
+    );
+    expect(after.rows[0]).toEqual(before.rows[0]);
+
+    await server.close();
+  });
+
+  it('allows settled rejected evidence to be deleted before self-confirmation', async () => {
+    const deleteBlob = vi.fn(() => Promise.resolve());
+    const server = createServer({ delete: deleteBlob });
+    const occurrenceId = await seedOccurrence();
+    const attemptId = randomUUID();
+    const mediaAssetId = randomUUID();
+    const original = `${accountId}/${mediaAssetId}/original`;
+
+    await pool.query(
+      `INSERT INTO media_assets (
+         id, account_id, purpose, storage_key, original_storage_key,
+         deletion_due_at, deletion_state, retry_state
+       ) VALUES (
+         $1, $2, 'evidence-working', $3, $3,
+         '2026-10-20T09:30:00.000Z', 'active', 'ready'
+       )`,
+      [mediaAssetId, accountId, original],
+    );
+    await pool.query(
+      `INSERT INTO evidence_attempts (
+         id, account_id, occurrence_id, attempt_number, status, submitted_at,
+         first_submitted_at, effective_submitted_at, upload_status,
+         verification_status, reason_code, media_asset_id, deletion_deadline
+       ) VALUES (
+         $1, $2, $3, 1, 'rejected', '2026-09-18T09:01:00.000Z',
+         '2026-09-18T09:01:00.000Z', '2026-09-18T09:01:00.000Z', 'uploaded',
+         'rejected', 'task_mismatch', $4, '2026-10-20T09:30:00.000Z'
+       )`,
+      [attemptId, accountId, occurrenceId, mediaAssetId],
+    );
+
+    const beforeResult = await server.inject({
+      method: 'GET',
+      url: `/v1/evidence/attempts/${attemptId}`,
+    });
+    expect(beforeResult.statusCode).toBe(200);
+    expect(beforeResult.json()).toMatchObject({
+      payload: { mediaAvailable: true, mediaDeletable: true },
+    });
+
+    const deleted = await server.inject({
+      method: 'DELETE',
+      url: `/v1/evidence/attempts/${attemptId}/media`,
+    });
+    expect(deleted.statusCode).toBe(200);
+    expect(deleteBlob).toHaveBeenCalledWith('evidence-working', original);
+
+    const completion = await pool.query(
+      `SELECT 1
+         FROM mission_completions
+        WHERE account_id = $1 AND occurrence_id = $2`,
+      [accountId, occurrenceId],
+    );
+    expect(completion.rowCount).toBe(0);
 
     await server.close();
   });

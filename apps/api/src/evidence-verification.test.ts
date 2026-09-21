@@ -339,6 +339,7 @@ describe('MTS-081 AI evidence verification', () => {
       signingSecret: 'fixture-protected-media-signing-secret',
       blobStore: {
         put: vi.fn(() => Promise.resolve()),
+        get: vi.fn(() => Promise.resolve(Buffer.from('evidence-image'))),
         delete: deleteBlob,
       },
     });

@@ -21,6 +21,8 @@ export type EvidenceResultMessages = Readonly<{
   reasonTaskMismatch: string;
   reasonTaskNotEvident: string;
   reasonImageUnusable: string;
+  saveToPhotos: string;
+  deleteEvidence: string;
 }>;
 
 export type EvidenceResultPanelProps = Readonly<{
@@ -29,6 +31,10 @@ export type EvidenceResultPanelProps = Readonly<{
   colorScheme?: ColorScheme;
   onRetry(): void | Promise<void>;
   onSelfConfirm(): void | Promise<void>;
+  mediaAvailable?: boolean | undefined;
+  mediaDeletable?: boolean | undefined;
+  onSaveToPhotos?: (() => Promise<Readonly<{ saved: boolean }>>) | undefined;
+  onDeleteEvidence?: (() => void | Promise<void>) | undefined;
   onClose?: (() => void) | undefined;
 }>;
 
@@ -51,6 +57,10 @@ export function EvidenceResultPanel({
   colorScheme = 'light',
   onRetry,
   onSelfConfirm,
+  mediaAvailable = false,
+  mediaDeletable = false,
+  onSaveToPhotos,
+  onDeleteEvidence,
   onClose,
 }: EvidenceResultPanelProps) {
   const colors = themeColors(colorScheme);
@@ -151,6 +161,36 @@ export function EvidenceResultPanel({
             </Pressable>
           </View>
         </View>
+      ) : null}
+      {mediaAvailable && onSaveToPhotos !== undefined ? (
+        <Pressable
+          accessibilityLabel={messages.saveToPhotos}
+          accessibilityRole="button"
+          onPress={() => {
+            void onSaveToPhotos().catch(() => undefined);
+          }}
+          style={[styles.secondaryAction, { borderColor: colors.border }]}
+          testID="evidence-result-save-to-photos"
+        >
+          <Text allowFontScaling style={[styles.actionText, { color: colors.primary }]}>
+            {messages.saveToPhotos}
+          </Text>
+        </Pressable>
+      ) : null}
+      {mediaAvailable && mediaDeletable && onDeleteEvidence !== undefined ? (
+        <Pressable
+          accessibilityLabel={messages.deleteEvidence}
+          accessibilityRole="button"
+          onPress={() => {
+            void Promise.resolve(onDeleteEvidence()).catch(() => undefined);
+          }}
+          style={[styles.secondaryAction, { borderColor: colors.late }]}
+          testID="evidence-result-delete-media"
+        >
+          <Text allowFontScaling style={[styles.actionText, { color: colors.late }]}>
+            {messages.deleteEvidence}
+          </Text>
+        </Pressable>
       ) : null}
       {onClose === undefined ? null : (
         <Pressable

@@ -15,6 +15,11 @@ import {
   type EvidenceCaptureMessages,
 } from '../src/evidence/evidence-capture-screen.js';
 import { createExpoEvidenceCaptureRuntime } from '../src/evidence/expo-evidence-capture-runtime.js';
+import { createEvidenceMediaActions } from '../src/evidence/evidence-media-actions.js';
+import {
+  bindEvidenceOriginalToAttempt,
+  createExpoEvidenceMediaActionsRuntime,
+} from '../src/evidence/expo-evidence-media-actions-runtime.js';
 import {
   resolveEvidenceResultFlow,
   resolveEvidenceResultRefreshDelay,
@@ -90,6 +95,8 @@ export default function EvidenceRoute() {
     reasonTaskMismatch: catalog['evidence.result.reason.taskMismatch'],
     reasonTaskNotEvident: catalog['evidence.result.reason.taskNotEvident'],
     reasonImageUnusable: catalog['evidence.result.reason.imageUnusable'],
+    saveToPhotos: catalog['evidence.media.saveToPhotos'],
+    deleteEvidence: catalog['evidence.media.delete'],
   };
 
   const authenticatedEvidenceApi = useCallback(async () => {
@@ -102,6 +109,17 @@ export default function EvidenceRoute() {
         accessToken: authState.session.accessToken,
       }),
     };
+  }, []);
+
+  const authenticatedEvidenceMediaActions = useCallback(async () => {
+    const authState = await rootAuthController.restore();
+    if (authState.status !== 'signed_in') throw new Error('evidence_requires_sign_in');
+    return createEvidenceMediaActions(
+      createExpoEvidenceMediaActionsRuntime({
+        baseUrl: getAuthApiBaseUrl(),
+        accessToken: authState.session.accessToken,
+      }),
+    );
   }, []);
 
   const authenticatedEvidenceQueue = useCallback(async () => {
@@ -250,12 +268,16 @@ export default function EvidenceRoute() {
         onSubmit={async (file) => {
           const { api, queue } = await authenticatedEvidenceQueue();
           const submission = submissionSession.getOrCreate();
+          const protectedOriginalUri = await bindEvidenceOriginalToAttempt(
+            submission.attemptId,
+            file.uri,
+          );
           const pending: OfflineEvidencePending = {
             mutationId: generateUuid(),
             attemptId: submission.attemptId,
             occurrenceId,
             submittedAt: submission.submittedAt,
-            originalUri: file.uri,
+            originalUri: protectedOriginalUri,
             thumbnailUris: [],
           };
           await queue.enqueue(pending);
@@ -288,6 +310,25 @@ export default function EvidenceRoute() {
       colorScheme={colorScheme}
       flow={flow}
       messages={resultMessages}
+      mediaAvailable={result.mediaAvailable}
+      mediaDeletable={result.mediaDeletable}
+      {...(result.mediaAvailable && activeAttemptId !== null
+        ? {
+            onSaveToPhotos: async () => {
+              const actions = await authenticatedEvidenceMediaActions();
+              return actions.saveToPhotos(activeAttemptId);
+            },
+          }
+        : {})}
+      {...(result.mediaAvailable && result.mediaDeletable && activeAttemptId !== null
+        ? {
+            onDeleteEvidence: async () => {
+              const actions = await authenticatedEvidenceMediaActions();
+              await actions.deleteEvidence(activeAttemptId);
+              await refreshResult();
+            },
+          }
+        : {})}
       onClose={close}
       onRetry={() => {
         submissionSession.reset();

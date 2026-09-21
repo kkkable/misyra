@@ -22,6 +22,8 @@ export type EvidenceAttemptResult = Readonly<{
   verificationStatus: 'pending' | 'queued' | 'accepted' | 'rejected';
   reasonCode: EvidenceVerificationReasonCode | null;
   duplicateLoser: boolean;
+  mediaAvailable: boolean;
+  mediaDeletable: boolean;
   expired: boolean;
   serverNow: string | null;
   expiresAt: string | null;
@@ -107,6 +109,12 @@ function parseResult(value: unknown): EvidenceAttemptResult {
       ? null
       : evidenceVerificationReasonCodeSchema.safeParse(value.reasonCode);
   if (reason !== null && !reason.success) throw new Error('evidence_reason_code_invalid');
+  if (typeof value.mediaAvailable !== 'boolean') {
+    throw new Error('evidence_media_available_invalid');
+  }
+  if (typeof value.mediaDeletable !== 'boolean') {
+    throw new Error('evidence_media_deletable_invalid');
+  }
   if (typeof value.expired !== 'boolean') throw new Error('evidence_expiry_invalid');
   const serverNow = nonEmptyString(value.serverNow, 'evidence_server_now_invalid');
   const expiresAt = nonEmptyString(value.expiresAt, 'evidence_expires_at_invalid');
@@ -125,6 +133,8 @@ function parseResult(value: unknown): EvidenceAttemptResult {
     verificationStatus,
     reasonCode: reason === null ? null : reason.data,
     duplicateLoser: value.duplicateLoser === true,
+    mediaAvailable: value.mediaAvailable,
+    mediaDeletable: value.mediaDeletable,
     expired: value.expired,
     serverNow,
     expiresAt,
