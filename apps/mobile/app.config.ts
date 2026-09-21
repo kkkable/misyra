@@ -3,7 +3,6 @@ import type { ConfigContext } from 'expo/config';
 const ANDROID_EXACT_ALARM_PERMISSION = 'android.permission.SCHEDULE_EXACT_ALARM';
 const ANDROID_BLOCKED_MEDIA_LIBRARY_PERMISSIONS = [
   'android.permission.READ_EXTERNAL_STORAGE',
-  'android.permission.WRITE_EXTERNAL_STORAGE',
   'android.permission.READ_MEDIA_IMAGES',
   'android.permission.READ_MEDIA_VIDEO',
   'android.permission.READ_MEDIA_AUDIO',
