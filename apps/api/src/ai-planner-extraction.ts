@@ -108,7 +108,7 @@ export function createPlannerExtractionService(input: {
       if (!parsed.success) throw new PlannerExtractionInvalidOutputError();
 
       const items: PlannerExtractionItem[] = [];
-      let omittedUncertainContent = false;
+      let omittedUncertainContent = parsed.data.omittedUncertainContent;
       for (const candidate of parsed.data.candidates) {
         if (candidate.disposition === 'omit_uncertain') {
           omittedUncertainContent = true;
