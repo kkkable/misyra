@@ -4,7 +4,10 @@ import { applyMigrations } from '@misyra/database';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { createProductMediaCleanupBlobStore } from './product-media-cleanup-runtime.js';
+import {
+  createProductMediaCleanupBlobStore,
+  resolveProductMediaCleanupDatabaseUrl,
+} from './product-media-cleanup-runtime.js';
 import {
   createProductMediaCleanupService,
   type ProductMediaCleanupBlobStore,
@@ -180,6 +183,18 @@ afterAll(async () => {
 });
 
 describe('MTS-085 product-media cleanup and reconciliation', () => {
+  it('fails closed when production cleanup database configuration is missing', () => {
+    expect(() => resolveProductMediaCleanupDatabaseUrl({ NODE_ENV: 'production' })).toThrow(
+      'Missing required environment variable: DATABASE_URL',
+    );
+    expect(
+      resolveProductMediaCleanupDatabaseUrl({
+        NODE_ENV: 'production',
+        DATABASE_URL: 'postgresql://configured.example/misyra',
+      }),
+    ).toBe('postgresql://configured.example/misyra');
+  });
+
   it('time-travels across the exact deadline and hard-deletes cache/original/thumbnail/derivative/temporary Azurite blobs only when due', async () => {
     const keys = [
       `${accountId}/asset/cache`,
