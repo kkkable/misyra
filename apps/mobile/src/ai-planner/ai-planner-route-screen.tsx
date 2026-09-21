@@ -119,6 +119,7 @@ export function AiPlannerRouteScreen() {
   useFocusEffect(
     useCallback(() => {
       let active = true;
+      const isActive = () => active;
 
       const load = async () => {
         const auth = await rootAuthController.restore();
@@ -127,7 +128,7 @@ export function AiPlannerRouteScreen() {
           openMobileDatabase(),
           requireRegisteredDeviceId(auth.session.accountId),
         ]);
-        if (!active) return;
+        if (!isActive()) return;
         const persistence = createAiPlannerDraftPersistence({
           database,
           accountId: auth.session.accountId,
@@ -141,21 +142,21 @@ export function AiPlannerRouteScreen() {
           accessToken: auth.session.accessToken,
         });
         const localDraft = await persistence.load();
-        if (active && localDraft !== null) {
+        if (isActive() && localDraft !== null) {
           setCurrentDraft(localDraft.input);
           setSavedAt(localDraft.updatedAt);
         }
 
         await rootSyncRuntime.run().catch(() => undefined);
         const synchronizedDraft = await persistence.load();
-        if (active && synchronizedDraft !== null) {
+        if (isActive() && synchronizedDraft !== null) {
           setCurrentDraft(synchronizedDraft.input);
           setSavedAt(synchronizedDraft.updatedAt);
         }
       };
 
       void load().catch(() => {
-        if (active) setErrorMessage(catalog.saveFailed);
+        if (isActive()) setErrorMessage(catalog.saveFailed);
       });
 
       return () => {
@@ -298,7 +299,7 @@ export function AiPlannerRouteScreen() {
                 onPress={() => {
                   removeImage(assetId);
                 }}
-                testID={`ai-planner-remove-image-${index}`}
+                testID={`ai-planner-remove-image-${String(index)}`}
               >
                 <Text allowFontScaling style={[styles.removeText, { color: colors.primary }]}>
                   {catalog.removeImage}
