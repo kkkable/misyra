@@ -46,6 +46,17 @@ describe('MTS-079 camera-only route contract', () => {
     expect(mediaActionsSource).toMatch(/expo-media-library/);
     expect(mediaActionsSource).toMatch(/requestPermissionsAsync\(true, \[\]\)/);
     expect(appConfigSource).toMatch(/granularPermissions:\s*\[\]/);
+    expect(appConfigSource).toMatch(/blockedPermissions/);
+    for (const permission of [
+      'android.permission.READ_EXTERNAL_STORAGE',
+      'android.permission.WRITE_EXTERNAL_STORAGE',
+      'android.permission.READ_MEDIA_IMAGES',
+      'android.permission.READ_MEDIA_VIDEO',
+      'android.permission.READ_MEDIA_AUDIO',
+      'android.permission.READ_MEDIA_VISUAL_USER_SELECTED',
+    ]) {
+      expect(appConfigSource).toContain(permission);
+    }
     expect(routeSource).toMatch(/createExpoEvidenceMediaActionsRuntime/);
     expect(routeSource).toMatch(/saveToPhotos/);
     expect(routeSource).toMatch(/deleteEvidence/);
