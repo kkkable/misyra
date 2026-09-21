@@ -402,6 +402,7 @@ describe('MTS-080 evidence-attempt creation and upload', () => {
     const occurrenceId = await seedOccurrence({ completed: true });
     const attemptId = randomUUID();
     const mediaAssetId = randomUUID();
+    const cache = `${accountId}/${mediaAssetId}/cache`;
     const original = `${accountId}/${mediaAssetId}/original`;
     const thumbnail = `${accountId}/${mediaAssetId}/thumbnail`;
     const derivative = `${accountId}/${mediaAssetId}/derivative`;
@@ -413,11 +414,11 @@ describe('MTS-080 evidence-attempt creation and upload', () => {
          thumbnail_storage_key, derivative_storage_key, temporary_storage_key,
          deletion_due_at, deletion_state, retry_state
        ) VALUES (
-         $1, $2, 'evidence-working', $3, $3,
-         $4, $5, $6,
+         $1, $2, 'evidence-working', $3, $4,
+         $5, $6, $7,
          '2026-10-20T09:30:00.000Z', 'active', 'ready'
        )`,
-      [mediaAssetId, accountId, original, thumbnail, derivative, temporary],
+      [mediaAssetId, accountId, cache, original, thumbnail, derivative, temporary],
     );
     await pool.query(
       `INSERT INTO evidence_attempts (
@@ -481,6 +482,7 @@ describe('MTS-080 evidence-attempt creation and upload', () => {
     expect(deleted.statusCode).toBe(200);
     expect(deleted.json()).toMatchObject({ payload: { deleted: true } });
     expect(deleteBlob.mock.calls).toEqual([
+      ['evidence-working', cache],
       ['evidence-working', original],
       ['evidence-working', thumbnail],
       ['evidence-working', derivative],
