@@ -16,6 +16,7 @@ param enablePrivateNetworking bool
 param allowPublicDataPlaneAccess bool
 param privateEndpointSubnetId string
 param apiPrincipalId string
+param cleanupJobPrincipalId string
 param postgresqlAdministratorLogin string
 
 @secure()
@@ -83,6 +84,7 @@ resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2023-05-01'
   parent: storage
   name: 'default'
   properties: {
+    isVersioningEnabled: false
     deleteRetentionPolicy: {
       enabled: false
     }
@@ -132,6 +134,52 @@ resource feedbackRetained 'Microsoft.Storage/storageAccounts/blobServices/contai
   }
 }
 
+resource productMediaLifecycle 'Microsoft.Storage/storageAccounts/managementPolicies@2023-05-01' = {
+  parent: storage
+  name: 'default'
+  properties: {
+    policy: {
+      rules: [
+        {
+          enabled: true
+          name: 'product-media-day-31-defense-in-depth'
+          type: 'Lifecycle'
+          definition: {
+            actions: {
+              baseBlob: {
+                delete: {
+                  daysAfterCreationGreaterThan: 31
+                }
+              }
+              snapshot: {
+                delete: {
+                  daysAfterCreationGreaterThan: 31
+                }
+              }
+              version: {
+                delete: {
+                  daysAfterCreationGreaterThan: 31
+                }
+              }
+            }
+            filters: {
+              blobTypes: [
+                'blockBlob'
+              ]
+              prefixMatch: [
+                'evidence-working/'
+                'story-working/'
+                'planner-working/'
+                'style-references/'
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+
 resource apiEvidenceWorkingBlobDataContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   name: guid(evidenceWorking.id, apiPrincipalId, storageBlobDataContributorRoleDefinitionId)
   scope: evidenceWorking
@@ -168,6 +216,46 @@ resource apiStyleReferencesBlobDataContributor 'Microsoft.Authorization/roleAssi
   properties: {
     roleDefinitionId: storageBlobDataContributorRoleDefinitionId
     principalId: apiPrincipalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource cleanupEvidenceWorkingBlobDataContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(evidenceWorking.id, cleanupJobPrincipalId, storageBlobDataContributorRoleDefinitionId)
+  scope: evidenceWorking
+  properties: {
+    roleDefinitionId: storageBlobDataContributorRoleDefinitionId
+    principalId: cleanupJobPrincipalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource cleanupStoryWorkingBlobDataContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(storyWorking.id, cleanupJobPrincipalId, storageBlobDataContributorRoleDefinitionId)
+  scope: storyWorking
+  properties: {
+    roleDefinitionId: storageBlobDataContributorRoleDefinitionId
+    principalId: cleanupJobPrincipalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource cleanupPlannerWorkingBlobDataContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(plannerWorking.id, cleanupJobPrincipalId, storageBlobDataContributorRoleDefinitionId)
+  scope: plannerWorking
+  properties: {
+    roleDefinitionId: storageBlobDataContributorRoleDefinitionId
+    principalId: cleanupJobPrincipalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource cleanupStyleReferencesBlobDataContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(styleReferences.id, cleanupJobPrincipalId, storageBlobDataContributorRoleDefinitionId)
+  scope: styleReferences
+  properties: {
+    roleDefinitionId: storageBlobDataContributorRoleDefinitionId
+    principalId: cleanupJobPrincipalId
     principalType: 'ServicePrincipal'
   }
 }
