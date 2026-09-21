@@ -32,6 +32,14 @@ describe('MTS-086 AI Planner route contract', () => {
     expect(route).toMatch(/\.save\(next\)/);
   });
 
+  it('does not allow an initial sync response to overwrite a user edit made while syncing', () => {
+    const route = readFileSync(routePath, 'utf8');
+
+    expect(route).toMatch(/disabled=\{!ready\}/);
+    expect(route).toMatch(/const draftBeforeSync = draftRef\.current/);
+    expect(route).toMatch(/draftRef\.current === draftBeforeSync/);
+  });
+
   it('uploads selected images only through the protected planner-working media boundary', () => {
     const mediaApi = readFileSync(mediaApiPath, 'utf8');
 
