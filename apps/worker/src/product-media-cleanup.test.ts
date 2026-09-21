@@ -210,12 +210,29 @@ describe('MTS-085 product-media cleanup and reconciliation', () => {
     await expect(service.runOnce()).resolves.toEqual({ scanned: 1, deleted: 1, retryPending: 0 });
     for (const key of keys) expect(await blobExists('evidence-working', key)).toBe(false);
 
-    const row = await pool.query<{ deletionState: string; retryState: string }>(
-      `SELECT deletion_state AS "deletionState", retry_state AS "retryState"
+    const row = await pool.query<{
+      deletionState: string;
+      retryState: string;
+      deletionAttemptCount: number;
+      lastDeletionAttemptAt: Date;
+      deletedAt: Date;
+    }>(
+      `SELECT
+         deletion_state AS "deletionState",
+         retry_state AS "retryState",
+         deletion_attempt_count AS "deletionAttemptCount",
+         last_deletion_attempt_at AS "lastDeletionAttemptAt",
+         deleted_at AS "deletedAt"
        FROM media_assets WHERE id = $1`,
       [assetId],
     );
-    expect(row.rows[0]).toEqual({ deletionState: 'deleted', retryState: 'ready' });
+    expect(row.rows[0]).toEqual({
+      deletionState: 'deleted',
+      retryState: 'ready',
+      deletionAttemptCount: 1,
+      lastDeletionAttemptAt: new Date('2026-09-21T12:00:00.000Z'),
+      deletedAt: new Date('2026-09-21T12:00:00.000Z'),
+    });
   });
 
   it('records retry_pending after partial storage failure and reconciles safely without marking final deletion early', async () => {
@@ -249,22 +266,53 @@ describe('MTS-085 product-media cleanup and reconciliation', () => {
     });
 
     await expect(service.runOnce()).resolves.toEqual({ scanned: 1, deleted: 0, retryPending: 1 });
-    const retryRow = await pool.query<{ deletionState: string; retryState: string }>(
-      `SELECT deletion_state AS "deletionState", retry_state AS "retryState"
+    const retryRow = await pool.query<{
+      deletionState: string;
+      retryState: string;
+      deletionAttemptCount: number;
+      lastDeletionAttemptAt: Date;
+      deletedAt: Date | null;
+    }>(
+      `SELECT
+         deletion_state AS "deletionState",
+         retry_state AS "retryState",
+         deletion_attempt_count AS "deletionAttemptCount",
+         last_deletion_attempt_at AS "lastDeletionAttemptAt",
+         deleted_at AS "deletedAt"
        FROM media_assets WHERE id = $1`,
       [assetId],
     );
-    expect(retryRow.rows[0]).toEqual({ deletionState: 'deleting', retryState: 'retry_pending' });
+    expect(retryRow.rows[0]).toEqual({
+      deletionState: 'deleting',
+      retryState: 'retry_pending',
+      deletionAttemptCount: 1,
+      lastDeletionAttemptAt: new Date('2026-09-21T12:00:00.000Z'),
+      deletedAt: null,
+    });
     expect(await blobExists('story-working', keys[3])).toBe(true);
 
     await expect(service.runOnce()).resolves.toEqual({ scanned: 1, deleted: 1, retryPending: 0 });
     for (const key of keys) expect(await blobExists('story-working', key)).toBe(false);
-    const finalRow = await pool.query<{ deletionState: string; retryState: string }>(
-      `SELECT deletion_state AS "deletionState", retry_state AS "retryState"
+    const finalRow = await pool.query<{
+      deletionState: string;
+      retryState: string;
+      deletionAttemptCount: number;
+      deletedAt: Date;
+    }>(
+      `SELECT
+         deletion_state AS "deletionState",
+         retry_state AS "retryState",
+         deletion_attempt_count AS "deletionAttemptCount",
+         deleted_at AS "deletedAt"
        FROM media_assets WHERE id = $1`,
       [assetId],
     );
-    expect(finalRow.rows[0]).toEqual({ deletionState: 'deleted', retryState: 'ready' });
+    expect(finalRow.rows[0]).toEqual({
+      deletionState: 'deleted',
+      retryState: 'ready',
+      deletionAttemptCount: 2,
+      deletedAt: new Date('2026-09-21T12:00:00.000Z'),
+    });
   });
 
   it('excludes separately retained feedback media while deleting due product media', async () => {
