@@ -1,4 +1,7 @@
-import type { PlannerExtractionGatewayRequest } from '@misyra/contracts';
+import type {
+  PlannerExtractionGatewayRequest,
+  PlannerExtractionInput,
+} from '@misyra/contracts';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
@@ -7,12 +10,12 @@ import {
   createPlannerExtractionService,
 } from './ai-planner-extraction.js';
 
-const input = {
+const input: PlannerExtractionInput = {
   text: 'Lunch tomorrow at 12:30. Maybe gym after.',
   imageAssetIds: [],
   appTimeZone: 'Asia/Hong_Kong',
   locale: 'en',
-} as const;
+};
 
 describe('MTS-087 schedule extraction gateway', () => {
   it('snapshots extraction-only prompt rules', () => {
