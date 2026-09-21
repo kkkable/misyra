@@ -28,99 +28,105 @@ describe('MTS-087 schedule extraction gateway', () => {
     `);
   });
 
-  it('omits uncertain candidates, keeps source order, and defaults a reasonable missing timed duration to 30 minutes', async () => {
-    const extractPlannerSchedule = vi.fn((request: PlannerExtractionGatewayRequest) => {
-      expect(request).toEqual({
-        input,
-        systemPrompt: PLANNER_EXTRACTION_SYSTEM_PROMPT,
+  it(
+    'omits uncertain candidates, keeps source order, and defaults a reasonable missing timed duration to 30 minutes',
+    async () => {
+      const extractPlannerSchedule = vi.fn((request: PlannerExtractionGatewayRequest) => {
+        expect(request).toEqual({
+          input,
+          systemPrompt: PLANNER_EXTRACTION_SYSTEM_PROMPT,
+        });
+        return Promise.resolve({
+          candidates: [
+            {
+              disposition: 'include',
+              title: 'Lunch',
+              localDate: '2026-09-22',
+              startLocalTime: '12:30',
+              allDay: false,
+              estimatedMinutes: null,
+              location: null,
+              notes: null,
+              confidence: 0.92,
+            },
+            {
+              disposition: 'omit_uncertain',
+              title: 'Maybe gym',
+              localDate: null,
+              startLocalTime: null,
+              allDay: false,
+              estimatedMinutes: null,
+              location: null,
+              notes: null,
+              confidence: 0.2,
+            },
+          ],
+        });
       });
-      return Promise.resolve({
-        candidates: [
+      const service = createPlannerExtractionService({
+        gateway: { extractPlannerSchedule },
+      });
+
+      await expect(service.extract(input)).resolves.toEqual({
+        items: [
           {
-            disposition: 'include',
             title: 'Lunch',
             localDate: '2026-09-22',
             startLocalTime: '12:30',
             allDay: false,
-            estimatedMinutes: null,
-            location: null,
-            notes: null,
+            estimatedMinutes: 30,
             confidence: 0.92,
           },
+        ],
+        omittedUncertainContent: true,
+      });
+      expect(extractPlannerSchedule).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it(
+    'derives duration from a reasonable same-day start/end pair without inventing extra schedule items',
+    async () => {
+      const service = createPlannerExtractionService({
+        gateway: {
+          extractPlannerSchedule() {
+            return Promise.resolve({
+              candidates: [
+                {
+                  disposition: 'include',
+                  title: 'Train',
+                  localDate: '2026-09-22',
+                  startLocalTime: '09:10',
+                  endLocalTime: '10:25',
+                  allDay: false,
+                  estimatedMinutes: null,
+                  location: 'Shenzhen Station',
+                  notes: null,
+                  confidence: 0.98,
+                },
+              ],
+            });
+          },
+        },
+      });
+
+      await expect(service.extract(input)).resolves.toEqual({
+        items: [
           {
-            disposition: 'omit_uncertain',
-            title: 'Maybe gym',
-            localDate: null,
-            startLocalTime: null,
+            title: 'Train',
+            localDate: '2026-09-22',
+            startLocalTime: '09:10',
+            endLocalTime: '10:25',
             allDay: false,
-            estimatedMinutes: null,
-            location: null,
-            notes: null,
-            confidence: 0.2,
+            estimatedMinutes: 75,
+            location: 'Shenzhen Station',
+            confidence: 0.98,
           },
         ],
+        omittedUncertainContent: false,
       });
-    });
-    const service = createPlannerExtractionService({
-      gateway: { extractPlannerSchedule },
-    });
-
-    await expect(service.extract(input)).resolves.toEqual({
-      items: [
-        {
-          title: 'Lunch',
-          localDate: '2026-09-22',
-          startLocalTime: '12:30',
-          allDay: false,
-          estimatedMinutes: 30,
-          confidence: 0.92,
-        },
-      ],
-      omittedUncertainContent: true,
-    });
-    expect(extractPlannerSchedule).toHaveBeenCalledTimes(1);
-  });
-
-  it('derives duration from a reasonable same-day start/end pair without inventing extra schedule items', async () => {
-    const service = createPlannerExtractionService({
-      gateway: {
-        extractPlannerSchedule() {
-          return Promise.resolve({
-            candidates: [
-              {
-                disposition: 'include',
-                title: 'Train',
-                localDate: '2026-09-22',
-                startLocalTime: '09:10',
-                endLocalTime: '10:25',
-                allDay: false,
-                estimatedMinutes: null,
-                location: 'Shenzhen Station',
-                notes: null,
-                confidence: 0.98,
-              },
-            ],
-          });
-        },
-      },
-    });
-
-    await expect(service.extract(input)).resolves.toEqual({
-      items: [
-        {
-          title: 'Train',
-          localDate: '2026-09-22',
-          startLocalTime: '09:10',
-          endLocalTime: '10:25',
-          allDay: false,
-          estimatedMinutes: 75,
-          location: 'Shenzhen Station',
-          confidence: 0.98,
-        },
-      ],
-      omittedUncertainContent: false,
-    });
-  });
+    },
+  );
 
   it('rejects malformed provider output instead of producing or activating missions', async () => {
     const service = createPlannerExtractionService({
