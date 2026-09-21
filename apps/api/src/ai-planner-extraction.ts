@@ -8,6 +8,7 @@ import {
   type PlannerExtractionProviderCandidate,
   type PlannerExtractionResult,
 } from '@misyra/contracts';
+import { DEFAULT_IMPORTED_ALL_DAY_EFFORT_MINUTES } from '@misyra/domain';
 
 import type { AiGateway } from './ai-gateway.js';
 
@@ -18,7 +19,7 @@ export const PLANNER_EXTRACTION_SYSTEM_PROMPT = [
   'Do not judge lifestyle or schedule density. Do not add breaks.',
   'Use the supplied app time zone for local dates and times.',
   'Omit highly uncertain candidates instead of inventing details.',
-  'For a timed item with a known start and no reasonable duration, a 30-minute duration may be used.',
+  'Use a 30-minute default when duration or all-day effort is missing and that default is reasonable.',
   'Mark omitted uncertain content so the caller can show a partial-import indicator.',
 ].join('\n');
 
@@ -63,7 +64,9 @@ function normalizeIncludedCandidate(
 
   let estimatedMinutes = candidate.estimatedMinutes ?? undefined;
   if (estimatedMinutes === undefined) {
-    if (!candidate.allDay && startLocalTime !== undefined && endLocalTime === undefined) {
+    if (candidate.allDay) {
+      estimatedMinutes = DEFAULT_IMPORTED_ALL_DAY_EFFORT_MINUTES;
+    } else if (startLocalTime !== undefined && endLocalTime === undefined) {
       estimatedMinutes = 30;
     } else if (derivedDuration !== null) {
       estimatedMinutes = derivedDuration;
