@@ -87,23 +87,15 @@ describe('MTS-084 retained evidence actions', () => {
         );
       });
 
-      expect(
-        renderer.root.findByProps({ testID: 'evidence-result-save-to-photos' }),
-      ).toBeDefined();
-      expect(
-        renderer.root.findByProps({ testID: 'evidence-result-delete-media' }),
-      ).toBeDefined();
+      expect(renderer.root.findByProps({ testID: 'evidence-result-save-to-photos' })).toBeDefined();
+      expect(renderer.root.findByProps({ testID: 'evidence-result-delete-media' })).toBeDefined();
 
       await act(async () => {
-        renderer.root
-          .findByProps({ testID: 'evidence-result-save-to-photos' })
-          .props.onPress();
+        renderer.root.findByProps({ testID: 'evidence-result-save-to-photos' }).props.onPress();
         await Promise.resolve();
       });
       await act(async () => {
-        renderer.root
-          .findByProps({ testID: 'evidence-result-delete-media' })
-          .props.onPress();
+        renderer.root.findByProps({ testID: 'evidence-result-delete-media' }).props.onPress();
         await Promise.resolve();
       });
       expect(onSaveToPhotos).toHaveBeenCalledTimes(1);
