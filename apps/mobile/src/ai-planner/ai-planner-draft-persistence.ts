@@ -15,12 +15,17 @@ export type PersistedAiPlannerDraft = Readonly<{
   updatedAt: string;
 }>;
 
-export function createAiPlannerDraftPersistence(_options: AiPlannerDraftPersistenceOptions) {
+export function createAiPlannerDraftPersistence(options: AiPlannerDraftPersistenceOptions) {
   return Object.freeze({
     async load(): Promise<PersistedAiPlannerDraft | null> {
+      await Promise.resolve();
+      void options;
       throw new Error('MTS-086 planner draft loading is not implemented.');
     },
-    async save(_input: AiPlannerDraftInput): Promise<PersistedAiPlannerDraft> {
+    async save(input: AiPlannerDraftInput): Promise<PersistedAiPlannerDraft> {
+      await Promise.resolve();
+      void options;
+      void input;
       throw new Error('MTS-086 planner draft persistence is not implemented.');
     },
   });
