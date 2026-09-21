@@ -35,8 +35,8 @@ export function createEvidenceMediaActions(
     },
 
     async deleteEvidence(attemptId: string): Promise<void> {
-      await input.api.deleteMedia(attemptId);
       await input.files.deleteAttemptCopies(attemptId);
+      await input.api.deleteMedia(attemptId);
     },
   });
 }
