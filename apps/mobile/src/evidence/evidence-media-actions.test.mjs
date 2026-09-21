@@ -46,6 +46,20 @@ describe('MTS-084 evidence media actions', () => {
     expect(files.discard).not.toHaveBeenCalled();
   });
 
+  it('cleans local attempt copies before requesting irreversible server deletion', async () => {
+    const { actions, api, files } = harness();
+    api.deleteMedia.mockRejectedValueOnce(new Error('fixture server delete unavailable'));
+
+    await expect(actions.deleteEvidence('attempt-a')).rejects.toThrow(
+      'fixture server delete unavailable',
+    );
+
+    expect(files.deleteAttemptCopies).toHaveBeenCalledWith('attempt-a');
+    expect(files.deleteAttemptCopies.mock.invocationCallOrder[0]).toBeLessThan(
+      api.deleteMedia.mock.invocationCallOrder[0],
+    );
+  });
+
   it('deletes app-controlled local/server copies without touching the saved phone copy', async () => {
     const { actions, api, photoLibrary, files } = harness();
 
