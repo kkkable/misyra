@@ -76,6 +76,7 @@ export function AiPlannerRouteScreen() {
   const [draft, setDraft] = useState<AiPlannerDraftInput>(EMPTY_DRAFT);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [ready, setReady] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const persistenceRef = useRef<DraftPersistence | null>(null);
   const mediaApiRef = useRef<PlannerMediaApi | null>(null);
@@ -146,10 +147,17 @@ export function AiPlannerRouteScreen() {
           setCurrentDraft(localDraft.input);
           setSavedAt(localDraft.updatedAt);
         }
+        if (!isActive()) return;
+        setReady(true);
 
+        const draftBeforeSync = draftRef.current;
         await rootSyncRuntime.run().catch(() => undefined);
         const synchronizedDraft = await persistence.load();
-        if (isActive() && synchronizedDraft !== null) {
+        if (
+          isActive() &&
+          draftRef.current === draftBeforeSync &&
+          synchronizedDraft !== null
+        ) {
           setCurrentDraft(synchronizedDraft.input);
           setSavedAt(synchronizedDraft.updatedAt);
         }
@@ -161,6 +169,7 @@ export function AiPlannerRouteScreen() {
 
       return () => {
         active = false;
+        setReady(false);
         persistenceRef.current = null;
         mediaApiRef.current = null;
         if (syncTimerRef.current !== null) {
@@ -193,7 +202,7 @@ export function AiPlannerRouteScreen() {
 
   const addImages = useCallback(async () => {
     const mediaApi = mediaApiRef.current;
-    if (mediaApi === null || uploading) return;
+    if (!ready || mediaApi === null || uploading) return;
     setErrorMessage(null);
     try {
       const picked = await plannerSystemImagePicker.pickImages();
@@ -222,7 +231,7 @@ export function AiPlannerRouteScreen() {
     } finally {
       setUploading(false);
     }
-  }, [catalog.imageLimit, catalog.uploadFailed, persistDraft, uploading]);
+  }, [catalog.imageLimit, catalog.uploadFailed, persistDraft, ready, uploading]);
 
   const removeImage = useCallback(
     (assetId: string) => {
@@ -246,6 +255,7 @@ export function AiPlannerRouteScreen() {
           accessibilityLabel={catalog.inputLabel}
           autoCorrect
           colorScheme={colorScheme}
+          disabled={!ready}
           label={catalog.inputLabel}
           onChangeText={onTextChanged}
           placeholder={catalog.inputPlaceholder}
@@ -275,7 +285,7 @@ export function AiPlannerRouteScreen() {
             <SecondaryButton
               accessibilityLabel={catalog.attachImages}
               colorScheme={colorScheme}
-              disabled={draft.imageAssetIds.length >= MAX_PLANNER_IMAGES}
+              disabled={!ready || draft.imageAssetIds.length >= MAX_PLANNER_IMAGES}
               label={catalog.attachImages}
               loading={uploading}
               onPress={() => {
