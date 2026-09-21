@@ -148,17 +148,17 @@ resource productMediaLifecycle 'Microsoft.Storage/storageAccounts/managementPoli
             actions: {
               baseBlob: {
                 delete: {
-                  daysAfterCreationGreaterThan: 31
+                  daysAfterCreationGreaterThan: 30
                 }
               }
               snapshot: {
                 delete: {
-                  daysAfterCreationGreaterThan: 31
+                  daysAfterCreationGreaterThan: 30
                 }
               }
               version: {
                 delete: {
-                  daysAfterCreationGreaterThan: 31
+                  daysAfterCreationGreaterThan: 30
                 }
               }
             }
