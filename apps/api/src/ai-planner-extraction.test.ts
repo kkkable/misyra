@@ -19,14 +19,14 @@ describe('MTS-087 schedule extraction gateway', () => {
     'locks the extraction-only prompt boundary with no optimization or clarification conversation',
     () => {
       expect(PLANNER_EXTRACTION_SYSTEM_PROMPT).toMatchInlineSnapshot(`
-      "Extract schedule information only.
-      Return one structured response and never ask follow-up questions.
-      Preserve the user's order. Do not rearrange or optimize the schedule.
-      Do not judge lifestyle or schedule density. Do not add breaks.
-      Use the supplied app time zone for local dates and times.
-      Omit highly uncertain candidates instead of inventing details.
-      For a timed item with a known start and no reasonable duration, a 30-minute duration may be used.
-      Mark omitted uncertain content so the caller can show a partial-import indicator."
+        "Extract schedule information only.
+        Return one structured response and never ask follow-up questions.
+        Preserve the user's order. Do not rearrange or optimize the schedule.
+        Do not judge lifestyle or schedule density. Do not add breaks.
+        Use the supplied app time zone for local dates and times.
+        Omit highly uncertain candidates instead of inventing details.
+        For a timed item with a known start and no reasonable duration, a 30-minute duration may be used.
+        Mark omitted uncertain content so the caller can show a partial-import indicator."
       `);
     },
   );
