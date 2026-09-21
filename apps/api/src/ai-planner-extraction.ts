@@ -53,14 +53,20 @@ function normalizeIncludedCandidate(
     throw new PlannerExtractionInvalidOutputError();
   }
 
+  const derivedDuration =
+    !candidate.allDay && startLocalTime !== undefined && endLocalTime !== undefined
+      ? minutesSinceMidnight(endLocalTime) - minutesSinceMidnight(startLocalTime)
+      : null;
+  if (derivedDuration !== null && derivedDuration <= 0) {
+    throw new PlannerExtractionInvalidOutputError();
+  }
+
   let estimatedMinutes = candidate.estimatedMinutes ?? undefined;
   if (estimatedMinutes === undefined) {
     if (!candidate.allDay && startLocalTime !== undefined && endLocalTime === undefined) {
       estimatedMinutes = 30;
-    } else if (!candidate.allDay && startLocalTime !== undefined && endLocalTime !== undefined) {
-      const derived = minutesSinceMidnight(endLocalTime) - minutesSinceMidnight(startLocalTime);
-      if (derived <= 0) throw new PlannerExtractionInvalidOutputError();
-      estimatedMinutes = derived;
+    } else if (derivedDuration !== null) {
+      estimatedMinutes = derivedDuration;
     } else {
       throw new PlannerExtractionInvalidOutputError();
     }
