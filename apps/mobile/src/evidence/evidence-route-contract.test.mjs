@@ -47,7 +47,9 @@ describe('MTS-079 camera-only route contract', () => {
     expect(mediaActionsSource).toMatch(/requestPermissionsAsync\(true, \[\]\)/);
     expect(appConfigSource).toMatch(/granularPermissions:\s*\[\]/);
     expect(appConfigSource).toMatch(/blockedPermissions/);
-    expect(appConfigSource).not.toMatch(/ANDROID_BLOCKED_MEDIA_LIBRARY_PERMISSIONS[\s\S]*WRITE_EXTERNAL_STORAGE/);
+    expect(appConfigSource).not.toMatch(
+      /ANDROID_BLOCKED_MEDIA_LIBRARY_PERMISSIONS[\s\S]*WRITE_EXTERNAL_STORAGE/,
+    );
     for (const permission of [
       'android.permission.READ_EXTERNAL_STORAGE',
       'android.permission.READ_MEDIA_IMAGES',
