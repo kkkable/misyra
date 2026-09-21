@@ -213,10 +213,7 @@ export function AiPlannerRouteScreen() {
       persistDraft(
         createAiPlannerDraftInput({
           text: draftRef.current.text,
-          imageAssetIds: appendPlannerImageAssetIds(
-            draftRef.current.imageAssetIds,
-            uploadedIds,
-          ),
+          imageAssetIds: appendPlannerImageAssetIds(draftRef.current.imageAssetIds, uploadedIds),
         }),
       );
     } catch {

@@ -1,9 +1,6 @@
 import { File } from 'expo-file-system';
 
-import {
-  createPlannerSystemImagePicker,
-  type SystemPickedImage,
-} from './ai-planner-input.js';
+import { createPlannerSystemImagePicker, type SystemPickedImage } from './ai-planner-input.js';
 
 async function pickSystemImageFiles(): Promise<readonly SystemPickedImage[]> {
   const result = await File.pickFileAsync({

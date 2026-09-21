@@ -87,6 +87,23 @@ describe('MTS-086 Planner sync persistence', () => {
       ]),
     ).resolves.toEqual({ acceptedMutationIds: [secondMutationId] });
 
+    const staleMutationId = randomUUID();
+    await expect(
+      store.push(account.id, [
+        {
+          mutationId: staleMutationId,
+          accountId: account.id,
+          deviceId: firstDevice,
+          entityType: 'planner',
+          entityId: account.id,
+          operation: 'update',
+          baseVersion: null,
+          clientOccurredAt: '2026-09-21T09:44:15.000Z',
+          payload: { text: 'Stale edit arriving late', imageAssetIds: [] },
+        },
+      ]),
+    ).resolves.toEqual({ acceptedMutationIds: [staleMutationId] });
+
     const persisted = await pool.query<{
       id: string;
       inputText: string;
@@ -105,7 +122,7 @@ describe('MTS-086 Planner sync persistence', () => {
       },
     ]);
 
-    const pulled = await store.pull(account.id, { cursor: 1, limit: 25 });
+    const pulled = await store.pull(account.id, { cursor: 2, limit: 25 });
     expect(pulled).toMatchObject({
       kind: 'incremental',
       changes: [

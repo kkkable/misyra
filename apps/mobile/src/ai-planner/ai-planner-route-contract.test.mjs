@@ -22,18 +22,15 @@ describe('MTS-086 AI Planner route contract', () => {
     expect(route).not.toMatch(/expo-camera/);
   });
 
-  it(
-    'wires the 2,000-character counter and one-draft local persistence to the Planner screen',
-    () => {
-      const route = readFileSync(routePath, 'utf8');
+  it('wires the 2,000-character counter and one-draft local persistence to the Planner screen', () => {
+    const route = readFileSync(routePath, 'utf8');
 
-      expect(route).toMatch(/MAX_PLANNER_TEXT_CHARACTERS/);
-      expect(route).toMatch(/countPlannerCharacters/);
-      expect(route).toMatch(/createAiPlannerDraftPersistence/);
-      expect(route).toMatch(/\.load\(\)/);
-      expect(route).toMatch(/\.save\(next\)/);
-    },
-  );
+    expect(route).toMatch(/MAX_PLANNER_TEXT_CHARACTERS/);
+    expect(route).toMatch(/countPlannerCharacters/);
+    expect(route).toMatch(/createAiPlannerDraftPersistence/);
+    expect(route).toMatch(/\.load\(\)/);
+    expect(route).toMatch(/\.save\(next\)/);
+  });
 
   it('uploads selected images only through the protected planner-working media boundary', () => {
     const mediaApi = readFileSync(mediaApiPath, 'utf8');

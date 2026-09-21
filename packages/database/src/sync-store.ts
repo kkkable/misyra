@@ -840,6 +840,7 @@ async function existingMutationMatches(
 async function applyPlannerMutation(
   client: PoolClient,
   mutation: StoredSyncMutation,
+  effectiveTime: Date,
 ): Promise<PlannerDraftPayload> {
   const payload = parsePlannerDraftPayload(mutation.payload);
   if (payload.imageAssetIds.length > 0) {
@@ -865,20 +866,35 @@ async function applyPlannerMutation(
     imageAssetIds: string[];
   }>(
     `INSERT INTO ai_planner_drafts
-       (id, account_id, status, input_text, image_asset_ids)
-     VALUES ($1, $1, 'draft', $2, $3::uuid[])
+       (id, account_id, status, input_text, image_asset_ids, updated_at)
+     VALUES ($1, $1, 'draft', $2, $3::uuid[], $4)
      ON CONFLICT (account_id)
      DO UPDATE SET
        status = 'draft',
        input_text = EXCLUDED.input_text,
        image_asset_ids = EXCLUDED.image_asset_ids,
-       updated_at = now()
+       updated_at = EXCLUDED.updated_at
+     WHERE ai_planner_drafts.updated_at <= EXCLUDED.updated_at
      RETURNING input_text AS "inputText", image_asset_ids AS "imageAssetIds"`,
-    [mutation.accountId, payload.text, payload.imageAssetIds],
+    [mutation.accountId, payload.text, payload.imageAssetIds, effectiveTime],
   );
   const row = result.rows[0];
-  if (row === undefined) throw new Error('Planner sync update returned no row');
-  return { text: row.inputText, imageAssetIds: row.imageAssetIds };
+  if (row !== undefined) {
+    return { text: row.inputText, imageAssetIds: row.imageAssetIds };
+  }
+
+  const current = await client.query<{
+    inputText: string;
+    imageAssetIds: string[];
+  }>(
+    `SELECT input_text AS "inputText", image_asset_ids AS "imageAssetIds"
+       FROM ai_planner_drafts
+      WHERE account_id = $1`,
+    [mutation.accountId],
+  );
+  const currentRow = current.rows[0];
+  if (currentRow === undefined) throw new Error('Planner sync update returned no row');
+  return { text: currentRow.inputText, imageAssetIds: currentRow.imageAssetIds };
 }
 
 async function applySettingsMutation(
@@ -1336,7 +1352,7 @@ async function applyExecutableMutation(
   timing: ClientTiming,
 ): Promise<unknown> {
   if (mutation.entityType === 'planner') {
-    return applyPlannerMutation(client, mutation);
+    return applyPlannerMutation(client, mutation, timing.effectiveTime);
   }
   if (mutation.entityType === 'settings') {
     return applySettingsMutation(client, mutation.accountId, mutation.operation, mutation.payload);
