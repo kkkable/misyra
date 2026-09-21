@@ -108,12 +108,8 @@ export const plannerExtractionResultSchema = z
   .strict();
 
 export type PlannerExtractionInput = z.infer<typeof plannerExtractionInputSchema>;
-export type PlannerExtractionGatewayRequest = z.infer<
-  typeof plannerExtractionGatewayRequestSchema
->;
-export type PlannerExtractionProviderOutput = z.infer<
-  typeof plannerExtractionProviderOutputSchema
->;
+export type PlannerExtractionGatewayRequest = z.infer<typeof plannerExtractionGatewayRequestSchema>;
+export type PlannerExtractionProviderOutput = z.infer<typeof plannerExtractionProviderOutputSchema>;
 export type PlannerExtractionProviderCandidate = z.infer<
   typeof plannerExtractionProviderCandidateSchema
 >;
