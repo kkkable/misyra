@@ -18,10 +18,7 @@ export type ProductMediaCleanupResult = Readonly<{
 }>;
 
 type ProductMediaPurpose =
-  | 'evidence-working'
-  | 'story-working'
-  | 'planner-working'
-  | 'style-references';
+  'evidence-working' | 'story-working' | 'planner-working' | 'style-references';
 
 type ProductMediaAsset = Readonly<{
   id: string;
@@ -51,7 +48,7 @@ function isProductMediaPurpose(purpose: string): purpose is ProductMediaPurpose 
 function resolveBatchSize(value: number | undefined) {
   if (value === undefined) return DEFAULT_BATCH_SIZE;
   if (!Number.isSafeInteger(value) || value < 1 || value > MAX_BATCH_SIZE) {
-    throw new TypeError(`batchSize must be an integer between 1 and ${MAX_BATCH_SIZE}`);
+    throw new TypeError(`batchSize must be an integer between 1 and ${String(MAX_BATCH_SIZE)}`);
   }
   return value;
 }
