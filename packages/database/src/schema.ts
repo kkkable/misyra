@@ -605,11 +605,15 @@ export const mediaAssets = pgTable(
     deletionDueAt: timestamp('deletion_due_at', { withTimezone: true }),
     deletionState: text('deletion_state').notNull().default('active'),
     retryState: text('retry_state').notNull().default('ready'),
+    deletionAttemptCount: integer('deletion_attempt_count').notNull().default(0),
+    lastDeletionAttemptAt: timestamp('last_deletion_attempt_at', { withTimezone: true }),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
     createdAt: createdAt(),
   },
   (table) => [
     index('media_assets_account_idx').on(table.accountId),
     index('media_assets_deletion_due_idx').on(table.deletionDueAt),
+    check('media_assets_deletion_attempt_count_check', sql`${table.deletionAttemptCount} >= 0`),
   ],
 );
 
