@@ -60,48 +60,45 @@ function renderRejected(attemptNumber = 1, expired = false) {
 }
 
 describe('MTS-084 retained evidence actions', () => {
-  it(
-    'shows explicit Save to Photos and delete actions only while retained app media exists',
-    async () => {
-      const onSaveToPhotos = vi.fn(() => Promise.resolve({ saved: true }));
-      const onDeleteEvidence = vi.fn(() => Promise.resolve());
-      const flow = resolveEvidenceResultFlow({
-        verificationStatus: 'rejected',
-        attemptNumber: 3,
-        expired: false,
-        reasonCode: 'task_mismatch',
-      });
-      let renderer;
-      await act(async () => {
-        renderer = create(
-          createElement(EvidenceResultPanel, {
-            flow,
-            messages,
-            mediaAvailable: true,
-            mediaDeletable: true,
-            onRetry: vi.fn(),
-            onSelfConfirm: vi.fn(),
-            onSaveToPhotos,
-            onDeleteEvidence,
-          }),
-        );
-      });
+  it('shows explicit Save to Photos and delete actions only while retained app media exists', async () => {
+    const onSaveToPhotos = vi.fn(() => Promise.resolve({ saved: true }));
+    const onDeleteEvidence = vi.fn(() => Promise.resolve());
+    const flow = resolveEvidenceResultFlow({
+      verificationStatus: 'rejected',
+      attemptNumber: 3,
+      expired: false,
+      reasonCode: 'task_mismatch',
+    });
+    let renderer;
+    await act(async () => {
+      renderer = create(
+        createElement(EvidenceResultPanel, {
+          flow,
+          messages,
+          mediaAvailable: true,
+          mediaDeletable: true,
+          onRetry: vi.fn(),
+          onSelfConfirm: vi.fn(),
+          onSaveToPhotos,
+          onDeleteEvidence,
+        }),
+      );
+    });
 
-      expect(renderer.root.findByProps({ testID: 'evidence-result-save-to-photos' })).toBeDefined();
-      expect(renderer.root.findByProps({ testID: 'evidence-result-delete-media' })).toBeDefined();
+    expect(renderer.root.findByProps({ testID: 'evidence-result-save-to-photos' })).toBeDefined();
+    expect(renderer.root.findByProps({ testID: 'evidence-result-delete-media' })).toBeDefined();
 
-      await act(async () => {
-        renderer.root.findByProps({ testID: 'evidence-result-save-to-photos' }).props.onPress();
-        await Promise.resolve();
-      });
-      await act(async () => {
-        renderer.root.findByProps({ testID: 'evidence-result-delete-media' }).props.onPress();
-        await Promise.resolve();
-      });
-      expect(onSaveToPhotos).toHaveBeenCalledTimes(1);
-      expect(onDeleteEvidence).toHaveBeenCalledTimes(1);
-    },
-  );
+    await act(async () => {
+      renderer.root.findByProps({ testID: 'evidence-result-save-to-photos' }).props.onPress();
+      await Promise.resolve();
+    });
+    await act(async () => {
+      renderer.root.findByProps({ testID: 'evidence-result-delete-media' }).props.onPress();
+      await Promise.resolve();
+    });
+    expect(onSaveToPhotos).toHaveBeenCalledTimes(1);
+    expect(onDeleteEvidence).toHaveBeenCalledTimes(1);
+  });
 
   it('hides retained-media actions after app-controlled media is deleted', () => {
     const flow = resolveEvidenceResultFlow({
@@ -126,12 +123,12 @@ describe('MTS-084 retained evidence actions', () => {
       );
     });
 
-    expect(
-      renderer.root.findAllByProps({ testID: 'evidence-result-save-to-photos' }),
-    ).toHaveLength(0);
-    expect(
-      renderer.root.findAllByProps({ testID: 'evidence-result-delete-media' }),
-    ).toHaveLength(0);
+    expect(renderer.root.findAllByProps({ testID: 'evidence-result-save-to-photos' })).toHaveLength(
+      0,
+    );
+    expect(renderer.root.findAllByProps({ testID: 'evidence-result-delete-media' })).toHaveLength(
+      0,
+    );
   });
 });
 
