@@ -29,17 +29,10 @@ describe('MTS-085 cleanup job infrastructure', () => {
       readRepositoryFile('infra/azure/modules/data.bicep'),
     ]);
 
-    expect(main).toMatch(
-      /cleanupJobPrincipalId:\s*compute\.outputs\.cleanupJobPrincipalId/,
-    );
+    expect(main).toMatch(/cleanupJobPrincipalId:\s*compute\.outputs\.cleanupJobPrincipalId/);
     expect(data).toMatch(/param\s+cleanupJobPrincipalId\s+string/);
     expect(data.match(/principalId:\s*cleanupJobPrincipalId/g)).toHaveLength(4);
-    for (const scope of [
-      'evidenceWorking',
-      'storyWorking',
-      'plannerWorking',
-      'styleReferences',
-    ]) {
+    for (const scope of ['evidenceWorking', 'storyWorking', 'plannerWorking', 'styleReferences']) {
       expect(data).toMatch(new RegExp(`scope:\\s*${scope}\\b`));
     }
     expect(data).not.toMatch(/scope:\s*feedbackRetained\b/);
