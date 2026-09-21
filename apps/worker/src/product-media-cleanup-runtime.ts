@@ -21,8 +21,11 @@ function requiredEnv(env: NodeJS.ProcessEnv, name: string) {
   return value;
 }
 
-function databaseUrl(env: NodeJS.ProcessEnv) {
+export function resolveProductMediaCleanupDatabaseUrl(env: NodeJS.ProcessEnv) {
   if (env.DATABASE_URL) return env.DATABASE_URL;
+  if (env.NODE_ENV === 'production') {
+    throw new Error('Missing required environment variable: DATABASE_URL');
+  }
   const user = encodeURIComponent(env.POSTGRES_USER ?? 'misyra');
   const password = encodeURIComponent(env.POSTGRES_PASSWORD ?? 'misyra-local-only');
   const port = env.POSTGRES_PORT ?? '5432';
@@ -167,7 +170,7 @@ export function createProductMediaCleanupBlobStore(
 export async function runProductMediaCleanupCommand(
   env: NodeJS.ProcessEnv = process.env,
 ): Promise<ProductMediaCleanupResult> {
-  const pool = new Pool({ connectionString: databaseUrl(env) });
+  const pool = new Pool({ connectionString: resolveProductMediaCleanupDatabaseUrl(env) });
   try {
     const cleanup = createProductMediaCleanupService({
       pool,
