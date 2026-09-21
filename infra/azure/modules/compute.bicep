@@ -108,7 +108,7 @@ resource cleanupJob 'Microsoft.App/jobs@2024-03-01' = {
       replicaTimeout: 1800
       replicaRetryLimit: 1
       scheduleTriggerConfig: {
-        cronExpression: '*/5 * * * *'
+        cronExpression: '*/1 * * * *'
         parallelism: 1
         replicaCompletionCount: 1
       }
