@@ -75,7 +75,34 @@ describe('MTS-087 AI Planner extraction contracts', () => {
         },
       ],
     };
-    expect(plannerExtractionProviderOutputSchema.parse(output)).toEqual(output);
+    expect(plannerExtractionProviderOutputSchema.parse(output)).toMatchInlineSnapshot(`
+      {
+        "candidates": [
+          {
+            "allDay": false,
+            "confidence": 0.92,
+            "disposition": "include",
+            "estimatedMinutes": null,
+            "localDate": "2026-09-22",
+            "location": null,
+            "notes": null,
+            "startLocalTime": "12:30",
+            "title": "Lunch",
+          },
+          {
+            "allDay": false,
+            "confidence": 0.2,
+            "disposition": "omit_uncertain",
+            "estimatedMinutes": null,
+            "localDate": null,
+            "location": null,
+            "notes": null,
+            "startLocalTime": null,
+            "title": "Maybe gym",
+          },
+        ],
+      }
+    `);
     expect(
       plannerExtractionProviderOutputSchema.safeParse({
         ...output,
