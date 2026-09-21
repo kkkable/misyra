@@ -28,6 +28,16 @@ describe('MTS-087 schedule extraction gateway', () => {
     ].join('\n');
 
     expect(PLANNER_EXTRACTION_SYSTEM_PROMPT).toBe(expectedPrompt);
+    expect(PLANNER_EXTRACTION_SYSTEM_PROMPT).toMatchInlineSnapshot(`
+      "Extract schedule information only.
+      Return one structured response and never ask follow-up questions.
+      Preserve the user's order. Do not rearrange or optimize the schedule.
+      Do not judge lifestyle or schedule density. Do not add breaks.
+      Use the supplied app time zone for local dates and times.
+      Omit highly uncertain candidates instead of inventing details.
+      For a timed item with a known start and no reasonable duration, a 30-minute duration may be used.
+      Mark omitted uncertain content so the caller can show a partial-import indicator."
+    `);
   });
 
   it('omits uncertainty and defaults a timed duration', async () => {
@@ -122,6 +132,35 @@ describe('MTS-087 schedule extraction gateway', () => {
       ],
       omittedUncertainContent: false,
     });
+  });
+
+  it('rejects an impossible same-day time range even when a duration is supplied', async () => {
+    const service = createPlannerExtractionService({
+      gateway: {
+        extractPlannerSchedule() {
+          return Promise.resolve({
+            candidates: [
+              {
+                disposition: 'include',
+                title: 'Impossible meeting',
+                localDate: '2026-09-22',
+                startLocalTime: '10:00',
+                endLocalTime: '09:00',
+                allDay: false,
+                estimatedMinutes: 30,
+                location: null,
+                notes: null,
+                confidence: 0.9,
+              },
+            ],
+          });
+        },
+      },
+    });
+
+    await expect(service.extract(input)).rejects.toBeInstanceOf(
+      PlannerExtractionInvalidOutputError,
+    );
   });
 
   it('rejects malformed provider output', async () => {
