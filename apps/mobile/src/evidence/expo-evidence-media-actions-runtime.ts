@@ -21,11 +21,20 @@ function storageRoot(kind: 'evidence-working' | 'evidence-save'): string {
   return `${root}misyra/${kind}/`;
 }
 
-function attemptDirectory(attemptId: string): string {
+function validateAttemptId(attemptId: string): void {
   if (!UUID_PATTERN.test(attemptId)) {
     throw new Error('Invalid evidence attempt identifier.');
   }
+}
+
+function attemptDirectory(attemptId: string): string {
+  validateAttemptId(attemptId);
   return `${storageRoot('evidence-working')}${attemptId}/`;
+}
+
+function saveDownloadPath(attemptId: string): string {
+  validateAttemptId(attemptId);
+  return `${storageRoot('evidence-save')}${attemptId}.jpg`;
 }
 
 export async function bindEvidenceOriginalToAttempt(
@@ -52,12 +61,10 @@ export function createExpoEvidenceMediaActionsRuntime(options: RuntimeOptions): 
   return {
     api: {
       async downloadOriginal(attemptId) {
-        if (!UUID_PATTERN.test(attemptId)) {
-          throw new Error('Invalid evidence attempt identifier.');
-        }
+        validateAttemptId(attemptId);
         const directory = storageRoot('evidence-save');
         await FileSystem.makeDirectoryAsync(directory, { intermediates: true });
-        const destination = `${directory}${attemptId}.jpg`;
+        const destination = saveDownloadPath(attemptId);
         await FileSystem.deleteAsync(destination, { idempotent: true });
         const response = await FileSystem.downloadAsync(
           `${root}/v1/evidence/attempts/${encodeURIComponent(attemptId)}/media/original`,
@@ -99,8 +106,9 @@ export function createExpoEvidenceMediaActionsRuntime(options: RuntimeOptions): 
       discard(uri) {
         return FileSystem.deleteAsync(uri, { idempotent: true });
       },
-      deleteAttemptCopies(attemptId) {
-        return FileSystem.deleteAsync(attemptDirectory(attemptId), { idempotent: true });
+      async deleteAttemptCopies(attemptId) {
+        await FileSystem.deleteAsync(attemptDirectory(attemptId), { idempotent: true });
+        await FileSystem.deleteAsync(saveDownloadPath(attemptId), { idempotent: true });
       },
     },
   };
