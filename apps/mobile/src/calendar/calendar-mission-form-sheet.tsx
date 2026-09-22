@@ -27,6 +27,7 @@ interface CalendarMissionFormSheetProps {
   readonly language: LocalizationLocale;
   readonly now: Date;
   readonly onCancel: () => void;
+  readonly onDelete?: (() => void | Promise<void>) | undefined;
   readonly onSubmit: (input: CalendarMissionCreateInput) => void | Promise<void>;
   readonly selectedDate: string;
   readonly timeZone: string;
@@ -169,6 +170,7 @@ export function CalendarMissionFormSheet({
   language,
   now,
   onCancel,
+  onDelete,
   onSubmit,
   selectedDate,
   timeZone: initialTimeZone,
@@ -522,6 +524,21 @@ export function CalendarMissionFormSheet({
               </View>
             ) : null}
             <View style={styles.actions}>
+              {onDelete === undefined ? null : (
+                <Pressable
+                  accessibilityLabel={catalog['calendar.details.delete']}
+                  accessibilityRole="button"
+                  onPress={() => {
+                    void Promise.resolve(onDelete()).catch(() => undefined);
+                  }}
+                  style={[styles.action, styles.deleteAction]}
+                  testID="calendar-create-delete"
+                >
+                  <Text allowFontScaling style={[styles.actionText, { color: colors.late }]}>
+                    {catalog['calendar.details.delete']}
+                  </Text>
+                </Pressable>
+              )}
               <Pressable
                 accessibilityLabel={catalog['calendar.create.cancel']}
                 accessibilityRole="button"
@@ -595,6 +612,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: space[1],
   },
   actions: { flexDirection: 'row', justifyContent: 'flex-end' },
+  deleteAction: { marginRight: 'auto' },
   action: {
     alignItems: 'center',
     justifyContent: 'center',
