@@ -131,4 +131,66 @@ describe('MTS-086 AI Planner draft persistence', () => {
       destination: { kind: 'server' },
     });
   });
+
+  it('preserves Calendar preview items when Planner text or images are edited', async () => {
+    const database = createDatabase();
+    await applyMobileMigrations(database);
+    await database.runAsync(
+      'INSERT INTO local_accounts (account_id, created_at) VALUES (?, ?)',
+      accountId,
+      '2026-09-22T10:10:00.000Z',
+    );
+    const items = [
+      {
+        id: '66666666-6666-4666-8666-666666666666',
+        title: 'Draft lunch',
+        localDate: '2026-09-23',
+        startLocalTime: '12:00',
+        endLocalTime: '13:00',
+        allDay: false,
+        estimatedMinutes: 60,
+        timeZone: 'Asia/Hong_Kong',
+      },
+    ];
+    await database.runAsync(
+      `INSERT INTO planner_drafts (account_id, draft_id, content_json, updated_at)
+       VALUES (?, ?, ?, ?)`,
+      accountId,
+      accountId,
+      JSON.stringify({ text: 'Original', imageAssetIds: [], items }),
+      '2026-09-22T10:10:00.000Z',
+    );
+
+    const persistence = createAiPlannerDraftPersistence({
+      database,
+      accountId,
+      deviceId,
+      generateMutationId: () => '77777777-7777-4777-8777-777777777777',
+      now: () => new Date('2026-09-22T10:11:00.000Z'),
+    });
+
+    await persistence.save({
+      text: 'Edited input',
+      imageAssetIds: ['88888888-8888-4888-8888-888888888888'],
+    });
+
+    const row = await database.getFirstAsync(
+      'SELECT content_json FROM planner_drafts WHERE account_id = ?',
+      accountId,
+    );
+    expect(JSON.parse(row.content_json)).toEqual({
+      text: 'Edited input',
+      imageAssetIds: ['88888888-8888-4888-8888-888888888888'],
+      items,
+    });
+
+    const pending = await createMutationQueue(database, accountId).listPending();
+    expect(pending).toHaveLength(1);
+    expect(pending[0].mutation.payload).toEqual({
+      text: 'Edited input',
+      imageAssetIds: ['88888888-8888-4888-8888-888888888888'],
+      items,
+    });
+  });
+
 });
