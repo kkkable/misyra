@@ -8,7 +8,10 @@ import {
   type PlannerExtractionProviderCandidate,
   type PlannerExtractionResult,
 } from '@misyra/contracts';
-import { DEFAULT_IMPORTED_ALL_DAY_EFFORT_MINUTES } from '@misyra/domain';
+import {
+  DEFAULT_IMPORTED_ALL_DAY_EFFORT_MINUTES,
+  resolveLocalDateTimeInstant,
+} from '@misyra/domain';
 
 import type { AiGateway } from './ai-gateway.js';
 
@@ -30,16 +33,30 @@ export class PlannerExtractionInvalidOutputError extends Error {
   }
 }
 
-function minutesSinceMidnight(value: string): number {
-  const [hour, minute] = value.split(':').map(Number);
-  if (hour === undefined || minute === undefined) {
+function resolveElapsedMinutes(
+  localDate: string,
+  startLocalTime: string,
+  endLocalTime: string,
+  appTimeZone: string,
+): number {
+  try {
+    const startInstant = resolveLocalDateTimeInstant(
+      `${localDate}T${startLocalTime}:00`,
+      appTimeZone,
+    );
+    const endInstant = resolveLocalDateTimeInstant(
+      `${localDate}T${endLocalTime}:00`,
+      appTimeZone,
+    );
+    return (Date.parse(endInstant) - Date.parse(startInstant)) / 60_000;
+  } catch {
     throw new PlannerExtractionInvalidOutputError();
   }
-  return hour * 60 + minute;
 }
 
 function normalizeIncludedCandidate(
   candidate: PlannerExtractionProviderCandidate,
+  appTimeZone: string,
 ): PlannerExtractionItem {
   if (candidate.title === null || candidate.localDate === null) {
     throw new PlannerExtractionInvalidOutputError();
@@ -56,7 +73,7 @@ function normalizeIncludedCandidate(
 
   const derivedDuration =
     !candidate.allDay && startLocalTime !== undefined && endLocalTime !== undefined
-      ? minutesSinceMidnight(endLocalTime) - minutesSinceMidnight(startLocalTime)
+      ? resolveElapsedMinutes(candidate.localDate, startLocalTime, endLocalTime, appTimeZone)
       : null;
   if (derivedDuration !== null && derivedDuration <= 0) {
     throw new PlannerExtractionInvalidOutputError();
@@ -121,7 +138,7 @@ export function createPlannerExtractionService(input: {
           omittedUncertainContent = true;
           continue;
         }
-        items.push(normalizeIncludedCandidate(candidate));
+        items.push(normalizeIncludedCandidate(candidate, validatedInput.appTimeZone));
       }
 
       return plannerExtractionResultSchema.parse({
