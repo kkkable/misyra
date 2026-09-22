@@ -89,7 +89,9 @@ function minuteToTime(value: number): string {
   if (!Number.isInteger(value) || value < 0 || value >= MINUTES_PER_DAY) {
     throw new RangeError('Draft minute must fit within one Calendar day.');
   }
-  return `${String(Math.floor(value / 60)).padStart(2, '0')}:${String(value % 60).padStart(2, '0')}`;
+  const hour = String(Math.floor(value / 60)).padStart(2, '0');
+  const minute = String(value % 60).padStart(2, '0');
+  return `${hour}:${minute}`;
 }
 
 function parseDraftItem(source: unknown): PlannerCalendarDraftItem {
