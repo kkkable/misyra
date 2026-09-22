@@ -115,4 +115,57 @@ describe('MTS-086 Planner authenticated sync projection', () => {
       payload: { text: 'new local edit', imageAssetIds: [] },
     });
   });
+  it('applies an authoritative Planner delete by clearing the local draft and stale Planner mutation', async () => {
+    const database = new NodeSqliteAdapter();
+    databases.push(database);
+    await applyMobileMigrations(database);
+    await database.runAsync(
+      'INSERT INTO local_accounts (account_id, created_at) VALUES (?, ?)',
+      accountId,
+      '2026-09-22T08:10:00.000Z',
+    );
+
+    const persistence = createAiPlannerDraftPersistence({
+      database,
+      accountId,
+      deviceId,
+      generateMutationId: () => '33333333-3333-4333-8333-333333333333',
+      now: () => new Date('2026-09-22T08:10:30.000Z'),
+    });
+    await persistence.save({ text: 'stale local draft', imageAssetIds: [] });
+
+    const api = {
+      push: vi.fn(() =>
+        Promise.resolve({
+          acceptedMutationIds: ['33333333-3333-4333-8333-333333333333'],
+          conflicts: [],
+        }),
+      ),
+      pull: vi.fn(() =>
+        Promise.resolve({
+          kind: 'incremental',
+          changes: [
+            {
+              sequence: 1,
+              entityType: 'planner',
+              entityId: accountId,
+              operation: 'delete',
+              payload: null,
+            },
+          ],
+          nextCursor: 1,
+          hasMore: false,
+        }),
+      ),
+      snapshot: vi.fn(() => Promise.resolve({ entries: [], nextCursor: 1 })),
+    };
+
+    await expect(runAuthenticatedServerSync({ database, accountId, api })).resolves.toEqual({
+      settledMutations: 1,
+      cursor: 1,
+    });
+    expect(await persistence.load()).toBeNull();
+    expect(await createMutationQueue(database, accountId).listPending()).toEqual([]);
+  });
+
 });
