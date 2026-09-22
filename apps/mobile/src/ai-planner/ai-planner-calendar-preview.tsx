@@ -4,7 +4,7 @@ import { getCalendars } from 'expo-localization';
 import type { ColorScheme } from '../design-system/index.js';
 import { createLocalRepositories } from '../storage/local-repositories.js';
 import type { MutationQueueDatabase } from '../storage/mutation-queue.js';
-import { AllDayMissionList, type AllDayMissionSummary } from '../calendar/calendar-all-day.js';
+import type { AllDayMissionSummary } from '../calendar/calendar-all-day.js';
 import { CalendarDayScreen } from '../calendar/calendar-day-screen.js';
 import { CalendarMissionFormSheet } from '../calendar/calendar-mission-form-sheet.js';
 import type { MissionAdjustmentResult } from '../calendar/calendar-mission-adjustment.js';
