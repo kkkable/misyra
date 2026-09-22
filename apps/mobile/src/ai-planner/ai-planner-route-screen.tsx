@@ -406,10 +406,7 @@ export function AiPlannerRouteScreen() {
           </Text>
         )}
       </ScrollView>
-      {ready &&
-      draftDatabase !== null &&
-      draftAccountId !== null &&
-      plannerDraftStore !== null ? (
+      {ready && draftDatabase !== null && draftAccountId !== null && plannerDraftStore !== null ? (
         <View style={styles.previewPane} testID="ai-planner-calendar-preview">
           <AiPlannerCalendarPreview
             accountId={draftAccountId}
