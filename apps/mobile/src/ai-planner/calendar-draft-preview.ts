@@ -424,6 +424,21 @@ export function createPlannerCalendarDraftStore(
 
   return Object.freeze({
     load,
+    async clearAfterConfirmation(): Promise<void> {
+      await options.database.withExclusiveTransactionAsync(async (transaction) => {
+        await transaction.runAsync(
+          'DELETE FROM planner_drafts WHERE account_id = ?',
+          options.accountId,
+        );
+        await transaction.runAsync(
+          `DELETE FROM mutation_queue
+            WHERE account_id = ?
+              AND json_extract(command_json, '$.mutation.entityType') = 'planner'`,
+          options.accountId,
+        );
+      });
+      publishLocalMutationApplied({ entityType: 'planner' });
+    },
     async add(input: CalendarMissionCreateInput): Promise<PlannerCalendarDraftDocument> {
       const document =
         (await load()) ??
