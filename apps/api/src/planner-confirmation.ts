@@ -19,11 +19,11 @@ export class PlannerConfirmationInvalidDraftError extends Error {
   }
 }
 
-export async function confirmPlannerDraft(
+export function confirmPlannerDraft(
   pool: Pool,
   input: PlannerConfirmationInput,
 ): Promise<PlannerConfirmationResult> {
   void pool;
   void input;
-  throw new Error('MTS-089 atomic confirmation is not implemented.');
+  return Promise.reject(new Error('MTS-089 atomic confirmation is not implemented.'));
 }
