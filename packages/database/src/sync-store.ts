@@ -400,11 +400,7 @@ function parsePlannerDraftItemPayload(value: unknown): PlannerDraftItemPayload {
     };
   }
 
-  const startLocalTime = requireString(
-    source,
-    'startLocalTime',
-    'Planner draft item start time',
-  );
+  const startLocalTime = requireString(source, 'startLocalTime', 'Planner draft item start time');
   const startMinute = plannerTimeMinute(startLocalTime);
   const endLocalTime =
     source.endLocalTime === undefined
