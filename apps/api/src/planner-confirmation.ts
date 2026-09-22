@@ -57,7 +57,9 @@ const MINUTES_PER_DAY = 24 * 60;
 const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
 
 function requestHash(input: PlannerConfirmationInput): string {
-  return createHash('sha256').update(JSON.stringify({ accountId: input.accountId })).digest('hex');
+  return createHash('sha256')
+    .update(JSON.stringify({ accountId: input.accountId }))
+    .digest('hex');
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
