@@ -197,16 +197,9 @@ function scheduleFor(item: PlannerDraftItem): MissionSchedule {
         estimatedEffortMinutes: item.estimatedMinutes,
       });
     }
-    const startLocalTime = item.startLocalTime;
-    const endLocalTime = item.endLocalTime;
-    if (startLocalTime === undefined || endLocalTime === undefined) {
-      throw new PlannerConfirmationInvalidDraftError(
-        'Timed Planner draft items require start and end times.',
-      );
-    }
     return createZonedTimedSchedule({
-      localStart: `${item.localDate}T${startLocalTime}:00`,
-      localFinish: `${item.localDate}T${endLocalTime}:00`,
+      localStart: `${item.localDate}T${item.startLocalTime}:00`,
+      localFinish: `${item.localDate}T${item.endLocalTime}:00`,
       timeZone: item.timeZone,
       timeBehavior: 'local_time',
     });
