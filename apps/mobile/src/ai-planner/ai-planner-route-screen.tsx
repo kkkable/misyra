@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View, useColorScheme } from 'react-native';
 
 import { space, typography } from '@misyra/design-tokens';
@@ -7,6 +7,8 @@ import { aiPlannerCatalogs } from '@misyra/localization';
 
 import { getAuthApiBaseUrl, rootAuthController } from '../auth/auth-runtime.js';
 import {
+  ConfirmationDialog,
+  PrimaryButton,
   Screen,
   SecondaryButton,
   TextArea,
@@ -28,11 +30,16 @@ import {
   type AiPlannerDraftInput,
 } from './ai-planner-input.js';
 import { createAiPlannerDraftPersistence } from './ai-planner-draft-persistence.js';
+import {
+  plannerConfirmationMessage,
+  shouldConfirmPlannerDraftReplacement,
+} from './ai-planner-confirmation.js';
 import { AiPlannerCalendarPreview } from './ai-planner-calendar-preview.js';
 import {
   createPlannerCalendarDraftStore,
   type PlannerCalendarDraftDocument,
 } from './calendar-draft-preview.js';
+import { createPlannerApi, type PlannerApi } from './planner-api.js';
 import { createPlannerMediaApi } from './planner-media-api.js';
 import { plannerSystemImagePicker } from './planner-system-image-picker-runtime.js';
 
@@ -84,6 +91,7 @@ function resolvedColorScheme(value: ReturnType<typeof useColorScheme>): ColorSch
 export function AiPlannerRouteScreen() {
   const language = useAppLanguage();
   const appTimeZone = useAppTimeZone();
+  const router = useRouter();
   const colorScheme = resolvedColorScheme(useColorScheme());
   const colors = themeColors(colorScheme);
   const catalog = aiPlannerCatalogs[language];
@@ -95,11 +103,18 @@ export function AiPlannerRouteScreen() {
   const [plannerDraftStore, setPlannerDraftStore] = useState<PlannerDraftStore | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [extracting, setExtracting] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [replaceConfirmationVisible, setReplaceConfirmationVisible] = useState(false);
+  const [scheduleConfirmationVisible, setScheduleConfirmationVisible] = useState(false);
+  const [partialImportVisible, setPartialImportVisible] = useState(false);
   const [ready, setReady] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const persistenceRef = useRef<DraftPersistence | null>(null);
   const plannerDraftStoreRef = useRef<PlannerDraftStore | null>(null);
   const mediaApiRef = useRef<PlannerMediaApi | null>(null);
+  const plannerApiRef = useRef<PlannerApi | null>(null);
+  const confirmationKeyRef = useRef<string | null>(null);
   const draftRef = useRef<AiPlannerDraftInput>(EMPTY_DRAFT);
   const saveTailRef = useRef<Promise<void>>(Promise.resolve());
   const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -190,6 +205,10 @@ export function AiPlannerRouteScreen() {
           baseUrl: getAuthApiBaseUrl(),
           accessToken: auth.session.accessToken,
         });
+        plannerApiRef.current = createPlannerApi({
+          baseUrl: getAuthApiBaseUrl(),
+          accessToken: auth.session.accessToken,
+        });
         const [localDraft, localCalendarDraft] = await Promise.all([
           persistence.load(),
           calendarStore.load(),
@@ -230,6 +249,8 @@ export function AiPlannerRouteScreen() {
         persistenceRef.current = null;
         plannerDraftStoreRef.current = null;
         mediaApiRef.current = null;
+        plannerApiRef.current = null;
+        confirmationKeyRef.current = null;
         setDraftDatabase(null);
         setDraftAccountId(null);
         setPlannerDraftStore(null);
@@ -306,7 +327,119 @@ export function AiPlannerRouteScreen() {
     [persistDraft],
   );
 
+  const runExtraction = useCallback(async () => {
+    const api = plannerApiRef.current;
+    const store = plannerDraftStoreRef.current;
+    const accountId = draftAccountId;
+    if (!ready || api === null || store === null || accountId === null || extracting) return;
+
+    setErrorMessage(null);
+    setPartialImportVisible(false);
+    setExtracting(true);
+    try {
+      await saveTailRef.current.catch(() => undefined);
+      const current = draftRef.current;
+      const result = await api.extract(accountId, {
+        ...(current.text.trim().length === 0 ? {} : { text: current.text }),
+        imageAssetIds: [...current.imageAssetIds],
+        appTimeZone,
+        locale: language,
+      });
+      const items = result.items.map((item) =>
+        Object.freeze({
+          id: generateUuid(),
+          title: item.title,
+          localDate: item.localDate,
+          ...(item.startLocalTime === undefined ? {} : { startLocalTime: item.startLocalTime }),
+          ...(item.endLocalTime === undefined ? {} : { endLocalTime: item.endLocalTime }),
+          allDay: item.allDay,
+          estimatedMinutes: item.estimatedMinutes,
+          timeZone: appTimeZone,
+          ...(item.location === undefined ? {} : { location: item.location }),
+          ...(item.notes === undefined ? {} : { notes: item.notes }),
+        }),
+      );
+      const next = await store.replaceItems(items);
+      setCurrentCalendarDraft(next);
+      setSavedAt(new Date().toISOString());
+      setPartialImportVisible(result.omittedUncertainContent);
+      scheduleSync();
+    } catch {
+      setErrorMessage(catalog.extractionFailed);
+    } finally {
+      setExtracting(false);
+    }
+  }, [
+    appTimeZone,
+    catalog.extractionFailed,
+    draftAccountId,
+    extracting,
+    language,
+    ready,
+    scheduleSync,
+    setCurrentCalendarDraft,
+  ]);
+
+  const requestExtraction = useCallback(() => {
+    if (shouldConfirmPlannerDraftReplacement(calendarDraft)) {
+      setReplaceConfirmationVisible(true);
+      return;
+    }
+    void runExtraction();
+  }, [calendarDraft, runExtraction]);
+
+  const confirmSchedule = useCallback(async () => {
+    const api = plannerApiRef.current;
+    const store = plannerDraftStoreRef.current;
+    const accountId = draftAccountId;
+    if (
+      !ready ||
+      api === null ||
+      store === null ||
+      accountId === null ||
+      confirming ||
+      calendarDraft.items.length === 0
+    ) {
+      return;
+    }
+
+    setErrorMessage(null);
+    setConfirming(true);
+    const idempotencyKey = confirmationKeyRef.current ?? generateUuid();
+    confirmationKeyRef.current = idempotencyKey;
+    try {
+      await saveTailRef.current.catch(() => undefined);
+      await rootSyncRuntime.run();
+      const result = await api.confirm(accountId, idempotencyKey);
+      await store.clearAfterConfirmation();
+      setCurrentCalendarDraft(EMPTY_CALENDAR_DRAFT);
+      setSavedAt(null);
+      setPartialImportVisible(false);
+      await rootSyncRuntime.run().catch(() => undefined);
+      confirmationKeyRef.current = null;
+      setScheduleConfirmationVisible(false);
+      router.replace({ pathname: '/', params: { date: result.calendarDate } });
+    } catch {
+      setErrorMessage(catalog.confirmationFailed);
+    } finally {
+      setConfirming(false);
+    }
+  }, [
+    calendarDraft.items.length,
+    catalog.confirmationFailed,
+    confirming,
+    draftAccountId,
+    ready,
+    router,
+    setCurrentCalendarDraft,
+  ]);
+
   const characterCount = countPlannerCharacters(draft.text);
+  const hasExtractionInput = draft.text.trim().length > 0 || draft.imageAssetIds.length > 0;
+  const confirmationCopy = plannerConfirmationMessage(
+    catalog.confirmScheduleMessage,
+    calendarDraft.items.length,
+  );
 
   return (
     <Screen colorScheme={colorScheme} testID="ai-planner-route">
@@ -384,6 +517,39 @@ export function AiPlannerRouteScreen() {
           ))}
         </View>
 
+        <View style={styles.actionRow}>
+          <SecondaryButton
+            accessibilityLabel={catalog.extractSchedule}
+            colorScheme={colorScheme}
+            disabled={!ready || !hasExtractionInput || extracting || confirming}
+            label={extracting ? catalog.extracting : catalog.extractSchedule}
+            loading={extracting}
+            onPress={requestExtraction}
+            testID="ai-planner-extract-schedule"
+          />
+          <PrimaryButton
+            accessibilityLabel={catalog.confirmSchedule}
+            colorScheme={colorScheme}
+            disabled={!ready || calendarDraft.items.length === 0 || extracting || confirming}
+            label={catalog.confirmSchedule}
+            loading={confirming}
+            onPress={() => {
+              setScheduleConfirmationVisible(true);
+            }}
+            testID="ai-planner-confirm-schedule"
+          />
+        </View>
+        {partialImportVisible ? (
+          <Text
+            accessibilityLiveRegion="polite"
+            allowFontScaling
+            style={[styles.secondaryText, { color: colors.textSecondary }]}
+            testID="ai-planner-partial-import"
+          >
+            {catalog.partialImport}
+          </Text>
+        ) : null}
+
         {savedAt === null ? null : (
           <Text
             accessibilityLiveRegion="polite"
@@ -424,6 +590,71 @@ export function AiPlannerRouteScreen() {
           />
         </View>
       ) : null}
+      <ConfirmationDialog
+        accessibilityLabel={catalog.replaceDraftTitle}
+        actions={
+          <>
+            <SecondaryButton
+              accessibilityLabel={catalog.cancel}
+              colorScheme={colorScheme}
+              label={catalog.cancel}
+              onPress={() => {
+                setReplaceConfirmationVisible(false);
+              }}
+            />
+            <PrimaryButton
+              accessibilityLabel={catalog.replaceDraftAction}
+              colorScheme={colorScheme}
+              label={catalog.replaceDraftAction}
+              onPress={() => {
+                setReplaceConfirmationVisible(false);
+                void runExtraction();
+              }}
+            />
+          </>
+        }
+        colorScheme={colorScheme}
+        message={catalog.replaceDraftMessage}
+        onDismiss={() => {
+          setReplaceConfirmationVisible(false);
+        }}
+        testID="ai-planner-replace-confirmation"
+        title={catalog.replaceDraftTitle}
+        visible={replaceConfirmationVisible}
+      />
+      <ConfirmationDialog
+        accessibilityLabel={catalog.confirmScheduleTitle}
+        actions={
+          <>
+            <SecondaryButton
+              accessibilityLabel={catalog.cancel}
+              colorScheme={colorScheme}
+              disabled={confirming}
+              label={catalog.cancel}
+              onPress={() => {
+                setScheduleConfirmationVisible(false);
+              }}
+            />
+            <PrimaryButton
+              accessibilityLabel={catalog.confirmSchedule}
+              colorScheme={colorScheme}
+              label={catalog.confirmSchedule}
+              loading={confirming}
+              onPress={() => {
+                void confirmSchedule();
+              }}
+            />
+          </>
+        }
+        colorScheme={colorScheme}
+        message={confirmationCopy}
+        onDismiss={() => {
+          if (!confirming) setScheduleConfirmationVisible(false);
+        }}
+        testID="ai-planner-schedule-confirmation"
+        title={catalog.confirmScheduleTitle}
+        visible={scheduleConfirmationVisible}
+      />
     </Screen>
   );
 }
@@ -442,6 +673,9 @@ const styles = StyleSheet.create({
     minHeight: 0,
   },
   imageSection: {
+    gap: space[3],
+  },
+  actionRow: {
     gap: space[3],
   },
   imageHeader: {

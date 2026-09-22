@@ -262,4 +262,68 @@ describe('MTS-088 Planner Calendar draft persistence', () => {
       await database.getFirstAsync('SELECT COUNT(*) AS count FROM cached_mission_occurrences'),
     ).toEqual({ count: 0 });
   });
+
+  it('clears the confirmed Planner draft and its obsolete pending Planner mutation locally', async () => {
+    const database = createDatabase();
+    await applyMobileMigrations(database);
+    await database.runAsync(
+      'INSERT INTO local_accounts (account_id, created_at) VALUES (?, ?)',
+      accountId,
+      '2026-09-22T08:00:00.000Z',
+    );
+    await database.runAsync(
+      `INSERT INTO planner_drafts (account_id, draft_id, content_json, updated_at)
+       VALUES (?, ?, ?, ?)`,
+      accountId,
+      accountId,
+      JSON.stringify({
+        text: 'Confirm me',
+        imageAssetIds: [],
+        items: [
+          {
+            id: '99999999-9999-4999-8999-999999999999',
+            title: 'Confirmed mission',
+            localDate: '2026-09-23',
+            startLocalTime: '09:00',
+            endLocalTime: '09:30',
+            allDay: false,
+            estimatedMinutes: 30,
+            timeZone: 'Asia/Hong_Kong',
+          },
+        ],
+      }),
+      '2026-09-22T08:00:00.000Z',
+    );
+
+    const nextId = ids();
+    const store = createPlannerCalendarDraftStore({
+      database,
+      accountId,
+      deviceId,
+      generateMutationId: nextId,
+      generateItemId: nextId,
+      now: () => new Date('2026-09-22T08:01:00.000Z'),
+    });
+    await store.update('99999999-9999-4999-8999-999999999999', {
+      selectedDate: '2026-09-23',
+      title: 'Confirmed mission',
+      allDay: false,
+      startMinute: 540,
+      endMinute: 570,
+      estimatedEffortMinutes: null,
+      rewardEligibility: 'eligible',
+      timeZone: 'Asia/Hong_Kong',
+      timeBehavior: 'local_time',
+      recurrence: null,
+      private: false,
+      location: null,
+      notes: null,
+    });
+    expect(await createMutationQueue(database, accountId).listPending()).toHaveLength(1);
+
+    await store.clearAfterConfirmation();
+
+    expect(await store.load()).toBeNull();
+    expect(await createMutationQueue(database, accountId).listPending()).toEqual([]);
+  });
 });

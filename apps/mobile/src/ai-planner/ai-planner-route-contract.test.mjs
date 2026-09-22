@@ -47,4 +47,18 @@ describe('MTS-086 AI Planner route contract', () => {
     expect(mediaApi).toMatch(/variant:\s*'original'/);
     expect(mediaApi).toMatch(/upload-authorizations/);
   });
+
+  it('wires replacement confirmation and atomic schedule confirmation without a Discard Draft action', () => {
+    const route = readFileSync(routePath, 'utf8');
+
+    expect(route).toMatch(/shouldConfirmPlannerDraftReplacement/);
+    expect(route).toMatch(/ai-planner-extract-schedule/);
+    expect(route).toMatch(/ai-planner-replace-confirmation/);
+    expect(route).toMatch(/ai-planner-confirm-schedule/);
+    expect(route).toMatch(/ai-planner-schedule-confirmation/);
+    expect(route).toMatch(/api\.confirm\(accountId, idempotencyKey\)/);
+    expect(route).toMatch(/clearAfterConfirmation\(\)/);
+    expect(route).toMatch(/router\.replace/);
+    expect(route).not.toMatch(/Discard Draft/i);
+  });
 });

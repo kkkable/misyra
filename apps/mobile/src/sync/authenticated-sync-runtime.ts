@@ -572,6 +572,20 @@ async function applyAuthoritativeChanges(
   changes: readonly ServerAccountChange[],
 ) {
   for (const change of changes) {
+    if (change.entityType === 'planner' && change.operation === 'delete') {
+      if (change.entityId !== accountId || change.payload !== null) {
+        throw new Error('Planner draft delete change is invalid.');
+      }
+      await transaction.runAsync('DELETE FROM planner_drafts WHERE account_id = ?', accountId);
+      await transaction.runAsync(
+        `DELETE FROM mutation_queue
+          WHERE account_id = ?
+            AND json_extract(command_json, '$.mutation.entityType') = 'planner'`,
+        accountId,
+      );
+      continue;
+    }
+
     const plannerDraft = plannerDraftFromChange(change, accountId);
     if (plannerDraft !== null) {
       if (await hasPendingPlannerMutation(transaction, accountId)) continue;

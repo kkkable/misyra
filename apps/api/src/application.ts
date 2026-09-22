@@ -60,6 +60,10 @@ import {
   type AuthenticateRequest,
   type ReadinessCheck,
 } from './index.js';
+import {
+  createPlannerRoutes,
+  type PlannerExtractionRouteService,
+} from './planner-confirmation-routes.js';
 import { createProtectedMediaRoutes } from './protected-media-routes.js';
 import {
   createProtectedMediaBlobStore,
@@ -89,6 +93,7 @@ type AuthApplicationOptions = {
   auditLog?: ApiAuditLog;
   googleCalendar?: GoogleCalendarApplicationDependencies;
   mediaBlobStore?: ProtectedMediaBlobStore;
+  plannerExtractionService?: PlannerExtractionRouteService;
 };
 
 type SessionActiveCheck = (
@@ -289,6 +294,7 @@ export function createApiApplication(options: AuthApplicationOptions) {
       ...createSyncRoutes(syncService),
       ...createEvidenceAttemptRoutes(evidenceAttemptService),
       ...createProtectedMediaRoutes(protectedMediaService),
+      ...createPlannerRoutes(options.pool, options.plannerExtractionService, options.now),
       ...calendarConnectionRoutes,
       ...appleCalendarRoutes,
       ...googleCalendarRoutes,
