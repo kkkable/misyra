@@ -178,9 +178,7 @@ export function CalendarDayScreen({
       : 2;
   const uses24HourClock = systemCalendar.uses24hourClock !== false;
 
-  const initialDateRef = useRef(
-    initialDate ?? resolveInitialCalendarDate(params.date, today),
-  );
+  const initialDateRef = useRef(initialDate ?? resolveInitialCalendarDate(params.date, today));
   const helpTriggerRef = useRef<View | null>(null);
   const [selectedDate, setSelectedDate] = useState(initialDateRef.current);
   const [pickerVisible, setPickerVisible] = useState(false);
