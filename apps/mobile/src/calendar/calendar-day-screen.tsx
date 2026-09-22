@@ -115,6 +115,7 @@ export interface CalendarDayScreenProps {
   readonly onSearchPress?: (() => void) | undefined;
   readonly onHelpFaqPress?: (() => void) | undefined;
   readonly onTimedMissionPress?: (mission: TimedMissionSummary) => void;
+  readonly isMissionAdjustable?: ((mission: TimedMissionSummary) => boolean) | undefined;
   readonly onMissionAdjustment?:
     ((adjustment: MissionAdjustmentResult) => void | Promise<void>) | undefined;
   readonly onCreateMission?:
@@ -135,6 +136,7 @@ export function CalendarDayScreen({
   onSearchPress,
   onHelpFaqPress,
   onTimedMissionPress,
+  isMissionAdjustable,
   onMissionAdjustment,
   onCreateMission,
 }: CalendarDayScreenProps) {
@@ -440,6 +442,7 @@ export function CalendarDayScreen({
               <TimedMissionLayer
                 colorScheme={colorScheme}
                 {...(highlightedMissionIds.length === 0 ? {} : { highlightedMissionIds })}
+                isMissionAdjustable={isMissionAdjustable}
                 language={language}
                 missions={timedMissions}
                 now={now}
