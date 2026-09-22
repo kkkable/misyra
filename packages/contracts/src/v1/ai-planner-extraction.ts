@@ -18,6 +18,11 @@ function isValidLocalDate(value: string): boolean {
 }
 
 function isValidTimeZone(value: string): boolean {
+  const firstCharacter = value.at(0);
+  if (firstCharacter === '+' || firstCharacter === '-' || firstCharacter === '−') {
+    return false;
+  }
+
   try {
     new Intl.DateTimeFormat('en-US', { timeZone: value }).format();
     return true;

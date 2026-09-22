@@ -48,6 +48,25 @@ describe('MTS-087 AI Planner extraction contracts', () => {
     ).toBe(false);
   });
 
+  it('rejects raw UTC offsets where an IANA time zone is required', () => {
+    expect(
+      plannerExtractionInputSchema.safeParse({
+        text: 'Lunch at noon',
+        imageAssetIds: [],
+        appTimeZone: '+08:00',
+        locale: 'en',
+      }).success,
+    ).toBe(false);
+    expect(
+      plannerExtractionInputSchema.safeParse({
+        text: 'Lunch at noon',
+        imageAssetIds: [],
+        appTimeZone: '-05:00',
+        locale: 'en',
+      }).success,
+    ).toBe(false);
+  });
+
   it('uses a strict provider response shape with explicit uncertain-candidate disposition', () => {
     const output = {
       candidates: [
