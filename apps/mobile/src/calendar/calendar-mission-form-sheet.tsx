@@ -274,11 +274,7 @@ export function CalendarMissionFormSheet({
       return;
     }
     setValidationVisible(false);
-    if (
-      !plannerDraftMode &&
-      placement.rewardEligibility === 'ineligible' &&
-      !confirmedZeroXp
-    ) {
+    if (!plannerDraftMode && placement.rewardEligibility === 'ineligible' && !confirmedZeroXp) {
       setZeroXpWarningVisible(true);
       return;
     }
@@ -355,41 +351,46 @@ export function CalendarMissionFormSheet({
               <>
                 {plannerDraftMode ? null : (
                   <>
-                  <Pressable
-                    accessibilityLabel={catalog['calendar.create.recurrence']}
-                    accessibilityRole="button"
-                    onPress={() => {
-                      setRecurrenceEditorVisible(true);
-                    }}
-                    style={[styles.toggleRow, { borderColor: colors.border }]}
-                    testID="calendar-create-recurrence"
-                  >
-                    <Text allowFontScaling style={[styles.bodyText, { color: colors.textPrimary }]}>
-                      {catalog['calendar.create.recurrence']}
-                    </Text>
-                    <Text allowFontScaling style={[styles.bodyText, { color: colors.textSecondary }]}>
-                      {recurrence === null
-                        ? catalog['calendar.create.doesNotRepeat']
-                        : catalog['calendar.recurrence.title']}
-                    </Text>
-                  </Pressable>
-                  {recurrenceEditorVisible ? (
-                    <CalendarRecurrenceEditor
-                      colorScheme={colorScheme}
-                      initialRecurrence={recurrence}
-                      language={language}
-                      onCancel={() => {
-                        setRecurrenceEditorVisible(false);
+                    <Pressable
+                      accessibilityLabel={catalog['calendar.create.recurrence']}
+                      accessibilityRole="button"
+                      onPress={() => {
+                        setRecurrenceEditorVisible(true);
                       }}
-                      onDone={(value) => {
-                        setRecurrence(value);
-                        setRecurrenceEditorVisible(false);
-                      }}
-                      selectedDate={effectiveSelectedDate}
-                      weekStartsOn={weekStartsOn}
-                    />
-                  ) : null}
-  
+                      style={[styles.toggleRow, { borderColor: colors.border }]}
+                      testID="calendar-create-recurrence"
+                    >
+                      <Text
+                        allowFontScaling
+                        style={[styles.bodyText, { color: colors.textPrimary }]}
+                      >
+                        {catalog['calendar.create.recurrence']}
+                      </Text>
+                      <Text
+                        allowFontScaling
+                        style={[styles.bodyText, { color: colors.textSecondary }]}
+                      >
+                        {recurrence === null
+                          ? catalog['calendar.create.doesNotRepeat']
+                          : catalog['calendar.recurrence.title']}
+                      </Text>
+                    </Pressable>
+                    {recurrenceEditorVisible ? (
+                      <CalendarRecurrenceEditor
+                        colorScheme={colorScheme}
+                        initialRecurrence={recurrence}
+                        language={language}
+                        onCancel={() => {
+                          setRecurrenceEditorVisible(false);
+                        }}
+                        onDone={(value) => {
+                          setRecurrence(value);
+                          setRecurrenceEditorVisible(false);
+                        }}
+                        selectedDate={effectiveSelectedDate}
+                        weekStartsOn={weekStartsOn}
+                      />
+                    ) : null}
                   </>
                 )}
                 <Pressable
@@ -433,7 +434,6 @@ export function CalendarMissionFormSheet({
                   value={timeZone}
                 />
                 {plannerDraftMode ? null : (
-                  <>
                   <Pressable
                     accessibilityLabel={catalog['calendar.create.travelBehavior']}
                     accessibilityRole="button"
@@ -448,17 +448,17 @@ export function CalendarMissionFormSheet({
                     <Text allowFontScaling style={[styles.bodyText, { color: colors.textPrimary }]}>
                       {catalog['calendar.create.travelBehavior']}
                     </Text>
-                    <Text allowFontScaling style={[styles.bodyText, { color: colors.textSecondary }]}>
+                    <Text
+                      allowFontScaling
+                      style={[styles.bodyText, { color: colors.textSecondary }]}
+                    >
                       {timeBehavior === 'local_time'
                         ? catalog['calendar.create.keepLocalTime']
                         : catalog['calendar.create.fixedInstant']}
                     </Text>
                   </Pressable>
-  
-                  </>
                 )}
                 {plannerDraftMode ? null : (
-                  <>
                   <Pressable
                     accessibilityLabel={catalog['calendar.create.private']}
                     accessibilityRole="checkbox"
@@ -472,12 +472,13 @@ export function CalendarMissionFormSheet({
                     <Text allowFontScaling style={[styles.bodyText, { color: colors.textPrimary }]}>
                       {catalog['calendar.create.private']}
                     </Text>
-                    <Text allowFontScaling style={[styles.bodyText, { color: colors.textSecondary }]}>
+                    <Text
+                      allowFontScaling
+                      style={[styles.bodyText, { color: colors.textSecondary }]}
+                    >
                       {isPrivate ? catalog['calendar.create.on'] : catalog['calendar.create.off']}
                     </Text>
                   </Pressable>
-  
-                  </>
                 )}
                 <TextInput
                   accessibilityLabel={catalog['calendar.create.location']}
