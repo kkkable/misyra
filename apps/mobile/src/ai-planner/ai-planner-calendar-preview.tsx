@@ -139,7 +139,7 @@ export function AiPlannerCalendarPreview({
         allDayMissionsByDate={allDayMissionsByDate}
         appTimeZone={appTimeZone}
         creationMode="planner_draft"
-        initialDate={firstDraftDate}
+        {...(firstDraftDate === undefined ? {} : { initialDate: firstDraftDate })}
         isMissionAdjustable={isDraftMission}
         language={language}
         onAllDayMissionPress={openDraftItem}
