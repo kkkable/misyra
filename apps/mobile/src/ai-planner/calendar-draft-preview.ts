@@ -343,20 +343,38 @@ export function createPlannerCalendarDraftStore(
     const validated = parsePlannerCalendarDraftDocument(document);
     const mutationId = options.generateMutationId();
     const updatedAt = options.now().toISOString();
-    const mutation: SyncMutation<PlannerCalendarDraftDocument> = {
-      mutationId,
-      accountId: options.accountId,
-      deviceId: options.deviceId,
-      entityType: 'planner',
-      entityId: options.accountId,
-      operation: 'update',
-      baseVersion: null,
-      clientOccurredAt: updatedAt,
-      payload: validated,
-    };
-    const envelope = JSON.stringify({ mutation, destination: { kind: 'server' as const } });
+    let persisted: PlannerCalendarDraftDocument | null = null;
 
     await options.database.withExclusiveTransactionAsync(async (transaction) => {
+      const currentRow = await transaction.getFirstAsync<PlannerDraftRow>(
+        'SELECT content_json FROM planner_drafts WHERE account_id = ?',
+        options.accountId,
+      );
+      const payload =
+        currentRow === null
+          ? validated
+          : Object.freeze({
+              text: parsePlannerCalendarDraftDocument(
+                JSON.parse(currentRow.content_json) as unknown,
+              ).text,
+              imageAssetIds: parsePlannerCalendarDraftDocument(
+                JSON.parse(currentRow.content_json) as unknown,
+              ).imageAssetIds,
+              items: validated.items,
+            });
+      const mutation: SyncMutation<PlannerCalendarDraftDocument> = {
+        mutationId,
+        accountId: options.accountId,
+        deviceId: options.deviceId,
+        entityType: 'planner',
+        entityId: options.accountId,
+        operation: 'update',
+        baseVersion: null,
+        clientOccurredAt: updatedAt,
+        payload,
+      };
+      const envelope = JSON.stringify({ mutation, destination: { kind: 'server' as const } });
+
       await transaction.runAsync(
         `INSERT INTO planner_drafts (account_id, draft_id, content_json, updated_at)
          VALUES (?, ?, ?, ?)
@@ -366,7 +384,7 @@ export function createPlannerCalendarDraftStore(
            updated_at = excluded.updated_at`,
         options.accountId,
         options.accountId,
-        JSON.stringify(validated),
+        JSON.stringify(payload),
         updatedAt,
       );
       await transaction.runAsync(
@@ -395,9 +413,11 @@ export function createPlannerCalendarDraftStore(
         envelope,
         updatedAt,
       );
+      persisted = payload;
     });
+    if (persisted === null) throw new Error('Planner Calendar draft persistence did not complete.');
     publishLocalMutationApplied({ entityType: 'planner' });
-    return validated;
+    return persisted;
   };
 
   const requireDraft = async (): Promise<PlannerCalendarDraftDocument> => {
