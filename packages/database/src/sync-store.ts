@@ -184,9 +184,23 @@ type MissionDetailsUpdatePayload = Readonly<{
 
 type MissionUpdatePayload = MissionAdjustmentUpdatePayload | MissionDetailsUpdatePayload;
 
+type PlannerDraftItemPayload = Readonly<{
+  id: string;
+  title: string;
+  localDate: string;
+  startLocalTime?: string;
+  endLocalTime?: string;
+  allDay: boolean;
+  estimatedMinutes: number;
+  timeZone: string;
+  location?: string;
+  notes?: string;
+}>;
+
 type PlannerDraftPayload = Readonly<{
   text: string;
   imageAssetIds: readonly string[];
+  items?: readonly PlannerDraftItemPayload[];
 }>;
 
 type ClientTiming = Readonly<{
@@ -198,6 +212,8 @@ type ClientTiming = Readonly<{
 const HISTORICAL_WINDOW_MILLISECONDS = 30 * 24 * 60 * 60 * 1000;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const LOCAL_DATE_TIME_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/;
+const LOCAL_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const LOCAL_TIME_PATTERN = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
 const MAX_PLANNER_TEXT_CHARACTERS = 2_000;
 const MAX_PLANNER_IMAGES = 3;
 
@@ -317,12 +333,118 @@ function asRecord(value: unknown, label: string): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
+function plannerTimeMinute(value: string): number {
+  if (!LOCAL_TIME_PATTERN.test(value)) {
+    throw new SyncMutationValidationError('Planner draft time must use HH:mm format');
+  }
+  const [hour, minute] = value.split(':').map(Number);
+  return hour * 60 + minute;
+}
+
+function parsePlannerDraftItemPayload(value: unknown): PlannerDraftItemPayload {
+  const source = asRecord(value, 'Planner draft item');
+  const supported = new Set([
+    'id',
+    'title',
+    'localDate',
+    'startLocalTime',
+    'endLocalTime',
+    'allDay',
+    'estimatedMinutes',
+    'timeZone',
+    'location',
+    'notes',
+  ]);
+  if (Object.keys(source).some((key) => !supported.has(key))) {
+    throw new SyncMutationValidationError('Planner draft item contains unsupported fields');
+  }
+
+  const id = requireUuid(source, 'id', 'Planner draft item id');
+  const title = requireString(source, 'title', 'Planner draft item title').trim();
+  const localDate = requireString(source, 'localDate', 'Planner draft item date');
+  if (!LOCAL_DATE_PATTERN.test(localDate)) {
+    throw new SyncMutationValidationError('Planner draft item date must use YYYY-MM-DD format');
+  }
+  const parsedDate = new Date(`${localDate}T12:00:00.000Z`);
+  if (Number.isNaN(parsedDate.getTime()) || parsedDate.toISOString().slice(0, 10) !== localDate) {
+    throw new SyncMutationValidationError('Planner draft item date must be valid');
+  }
+
+  if (typeof source.allDay !== 'boolean') {
+    throw new SyncMutationValidationError('Planner draft item allDay must be boolean');
+  }
+  if (!Number.isInteger(source.estimatedMinutes) || (source.estimatedMinutes as number) <= 0) {
+    throw new SyncMutationValidationError(
+      'Planner draft item estimatedMinutes must be a positive integer',
+    );
+  }
+  const estimatedMinutes = source.estimatedMinutes as number;
+  const timeZone = requireString(source, 'timeZone', 'Planner draft item time zone').trim();
+  const location = optionalString(source, 'location', 'Planner draft item location');
+  const notes = optionalString(source, 'notes', 'Planner draft item notes');
+
+  if (source.allDay) {
+    if (source.startLocalTime !== undefined || source.endLocalTime !== undefined) {
+      throw new SyncMutationValidationError('All-day Planner draft items cannot contain local times');
+    }
+    return {
+      id,
+      title,
+      localDate,
+      allDay: true,
+      estimatedMinutes,
+      timeZone,
+      ...(location === null ? {} : { location }),
+      ...(notes === null ? {} : { notes }),
+    };
+  }
+
+  const startLocalTime = requireString(
+    source,
+    'startLocalTime',
+    'Planner draft item start time',
+  );
+  const startMinute = plannerTimeMinute(startLocalTime);
+  const endLocalTime =
+    source.endLocalTime === undefined
+      ? undefined
+      : requireString(source, 'endLocalTime', 'Planner draft item end time');
+  if (endLocalTime !== undefined && plannerTimeMinute(endLocalTime) <= startMinute) {
+    throw new SyncMutationValidationError(
+      'Timed Planner draft item must end later on the same Calendar day',
+    );
+  }
+  if (endLocalTime === undefined && startMinute + estimatedMinutes > 24 * 60) {
+    throw new SyncMutationValidationError(
+      'Timed Planner draft item estimated duration must fit within one Calendar day',
+    );
+  }
+
+  return {
+    id,
+    title,
+    localDate,
+    startLocalTime,
+    ...(endLocalTime === undefined ? {} : { endLocalTime }),
+    allDay: false,
+    estimatedMinutes,
+    timeZone,
+    ...(location === null ? {} : { location }),
+    ...(notes === null ? {} : { notes }),
+  };
+}
+
 function parsePlannerDraftPayload(payload: unknown): PlannerDraftPayload {
   const source = asRecord(payload, 'Planner draft payload');
   const keys = Object.keys(source);
-  if (keys.length !== 2 || keys.some((key) => key !== 'text' && key !== 'imageAssetIds')) {
+  const supported = new Set(['text', 'imageAssetIds', 'items']);
+  if (
+    keys.some((key) => !supported.has(key)) ||
+    !Object.hasOwn(source, 'text') ||
+    !Object.hasOwn(source, 'imageAssetIds')
+  ) {
     throw new SyncMutationValidationError(
-      'Planner draft payload must contain only text and imageAssetIds',
+      'Planner draft payload must contain text and imageAssetIds with optional items',
     );
   }
   if (typeof source.text !== 'string') {
@@ -346,7 +468,18 @@ function parsePlannerDraftPayload(payload: unknown): PlannerDraftPayload {
   if (new Set(imageAssetIds).size !== imageAssetIds.length) {
     throw new SyncMutationValidationError('Planner draft image asset ids must be unique');
   }
-  return { text: source.text, imageAssetIds };
+
+  if (source.items === undefined) {
+    return { text: source.text, imageAssetIds };
+  }
+  if (!Array.isArray(source.items)) {
+    throw new SyncMutationValidationError('Planner draft items must be an array');
+  }
+  const items = source.items.map(parsePlannerDraftItemPayload);
+  if (new Set(items.map((item) => item.id)).size !== items.length) {
+    throw new SyncMutationValidationError('Planner draft item ids must be unique');
+  }
+  return { text: source.text, imageAssetIds, items };
 }
 
 function requireString(source: Record<string, unknown>, key: string, label: string): string {
@@ -837,11 +970,25 @@ async function existingMutationMatches(
   return result.rows[0]?.exactMatch ?? null;
 }
 
+async function loadPlannerDraftItems(
+  client: PoolClient,
+  draftId: string,
+): Promise<readonly PlannerDraftItemPayload[]> {
+  const result = await client.query<{ payload: unknown }>(
+    `SELECT payload
+       FROM ai_planner_items
+      WHERE draft_id = $1
+      ORDER BY ordinal`,
+    [draftId],
+  );
+  return result.rows.map((row) => parsePlannerDraftItemPayload(row.payload));
+}
+
 async function applyPlannerMutation(
   client: PoolClient,
   mutation: StoredSyncMutation,
   effectiveTime: Date,
-): Promise<PlannerDraftPayload> {
+): Promise<PlannerDraftPayload & Readonly<{ items: readonly PlannerDraftItemPayload[] }>> {
   const payload = parsePlannerDraftPayload(mutation.payload);
   if (payload.imageAssetIds.length > 0) {
     const media = await client.query<{ id: string }>(
@@ -879,8 +1026,27 @@ async function applyPlannerMutation(
     [mutation.accountId, payload.text, payload.imageAssetIds, effectiveTime],
   );
   const row = result.rows[0];
+
+  if (row !== undefined && payload.items !== undefined) {
+    await client.query('DELETE FROM ai_planner_items WHERE draft_id = $1', [mutation.accountId]);
+    for (const [ordinal, item] of payload.items.entries()) {
+      await client.query(
+        `INSERT INTO ai_planner_items (id, draft_id, ordinal, payload)
+         VALUES ($1, $2, $3, $4::jsonb)`,
+        [item.id, mutation.accountId, ordinal, JSON.stringify(item)],
+      );
+    }
+  }
+
   if (row !== undefined) {
-    return { text: row.inputText, imageAssetIds: row.imageAssetIds };
+    return {
+      text: row.inputText,
+      imageAssetIds: row.imageAssetIds,
+      items:
+        payload.items === undefined
+          ? await loadPlannerDraftItems(client, mutation.accountId)
+          : payload.items,
+    };
   }
 
   const current = await client.query<{
@@ -894,7 +1060,11 @@ async function applyPlannerMutation(
   );
   const currentRow = current.rows[0];
   if (currentRow === undefined) throw new Error('Planner sync update returned no row');
-  return { text: currentRow.inputText, imageAssetIds: currentRow.imageAssetIds };
+  return {
+    text: currentRow.inputText,
+    imageAssetIds: currentRow.imageAssetIds,
+    items: await loadPlannerDraftItems(client, mutation.accountId),
+  };
 }
 
 async function applySettingsMutation(
