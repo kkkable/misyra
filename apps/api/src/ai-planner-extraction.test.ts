@@ -136,6 +136,54 @@ describe('MTS-087 schedule extraction gateway', () => {
     });
   });
 
+  it('derives elapsed duration in the app time zone across a daylight-saving transition', async () => {
+    const service = createPlannerExtractionService({
+      gateway: {
+        extractPlannerSchedule() {
+          return Promise.resolve({
+            candidates: [
+              {
+                disposition: 'include',
+                title: 'DST transition meeting',
+                localDate: '2026-03-08',
+                startLocalTime: '01:30',
+                endLocalTime: '03:30',
+                allDay: false,
+                estimatedMinutes: 60,
+                location: null,
+                notes: null,
+                confidence: 0.99,
+              },
+            ],
+            omittedUncertainContent: false,
+          });
+        },
+      },
+    });
+
+    await expect(
+      service.extract({
+        text: 'Meeting from 1:30 to 3:30 on March 8',
+        imageAssetIds: [],
+        appTimeZone: 'America/New_York',
+        locale: 'en',
+      }),
+    ).resolves.toEqual({
+      items: [
+        {
+          title: 'DST transition meeting',
+          localDate: '2026-03-08',
+          startLocalTime: '01:30',
+          endLocalTime: '03:30',
+          allDay: false,
+          estimatedMinutes: 60,
+          confidence: 0.99,
+        },
+      ],
+      omittedUncertainContent: false,
+    });
+  });
+
   it('surfaces partial import when an included item omits an uncertain field', async () => {
     const service = createPlannerExtractionService({
       gateway: {
