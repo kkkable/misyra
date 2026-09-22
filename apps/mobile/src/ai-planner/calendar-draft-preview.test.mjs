@@ -12,6 +12,7 @@ import {
 class NodeSqliteAdapter {
   constructor() {
     this.database = new DatabaseSync(':memory:');
+    this.beforeNextTransaction = null;
   }
 
   async execAsync(sql) {
@@ -34,6 +35,9 @@ class NodeSqliteAdapter {
   async withExclusiveTransactionAsync(task) {
     this.database.exec('BEGIN IMMEDIATE');
     try {
+      const beforeTransaction = this.beforeNextTransaction;
+      this.beforeNextTransaction = null;
+      if (beforeTransaction !== null) await beforeTransaction(this);
       await task(this);
       this.database.exec('COMMIT');
     } catch (error) {
@@ -73,6 +77,74 @@ function ids() {
 }
 
 describe('MTS-088 Planner Calendar draft persistence', () => {
+  it('preserves newer input while a Calendar draft action is being saved', async () => {
+    const database = createDatabase();
+    await applyMobileMigrations(database);
+    await database.runAsync(
+      'INSERT INTO local_accounts (account_id, created_at) VALUES (?, ?)',
+      accountId,
+      '2026-09-22T06:10:00.000Z',
+    );
+    await database.runAsync(
+      `INSERT INTO planner_drafts (account_id, draft_id, content_json, updated_at)
+       VALUES (?, ?, ?, ?)`,
+      accountId,
+      accountId,
+      JSON.stringify({ text: 'Original input', imageAssetIds: [], items: [] }),
+      '2026-09-22T06:10:00.000Z',
+    );
+
+    const nextId = ids();
+    const store = createPlannerCalendarDraftStore({
+      database,
+      accountId,
+      deviceId,
+      generateMutationId: nextId,
+      generateItemId: nextId,
+      now: () => new Date('2026-09-22T06:11:00.000Z'),
+    });
+
+    database.beforeNextTransaction = async (transaction) => {
+      await transaction.runAsync(
+        'UPDATE planner_drafts SET content_json = ?, updated_at = ? WHERE account_id = ?',
+        JSON.stringify({
+          text: 'Newest autosaved input',
+          imageAssetIds: ['99999999-9999-4999-8999-999999999999'],
+          items: [],
+        }),
+        '2026-09-22T06:10:59.000Z',
+        accountId,
+      );
+    };
+
+    const added = await store.add({
+      selectedDate: '2026-09-23',
+      title: 'Draft lunch',
+      allDay: false,
+      startMinute: 720,
+      endMinute: 780,
+      estimatedEffortMinutes: null,
+      rewardEligibility: 'ineligible',
+      timeZone: 'Asia/Hong_Kong',
+      timeBehavior: 'local_time',
+      recurrence: null,
+      private: false,
+      location: null,
+      notes: null,
+    });
+
+    expect(added).toMatchObject({
+      text: 'Newest autosaved input',
+      imageAssetIds: ['99999999-9999-4999-8999-999999999999'],
+      items: [expect.objectContaining({ title: 'Draft lunch' })],
+    });
+    const row = await database.getFirstAsync(
+      'SELECT content_json FROM planner_drafts WHERE account_id = ?',
+      accountId,
+    );
+    expect(JSON.parse(row.content_json)).toEqual(added);
+  });
+
   it('adds, edits, moves/resizes, and deletes draft items without creating active mission side effects', async () => {
     const database = createDatabase();
     await applyMobileMigrations(database);
