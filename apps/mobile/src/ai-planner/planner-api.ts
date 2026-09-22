@@ -74,10 +74,7 @@ export function createPlannerApi({ baseUrl, accessToken }: PlannerApiOptions) {
         await post(`/v1/ai-planner/drafts/${encodeURIComponent(draftId)}/extract`, validated),
       );
     },
-    async confirm(
-      draftId: string,
-      idempotencyKey: string,
-    ): Promise<PlannerConfirmationResponse> {
+    async confirm(draftId: string, idempotencyKey: string): Promise<PlannerConfirmationResponse> {
       return parseConfirmation(
         await post(`/v1/ai-planner/drafts/${encodeURIComponent(draftId)}/confirm`, {
           idempotencyKey,
