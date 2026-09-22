@@ -8,18 +8,29 @@ export type PlannerCalendarNavigationTarget = Readonly<{
 export function shouldConfirmPlannerDraftReplacement(
   document: PlannerCalendarDraftDocument,
 ): boolean {
-  void document;
-  throw new Error('MTS-089 replacement confirmation is not implemented.');
+  return document.items.length > 0;
 }
 
 export function plannerConfirmationMessage(missionCount: number): string {
-  void missionCount;
-  throw new Error('MTS-089 confirmation copy is not implemented.');
+  if (!Number.isSafeInteger(missionCount) || missionCount < 0) {
+    throw new RangeError('Planner confirmation mission count must be a non-negative integer.');
+  }
+  return `Add this schedule to your calendar? This will activate ${String(
+    missionCount,
+  )} missions, schedule notifications, and sync with your connected calendar.`;
 }
 
 export function plannerConfirmationCalendarTarget(
   document: PlannerCalendarDraftDocument,
 ): PlannerCalendarNavigationTarget {
-  void document;
-  throw new Error('MTS-089 Calendar navigation is not implemented.');
+  const calendarDate = [...document.items]
+    .map((item) => item.localDate)
+    .sort((left, right) => left.localeCompare(right))[0];
+  if (calendarDate === undefined) {
+    throw new Error('Planner confirmation requires at least one mission.');
+  }
+  return Object.freeze({
+    pathname: '/',
+    params: Object.freeze({ date: calendarDate }),
+  });
 }
