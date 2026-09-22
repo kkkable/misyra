@@ -341,8 +341,6 @@ export function createPlannerCalendarDraftStore(
     const validated = parsePlannerCalendarDraftDocument(document);
     const mutationId = options.generateMutationId();
     const updatedAt = options.now().toISOString();
-    let persisted: PlannerCalendarDraftDocument | null = null;
-
     await options.database.withExclusiveTransactionAsync(async (transaction) => {
       const currentRow = await transaction.getFirstAsync<PlannerDraftRow>(
         'SELECT content_json FROM planner_drafts WHERE account_id = ?',
@@ -411,8 +409,8 @@ export function createPlannerCalendarDraftStore(
         envelope,
         updatedAt,
       );
-      persisted = payload;
     });
+    const persisted = await load();
     if (persisted === null) throw new Error('Planner Calendar draft persistence did not complete.');
     publishLocalMutationApplied({ entityType: 'planner' });
     return persisted;
