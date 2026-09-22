@@ -74,6 +74,80 @@ export const mobileCalendarConnectionSchema = z
   })
   .strict();
 
+export const storyCompositionSchema = z
+  .object({
+    canvas: z
+      .object({
+        width: z.literal(1080),
+        height: z.literal(1920),
+      })
+      .strict(),
+    background: z
+      .object({
+        scale: z.number().positive(),
+        translateX: z.number().finite(),
+        translateY: z.number().finite(),
+        rotation: z.number().finite(),
+      })
+      .strict(),
+    headline: z.unknown().nullable(),
+    supportingText: z.unknown().nullable(),
+    effects: z.array(z.unknown()),
+    revision: z.number().int().nonnegative(),
+    savedAt: instantSchema,
+  })
+  .strict();
+
+export const storySharingNotesSchema = z
+  .object({
+    musicMood: z.string().nullable(),
+    mention: z.string().nullable(),
+    location: z.string().nullable(),
+    poll: z.unknown().nullable(),
+  })
+  .strict();
+
+export const storyImageVersionSyncSchema = z
+  .object({
+    id: uuidSchema,
+    kind: z.enum(['source', 'generated']),
+    storageKey: z.string().min(1),
+    composition: storyCompositionSchema,
+  })
+  .strict();
+
+export const storyDraftSyncPayloadSchema = z
+  .object({
+    draftId: uuidSchema,
+    notes: storySharingNotesSchema,
+    imageVersions: z.array(storyImageVersionSyncSchema),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    const ids = new Set<string>();
+    for (const [index, version] of value.imageVersions.entries()) {
+      if (ids.has(version.id)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Story image-version ids must be unique',
+          path: ['imageVersions', index, 'id'],
+        });
+      }
+      ids.add(version.id);
+    }
+  });
+
+const storyUpsertChangeSchema = z
+  .object({
+    version: contractVersionSchema,
+    sequence: z.number().int().nonnegative(),
+    entityType: z.literal('story'),
+    entityId: uuidSchema,
+    operation: z.literal('upsert'),
+    payload: storyDraftSyncPayloadSchema,
+  })
+  .strict();
+
 const missionUpsertChangeSchema = z
   .object({
     version: contractVersionSchema,
@@ -133,6 +207,7 @@ export const syncChangeSchema = z.union([
   missionUpsertChangeSchema,
   missionDeleteChangeSchema,
   missionPersonalNoteUpsertChangeSchema,
+  storyUpsertChangeSchema,
   calendarConnectionUpsertChangeSchema,
   calendarConnectionDeleteChangeSchema,
 ]);
