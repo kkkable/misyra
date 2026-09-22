@@ -105,16 +105,10 @@ describe('MTS-088 integrated AI Planner Calendar preview', () => {
     const calendar = renderer.root.findByType('CalendarDayScreen');
     expect(calendar.props.creationMode).toBe('planner_draft');
     expect(calendar.props.initialDate).toBe('2026-09-23');
-    expect(calendar.props.timedMissionsByDate['2026-09-23'].map((mission) => mission.id)).toEqual([
-      'active-mission',
-      item.id,
-    ]);
+    const previewMissions = calendar.props.timedMissionsByDate['2026-09-23'];
+    expect(previewMissions.map((mission) => mission.id)).toEqual(['active-mission', item.id]);
     expect(calendar.props.isMissionAdjustable(state.activeMission)).toBe(false);
-    expect(
-      calendar.props.isMissionAdjustable(
-        calendar.props.timedMissionsByDate['2026-09-23'][1],
-      ),
-    ).toBe(true);
+    expect(calendar.props.isMissionAdjustable(previewMissions[1])).toBe(true);
 
     const createInput = {
       selectedDate: '2026-09-23',
@@ -173,7 +167,7 @@ describe('MTS-088 integrated AI Planner Calendar preview', () => {
     });
 
     await act(async () => {
-      calendar.props.onTimedMissionPress(calendar.props.timedMissionsByDate['2026-09-23'][1]);
+      calendar.props.onTimedMissionPress(previewMissions[1]);
     });
     const form = renderer.root.findByType('CalendarMissionFormSheet');
     expect(form.props.mode).toBe('planner_draft');
