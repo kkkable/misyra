@@ -21,7 +21,10 @@ import {
   type SyncMutation,
 } from '../storage/mutation-queue.js';
 import { createAuthenticatedSyncApi, type AuthenticatedSyncApi } from './authenticated-sync-api.js';
-import { createAiPlannerDraftInput, type AiPlannerDraftInput } from '../ai-planner/ai-planner-input.js';
+import {
+  createAiPlannerDraftInput,
+  type AiPlannerDraftInput,
+} from '../ai-planner/ai-planner-input.js';
 import {
   parsePlannerCalendarDraftDocument,
   type PlannerCalendarDraftDocument,
