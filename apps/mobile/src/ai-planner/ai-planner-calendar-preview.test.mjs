@@ -75,9 +75,7 @@ function updatedDocument(items = document.items) {
 }
 
 describe('MTS-088 integrated AI Planner Calendar preview', () => {
-  it(
-    'merges active missions, keeps them read-only, and routes draft actions only to the Planner store',
-    async () => {
+  it('merges active and draft missions and routes only draft actions to Planner', async () => {
     const store = {
       add: vi.fn(async () => updatedDocument()),
       update: vi.fn(async () => updatedDocument()),
@@ -184,7 +182,6 @@ describe('MTS-088 integrated AI Planner Calendar preview', () => {
       await form.props.onDelete();
     });
     expect(store.remove).toHaveBeenCalledWith(item.id);
-      expect(onDocumentChange).toHaveBeenCalled();
-    },
-  );
+    expect(onDocumentChange).toHaveBeenCalled();
+  });
 });
