@@ -424,6 +424,12 @@ export function createPlannerCalendarDraftStore(
 
   return Object.freeze({
     load,
+    async replaceItems(
+      items: readonly PlannerCalendarDraftItem[],
+    ): Promise<PlannerCalendarDraftDocument> {
+      const document = await requireDraft();
+      return persist({ ...document, items });
+    },
     async clearAfterConfirmation(): Promise<void> {
       await options.database.withExclusiveTransactionAsync(async (transaction) => {
         await transaction.runAsync(
