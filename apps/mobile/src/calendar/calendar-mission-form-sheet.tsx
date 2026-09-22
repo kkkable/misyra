@@ -274,7 +274,11 @@ export function CalendarMissionFormSheet({
       return;
     }
     setValidationVisible(false);
-    if (placement.rewardEligibility === 'ineligible' && !confirmedZeroXp) {
+    if (
+      !plannerDraftMode &&
+      placement.rewardEligibility === 'ineligible' &&
+      !confirmedZeroXp
+    ) {
       setZeroXpWarningVisible(true);
       return;
     }
