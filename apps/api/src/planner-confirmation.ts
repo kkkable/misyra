@@ -32,18 +32,25 @@ export class PlannerConfirmationInvalidDraftError extends Error {
   }
 }
 
-type PlannerDraftItem = Readonly<{
+type PlannerDraftItemBase = Readonly<{
   id: string;
   title: string;
   localDate: string;
-  startLocalTime?: string;
-  endLocalTime?: string;
-  allDay: boolean;
   estimatedMinutes: number;
   timeZone: string;
   location?: string;
   notes?: string;
 }>;
+
+type PlannerDraftItem =
+  | Readonly<PlannerDraftItemBase & { allDay: true }>
+  | Readonly<
+      PlannerDraftItemBase & {
+        allDay: false;
+        startLocalTime: string;
+        endLocalTime: string;
+      }
+    >;
 
 interface PlannerItemRow extends QueryResultRow {
   id: string;
