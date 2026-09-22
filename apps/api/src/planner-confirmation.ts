@@ -50,17 +50,14 @@ interface PlannerItemRow extends QueryResultRow {
   payload: unknown;
 }
 
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const LOCAL_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const LOCAL_TIME_PATTERN = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
 const MINUTES_PER_DAY = 24 * 60;
 const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
 
 function requestHash(input: PlannerConfirmationInput): string {
-  return createHash('sha256')
-    .update(JSON.stringify({ accountId: input.accountId }))
-    .digest('hex');
+  return createHash('sha256').update(JSON.stringify({ accountId: input.accountId })).digest('hex');
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -127,10 +124,7 @@ function parseDraftItem(row: PlannerItemRow): PlannerDraftItem {
   if (typeof source.allDay !== 'boolean') {
     throw new PlannerConfirmationInvalidDraftError('Planner draft all-day value is invalid.');
   }
-  if (
-    !Number.isSafeInteger(source.estimatedMinutes) ||
-    (source.estimatedMinutes as number) <= 0
-  ) {
+  if (!Number.isSafeInteger(source.estimatedMinutes) || (source.estimatedMinutes as number) <= 0) {
     throw new PlannerConfirmationInvalidDraftError(
       'Planner draft estimated minutes must be positive.',
     );
@@ -158,11 +152,7 @@ function parseDraftItem(row: PlannerItemRow): PlannerDraftItem {
     };
   }
 
-  const startLocalTime = requiredString(
-    source,
-    'startLocalTime',
-    'Planner draft item start time',
-  );
+  const startLocalTime = requiredString(source, 'startLocalTime', 'Planner draft item start time');
   const startMinute = timeMinute(startLocalTime, 'Planner draft item start time');
   const suppliedEnd = optionalString(source, 'endLocalTime', 'Planner draft item end time');
   const endMinute =
