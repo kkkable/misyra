@@ -223,9 +223,7 @@ export function plannerDraftCalendarMaps(
   return Object.freeze({ allDay, timed });
 }
 
-export function plannerDraftItemInput(
-  item: PlannerCalendarDraftItem,
-): CalendarMissionCreateInput {
+export function plannerDraftItemInput(item: PlannerCalendarDraftItem): CalendarMissionCreateInput {
   const parsed = parseDraftItem(item);
   if (parsed.allDay) {
     return Object.freeze({
