@@ -14,8 +14,10 @@ import {
   themeColors,
   type ColorScheme,
 } from '../design-system/index.js';
+import { useAppTimeZone } from '../localization/app-time-zone-runtime.js';
 import { useAppLanguage } from '../localization/use-app-language.js';
 import { openMobileDatabase } from '../storage/database.js';
+import type { MutationQueueDatabase } from '../storage/mutation-queue.js';
 import { requireRegisteredDeviceId, rootSyncRuntime } from '../sync/root-sync-runtime.js';
 import {
   MAX_PLANNER_IMAGES,
@@ -26,6 +28,11 @@ import {
   type AiPlannerDraftInput,
 } from './ai-planner-input.js';
 import { createAiPlannerDraftPersistence } from './ai-planner-draft-persistence.js';
+import { AiPlannerCalendarPreview } from './ai-planner-calendar-preview.js';
+import {
+  createPlannerCalendarDraftStore,
+  type PlannerCalendarDraftDocument,
+} from './calendar-draft-preview.js';
 import { createPlannerMediaApi } from './planner-media-api.js';
 import { plannerSystemImagePicker } from './planner-system-image-picker-runtime.js';
 
@@ -34,10 +41,16 @@ const EMPTY_DRAFT: AiPlannerDraftInput = Object.freeze({
   text: '',
   imageAssetIds: Object.freeze([]),
 });
+const EMPTY_CALENDAR_DRAFT: PlannerCalendarDraftDocument = Object.freeze({
+  text: '',
+  imageAssetIds: Object.freeze([]),
+  items: Object.freeze([]),
+});
 const UUID_HEX = '0123456789abcdef';
 const UUID_VARIANTS = '89ab';
 
 type DraftPersistence = ReturnType<typeof createAiPlannerDraftPersistence>;
+type PlannerDraftStore = ReturnType<typeof createPlannerCalendarDraftStore>;
 type PlannerMediaApi = ReturnType<typeof createPlannerMediaApi>;
 
 function randomHex(length: number): string {
@@ -70,15 +83,22 @@ function resolvedColorScheme(value: ReturnType<typeof useColorScheme>): ColorSch
 
 export function AiPlannerRouteScreen() {
   const language = useAppLanguage();
+  const appTimeZone = useAppTimeZone();
   const colorScheme = resolvedColorScheme(useColorScheme());
   const colors = themeColors(colorScheme);
   const catalog = aiPlannerCatalogs[language];
   const [draft, setDraft] = useState<AiPlannerDraftInput>(EMPTY_DRAFT);
+  const [calendarDraft, setCalendarDraft] =
+    useState<PlannerCalendarDraftDocument>(EMPTY_CALENDAR_DRAFT);
+  const [draftDatabase, setDraftDatabase] = useState<MutationQueueDatabase | null>(null);
+  const [draftAccountId, setDraftAccountId] = useState<string | null>(null);
+  const [plannerDraftStore, setPlannerDraftStore] = useState<PlannerDraftStore | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [ready, setReady] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const persistenceRef = useRef<DraftPersistence | null>(null);
+  const plannerDraftStoreRef = useRef<PlannerDraftStore | null>(null);
   const mediaApiRef = useRef<PlannerMediaApi | null>(null);
   const draftRef = useRef<AiPlannerDraftInput>(EMPTY_DRAFT);
   const saveTailRef = useRef<Promise<void>>(Promise.resolve());
@@ -87,6 +107,22 @@ export function AiPlannerRouteScreen() {
   const setCurrentDraft = useCallback((next: AiPlannerDraftInput) => {
     draftRef.current = next;
     setDraft(next);
+    setCalendarDraft((current) =>
+      Object.freeze({
+        text: next.text,
+        imageAssetIds: next.imageAssetIds,
+        items: current.items,
+      }),
+    );
+  }, []);
+
+  const setCurrentCalendarDraft = useCallback((next: PlannerCalendarDraftDocument) => {
+    setCalendarDraft(next);
+    draftRef.current = Object.freeze({
+      text: next.text,
+      imageAssetIds: next.imageAssetIds,
+    });
+    setDraft(draftRef.current);
   }, []);
 
   const scheduleSync = useCallback(() => {
@@ -137,13 +173,31 @@ export function AiPlannerRouteScreen() {
           generateMutationId: generateUuid,
           now: () => new Date(),
         });
+        const calendarStore = createPlannerCalendarDraftStore({
+          database,
+          accountId: auth.session.accountId,
+          deviceId,
+          generateMutationId: generateUuid,
+          generateItemId: generateUuid,
+          now: () => new Date(),
+        });
         persistenceRef.current = persistence;
+        plannerDraftStoreRef.current = calendarStore;
+        setDraftDatabase(database);
+        setDraftAccountId(auth.session.accountId);
+        setPlannerDraftStore(calendarStore);
         mediaApiRef.current = createPlannerMediaApi({
           baseUrl: getAuthApiBaseUrl(),
           accessToken: auth.session.accessToken,
         });
-        const localDraft = await persistence.load();
-        if (isActive() && localDraft !== null) {
+        const [localDraft, localCalendarDraft] = await Promise.all([
+          persistence.load(),
+          calendarStore.load(),
+        ]);
+        if (isActive() && localCalendarDraft !== null) {
+          setCurrentCalendarDraft(localCalendarDraft);
+          setSavedAt(localDraft?.updatedAt ?? null);
+        } else if (isActive() && localDraft !== null) {
           setCurrentDraft(localDraft.input);
           setSavedAt(localDraft.updatedAt);
         }
@@ -152,10 +206,17 @@ export function AiPlannerRouteScreen() {
 
         const draftBeforeSync = draftRef.current;
         await rootSyncRuntime.run().catch(() => undefined);
-        const synchronizedDraft = await persistence.load();
-        if (isActive() && draftRef.current === draftBeforeSync && synchronizedDraft !== null) {
-          setCurrentDraft(synchronizedDraft.input);
-          setSavedAt(synchronizedDraft.updatedAt);
+        const [synchronizedDraft, synchronizedCalendarDraft] = await Promise.all([
+          persistence.load(),
+          calendarStore.load(),
+        ]);
+        if (isActive() && draftRef.current === draftBeforeSync) {
+          if (synchronizedCalendarDraft !== null) {
+            setCurrentCalendarDraft(synchronizedCalendarDraft);
+          } else if (synchronizedDraft !== null) {
+            setCurrentDraft(synchronizedDraft.input);
+          }
+          setSavedAt(synchronizedDraft?.updatedAt ?? null);
         }
       };
 
@@ -167,13 +228,17 @@ export function AiPlannerRouteScreen() {
         active = false;
         setReady(false);
         persistenceRef.current = null;
+        plannerDraftStoreRef.current = null;
         mediaApiRef.current = null;
+        setDraftDatabase(null);
+        setDraftAccountId(null);
+        setPlannerDraftStore(null);
         if (syncTimerRef.current !== null) {
           clearTimeout(syncTimerRef.current);
           syncTimerRef.current = null;
         }
       };
-    }, [catalog.saveFailed, setCurrentDraft]),
+    }, [catalog.saveFailed, setCurrentCalendarDraft, setCurrentDraft]),
   );
 
   useEffect(
@@ -246,7 +311,11 @@ export function AiPlannerRouteScreen() {
   return (
     <Screen colorScheme={colorScheme} testID="ai-planner-route">
       <TopBar colorScheme={colorScheme} title={catalog.title} />
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        style={styles.inputScroll}
+      >
         <TextArea
           accessibilityLabel={catalog.inputLabel}
           autoCorrect
@@ -337,6 +406,27 @@ export function AiPlannerRouteScreen() {
           </Text>
         )}
       </ScrollView>
+      {ready &&
+      draftDatabase !== null &&
+      draftAccountId !== null &&
+      plannerDraftStore !== null ? (
+        <View style={styles.previewPane} testID="ai-planner-calendar-preview">
+          <AiPlannerCalendarPreview
+            accountId={draftAccountId}
+            appTimeZone={appTimeZone}
+            colorScheme={colorScheme}
+            database={draftDatabase}
+            document={calendarDraft}
+            language={language}
+            onDocumentChange={(next) => {
+              setCurrentCalendarDraft(next);
+              setSavedAt(new Date().toISOString());
+              scheduleSync();
+            }}
+            store={plannerDraftStore}
+          />
+        </View>
+      ) : null}
     </Screen>
   );
 }
@@ -344,7 +434,15 @@ export function AiPlannerRouteScreen() {
 const styles = StyleSheet.create({
   content: {
     gap: space[4],
-    paddingBottom: space[6],
+    paddingBottom: space[4],
+  },
+  inputScroll: {
+    flexGrow: 0,
+    maxHeight: '42%',
+  },
+  previewPane: {
+    flex: 1,
+    minHeight: 0,
   },
   imageSection: {
     gap: space[3],
