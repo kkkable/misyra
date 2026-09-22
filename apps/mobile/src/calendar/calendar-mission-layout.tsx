@@ -291,6 +291,7 @@ interface TimedMissionLayerProps {
   readonly getNow?: (() => Date) | undefined;
   readonly selectedDate: string;
   readonly selectedMissionId?: string;
+  readonly isMissionAdjustable?: ((mission: TimedMissionSummary) => boolean) | undefined;
   readonly onMissionAdjustment?:
     ((adjustment: MissionAdjustmentResult) => void | Promise<void>) | undefined;
   readonly onMissionPress?: ((mission: TimedMissionSummary) => void) | undefined;
@@ -534,6 +535,7 @@ export function TimedMissionLayer({
   colorScheme,
   getNow = () => new Date(),
   highlightedMissionIds = [],
+  isMissionAdjustable = () => true,
   language,
   missions,
   selectedDate,
@@ -556,7 +558,7 @@ export function TimedMissionLayer({
       {groups.map((group) => (
         <View key={group.id} pointerEvents="box-none">
           {group.cards.map((card) =>
-            card.mission.status === 'unfinished' ? (
+            card.mission.status === 'unfinished' && isMissionAdjustable(card.mission) ? (
               <AdjustableMissionCard
                 card={card}
                 colorScheme={colorScheme}
