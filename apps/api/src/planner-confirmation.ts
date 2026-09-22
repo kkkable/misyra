@@ -70,11 +70,7 @@ function asRecord(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-function requiredString(
-  source: Record<string, unknown>,
-  key: string,
-  label: string,
-): string {
+function requiredString(source: Record<string, unknown>, key: string, label: string): string {
   const value = source[key];
   if (typeof value !== 'string' || value.trim().length === 0) {
     throw new PlannerConfirmationInvalidDraftError(`${label} must be a non-empty string.`);
