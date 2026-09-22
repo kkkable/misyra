@@ -43,7 +43,12 @@ describe('MTS-089 Planner confirmation flow', () => {
   });
 
   it('uses the specified mission-count and consequence copy without exposing Discard Draft', async () => {
-    expect(plannerConfirmationMessage(2)).toBe(
+    expect(
+      plannerConfirmationMessage(
+        'Add this schedule to your calendar? This will activate {count} missions, schedule notifications, and sync with your connected calendar.',
+        2,
+      ),
+    ).toBe(
       'Add this schedule to your calendar? This will activate 2 missions, schedule notifications, and sync with your connected calendar.',
     );
 
@@ -51,6 +56,7 @@ describe('MTS-089 Planner confirmation flow', () => {
       new URL('./ai-planner-route-screen.tsx', import.meta.url),
       'utf8',
     );
+    expect(routeSource).toMatch(/catalog\.confirmScheduleMessage/);
     expect(routeSource).not.toMatch(/Discard Draft/i);
   });
 
