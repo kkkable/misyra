@@ -58,7 +58,11 @@ function requireNonEmptyString(
   return value.trim();
 }
 
-function optionalText(source: Record<string, unknown>, key: string, label: string): string | undefined {
+function optionalText(
+  source: Record<string, unknown>,
+  key: string,
+  label: string,
+): string | undefined {
   const value = source[key];
   if (value === undefined || value === null) return undefined;
   if (typeof value !== 'string') throw new TypeError(`${label} must be a string.`);
@@ -67,7 +71,8 @@ function optionalText(source: Record<string, unknown>, key: string, label: strin
 }
 
 function assertLocalDate(value: string): void {
-  if (!LOCAL_DATE_PATTERN.test(value)) throw new TypeError('Draft date must use YYYY-MM-DD format.');
+  if (!LOCAL_DATE_PATTERN.test(value))
+    throw new TypeError('Draft date must use YYYY-MM-DD format.');
   const parsed = new Date(`${value}T12:00:00.000Z`);
   if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== value) {
     throw new TypeError('Draft date must be valid.');
@@ -75,7 +80,8 @@ function assertLocalDate(value: string): void {
 }
 
 function timeToMinute(value: string): number {
-  if (!LOCAL_TIME_PATTERN.test(value)) throw new TypeError('Draft time must use HH:mm format.');
+  if (!LOCAL_TIME_PATTERN.test(value))
+    throw new TypeError('Draft time must use HH:mm format.');
   return Number(value.slice(0, 2)) * 60 + Number(value.slice(3, 5));
 }
 
@@ -155,12 +161,14 @@ export function parsePlannerCalendarDraftDocument(source: unknown): PlannerCalen
   const input = createAiPlannerDraftInput({
     text: source.text,
     imageAssetIds: source.imageAssetIds.map((value) => {
-      if (typeof value !== 'string') throw new TypeError('Planner draft image ids must be strings.');
+      if (typeof value !== 'string')
+        throw new TypeError('Planner draft image ids must be strings.');
       return value;
     }),
   });
   const rawItems = source.items ?? [];
-  if (!Array.isArray(rawItems)) throw new TypeError('Planner Calendar draft items must be an array.');
+  if (!Array.isArray(rawItems))
+    throw new TypeError('Planner Calendar draft items must be an array.');
   const items = rawItems.map(parseDraftItem);
   if (new Set(items.map((item) => item.id)).size !== items.length) {
     throw new TypeError('Planner Calendar draft item ids must be unique.');
@@ -214,19 +222,25 @@ export function plannerDraftCalendarMaps(
   return Object.freeze({ allDay, timed });
 }
 
-function draftItemFromInput(id: string, input: CalendarMissionCreateInput): PlannerCalendarDraftItem {
+function draftItemFromInput(
+  id: string,
+  input: CalendarMissionCreateInput,
+): PlannerCalendarDraftItem {
   const title = input.title.trim();
   if (title.length === 0) throw new TypeError('Planner draft item title must not be empty.');
   assertLocalDate(input.selectedDate);
   const timeZone = input.timeZone.trim();
-  if (timeZone.length === 0) throw new TypeError('Planner draft item time zone must not be empty.');
+  if (timeZone.length === 0)
+    throw new TypeError('Planner draft item time zone must not be empty.');
   const location = input.location?.trim() || undefined;
   const notes = input.notes?.trim() || undefined;
 
   if (input.allDay === true) {
     const estimatedMinutes = input.estimatedEffortMinutes;
     if (!Number.isInteger(estimatedMinutes) || (estimatedMinutes as number) <= 0) {
-      throw new RangeError('All-day Planner draft items require positive estimated effort minutes.');
+      throw new RangeError(
+        'All-day Planner draft items require positive estimated effort minutes.',
+      );
     }
     return Object.freeze({
       id,
@@ -401,7 +415,10 @@ export function createPlannerCalendarDraftStore(
       if (!document.items.some((item) => item.id === itemId)) {
         throw new Error('Planner Calendar draft item was not found.');
       }
-      return persist({ ...document, items: document.items.filter((item) => item.id !== itemId) });
+      return persist({
+        ...document,
+        items: document.items.filter((item) => item.id !== itemId),
+      });
     },
   });
 }
