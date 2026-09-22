@@ -350,16 +350,16 @@ export function createPlannerCalendarDraftStore(
         'SELECT content_json FROM planner_drafts WHERE account_id = ?',
         options.accountId,
       );
-      const payload =
+      const currentDocument =
         currentRow === null
+          ? null
+          : parsePlannerCalendarDraftDocument(JSON.parse(currentRow.content_json) as unknown);
+      const payload =
+        currentDocument === null
           ? validated
           : Object.freeze({
-              text: parsePlannerCalendarDraftDocument(
-                JSON.parse(currentRow.content_json) as unknown,
-              ).text,
-              imageAssetIds: parsePlannerCalendarDraftDocument(
-                JSON.parse(currentRow.content_json) as unknown,
-              ).imageAssetIds,
+              text: currentDocument.text,
+              imageAssetIds: currentDocument.imageAssetIds,
               items: validated.items,
             });
       const mutation: SyncMutation<PlannerCalendarDraftDocument> = {
