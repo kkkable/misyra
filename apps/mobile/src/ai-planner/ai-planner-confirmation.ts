@@ -11,13 +11,11 @@ export function shouldConfirmPlannerDraftReplacement(
   return document.items.length > 0;
 }
 
-export function plannerConfirmationMessage(missionCount: number): string {
+export function plannerConfirmationMessage(template: string, missionCount: number): string {
   if (!Number.isSafeInteger(missionCount) || missionCount < 0) {
     throw new RangeError('Planner confirmation mission count must be a non-negative integer.');
   }
-  return `Add this schedule to your calendar? This will activate ${String(
-    missionCount,
-  )} missions, schedule notifications, and sync with your connected calendar.`;
+  return template.replace('{count}', String(missionCount));
 }
 
 export function plannerConfirmationCalendarTarget(
