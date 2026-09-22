@@ -81,7 +81,7 @@ export function AiPlannerCalendarPreview({
   );
   const editingItem = document.items.find((item) => item.id === editingItemId) ?? null;
   const firstDraftDate = document.items[0]?.localDate;
-  const uses24HourClock = getCalendars()[0]?.uses24hourClock !== false;
+  const uses24HourClock = getCalendars()[0].uses24hourClock !== false;
 
   useEffect(() => {
     let active = true;
