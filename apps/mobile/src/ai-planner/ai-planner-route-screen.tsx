@@ -436,10 +436,10 @@ export function AiPlannerRouteScreen() {
 
   const characterCount = countPlannerCharacters(draft.text);
   const hasExtractionInput = draft.text.trim().length > 0 || draft.imageAssetIds.length > 0;
-  const confirmationCopy =
-    language === 'en'
-      ? plannerConfirmationMessage(calendarDraft.items.length)
-      : message(catalog.confirmScheduleMessage, { count: calendarDraft.items.length });
+  const confirmationCopy = plannerConfirmationMessage(
+    catalog.confirmScheduleMessage,
+    calendarDraft.items.length,
+  );
 
   return (
     <Screen colorScheme={colorScheme} testID="ai-planner-route">
