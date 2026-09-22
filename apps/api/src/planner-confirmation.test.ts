@@ -1,10 +1,8 @@
 import { randomUUID } from 'node:crypto';
 
+import { applyMigrations, createPostgresAuthStore } from '@misyra/database';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-
-import { createPostgresAuthStore } from '@misyra/database';
-import { applyMigrations } from '@misyra/database';
 
 import {
   PlannerConfirmationInvalidDraftError,
@@ -164,7 +162,12 @@ describe('MTS-089 atomic Planner confirmation', () => {
       }),
     ).rejects.toBeInstanceOf(PlannerConfirmationInvalidDraftError);
 
-    for (const table of ['mission_series', 'mission_occurrences', 'outbox_events', 'account_change_log']) {
+    for (const table of [
+      'mission_series',
+      'mission_occurrences',
+      'outbox_events',
+      'account_change_log',
+    ]) {
       const count = await pool.query<{ count: number }>(
         `SELECT COUNT(*)::int AS count FROM ${table} WHERE account_id = $1`,
         [account.id],
