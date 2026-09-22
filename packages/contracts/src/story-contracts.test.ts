@@ -72,7 +72,9 @@ describe('MTS-090 Story synchronization contracts', () => {
     expect(
       schema(sync, 'storyDraftSyncPayloadSchema').safeParse({
         ...draft,
-        imageVersions: draft.imageVersions.map(\n          ({ composition: _composition, ...version }) => version,\n        ),
+        imageVersions: draft.imageVersions.map(
+          ({ composition: _composition, ...version }) => version,
+        ),
       }).success,
     ).toBe(false);
   });
