@@ -44,10 +44,7 @@ function resolveElapsedMinutes(
       `${localDate}T${startLocalTime}:00`,
       appTimeZone,
     );
-    const endInstant = resolveLocalDateTimeInstant(
-      `${localDate}T${endLocalTime}:00`,
-      appTimeZone,
-    );
+    const endInstant = resolveLocalDateTimeInstant(`${localDate}T${endLocalTime}:00`, appTimeZone);
     return (Date.parse(endInstant) - Date.parse(startInstant)) / 60_000;
   } catch {
     throw new PlannerExtractionInvalidOutputError();
