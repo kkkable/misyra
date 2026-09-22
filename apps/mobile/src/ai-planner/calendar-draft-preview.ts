@@ -222,6 +222,45 @@ export function plannerDraftCalendarMaps(
   return Object.freeze({ allDay, timed });
 }
 
+export function plannerDraftItemInput(
+  item: PlannerCalendarDraftItem,
+): CalendarMissionCreateInput {
+  const parsed = parseDraftItem(item);
+  if (parsed.allDay) {
+    return Object.freeze({
+      selectedDate: parsed.localDate,
+      title: parsed.title,
+      allDay: true,
+      startMinute: null,
+      endMinute: null,
+      estimatedEffortMinutes: parsed.estimatedMinutes,
+      rewardEligibility: 'ineligible',
+      timeZone: parsed.timeZone,
+      timeBehavior: 'local_time',
+      recurrence: null,
+      private: false,
+      location: parsed.location ?? null,
+      notes: parsed.notes ?? null,
+    });
+  }
+
+  return Object.freeze({
+    selectedDate: parsed.localDate,
+    title: parsed.title,
+    allDay: false,
+    startMinute: timeToMinute(parsed.startLocalTime as string),
+    endMinute: timeToMinute(parsed.endLocalTime as string),
+    estimatedEffortMinutes: null,
+    rewardEligibility: 'ineligible',
+    timeZone: parsed.timeZone,
+    timeBehavior: 'local_time',
+    recurrence: null,
+    private: false,
+    location: parsed.location ?? null,
+    notes: parsed.notes ?? null,
+  });
+}
+
 function draftItemFromInput(
   id: string,
   input: CalendarMissionCreateInput,
@@ -370,7 +409,13 @@ export function createPlannerCalendarDraftStore(
   return Object.freeze({
     load,
     async add(input: CalendarMissionCreateInput): Promise<PlannerCalendarDraftDocument> {
-      const document = await requireDraft();
+      const document =
+        (await load()) ??
+        Object.freeze({
+          text: '',
+          imageAssetIds: Object.freeze([]),
+          items: Object.freeze([]),
+        });
       const item = draftItemFromInput(options.generateItemId(), input);
       return persist({ ...document, items: [...document.items, item] });
     },
