@@ -70,7 +70,11 @@ function asRecord(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-function requiredString(source: Record<string, unknown>, key: string, label: string): string {
+function requiredString(
+  source: Record<string, unknown>,
+  key: string,
+  label: string,
+): string {
   const value = source[key];
   if (typeof value !== 'string' || value.trim().length === 0) {
     throw new PlannerConfirmationInvalidDraftError(`${label} must be a non-empty string.`);
@@ -127,7 +131,10 @@ function parseDraftItem(row: PlannerItemRow): PlannerDraftItem {
   if (typeof source.allDay !== 'boolean') {
     throw new PlannerConfirmationInvalidDraftError('Planner draft all-day value is invalid.');
   }
-  if (!Number.isSafeInteger(source.estimatedMinutes) || (source.estimatedMinutes as number) <= 0) {
+  if (
+    !Number.isSafeInteger(source.estimatedMinutes) ||
+    (source.estimatedMinutes as number) <= 0
+  ) {
     throw new PlannerConfirmationInvalidDraftError(
       'Planner draft estimated minutes must be positive.',
     );
@@ -227,7 +234,9 @@ async function activateItem(
   accountId: string,
   row: PlannerItemRow,
   now: Date,
-): Promise<Readonly<{ occurrence: MissionOccurrence; series: MissionSeries; item: PlannerDraftItem }>> {
+): Promise<
+  Readonly<{ occurrence: MissionOccurrence; series: MissionSeries; item: PlannerDraftItem }>
+> {
   const item = parseDraftItem(row);
   const schedule = scheduleFor(item);
   const placement = evaluateSchedulePlacement({
