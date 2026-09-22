@@ -107,6 +107,7 @@ export interface CalendarDayScreenProps {
   readonly language?: LocalizationLocale;
   readonly appTimeZone?: string;
   readonly firstTimedMissionMinute?: number;
+  readonly initialDate?: string;
   readonly preservedMinute?: number;
   readonly returningFromBackground?: boolean;
   readonly allDayMissionsByDate?: Readonly<Record<string, readonly AllDayMissionSummary[]>>;
@@ -129,6 +130,7 @@ export function CalendarDayScreen({
   language = 'en',
   appTimeZone,
   firstTimedMissionMinute,
+  initialDate,
   preservedMinute,
   returningFromBackground = false,
   allDayMissionsByDate = {},
@@ -176,7 +178,9 @@ export function CalendarDayScreen({
       : 2;
   const uses24HourClock = systemCalendar.uses24hourClock !== false;
 
-  const initialDateRef = useRef(resolveInitialCalendarDate(params.date, today));
+  const initialDateRef = useRef(
+    initialDate ?? resolveInitialCalendarDate(params.date, today),
+  );
   const helpTriggerRef = useRef<View | null>(null);
   const [selectedDate, setSelectedDate] = useState(initialDateRef.current);
   const [pickerVisible, setPickerVisible] = useState(false);
