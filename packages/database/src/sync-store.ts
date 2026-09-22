@@ -337,8 +337,7 @@ function plannerTimeMinute(value: string): number {
   if (!LOCAL_TIME_PATTERN.test(value)) {
     throw new SyncMutationValidationError('Planner draft time must use HH:mm format');
   }
-  const [hour, minute] = value.split(':').map(Number);
-  return hour * 60 + minute;
+  return Number(value.slice(0, 2)) * 60 + Number(value.slice(3, 5));
 }
 
 function parsePlannerDraftItemPayload(value: unknown): PlannerDraftItemPayload {
