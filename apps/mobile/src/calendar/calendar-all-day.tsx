@@ -15,6 +15,7 @@ export interface AllDayMissionSummary {
   readonly orderKey: string;
   readonly completed: boolean;
   readonly status?: MissionCardStatus;
+  readonly previewKind?: 'planner_draft';
 }
 
 export interface AllDayMissionProjection {
@@ -113,9 +114,17 @@ export function AllDayMissionList({
           selectedMissionId === mission.id || highlightedMissionIds?.includes(mission.id) === true;
         const status = mission.status ?? (mission.completed ? 'verified' : 'unfinished');
         const palette = missionCardPalette(status, colorScheme);
+        const draftStyle =
+          mission.previewKind === 'planner_draft'
+            ? ({ backgroundColor: 'transparent', borderStyle: 'dashed', borderWidth: 2 } as const)
+            : null;
+        const accessibilityLabel =
+          mission.previewKind === 'planner_draft'
+            ? `${mission.title}, ${language === 'zh-HK' ? '草稿' : 'Draft'}`
+            : mission.title;
         return (
           <Pressable
-            accessibilityLabel={mission.title}
+            accessibilityLabel={accessibilityLabel}
             accessibilityRole="button"
             accessibilityState={{ selected }}
             key={mission.id}
@@ -130,6 +139,7 @@ export function AllDayMissionList({
                 borderWidth: selected ? 2 : 1,
                 minHeight: layout.minimumTouchTarget,
               },
+              draftStyle,
             ]}
             testID={`calendar-all-day-mission-${mission.id}`}
           >
