@@ -350,7 +350,9 @@ export function AiPlannerRouteScreen() {
           id: generateUuid(),
           title: item.title,
           localDate: item.localDate,
-          ...(item.startLocalTime === undefined ? {} : { startLocalTime: item.startLocalTime }),
+          ...(item.startLocalTime === undefined
+            ? {}
+            : { startLocalTime: item.startLocalTime }),
           ...(item.endLocalTime === undefined ? {} : { endLocalTime: item.endLocalTime }),
           allDay: item.allDay,
           estimatedMinutes: item.estimatedMinutes,
@@ -435,8 +437,7 @@ export function AiPlannerRouteScreen() {
   ]);
 
   const characterCount = countPlannerCharacters(draft.text);
-  const hasExtractionInput =
-    draft.text.trim().length > 0 || draft.imageAssetIds.length > 0;
+  const hasExtractionInput = draft.text.trim().length > 0 || draft.imageAssetIds.length > 0;
   const confirmationCopy =
     language === 'en'
       ? plannerConfirmationMessage(calendarDraft.items.length)
@@ -531,7 +532,9 @@ export function AiPlannerRouteScreen() {
           <PrimaryButton
             accessibilityLabel={catalog.confirmSchedule}
             colorScheme={colorScheme}
-            disabled={!ready || calendarDraft.items.length === 0 || extracting || confirming}
+            disabled={
+              !ready || calendarDraft.items.length === 0 || extracting || confirming
+            }
             label={catalog.confirmSchedule}
             loading={confirming}
             onPress={() => {
