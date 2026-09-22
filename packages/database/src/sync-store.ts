@@ -384,7 +384,9 @@ function parsePlannerDraftItemPayload(value: unknown): PlannerDraftItemPayload {
 
   if (source.allDay) {
     if (source.startLocalTime !== undefined || source.endLocalTime !== undefined) {
-      throw new SyncMutationValidationError('All-day Planner draft items cannot contain local times');
+      throw new SyncMutationValidationError(
+        'All-day Planner draft items cannot contain local times',
+      );
     }
     return {
       id,
@@ -987,7 +989,9 @@ async function applyPlannerMutation(
   client: PoolClient,
   mutation: StoredSyncMutation,
   effectiveTime: Date,
-): Promise<PlannerDraftPayload & Readonly<{ items: readonly PlannerDraftItemPayload[] }>> {
+): Promise<
+  PlannerDraftPayload & Readonly<{ items: readonly PlannerDraftItemPayload[] }>
+> {
   const payload = parsePlannerDraftPayload(mutation.payload);
   if (payload.imageAssetIds.length > 0) {
     const media = await client.query<{ id: string }>(
@@ -1027,7 +1031,9 @@ async function applyPlannerMutation(
   const row = result.rows[0];
 
   if (row !== undefined && payload.items !== undefined) {
-    await client.query('DELETE FROM ai_planner_items WHERE draft_id = $1', [mutation.accountId]);
+    await client.query('DELETE FROM ai_planner_items WHERE draft_id = $1', [
+      mutation.accountId,
+    ]);
     for (const [ordinal, item] of payload.items.entries()) {
       await client.query(
         `INSERT INTO ai_planner_items (id, draft_id, ordinal, payload)
