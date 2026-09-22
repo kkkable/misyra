@@ -48,9 +48,7 @@ function mergeMissionMaps<T extends { readonly id: string }>(
   return merged;
 }
 
-function isDraftMission(
-  mission: TimedMissionSummary | AllDayMissionSummary,
-): boolean {
+function isDraftMission(mission: TimedMissionSummary | AllDayMissionSummary): boolean {
   return mission.previewKind === 'planner_draft';
 }
 
