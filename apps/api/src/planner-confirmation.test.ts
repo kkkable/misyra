@@ -142,6 +142,39 @@ describe('MTS-089 atomic Planner confirmation', () => {
     ]);
   });
 
+  it('replays the same confirmation key without duplicating activated missions or outbox work', async () => {
+    const account = await createAccount();
+    await seedDraft(account.id, [timedItem()]);
+    const idempotencyKey = randomUUID();
+    const input = {
+      accountId: account.id,
+      idempotencyKey,
+      now: new Date('2026-09-22T08:00:00.000Z'),
+    } as const;
+
+    const first = await confirmPlannerDraft(pool, input);
+    const second = await confirmPlannerDraft(pool, input);
+
+    expect(second).toEqual(first);
+
+    const occurrences = await pool.query<{ count: number }>(
+      'SELECT COUNT(*)::int AS count FROM mission_occurrences WHERE account_id = $1',
+      [account.id],
+    );
+    const outbox = await pool.query<{ count: number }>(
+      'SELECT COUNT(*)::int AS count FROM outbox_events WHERE account_id = $1',
+      [account.id],
+    );
+    const changes = await pool.query<{ count: number }>(
+      'SELECT COUNT(*)::int AS count FROM account_change_log WHERE account_id = $1',
+      [account.id],
+    );
+
+    expect(occurrences.rows[0]?.count).toBe(1);
+    expect(outbox.rows[0]?.count).toBe(1);
+    expect(changes.rows[0]?.count).toBe(2);
+  });
+
   it('rolls back every activation side effect when any draft item is invalid', async () => {
     const account = await createAccount();
     await seedDraft(account.id, [
