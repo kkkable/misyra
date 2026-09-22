@@ -21,7 +21,14 @@ import {
   type SyncMutation,
 } from '../storage/mutation-queue.js';
 import { createAuthenticatedSyncApi, type AuthenticatedSyncApi } from './authenticated-sync-api.js';
-import { createAiPlannerDraftInput } from '../ai-planner/ai-planner-input.js';
+import {
+  createAiPlannerDraftInput,
+  type AiPlannerDraftInput,
+} from '../ai-planner/ai-planner-input.js';
+import {
+  parsePlannerCalendarDraftDocument,
+  type PlannerCalendarDraftDocument,
+} from '../ai-planner/calendar-draft-preview.js';
 import { applyProgressProjectionChange } from './progress-projection.js';
 import {
   createServerSync,
@@ -187,10 +194,12 @@ async function applyAccountSettings(
   );
 }
 
+type PlannerDraftProjection = AiPlannerDraftInput | PlannerCalendarDraftDocument;
+
 function plannerDraftFromChange(
   change: ServerAccountChange,
   accountId: string,
-): ReturnType<typeof createAiPlannerDraftInput> | null {
+): PlannerDraftProjection | null {
   if (change.entityType !== 'planner') return null;
   if (change.operation !== 'upsert') {
     throw new Error('Unsupported Planner draft change operation.');
@@ -207,9 +216,16 @@ function plannerDraftFromChange(
   ) {
     throw new Error('Planner draft change payload is invalid.');
   }
-  return createAiPlannerDraftInput({
+  if (!Object.hasOwn(change.payload, 'items')) {
+    return createAiPlannerDraftInput({
+      text,
+      imageAssetIds: imageAssetIds as string[],
+    });
+  }
+  return parsePlannerCalendarDraftDocument({
     text,
-    imageAssetIds: imageAssetIds as string[],
+    imageAssetIds,
+    items: change.payload.items,
   });
 }
 

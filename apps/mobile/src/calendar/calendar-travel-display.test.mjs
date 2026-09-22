@@ -85,8 +85,12 @@ describe('MTS-053 Calendar travel projection', () => {
   });
 
   it('wires the Calendar route to the persisted app-zone runtime instead of reading device time zone ad hoc', async () => {
-    const source = await readFile(new URL('./calendar-route-screen.tsx', import.meta.url), 'utf8');
-    expect(source).toContain('useAppTimeZone');
-    expect(source).toContain('projectMissionOccurrenceForAppTimeZone');
+    const [routeSource, projectionSource] = await Promise.all([
+      readFile(new URL('./calendar-route-screen.tsx', import.meta.url), 'utf8'),
+      readFile(new URL('./calendar-mission-projection.ts', import.meta.url), 'utf8'),
+    ]);
+    expect(routeSource).toContain('useAppTimeZone');
+    expect(routeSource).toContain('projectLocalMissionForAppTimeZone');
+    expect(projectionSource).toContain('projectMissionOccurrenceForAppTimeZone');
   });
 });

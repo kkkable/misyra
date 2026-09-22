@@ -4,6 +4,10 @@ import {
   type SyncMutation,
 } from '../storage/mutation-queue.js';
 import { createAiPlannerDraftInput, type AiPlannerDraftInput } from './ai-planner-input.js';
+import {
+  parsePlannerCalendarDraftDocument,
+  type PlannerCalendarDraftDocument,
+} from './calendar-draft-preview.js';
 
 export type AiPlannerDraftPersistenceOptions = Readonly<{
   database: MutationQueueDatabase;
@@ -46,22 +50,44 @@ export function createAiPlannerDraftPersistence(options: AiPlannerDraftPersisten
     const validated = createAiPlannerDraftInput(input);
     const mutationId = options.generateMutationId();
     const updatedAt = options.now().toISOString();
-    const mutation: SyncMutation<AiPlannerDraftInput> = {
-      mutationId,
-      accountId: options.accountId,
-      deviceId: options.deviceId,
-      entityType: 'planner',
-      entityId: options.accountId,
-      operation: 'update',
-      baseVersion: null,
-      clientOccurredAt: updatedAt,
-      payload: validated,
-    };
-    const envelope = JSON.stringify({
-      mutation,
-      destination: { kind: 'server' as const },
-    });
     await options.database.withExclusiveTransactionAsync(async (transaction) => {
+      const existingRow = await transaction.getFirstAsync<{ content_json: string }>(
+        'SELECT content_json FROM planner_drafts WHERE account_id = ?',
+        options.accountId,
+      );
+      let payload: AiPlannerDraftInput | PlannerCalendarDraftDocument = validated;
+      if (existingRow !== null) {
+        const current = JSON.parse(existingRow.content_json) as unknown;
+        if (
+          typeof current === 'object' &&
+          current !== null &&
+          !Array.isArray(current) &&
+          Object.hasOwn(current, 'items')
+        ) {
+          const document = parsePlannerCalendarDraftDocument(current);
+          payload = Object.freeze({
+            text: validated.text,
+            imageAssetIds: validated.imageAssetIds,
+            items: document.items,
+          });
+        }
+      }
+      const mutation: SyncMutation<AiPlannerDraftInput | PlannerCalendarDraftDocument> = {
+        mutationId,
+        accountId: options.accountId,
+        deviceId: options.deviceId,
+        entityType: 'planner',
+        entityId: options.accountId,
+        operation: 'update',
+        baseVersion: null,
+        clientOccurredAt: updatedAt,
+        payload,
+      };
+      const envelope = JSON.stringify({
+        mutation,
+        destination: { kind: 'server' as const },
+      });
+
       await transaction.runAsync(
         `INSERT INTO planner_drafts (account_id, draft_id, content_json, updated_at)
          VALUES (?, ?, ?, ?)
@@ -71,7 +97,7 @@ export function createAiPlannerDraftPersistence(options: AiPlannerDraftPersisten
            updated_at = excluded.updated_at`,
         options.accountId,
         options.accountId,
-        JSON.stringify(validated),
+        JSON.stringify(payload),
         updatedAt,
       );
       await transaction.runAsync(

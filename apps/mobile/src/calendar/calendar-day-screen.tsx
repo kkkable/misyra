@@ -103,9 +103,11 @@ export interface CalendarSearchFocusTarget {
 
 export interface CalendarDayScreenProps {
   readonly now?: Date;
+  readonly creationMode?: 'mission' | 'planner_draft';
   readonly language?: LocalizationLocale;
   readonly appTimeZone?: string;
   readonly firstTimedMissionMinute?: number;
+  readonly initialDate?: string;
   readonly preservedMinute?: number;
   readonly returningFromBackground?: boolean;
   readonly allDayMissionsByDate?: Readonly<Record<string, readonly AllDayMissionSummary[]>>;
@@ -115,6 +117,7 @@ export interface CalendarDayScreenProps {
   readonly onSearchPress?: (() => void) | undefined;
   readonly onHelpFaqPress?: (() => void) | undefined;
   readonly onTimedMissionPress?: (mission: TimedMissionSummary) => void;
+  readonly isMissionAdjustable?: ((mission: TimedMissionSummary) => boolean) | undefined;
   readonly onMissionAdjustment?:
     ((adjustment: MissionAdjustmentResult) => void | Promise<void>) | undefined;
   readonly onCreateMission?:
@@ -123,9 +126,11 @@ export interface CalendarDayScreenProps {
 
 export function CalendarDayScreen({
   now = new Date(),
+  creationMode = 'mission',
   language = 'en',
   appTimeZone,
   firstTimedMissionMinute,
+  initialDate,
   preservedMinute,
   returningFromBackground = false,
   allDayMissionsByDate = {},
@@ -135,6 +140,7 @@ export function CalendarDayScreen({
   onSearchPress,
   onHelpFaqPress,
   onTimedMissionPress,
+  isMissionAdjustable,
   onMissionAdjustment,
   onCreateMission,
 }: CalendarDayScreenProps) {
@@ -172,7 +178,7 @@ export function CalendarDayScreen({
       : 2;
   const uses24HourClock = systemCalendar.uses24hourClock !== false;
 
-  const initialDateRef = useRef(resolveInitialCalendarDate(params.date, today));
+  const initialDateRef = useRef(initialDate ?? resolveInitialCalendarDate(params.date, today));
   const helpTriggerRef = useRef<View | null>(null);
   const [selectedDate, setSelectedDate] = useState(initialDateRef.current);
   const [pickerVisible, setPickerVisible] = useState(false);
@@ -431,6 +437,7 @@ export function CalendarDayScreen({
       <View style={[styles.dayBody, { borderTopColor: colors.divider }]} testID="calendar-day-body">
         <CalendarInteractiveTimeline
           colorScheme={colorScheme}
+          creationMode={creationMode}
           initialCurrentMinute={currentMinute}
           key={`${selectedDate}-${pickerVisible ? 'picker' : 'calendar'}-${String(searchFocusTarget?.requestId ?? 0)}`}
           language={language}
@@ -440,6 +447,7 @@ export function CalendarDayScreen({
               <TimedMissionLayer
                 colorScheme={colorScheme}
                 {...(highlightedMissionIds.length === 0 ? {} : { highlightedMissionIds })}
+                isMissionAdjustable={isMissionAdjustable}
                 language={language}
                 missions={timedMissions}
                 now={now}

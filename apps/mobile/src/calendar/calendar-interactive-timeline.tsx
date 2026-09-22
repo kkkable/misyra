@@ -21,6 +21,7 @@ const SLOT_TOUCH_EXPANSION = Math.max(0, (layout.minimumTouchTarget - SLOT_MINUT
 
 type CalendarInteractiveTimelineProps = Readonly<{
   colorScheme: ColorScheme;
+  creationMode?: 'mission' | 'planner_draft';
   initialCurrentMinute: number;
   language?: LocalizationLocale;
   launchMinute: number;
@@ -77,6 +78,7 @@ function formatSlotTime(
 
 export function CalendarInteractiveTimeline({
   colorScheme,
+  creationMode = 'mission',
   initialCurrentMinute,
   language = 'en',
   launchMinute,
@@ -191,6 +193,7 @@ export function CalendarInteractiveTimeline({
           colorScheme={colorScheme}
           creationSlotMinute={creationSlotMinute}
           language={language}
+          mode={creationMode}
           now={now}
           onCancel={closeCreation}
           onSubmit={(input) => {
