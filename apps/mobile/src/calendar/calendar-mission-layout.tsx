@@ -30,6 +30,7 @@ export interface TimedMissionSummary {
   readonly status: MissionCardStatus;
   readonly rewardEligibility: AdjustableTimedMission['rewardEligibility'];
   readonly timeZone: string;
+  readonly previewKind?: 'planner_draft';
 }
 
 export interface MissionCardLayout {
@@ -202,7 +203,11 @@ function statusLabel(status: MissionCardStatus, language: LocalizationLocale): s
 }
 
 function accessibilityLabel(mission: TimedMissionSummary, language: LocalizationLocale): string {
-  return `${mission.title}, ${statusLabel(mission.status, language)}`;
+  const draftLabel =
+    mission.previewKind === 'planner_draft' ? (language === 'zh-HK' ? '草稿' : 'Draft') : null;
+  return [mission.title, draftLabel, statusLabel(mission.status, language)]
+    .filter((part): part is string => part !== null)
+    .join(', ');
 }
 
 function missionHitSlop(mission: TimedMissionSummary): {
@@ -241,6 +246,10 @@ export function MissionCard({
 }: MissionCardProps) {
   const colors = themeColors(colorScheme);
   const palette = missionCardPalette(mission.status, colorScheme);
+  const draftStyle =
+    mission.previewKind === 'planner_draft'
+      ? ({ backgroundColor: 'transparent', borderStyle: 'dashed', borderWidth: 2 } as const)
+      : null;
 
   return (
     <Pressable
@@ -257,6 +266,7 @@ export function MissionCard({
           borderColor: selected ? colors.focusRing : palette.borderColor,
           borderWidth: selected ? 2 : 1,
         },
+        draftStyle,
         style,
       ]}
       testID={testID}
