@@ -1,6 +1,6 @@
+import type { AllDayMissionSummary } from '../calendar/calendar-all-day.js';
 import type { CalendarMissionCreateInput } from '../calendar/calendar-mission-create.js';
 import type { MissionAdjustmentSave } from '../calendar/calendar-mission-adjustment.js';
-import type { AllDayMissionSummary } from '../calendar/calendar-all-day.js';
 import type { TimedMissionSummary } from '../calendar/calendar-mission-layout.js';
 import type { MutationQueueDatabase } from '../storage/mutation-queue.js';
 
@@ -40,14 +40,16 @@ export function plannerDraftCalendarMaps(
   throw new Error('MTS-088 Planner Calendar preview projection is not implemented.');
 }
 
-export function createPlannerCalendarDraftStore(options: Readonly<{
-  database: MutationQueueDatabase;
-  accountId: string;
-  deviceId: string;
-  generateMutationId: () => string;
-  generateItemId: () => string;
-  now: () => Date;
-}>) {
+export function createPlannerCalendarDraftStore(
+  options: Readonly<{
+    database: MutationQueueDatabase;
+    accountId: string;
+    deviceId: string;
+    generateMutationId: () => string;
+    generateItemId: () => string;
+    now: () => Date;
+  }>,
+) {
   void options;
   return Object.freeze({
     async load(): Promise<PlannerCalendarDraftDocument | null> {
