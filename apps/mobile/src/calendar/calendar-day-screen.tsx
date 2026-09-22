@@ -103,6 +103,7 @@ export interface CalendarSearchFocusTarget {
 
 export interface CalendarDayScreenProps {
   readonly now?: Date;
+  readonly creationMode?: 'mission' | 'planner_draft';
   readonly language?: LocalizationLocale;
   readonly appTimeZone?: string;
   readonly firstTimedMissionMinute?: number;
@@ -124,6 +125,7 @@ export interface CalendarDayScreenProps {
 
 export function CalendarDayScreen({
   now = new Date(),
+  creationMode = 'mission',
   language = 'en',
   appTimeZone,
   firstTimedMissionMinute,
@@ -433,6 +435,7 @@ export function CalendarDayScreen({
       <View style={[styles.dayBody, { borderTopColor: colors.divider }]} testID="calendar-day-body">
         <CalendarInteractiveTimeline
           colorScheme={colorScheme}
+          creationMode={creationMode}
           initialCurrentMinute={currentMinute}
           key={`${selectedDate}-${pickerVisible ? 'picker' : 'calendar'}-${String(searchFocusTarget?.requestId ?? 0)}`}
           language={language}
