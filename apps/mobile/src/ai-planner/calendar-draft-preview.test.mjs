@@ -262,6 +262,7 @@ describe('MTS-088 Planner Calendar draft persistence', () => {
       await database.getFirstAsync('SELECT COUNT(*) AS count FROM cached_mission_occurrences'),
     ).toEqual({ count: 0 });
   });
+
   it('clears the confirmed Planner draft and its obsolete pending Planner mutation locally', async () => {
     const database = createDatabase();
     await applyMobileMigrations(database);
@@ -325,5 +326,4 @@ describe('MTS-088 Planner Calendar draft persistence', () => {
     expect(await store.load()).toBeNull();
     expect(await createMutationQueue(database, accountId).listPending()).toEqual([]);
   });
-
 });
