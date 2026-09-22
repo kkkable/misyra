@@ -23,7 +23,9 @@ vi.mock('react-native', async () => {
 vi.mock('react-native-reanimated', async () => {
   const { createElement: createReactElement } = await import('react');
   return {
-    default: { View: ({ children, ...props }) => createReactElement('AnimatedView', props, children) },
+    default: {
+      View: ({ children, ...props }) => createReactElement('AnimatedView', props, children),
+    },
     useAnimatedStyle: (factory) => factory(),
     useSharedValue: (value) => ({ value }),
   };
@@ -87,31 +89,34 @@ describe('MTS-088 Calendar draft preview', () => {
     expect(groups[0].cards.map((card) => card.widthPercent)).toEqual([50, 50]);
   });
 
-  it.each(['light', 'dark'])('renders a Planner draft as a temporary outlined card in %s mode', (colorScheme) => {
-    let renderer;
-    act(() => {
-      renderer = create(
-        createElement(MissionCard, {
-          colorScheme,
-          language: 'en',
-          mission: draftMission(),
-          selected: false,
-        }),
-      );
-    });
+  it.each(['light', 'dark'])(
+    'renders a Planner draft as a temporary outlined card in %s mode',
+    (colorScheme) => {
+      let renderer;
+      act(() => {
+        renderer = create(
+          createElement(MissionCard, {
+            colorScheme,
+            language: 'en',
+            mission: draftMission(),
+            selected: false,
+          }),
+        );
+      });
 
-    const card = renderer.root.findByProps({ testID: 'calendar-mission-card-draft' });
-    expect(card.props.style).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          backgroundColor: 'transparent',
-          borderStyle: 'dashed',
-          borderWidth: 2,
-        }),
-      ]),
-    );
-    expect(card.props.accessibilityLabel).toContain('Draft');
-  });
+      const card = renderer.root.findByProps({ testID: 'calendar-mission-card-draft' });
+      expect(card.props.style).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            backgroundColor: 'transparent',
+            borderStyle: 'dashed',
+            borderWidth: 2,
+          }),
+        ]),
+      );
+      expect(card.props.accessibilityLabel).toContain('Draft');
+    },
+  );
 
   it('reuses the existing timed mission move and resize gesture surfaces for Planner drafts', () => {
     gestureRuntime.panConfigs.length = 0;
@@ -130,8 +135,12 @@ describe('MTS-088 Calendar draft preview', () => {
       );
     });
 
-    expect(renderer.root.findByProps({ testID: 'calendar-mission-move-gesture-draft' })).toBeDefined();
-    expect(renderer.root.findByProps({ testID: 'calendar-mission-resize-handle-draft' })).toBeDefined();
+    expect(
+      renderer.root.findByProps({ testID: 'calendar-mission-move-gesture-draft' }),
+    ).toBeDefined();
+    expect(
+      renderer.root.findByProps({ testID: 'calendar-mission-resize-handle-draft' }),
+    ).toBeDefined();
     expect(gestureRuntime.panConfigs).toHaveLength(2);
   });
 });
