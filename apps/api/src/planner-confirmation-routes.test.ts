@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+
 import type { Pool } from 'pg';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -81,4 +83,10 @@ describe('MTS-089 Planner authenticated routes', () => {
     expect(response.statusCode).toBe(503);
     await server.close();
   });
+  it('is mounted by the executable API application', () => {
+    const application = readFileSync(new URL('./application.ts', import.meta.url), 'utf8');
+    expect(application).toMatch(/createPlannerRoutes/);
+    expect(application).toMatch(/plannerExtractionService/);
+  });
+
 });
