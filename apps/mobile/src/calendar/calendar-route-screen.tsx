@@ -16,10 +16,9 @@ import {
 } from '../search/calendar-search-navigation.js';
 import { createOfflineCalendarSearch } from '../search/offline-search.js';
 import { openMobileDatabase } from '../storage/database.js';
-import { createLocalRepositories, type LocalMission } from '../storage/local-repositories.js';
+import { createLocalRepositories } from '../storage/local-repositories.js';
 import { requireRegisteredDeviceId } from '../sync/root-sync-runtime.js';
 import type { AllDayMissionSummary } from './calendar-all-day.js';
-import { resolveMissionCardStatus } from './calendar-completion-style.js';
 import { CalendarDayScreen, type CalendarSearchFocusTarget } from './calendar-day-screen.js';
 import {
   createMissionAdjustmentUndoController,
@@ -33,11 +32,14 @@ import {
   createCalendarMission,
   type CalendarMissionCreateInput,
 } from './calendar-mission-create.js';
-import type { MissionCardStatus, TimedMissionSummary } from './calendar-mission-layout.js';
-import { projectMissionOccurrenceForAppTimeZone } from './calendar-travel-projection.js';
+import type { TimedMissionSummary } from './calendar-mission-layout.js';
+import {
+  calendarMissionMaps,
+  calendarWindow,
+  projectLocalMissionForAppTimeZone,
+} from './calendar-mission-projection.js';
 
 const ADJUSTMENT_UNDO_VISIBLE_MS = 5_000;
-const CALENDAR_WINDOW_DAYS = 730;
 const UUID_HEX = '0123456789abcdef';
 const UUID_VARIANTS = '89ab';
 
@@ -53,96 +55,6 @@ function randomHex(length: number): string {
 function generateUuid(): string {
   const variant = UUID_VARIANTS.charAt(Math.floor(Math.random() * UUID_VARIANTS.length));
   return `${randomHex(8)}-${randomHex(4)}-4${randomHex(3)}-${variant}${randomHex(3)}-${randomHex(12)}`;
-}
-
-function formatLocalDate(date: Date): string {
-  return date.toISOString().slice(0, 10);
-}
-
-function calendarWindow(now: Date): Readonly<{ startLocalDate: string; endLocalDate: string }> {
-  const center = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
-  const dayMilliseconds = 24 * 60 * 60 * 1000;
-  return {
-    startLocalDate: formatLocalDate(
-      new Date(center.getTime() - CALENDAR_WINDOW_DAYS * dayMilliseconds),
-    ),
-    endLocalDate: formatLocalDate(
-      new Date(center.getTime() + CALENDAR_WINDOW_DAYS * dayMilliseconds),
-    ),
-  };
-}
-
-function minuteFromLocalDateTime(value: string): number {
-  const match = /T(\d{2}):(\d{2}):\d{2}$/.exec(value);
-  if (match === null) throw new Error('Calendar mission local time is invalid.');
-  return Number(match[1]) * 60 + Number(match[2]);
-}
-
-function missionStatus(mission: LocalMission): MissionCardStatus {
-  return resolveMissionCardStatus({
-    completionState: mission.occurrence.completionState,
-    evidenceState: mission.occurrence.evidenceState,
-    completionType: mission.completionType,
-  });
-}
-
-function calendarMissionMaps(missions: readonly LocalMission[]): Readonly<{
-  allDay: AllDayMissionsByDate;
-  timed: TimedMissionsByDate;
-}> {
-  const allDay: Record<string, AllDayMissionSummary[]> = {};
-  const timed: Record<string, TimedMissionSummary[]> = {};
-
-  for (const mission of missions) {
-    const occurrence = mission.occurrence;
-    const schedule = occurrence.schedule;
-    const localDate = schedule.localStart.slice(0, 10);
-    const orderKey = schedule.startInstant;
-
-    if (schedule.allDay) {
-      const bucket = allDay[localDate] ?? [];
-      bucket.push({
-        id: occurrence.id,
-        title: mission.series.title,
-        orderKey,
-        completed: occurrence.completionState === 'completed',
-        status: missionStatus(mission),
-      });
-      allDay[localDate] = bucket;
-      continue;
-    }
-
-    const startMinute = minuteFromLocalDateTime(schedule.localStart);
-    const finishDate = schedule.localFinish.slice(0, 10);
-    const endMinute =
-      finishDate === localDate ? minuteFromLocalDateTime(schedule.localFinish) : 24 * 60;
-    if (endMinute <= startMinute) continue;
-
-    const bucket = timed[localDate] ?? [];
-    bucket.push({
-      id: occurrence.id,
-      title: mission.series.title,
-      startMinute,
-      endMinute,
-      orderKey,
-      status: missionStatus(mission),
-      rewardEligibility: occurrence.rewardEligibility,
-      timeZone: schedule.timeZone,
-    });
-    timed[localDate] = bucket;
-  }
-
-  return { allDay, timed };
-}
-
-function projectLocalMissionForAppTimeZone(
-  mission: LocalMission,
-  appTimeZone: string,
-): LocalMission {
-  return {
-    ...mission,
-    occurrence: projectMissionOccurrenceForAppTimeZone(mission.occurrence, appTimeZone),
-  };
 }
 
 function replaceMissionMap<T extends { readonly id: string }>(
