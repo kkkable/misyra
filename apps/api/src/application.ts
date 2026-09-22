@@ -60,6 +60,7 @@ import {
   type AuthenticateRequest,
   type ReadinessCheck,
 } from './index.js';
+import { createPlannerConfirmationRoutes } from './planner-confirmation-routes.js';
 import { createProtectedMediaRoutes } from './protected-media-routes.js';
 import {
   createProtectedMediaBlobStore,
@@ -289,6 +290,7 @@ export function createApiApplication(options: AuthApplicationOptions) {
       ...createSyncRoutes(syncService),
       ...createEvidenceAttemptRoutes(evidenceAttemptService),
       ...createProtectedMediaRoutes(protectedMediaService),
+      ...createPlannerConfirmationRoutes(options.pool, options.now),
       ...calendarConnectionRoutes,
       ...appleCalendarRoutes,
       ...googleCalendarRoutes,
