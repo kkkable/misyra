@@ -11,7 +11,7 @@ import {
   type MissionSchedule,
   type MissionSeries,
 } from '@misyra/domain';
-import type { Pool, QueryResultRow } from 'pg';
+import type { Pool, PoolClient, QueryResultRow } from 'pg';
 
 export type PlannerConfirmationInput = Readonly<{
   accountId: string;
@@ -223,7 +223,7 @@ function authoritativePayload(
 }
 
 async function activateItem(
-  client: Parameters<Parameters<typeof executeIdempotentCommand>[1]['work']>[0]['client'],
+  client: PoolClient,
   accountId: string,
   row: PlannerItemRow,
   now: Date,
