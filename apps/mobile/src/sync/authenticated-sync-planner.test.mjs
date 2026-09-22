@@ -115,6 +115,7 @@ describe('MTS-086 Planner authenticated sync projection', () => {
       payload: { text: 'new local edit', imageAssetIds: [] },
     });
   });
+
   it('applies an authoritative Planner delete by clearing the local draft and stale Planner mutation', async () => {
     const database = new NodeSqliteAdapter();
     databases.push(database);
@@ -167,5 +168,4 @@ describe('MTS-086 Planner authenticated sync projection', () => {
     expect(await persistence.load()).toBeNull();
     expect(await createMutationQueue(database, accountId).listPending()).toEqual([]);
   });
-
 });
