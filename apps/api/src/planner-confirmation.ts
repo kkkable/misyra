@@ -356,15 +356,12 @@ export function confirmPlannerDraft(
       }
 
       const occurrenceIds: string[] = [];
-      let calendarDate: string | null = null;
+      const calendarDates: string[] = [];
 
       for (const row of items.rows) {
         const activated = await activateItem(context.client, input.accountId, row, now);
         occurrenceIds.push(activated.occurrence.id);
-        calendarDate =
-          calendarDate === null || activated.item.localDate < calendarDate
-            ? activated.item.localDate
-            : calendarDate;
+        calendarDates.push(activated.item.localDate);
 
         await appendAccountChange(context.client, {
           accountId: input.accountId,
@@ -384,7 +381,8 @@ export function confirmPlannerDraft(
         'DELETE FROM ai_planner_drafts WHERE id = $1 AND account_id = $2',
         [draftId, input.accountId],
       );
-      if (removed.rowCount !== 1 || calendarDate === null) {
+      const calendarDate = calendarDates.sort((left, right) => left.localeCompare(right))[0];
+      if (removed.rowCount !== 1 || calendarDate === undefined) {
         throw new PlannerConfirmationInvalidDraftError(
           'Planner draft could not be finalized atomically.',
         );
