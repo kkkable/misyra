@@ -64,9 +64,7 @@ describe('MTS-088 Planner draft mission form mode', () => {
       );
     });
 
-    expect(
-      renderer.root.findAllByProps({ testID: 'calendar-create-recurrence' }),
-    ).toHaveLength(0);
+    expect(renderer.root.findAllByProps({ testID: 'calendar-create-recurrence' })).toHaveLength(0);
     expect(
       renderer.root.findAllByProps({ testID: 'calendar-create-travel-behavior' }),
     ).toHaveLength(0);
