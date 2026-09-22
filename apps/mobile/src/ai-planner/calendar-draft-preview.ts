@@ -452,6 +452,7 @@ export function createPlannerCalendarDraftStore(
       const index = document.items.findIndex((item) => item.id === adjustment.missionId);
       if (index < 0) throw new Error('Planner Calendar draft item was not found.');
       const item = document.items[index];
+      if (item === undefined) throw new Error('Planner Calendar draft item was not found.');
       if (item.allDay) throw new Error('All-day Planner draft items cannot use timed gestures.');
       if (
         !Number.isInteger(adjustment.startMinute) ||
