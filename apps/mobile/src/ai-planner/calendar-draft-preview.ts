@@ -80,8 +80,7 @@ function assertLocalDate(value: string): void {
 }
 
 function timeToMinute(value: string): number {
-  if (!LOCAL_TIME_PATTERN.test(value))
-    throw new TypeError('Draft time must use HH:mm format.');
+  if (!LOCAL_TIME_PATTERN.test(value)) throw new TypeError('Draft time must use HH:mm format.');
   return Number(value.slice(0, 2)) * 60 + Number(value.slice(3, 5));
 }
 
@@ -271,8 +270,7 @@ function draftItemFromInput(
   if (title.length === 0) throw new TypeError('Planner draft item title must not be empty.');
   assertLocalDate(input.selectedDate);
   const timeZone = input.timeZone.trim();
-  if (timeZone.length === 0)
-    throw new TypeError('Planner draft item time zone must not be empty.');
+  if (timeZone.length === 0) throw new TypeError('Planner draft item time zone must not be empty.');
   const location = input.location?.trim() || undefined;
   const notes = input.notes?.trim() || undefined;
 
