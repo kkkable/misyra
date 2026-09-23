@@ -35,7 +35,7 @@ describe('MTS-092 Story text suggestion mobile API', () => {
 
     const api = createStoryTextSuggestionsApi({
       baseUrl: 'https://api.example.test/',
-      accessToken: 'token',
+      accessToken: 'fixture-access-token',
     });
     await expect(api.suggest('occurrence-1')).resolves.toMatchObject({
       headline: 'Done before dinner',
@@ -46,7 +46,7 @@ describe('MTS-092 Story text suggestion mobile API', () => {
       'https://api.example.test/v1/stories/occurrence-1/text-suggestions',
       {
         method: 'POST',
-        headers: { authorization: 'Bearer token' },
+        headers: { authorization: 'Bearer fixture-access-token' },
       },
     );
   });
