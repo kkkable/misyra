@@ -3,6 +3,13 @@ import {
   type EvidenceVerificationReasonCode,
 } from '@misyra/contracts';
 
+export type EvidenceStorySourceAttempt = Readonly<{
+  attemptId: string;
+  attemptNumber: 1 | 2 | 3;
+  effectiveSubmittedAt: string;
+  verificationStatus: 'pending' | 'queued' | 'accepted' | 'rejected';
+}>;
+
 export type EvidenceAttemptReservation = Readonly<{
   attemptId: string;
   occurrenceId: string;
@@ -75,6 +82,37 @@ function parseLatestAttemptId(value: unknown): string | null {
   }
   if (value.attemptId === null) return null;
   return nonEmptyString(value.attemptId, 'evidence_attempt_id_invalid');
+}
+
+function parseStorySourceAttempts(value: unknown): readonly EvidenceStorySourceAttempt[] {
+  if (!isRecord(value) || !Array.isArray(value.attempts)) {
+    throw new Error('evidence_story_sources_invalid');
+  }
+  return value.attempts.map((item) => {
+    if (!isRecord(item)) throw new Error('evidence_story_source_invalid');
+    const verificationStatus = item.verificationStatus;
+    if (
+      verificationStatus !== 'pending' &&
+      verificationStatus !== 'queued' &&
+      verificationStatus !== 'accepted' &&
+      verificationStatus !== 'rejected'
+    ) {
+      throw new Error('evidence_verification_status_invalid');
+    }
+    const effectiveSubmittedAt = nonEmptyString(
+      item.effectiveSubmittedAt,
+      'evidence_effective_submit_invalid',
+    );
+    if (!Number.isFinite(Date.parse(effectiveSubmittedAt))) {
+      throw new Error('evidence_effective_submit_invalid');
+    }
+    return {
+      attemptId: nonEmptyString(item.attemptId, 'evidence_attempt_id_invalid'),
+      attemptNumber: attemptNumber(item.attemptNumber),
+      effectiveSubmittedAt,
+      verificationStatus,
+    };
+  });
 }
 
 function parseReservation(value: unknown): EvidenceAttemptReservation {
@@ -162,6 +200,15 @@ export function createEvidenceApi({ baseUrl, accessToken }: EvidenceApiOptions) 
   }
 
   return Object.freeze({
+    async listStorySourceAttempts(occurrenceId: string) {
+      return parseStorySourceAttempts(
+        await jsonRequest(
+          `/v1/evidence/occurrences/${encodeURIComponent(occurrenceId)}/attempts`,
+          'GET',
+        ),
+      );
+    },
+
     async getLatestAttemptId(occurrenceId: string) {
       return parseLatestAttemptId(
         await jsonRequest(
