@@ -8,11 +8,13 @@ export type StoryTextSuggestionSelection =
   | 'both'
   | 'photo_only';
 
-export function applyStoryTextSuggestionSelection(_input: Readonly<{
-  composition: StoryComposition;
-  suggestions: StoryTextSuggestionsResult;
-  selection: StoryTextSuggestionSelection;
-  savedAt: string;
-}>): StoryComposition {
+export function applyStoryTextSuggestionSelection(
+  _input: Readonly<{
+    composition: StoryComposition;
+    suggestions: StoryTextSuggestionsResult;
+    selection: StoryTextSuggestionSelection;
+    savedAt: string;
+  }>,
+): StoryComposition {
   throw new Error('story_text_suggestion_placement_not_implemented');
 }
