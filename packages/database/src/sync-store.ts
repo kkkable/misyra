@@ -207,7 +207,7 @@ type StorySharingNotesPayload = Readonly<{
   musicMood: string | null;
   mention: string | null;
   location: string | null;
-  poll: unknown | null;
+  poll: unknown;
 }>;
 
 type StoryCompositionPayload = Readonly<{
@@ -218,8 +218,8 @@ type StoryCompositionPayload = Readonly<{
     translateY: number;
     rotation: number;
   }>;
-  headline: unknown | null;
-  supportingText: unknown | null;
+  headline: unknown;
+  supportingText: unknown;
   effects: readonly unknown[];
   revision: number;
   savedAt: string;
