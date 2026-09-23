@@ -26,18 +26,18 @@ export function createStoryStyleProfileService(input: {
   void input;
 
   return Object.freeze({
-    async rebuild(
+    rebuild(
       accountId: string,
       request: Readonly<{ referenceAssetIds: readonly string[] }>,
     ): Promise<never> {
       void accountId;
       void request;
-      throw new Error('story_style_profile_not_implemented');
+      return Promise.reject(new Error('story_style_profile_not_implemented'));
     },
 
-    async useDefault(accountId: string): Promise<never> {
+    useDefault(accountId: string): Promise<never> {
       void accountId;
-      throw new Error('story_style_profile_not_implemented');
+      return Promise.reject(new Error('story_style_profile_not_implemented'));
     },
   });
 }
