@@ -9,3 +9,4 @@ export * from './imported-all-day-effort.js';
 export * from './ai-difficulty-classification.js';
 export * from './evidence-verification.js';
 export * from './ai-planner-extraction.js';
+export * from './story-text-suggestions.js';
