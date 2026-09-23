@@ -1504,14 +1504,6 @@ async function applyStoryMutation(
         AND NOT (id = ANY($2::uuid[]))`,
     [payload.draftId, retainedIds],
   );
-  await client.query(
-    `UPDATE mission_occurrences
-        SET story_state = 'draft',
-            updated_at = now()
-      WHERE id = $1 AND account_id = $2`,
-    [mutation.entityId, mutation.accountId],
-  );
-
   return { payload, conflict: false };
 }
 
