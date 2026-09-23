@@ -48,11 +48,7 @@ function fontFor(layer: StoryTextLayer) {
   });
 }
 
-function StoryText({
-  layer,
-}: Readonly<{
-  layer: StoryTextLayer | null;
-}>) {
+function StoryText({ layer }: Readonly<{ layer: StoryTextLayer | null }>) {
   if (layer === null) return null;
   return (
     <SkiaText
