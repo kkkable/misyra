@@ -15,7 +15,7 @@ const referenceIds = [
   '66666666-6666-4666-8666-666666666666',
   '77777777-7777-4777-8777-777777777777',
   '88888888-8888-4888-8888-888888888888',
-] as const;
+];
 
 const abstractProfile = {
   palette: ['#1F2937', '#F9FAFB'],
@@ -27,7 +27,7 @@ const abstractProfile = {
   emoji: 'sparse',
   effects: ['grain'],
   tone: 'calm',
-} as const;
+};
 
 describe('MTS-093 Story style-profile contracts', () => {
   it('requires 3-8 unique reference images', () => {
