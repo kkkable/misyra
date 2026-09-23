@@ -13,6 +13,18 @@ export function createEvidenceAttemptRoutes(service: EvidenceAttemptService): Ap
   return [
     {
       method: 'GET',
+      path: '/evidence/occurrences/:occurrenceId/attempts',
+      handler: async (request, _reply, auth) => {
+        const params = request.params as { occurrenceId?: unknown };
+        try {
+          return await service.listStorySources(auth.accountId, params.occurrenceId);
+        } catch (error) {
+          return mapError(error);
+        }
+      },
+    },
+    {
+      method: 'GET',
       path: '/evidence/occurrences/:occurrenceId/latest-attempt',
       handler: async (request, _reply, auth) => {
         const params = request.params as { occurrenceId?: unknown };
