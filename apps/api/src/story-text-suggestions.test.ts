@@ -86,6 +86,8 @@ describe('MTS-092 Story text suggestion service', () => {
     ['完成並已驗證', '今晚完成 5K。', 'self_confirmed'],
     ['Verified by AI', 'Private completion.', 'private'],
     ['Evidence accepted', 'Trust Mode completion.', 'trust_mode'],
+    ['AI confirmed this mission', 'Self-confirmed completion.', 'self_confirmed'],
+    ['人工智能已確認完成', '私人完成。', 'private'],
   ])(
     'rejects verification claims for completion type %s/%s',
     async (headline, supportingText, completionType) => {
