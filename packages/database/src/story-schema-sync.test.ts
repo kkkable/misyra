@@ -321,7 +321,7 @@ describe('MTS-090 Story schema and synchronization contracts', () => {
     ).resolves.toEqual({ acceptedMutationIds: [mutationId] });
   });
 
-  it('keeps the latest valid Story save when an older offline save arrives later', async () => {
+  it('keeps the latest valid Story save and reports the losing mutation as a conflict', async () => {
     const fixture = await createMissionFixture(true);
     const draftId = randomUUID();
     const sourceVersionId = randomUUID();
@@ -355,7 +355,6 @@ describe('MTS-090 Story schema and synchronization contracts', () => {
     for (const [deviceId, occurredAt, payload] of [
       [fixture.firstDevice, '2026-09-23T09:32:00.000Z', firstPayload],
       [fixture.secondDevice, '2026-09-23T09:34:00.000Z', newestPayload],
-      [fixture.firstDevice, '2026-09-23T09:33:00.000Z', stalePayload],
     ] as const) {
       const mutationId = randomUUID();
       await expect(
@@ -374,6 +373,35 @@ describe('MTS-090 Story schema and synchronization contracts', () => {
         ]),
       ).resolves.toEqual({ acceptedMutationIds: [mutationId] });
     }
+
+    const staleMutationId = randomUUID();
+    const staleMutation = {
+      mutationId: staleMutationId,
+      accountId: fixture.account.id,
+      deviceId: fixture.firstDevice,
+      entityType: 'story',
+      entityId: fixture.occurrenceId,
+      operation: 'update',
+      baseVersion: null,
+      clientOccurredAt: '2026-09-23T09:33:00.000Z',
+      payload: stalePayload,
+    } as const;
+    const expectedConflict = {
+      acceptedMutationIds: [],
+      conflicts: [
+        {
+          kind: 'story_updated',
+          mutationId: staleMutationId,
+          storyDraftId: draftId,
+        },
+      ],
+    };
+    await expect(fixture.store.push(fixture.account.id, [staleMutation])).resolves.toEqual(
+      expectedConflict,
+    );
+    await expect(fixture.store.push(fixture.account.id, [staleMutation])).resolves.toEqual(
+      expectedConflict,
+    );
 
     const current = await pool.query<{
       notes: Record<string, unknown>;
@@ -434,27 +462,49 @@ describe('MTS-090 Story schema and synchronization contracts', () => {
       5,
       savedAt,
     );
+    const higherMutationId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+    const lowerMutationId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 
-    for (const [mutationId, payload] of [
-      ['bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', higherPayload],
-      ['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', lowerPayload],
-    ]) {
-      await expect(
-        fixture.store.push(fixture.account.id, [
-          {
-            mutationId,
-            accountId: fixture.account.id,
-            deviceId: fixture.firstDevice,
-            entityType: 'story',
-            entityId: fixture.occurrenceId,
-            operation: 'update',
-            baseVersion: null,
-            clientOccurredAt: savedAt,
-            payload,
-          },
-        ]),
-      ).resolves.toEqual({ acceptedMutationIds: [mutationId] });
-    }
+    await expect(
+      fixture.store.push(fixture.account.id, [
+        {
+          mutationId: higherMutationId,
+          accountId: fixture.account.id,
+          deviceId: fixture.firstDevice,
+          entityType: 'story',
+          entityId: fixture.occurrenceId,
+          operation: 'update',
+          baseVersion: null,
+          clientOccurredAt: savedAt,
+          payload: higherPayload,
+        },
+      ]),
+    ).resolves.toEqual({ acceptedMutationIds: [higherMutationId] });
+
+    await expect(
+      fixture.store.push(fixture.account.id, [
+        {
+          mutationId: lowerMutationId,
+          accountId: fixture.account.id,
+          deviceId: fixture.firstDevice,
+          entityType: 'story',
+          entityId: fixture.occurrenceId,
+          operation: 'update',
+          baseVersion: null,
+          clientOccurredAt: savedAt,
+          payload: lowerPayload,
+        },
+      ]),
+    ).resolves.toEqual({
+      acceptedMutationIds: [],
+      conflicts: [
+        {
+          kind: 'story_updated',
+          mutationId: lowerMutationId,
+          storyDraftId: draftId,
+        },
+      ],
+    });
 
     const current = await pool.query<{
       notes: Record<string, unknown>;
@@ -471,7 +521,7 @@ describe('MTS-090 Story schema and synchronization contracts', () => {
     expect(current.rows).toEqual([
       {
         notes: higherPayload.notes,
-        winnerMutationId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+        winnerMutationId: higherMutationId,
       },
     ]);
   });
