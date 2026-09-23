@@ -1077,6 +1077,7 @@ export function createPostgresEventKitSyncStore(
           const result = await generic.push(accountId, [mutation]);
           acceptedMutationIds.push(...result.acceptedMutationIds);
           conflicts.push(...(result.conflicts ?? []));
+          if ((result.conflicts?.length ?? 0) > 0) break;
           continue;
         }
         const client = await pool.connect();
