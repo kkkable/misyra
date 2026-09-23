@@ -38,5 +38,15 @@
   "story.editor.textColor": "Text colour",
   "story.editor.font": "Font",
   "story.editor.removeText": "Remove text",
-  "story.editor.contrast": "Contrast"
+  "story.editor.contrast": "Contrast",
+  "story.suggestions.title": "Suggestions",
+  "story.suggestions.useHeadline": "Use headline",
+  "story.suggestions.useSupportingText": "Use supporting text",
+  "story.suggestions.useBoth": "Use both",
+  "story.suggestions.photoOnly": "Photo only",
+  "story.suggestions.sharingNotes": "Sharing Notes",
+  "story.suggestions.musicMood": "Music / mood",
+  "story.suggestions.mention": "Mention",
+  "story.suggestions.location": "Location",
+  "story.suggestions.poll": "Poll"
 }
