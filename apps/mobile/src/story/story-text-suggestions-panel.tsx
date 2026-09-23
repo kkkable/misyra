@@ -9,6 +9,11 @@ export type StoryTextSuggestionsPanelMessages = Readonly<{
   useSupportingText: string;
   useBoth: string;
   photoOnly: string;
+  sharingNotes: string;
+  musicMood: string;
+  mention: string;
+  location: string;
+  poll: string;
 }>;
 
 export function StoryTextSuggestionsPanel(
@@ -26,6 +31,27 @@ export function StoryTextSuggestionsPanel(
       )}
       {props.suggestions.supportingText === null ? null : (
         <Text testID="story-suggestion-supporting">{props.suggestions.supportingText}</Text>
+      )}
+      <Text style={styles.notesTitle}>{props.messages.sharingNotes}</Text>
+      {props.suggestions.sharingNotes.musicMood === null ? null : (
+        <Text testID="story-suggestion-music-mood">
+          {`${props.messages.musicMood}: ${props.suggestions.sharingNotes.musicMood}`}
+        </Text>
+      )}
+      {props.suggestions.sharingNotes.mention === null ? null : (
+        <Text testID="story-suggestion-mention">
+          {`${props.messages.mention}: ${props.suggestions.sharingNotes.mention}`}
+        </Text>
+      )}
+      {props.suggestions.sharingNotes.location === null ? null : (
+        <Text testID="story-suggestion-location">
+          {`${props.messages.location}: ${props.suggestions.sharingNotes.location}`}
+        </Text>
+      )}
+      {props.suggestions.sharingNotes.poll === null ? null : (
+        <Text testID="story-suggestion-poll">
+          {`${props.messages.poll}: ${props.suggestions.sharingNotes.poll.question} — ${props.suggestions.sharingNotes.poll.options.join(' / ')}`}
+        </Text>
       )}
       <View style={styles.actions}>
         <Pressable
@@ -77,6 +103,10 @@ export function StoryTextSuggestionsPanel(
 const styles = StyleSheet.create({
   actions: {
     gap: 8,
+  },
+  notesTitle: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   panel: {
     gap: 12,
