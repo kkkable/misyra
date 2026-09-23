@@ -2109,6 +2109,7 @@ export function createPostgresSyncStore(pool: Pool, now: () => Date = () => new 
             acceptedMutationIds.push(mutation.mutationId);
           } else {
             conflicts.push(conflict);
+            break;
           }
         }
         await client.query('COMMIT');
