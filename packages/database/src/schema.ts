@@ -373,6 +373,7 @@ export const storyDrafts = pgTable(
       .notNull()
       .defaultNow(),
     validationResult: text('validation_result').notNull().default('valid'),
+    winnerMutationId: uuid('winner_mutation_id'),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
