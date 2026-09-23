@@ -1092,9 +1092,7 @@ export function createPostgresEventKitSyncStore(
           client.release();
         }
       }
-      return conflicts.length === 0
-        ? { acceptedMutationIds }
-        : { acceptedMutationIds, conflicts };
+      return conflicts.length === 0 ? { acceptedMutationIds } : { acceptedMutationIds, conflicts };
     },
     pull(accountId, input) {
       return generic.pull(accountId, input);
