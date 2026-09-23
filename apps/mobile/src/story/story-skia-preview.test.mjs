@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  createStoryPreviewLayout,
-  createStorySkiaSceneSnapshot,
-} from './story-skia-preview.ts';
+import { createStoryPreviewLayout, createStorySkiaSceneSnapshot } from './story-skia-preview.ts';
 
 const composition = {
   canvas: { width: 1080, height: 1920 },
