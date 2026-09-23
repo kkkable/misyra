@@ -1,8 +1,4 @@
-import type {
-  StoryComposition,
-  StoryEffect,
-  StoryTextLayer,
-} from './story-composition.js';
+import type { StoryComposition, StoryEffect, StoryTextLayer } from './story-composition.js';
 import type { StorySourceImage } from './story-editor-state.js';
 
 const CANVAS_WIDTH = 1080;
