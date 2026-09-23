@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { EvidenceStorySourceAttempt } from '../evidence/evidence-api.js';
 import {
   PrimaryButton,
@@ -90,14 +90,20 @@ export function StoryEditorScreen({
 }>) {
   const window = useWindowDimensions();
   const colors = themeColors(colorScheme);
-  const session = useMemo(
-    () =>
-      createStoryEditorSession({
+  const sessionRef = useRef<{
+    sourceImageId: string;
+    session: ReturnType<typeof createStoryEditorSession>;
+  } | null>(null);
+  if (sessionRef.current === null || sessionRef.current.sourceImageId !== sourceImage.id) {
+    sessionRef.current = {
+      sourceImageId: sourceImage.id,
+      session: createStoryEditorSession({
         sourceImage,
         savedComposition,
       }),
-    [savedComposition, sourceImage],
-  );
+    };
+  }
+  const session = sessionRef.current.session;
   const [composition, setComposition] = useState(() => session.getComposition());
   const [selectedTextRole, setSelectedTextRole] = useState<TextRole>('headline');
 
