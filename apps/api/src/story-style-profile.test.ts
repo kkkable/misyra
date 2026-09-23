@@ -32,9 +32,7 @@ describe('MTS-093 Story style-profile service', () => {
     async () => {
       const query = vi.fn((sql: string) => {
         if (/FROM media_assets/i.test(sql)) {
-          return Promise.resolve({
-            rows: referenceIds.map((id) => ({ id })),
-          });
+          return Promise.resolve({ rows: referenceIds.map((id) => ({ id })) });
         }
         if (/INSERT INTO story_style_profiles/i.test(sql)) {
           return Promise.resolve({ rows: [] });
@@ -85,9 +83,7 @@ describe('MTS-093 Story style-profile service', () => {
 
   it('rejects missing or non-owned references before invoking AI', async () => {
     const query = vi.fn(() =>
-      Promise.resolve({
-        rows: referenceIds.slice(0, 2).map((id) => ({ id })),
-      }),
+      Promise.resolve({ rows: referenceIds.slice(0, 2).map((id) => ({ id })) }),
     );
     const extractStoryStyleProfile = vi.fn();
     const service = createStoryStyleProfileService({
