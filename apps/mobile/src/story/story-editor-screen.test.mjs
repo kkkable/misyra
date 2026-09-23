@@ -7,7 +7,11 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 vi.mock('react-native', async () => {
   const { createElement: h } = await import('react');
   const Pressable = ({ children, ...props }) =>
-    h('Pressable', props, typeof children === 'function' ? children({ pressed: false }) : children);
+    h(
+      'Pressable',
+      props,
+      typeof children === 'function' ? children({ pressed: false }) : children,
+    );
   return {
     Pressable,
     ScrollView: ({ children, ...props }) => h('ScrollView', props, children),
