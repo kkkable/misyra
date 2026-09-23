@@ -11,14 +11,8 @@ import {
 } from '../design-system/index.js';
 import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
-import {
-  createStoryEditorSession,
-  type StorySourceImage,
-} from './story-editor-state.js';
-import type {
-  StoryComposition,
-  StoryTextLayer,
-} from './story-composition.js';
+import { createStoryEditorSession, type StorySourceImage } from './story-editor-state.js';
+import type { StoryComposition, StoryTextLayer } from './story-composition.js';
 import { StorySkiaPreviewView } from './story-skia-preview-view.js';
 
 export type StoryEditorMessages = Readonly<{
@@ -143,7 +137,10 @@ export function StoryEditorScreen({
 
   const setText = (role: TextRole, text: string) => {
     const current = role === 'headline' ? composition.headline : composition.supportingText;
-    setLayer(role, text.length === 0 ? null : { ...(current ?? defaultTextLayer(role, text)), text });
+    setLayer(
+      role,
+      text.length === 0 ? null : { ...(current ?? defaultTextLayer(role, text)), text },
+    );
   };
 
   const contrastEffect = composition.effects.find((effect) => effect.kind === 'contrast');
