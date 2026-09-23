@@ -47,7 +47,10 @@ function safeOutput() {
 
 describe('MTS-092 Story text suggestion service', () => {
   it('builds AI context server-side from permitted mission, personal-note, style, language, and completion data without consuming image budget', async () => {
-    const query = vi.fn(() => Promise.resolve({ rows: [contextRow()] }));
+    const query = vi.fn((statement: string) => {
+      void statement;
+      return Promise.resolve({ rows: [contextRow()] });
+    });
     const suggestStoryText = vi.fn(() => Promise.resolve(safeOutput()));
     const service = createStoryTextSuggestionService({
       pool: { query } as unknown as Pool,
