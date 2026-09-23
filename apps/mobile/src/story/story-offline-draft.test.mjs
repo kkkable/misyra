@@ -106,6 +106,23 @@ function payload(revision) {
 }
 
 describe('MTS-091 offline Story draft persistence', () => {
+  it('loads an existing local Story draft without a network dependency', async () => {
+    const database = new NodeSqliteAdapter();
+    databases.push(database);
+    await applyMobileMigrations(database);
+    await seedCompletedMission(database);
+
+    const store = createStoryOfflineDraftStore({
+      database,
+      accountId,
+      deviceId,
+      generateMutationId: () => '77777777-7777-4777-8777-777777777777',
+    });
+    await store.save(occurrenceId, payload(1));
+
+    await expect(store.load(occurrenceId)).resolves.toEqual(payload(1));
+  });
+
   it('saves manual edits locally and queues server sync without requiring a network call', async () => {
     const database = new NodeSqliteAdapter();
     databases.push(database);
