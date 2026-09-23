@@ -4,7 +4,8 @@ ALTER TABLE story_drafts
   ADD COLUMN original_client_time timestamptz NOT NULL DEFAULT now(),
   ADD COLUMN server_receipt_time timestamptz NOT NULL DEFAULT now(),
   ADD COLUMN effective_save_time timestamptz NOT NULL DEFAULT now(),
-  ADD COLUMN validation_result text NOT NULL DEFAULT 'valid';
+  ADD COLUMN validation_result text NOT NULL DEFAULT 'valid',
+  ADD COLUMN winner_mutation_id uuid;
 
 ALTER TABLE story_drafts
   ADD CONSTRAINT story_drafts_revision_check CHECK (revision >= 0),
