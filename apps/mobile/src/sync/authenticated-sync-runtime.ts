@@ -1,6 +1,7 @@
 import {
   accountSettingsSchema,
   mobileMissionPersonalNoteSchema,
+  storyDraftSyncPayloadSchema,
   type AccountSettings,
   type AuthoritativeCompletionTypeContract,
 } from '@misyra/contracts';
@@ -566,6 +567,56 @@ async function hasPendingPlannerMutation(
   return row !== null;
 }
 
+async function hasPendingStoryMutation(
+  transaction: ServerSyncDatabase,
+  accountId: string,
+  occurrenceId: string,
+): Promise<boolean> {
+  const row = await transaction.getFirstAsync<{ mutation_id: string }>(
+    `SELECT mutation_id
+       FROM mutation_queue
+      WHERE account_id = ?
+        AND json_extract(command_json, '$.mutation.entityType') = 'story'
+        AND json_extract(command_json, '$.mutation.entityId') = ?
+      LIMIT 1`,
+    accountId,
+    occurrenceId,
+  );
+  return row !== null;
+}
+
+function storyDraftFromChange(change: ServerAccountChange) {
+  if (change.entityType !== 'story') return null;
+  if (change.operation !== 'upsert') {
+    throw new Error('Unsupported Story draft change operation.');
+  }
+  return storyDraftSyncPayloadSchema.parse(change.payload);
+}
+
+async function applyStoryDraftProjection(
+  transaction: ServerSyncDatabase,
+  accountId: string,
+  occurrenceId: string,
+  payload: ReturnType<typeof storyDraftSyncPayloadSchema.parse>,
+  updatedAt: string,
+): Promise<void> {
+  await transaction.runAsync(
+    `INSERT INTO story_drafts
+       (account_id, occurrence_id, draft_id, composition_json, updated_at)
+     VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(account_id, occurrence_id) DO UPDATE SET
+       draft_id = excluded.draft_id,
+       composition_json = excluded.composition_json,
+       updated_at = excluded.updated_at`,
+    accountId,
+    occurrenceId,
+    payload.draftId,
+    JSON.stringify(payload),
+    updatedAt,
+  );
+}
+
+
 async function applyAuthoritativeChanges(
   transaction: ServerSyncDatabase,
   accountId: string,
@@ -601,6 +652,18 @@ async function applyAuthoritativeChanges(
         accountId,
         JSON.stringify(plannerDraft),
         updatedAt,
+      );
+      continue;
+    }
+    const storyDraft = storyDraftFromChange(change);
+    if (storyDraft !== null) {
+      if (await hasPendingStoryMutation(transaction, accountId, change.entityId)) continue;
+      await applyStoryDraftProjection(
+        transaction,
+        accountId,
+        change.entityId,
+        storyDraft,
+        new Date().toISOString(),
       );
       continue;
     }
@@ -676,8 +739,12 @@ async function applyAuthoritativeSnapshot(
 ) {
   const ordered = [
     ...entries.filter(
-      (entry) => entry.entityType !== 'mission_personal_note' && entry.entityType !== 'progress',
+      (entry) =>
+        entry.entityType !== 'story' &&
+        entry.entityType !== 'mission_personal_note' &&
+        entry.entityType !== 'progress',
     ),
+    ...entries.filter((entry) => entry.entityType === 'story'),
     ...entries.filter((entry) => entry.entityType === 'mission_personal_note'),
     ...entries.filter((entry) => entry.entityType === 'progress'),
   ];
