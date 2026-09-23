@@ -170,7 +170,9 @@ export function StoryEditorScreen({
             accessibilityLabel={messages.save}
             colorScheme={colorScheme}
             label={messages.save}
-            onPress={() => onSave(composition)}
+            onPress={() => {
+              onSave(composition);
+            }}
             testID="story-save"
           />
         }
@@ -187,7 +189,9 @@ export function StoryEditorScreen({
                 accessibilityRole="button"
                 accessibilityState={{ selected }}
                 key={source.attemptId}
-                onPress={() => onSelectSource(source)}
+                onPress={() => {
+                  onSelectSource(source);
+                }}
                 style={[
                   styles.sourceButton,
                   {
@@ -239,18 +243,18 @@ export function StoryEditorScreen({
             accessibilityLabel={messages.zoomOut}
             colorScheme={colorScheme}
             label={messages.zoomOut}
-            onPress={() =>
-              transformBackground({ scale: clamp(composition.background.scale - 0.1, 0.5, 3) })
-            }
+            onPress={() => {
+              transformBackground({ scale: clamp(composition.background.scale - 0.1, 0.5, 3) });
+            }}
             testID="story-zoom-out"
           />
           <SecondaryButton
             accessibilityLabel={messages.zoomIn}
             colorScheme={colorScheme}
             label={messages.zoomIn}
-            onPress={() =>
-              transformBackground({ scale: clamp(composition.background.scale + 0.1, 0.5, 3) })
-            }
+            onPress={() => {
+              transformBackground({ scale: clamp(composition.background.scale + 0.1, 0.5, 3) });
+            }}
             testID="story-zoom-in"
           />
           <SecondaryButton
@@ -272,36 +276,36 @@ export function StoryEditorScreen({
             accessibilityLabel={messages.moveLeft}
             colorScheme={colorScheme}
             label={messages.moveLeft}
-            onPress={() =>
-              transformBackground({ translateX: composition.background.translateX - 40 })
-            }
+            onPress={() => {
+              transformBackground({ translateX: composition.background.translateX - 40 });
+            }}
             testID="story-move-left"
           />
           <SecondaryButton
             accessibilityLabel={messages.moveRight}
             colorScheme={colorScheme}
             label={messages.moveRight}
-            onPress={() =>
-              transformBackground({ translateX: composition.background.translateX + 40 })
-            }
+            onPress={() => {
+              transformBackground({ translateX: composition.background.translateX + 40 });
+            }}
             testID="story-move-right"
           />
           <SecondaryButton
             accessibilityLabel={messages.moveUp}
             colorScheme={colorScheme}
             label={messages.moveUp}
-            onPress={() =>
-              transformBackground({ translateY: composition.background.translateY - 40 })
-            }
+            onPress={() => {
+              transformBackground({ translateY: composition.background.translateY - 40 });
+            }}
             testID="story-move-up"
           />
           <SecondaryButton
             accessibilityLabel={messages.moveDown}
             colorScheme={colorScheme}
             label={messages.moveDown}
-            onPress={() =>
-              transformBackground({ translateY: composition.background.translateY + 40 })
-            }
+            onPress={() => {
+              transformBackground({ translateY: composition.background.translateY + 40 });
+            }}
             testID="story-move-down"
           />
         </View>
@@ -310,7 +314,9 @@ export function StoryEditorScreen({
           accessibilityLabel={messages.headline}
           colorScheme={colorScheme}
           label={messages.headline}
-          onChangeText={(text) => setText('headline', text)}
+          onChangeText={(text) => {
+            setText('headline', text);
+          }}
           testID="story-headline-input"
           value={composition.headline?.text ?? ''}
         />
@@ -318,7 +324,9 @@ export function StoryEditorScreen({
           accessibilityLabel={messages.supportingText}
           colorScheme={colorScheme}
           label={messages.supportingText}
-          onChangeText={(text) => setText('supportingText', text)}
+          onChangeText={(text) => {
+            setText('supportingText', text);
+          }}
           testID="story-supporting-input"
           value={composition.supportingText?.text ?? ''}
         />
@@ -328,14 +336,18 @@ export function StoryEditorScreen({
             accessibilityLabel={messages.editHeadline}
             colorScheme={colorScheme}
             label={messages.editHeadline}
-            onPress={() => setSelectedTextRole('headline')}
+            onPress={() => {
+              setSelectedTextRole('headline');
+            }}
             testID="story-edit-headline"
           />
           <SecondaryButton
             accessibilityLabel={messages.editSupportingText}
             colorScheme={colorScheme}
             label={messages.editSupportingText}
-            onPress={() => setSelectedTextRole('supportingText')}
+            onPress={() => {
+              setSelectedTextRole('supportingText');
+            }}
             testID="story-edit-supporting"
           />
         </View>
@@ -346,12 +358,12 @@ export function StoryEditorScreen({
             colorScheme={colorScheme}
             disabled={currentLayer === null}
             label={messages.textSmaller}
-            onPress={() =>
+            onPress={() => {
               updateCurrentLayer((layer) => ({
                 ...layer,
                 fontSize: clamp(layer.fontSize - 8, 20, 160),
-              }))
-            }
+              }));
+            }}
             testID="story-text-smaller"
           />
           <SecondaryButton
@@ -359,12 +371,12 @@ export function StoryEditorScreen({
             colorScheme={colorScheme}
             disabled={currentLayer === null}
             label={messages.textLarger}
-            onPress={() =>
+            onPress={() => {
               updateCurrentLayer((layer) => ({
                 ...layer,
                 fontSize: clamp(layer.fontSize + 8, 20, 160),
-              }))
-            }
+              }));
+            }}
             testID="story-text-larger"
           />
           <SecondaryButton
@@ -372,15 +384,15 @@ export function StoryEditorScreen({
             colorScheme={colorScheme}
             disabled={currentLayer === null}
             label={messages.textColor}
-            onPress={() =>
+            onPress={() => {
               updateCurrentLayer((layer) => {
                 const index = TEXT_COLORS.indexOf(layer.color as (typeof TEXT_COLORS)[number]);
                 return {
                   ...layer,
                   color: TEXT_COLORS[(index + 1 + TEXT_COLORS.length) % TEXT_COLORS.length],
                 };
-              })
-            }
+              });
+            }}
             testID="story-text-color"
           />
           <SecondaryButton
@@ -388,12 +400,12 @@ export function StoryEditorScreen({
             colorScheme={colorScheme}
             disabled={currentLayer === null}
             label={messages.font}
-            onPress={() =>
+            onPress={() => {
               updateCurrentLayer((layer) => ({
                 ...layer,
                 fontCategory: layer.fontCategory === 'system-bold' ? 'system' : 'system-bold',
-              }))
-            }
+              }));
+            }}
             testID="story-font"
           />
         </View>
@@ -404,7 +416,9 @@ export function StoryEditorScreen({
             colorScheme={colorScheme}
             disabled={currentLayer === null}
             label={messages.moveLeft}
-            onPress={() => updateCurrentLayer((layer) => ({ ...layer, x: layer.x - 40 }))}
+            onPress={() => {
+              updateCurrentLayer((layer) => ({ ...layer, x: layer.x - 40 }));
+            }}
             testID="story-text-left"
           />
           <SecondaryButton
@@ -412,7 +426,9 @@ export function StoryEditorScreen({
             colorScheme={colorScheme}
             disabled={currentLayer === null}
             label={messages.moveRight}
-            onPress={() => updateCurrentLayer((layer) => ({ ...layer, x: layer.x + 40 }))}
+            onPress={() => {
+              updateCurrentLayer((layer) => ({ ...layer, x: layer.x + 40 }));
+            }}
             testID="story-text-right"
           />
           <SecondaryButton
@@ -420,7 +436,9 @@ export function StoryEditorScreen({
             colorScheme={colorScheme}
             disabled={currentLayer === null}
             label={messages.moveUp}
-            onPress={() => updateCurrentLayer((layer) => ({ ...layer, y: layer.y - 40 }))}
+            onPress={() => {
+              updateCurrentLayer((layer) => ({ ...layer, y: layer.y - 40 }));
+            }}
             testID="story-text-up"
           />
           <SecondaryButton
@@ -428,7 +446,9 @@ export function StoryEditorScreen({
             colorScheme={colorScheme}
             disabled={currentLayer === null}
             label={messages.moveDown}
-            onPress={() => updateCurrentLayer((layer) => ({ ...layer, y: layer.y + 40 }))}
+            onPress={() => {
+              updateCurrentLayer((layer) => ({ ...layer, y: layer.y + 40 }));
+            }}
             testID="story-text-down"
           />
         </View>
@@ -438,7 +458,9 @@ export function StoryEditorScreen({
           colorScheme={colorScheme}
           disabled={currentLayer === null}
           label={messages.removeText}
-          onPress={() => setLayer(selectedTextRole, null)}
+          onPress={() => {
+            setLayer(selectedTextRole, null);
+          }}
           testID="story-remove-text"
         />
       </ScrollView>
