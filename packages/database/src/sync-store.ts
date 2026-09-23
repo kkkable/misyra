@@ -19,8 +19,15 @@ export type StoredSyncMutation = Readonly<{
   payload: unknown;
 }>;
 
+export type StoredSyncConflict = Readonly<{
+  kind: 'story_updated';
+  mutationId: string;
+  storyDraftId: string;
+}>;
+
 export type StoredSyncPushResult = Readonly<{
   acceptedMutationIds: readonly string[];
+  conflicts?: readonly StoredSyncConflict[];
 }>;
 
 export type StoredSyncPullResult =
@@ -1323,11 +1330,16 @@ function storySaveIsNewer(
   return current.winnerMutationId === null || mutationId > current.winnerMutationId;
 }
 
+type StoryMutationApplyResult = Readonly<{
+  payload: StoryDraftPayload;
+  conflict: boolean;
+}>;
+
 async function applyStoryMutation(
   client: PoolClient,
   mutation: StoredSyncMutation,
   timing: ClientTiming,
-): Promise<StoryDraftPayload> {
+): Promise<StoryMutationApplyResult> {
   const payload = parseStoryDraftPayload(mutation.payload);
   const occurrence = await client.query<{
     completionState: string;
@@ -1382,7 +1394,10 @@ async function applyStoryMutation(
     );
   }
   if (current !== undefined && !storySaveIsNewer(current, timing, mutation.mutationId)) {
-    return loadStoryDraftPayload(client, mutation.accountId, mutation.entityId);
+    return {
+      payload: await loadStoryDraftPayload(client, mutation.accountId, mutation.entityId),
+      conflict: true,
+    };
   }
 
   const draftRevision = payload.imageVersions.reduce(
@@ -1497,7 +1512,7 @@ async function applyStoryMutation(
     [mutation.entityId, mutation.accountId],
   );
 
-  return payload;
+  return { payload, conflict: false };
 }
 
 async function applySettingsMutation(
@@ -1954,9 +1969,6 @@ async function applyExecutableMutation(
   mutation: StoredSyncMutation,
   timing: ClientTiming,
 ): Promise<unknown> {
-  if (mutation.entityType === 'story') {
-    return applyStoryMutation(client, mutation, timing);
-  }
   if (mutation.entityType === 'planner') {
     return applyPlannerMutation(client, mutation, timing.effectiveTime);
   }
@@ -1986,20 +1998,50 @@ async function applyExecutableMutation(
   );
 }
 
+async function storyConflictForMutation(
+  client: PoolClient,
+  mutation: StoredSyncMutation,
+): Promise<StoredSyncConflict | null> {
+  const result = await client.query<{ draftId: string; winnerMutationId: string | null }>(
+    `SELECT id AS "draftId", winner_mutation_id AS "winnerMutationId"
+       FROM story_drafts
+      WHERE account_id = $1
+        AND occurrence_id = $2
+        AND state = 'active'`,
+    [mutation.accountId, mutation.entityId],
+  );
+  const current = result.rows[0];
+  if (current === undefined || current.winnerMutationId === mutation.mutationId) return null;
+  return {
+    kind: 'story_updated',
+    mutationId: mutation.mutationId,
+    storyDraftId: current.draftId,
+  };
+}
+
 async function acceptMutation(
   client: PoolClient,
   mutation: StoredSyncMutation,
   serverReceiptTime: Date,
-): Promise<void> {
+): Promise<StoredSyncConflict | null> {
   assertExecutableMutationShape(mutation);
   await requireDeviceOwnership(client, mutation.accountId, mutation.deviceId);
   const timing = resolveClientTiming(mutation.clientOccurredAt, serverReceiptTime);
 
   const existingMatch = await existingMutationMatches(client, mutation, timing);
-  if (existingMatch === true) return;
+  if (existingMatch === true) {
+    return mutation.entityType === 'story'
+      ? storyConflictForMutation(client, mutation)
+      : null;
+  }
   if (existingMatch === false) throw new SyncMutationConflictError();
 
-  const authoritativePayload = await applyExecutableMutation(client, mutation, timing);
+  const storyResult =
+    mutation.entityType === 'story' ? await applyStoryMutation(client, mutation, timing) : null;
+  const authoritativePayload =
+    storyResult === null
+      ? await applyExecutableMutation(client, mutation, timing)
+      : storyResult.payload;
 
   await client.query(
     `INSERT INTO device_sync_mutations (
@@ -2039,6 +2081,14 @@ async function acceptMutation(
     operation: changeOperation(mutation.operation),
     payload: authoritativePayload,
   });
+
+  return storyResult?.conflict === true
+    ? {
+        kind: 'story_updated',
+        mutationId: mutation.mutationId,
+        storyDraftId: storyResult.payload.draftId,
+      }
+    : null;
 }
 
 export function createPostgresSyncStore(pool: Pool, now: () => Date = () => new Date()) {
@@ -2051,13 +2101,20 @@ export function createPostgresSyncStore(pool: Pool, now: () => Date = () => new 
       try {
         await client.query('BEGIN');
         const acceptedMutationIds: string[] = [];
+        const conflicts: StoredSyncConflict[] = [];
         for (const mutation of mutations) {
           if (mutation.accountId !== accountId) throw new SyncDeviceOwnershipError();
-          await acceptMutation(client, mutation, now());
-          acceptedMutationIds.push(mutation.mutationId);
+          const conflict = await acceptMutation(client, mutation, now());
+          if (conflict === null) {
+            acceptedMutationIds.push(mutation.mutationId);
+          } else {
+            conflicts.push(conflict);
+          }
         }
         await client.query('COMMIT');
-        return { acceptedMutationIds };
+        return conflicts.length === 0
+          ? { acceptedMutationIds }
+          : { acceptedMutationIds, conflicts };
       } catch (error) {
         await client.query('ROLLBACK');
         throw error;
