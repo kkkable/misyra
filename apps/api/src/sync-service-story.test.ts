@@ -28,7 +28,9 @@ function mutation(mutationId: string, clientOccurredAt: string) {
 }
 
 describe('MTS-090 Story sync-service conflicts', () => {
-  it('returns a Story conflict as a settled contiguous prefix and stops before later mutations', async () => {
+  it(
+    'returns a Story conflict as a settled contiguous prefix and stops before later mutations',
+    async () => {
     const acceptedId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
     const conflictId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
     const trailingId = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
@@ -36,7 +38,9 @@ describe('MTS-090 Story sync-service conflicts', () => {
 
     const storePush = vi.fn<PostgresSyncStore['push']>(async (_account, mutations) => {
       const current = mutations[0];
-      if (current === undefined) throw new Error('Expected one mutation per sync-service store call');
+      if (current === undefined) {
+        throw new Error('Expected one mutation per sync-service store call');
+      }
       call += 1;
       if (call === 1) {
         return { acceptedMutationIds: [current.mutationId] };
@@ -80,6 +84,7 @@ describe('MTS-090 Story sync-service conflicts', () => {
         },
       ],
     });
-    expect(storePush).toHaveBeenCalledTimes(2);
-  });
+      expect(storePush).toHaveBeenCalledTimes(2);
+    },
+  );
 });
