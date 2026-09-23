@@ -902,9 +902,6 @@ async function applyAuthenticatedConflicts(
       continue;
     }
 
-    if (conflict.kind !== 'mission_completed_elsewhere' && conflict.kind !== 'mission_updated') {
-      throw new Error(CONFLICT_APPLICATION_HANDLER_REQUIRED);
-    }
     if (!matchingNoEvidenceCompletion(mutation, pending?.destination.kind, conflict.missionId)) {
       throw new Error(CONFLICT_APPLICATION_HANDLER_REQUIRED);
     }
