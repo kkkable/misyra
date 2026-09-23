@@ -71,6 +71,10 @@ import {
   type ProtectedMediaBlobStore,
 } from './protected-media.js';
 import { createProviderProofVerifier } from './provider-proof-verifier.js';
+import {
+  createStoryTextSuggestionRoutes,
+  type StoryTextSuggestionRouteService,
+} from './story-text-suggestions-routes.js';
 import { createSyncRoutes } from './sync-routes.js';
 import { createPostgresSyncService } from './sync-service.js';
 
@@ -94,6 +98,7 @@ type AuthApplicationOptions = {
   googleCalendar?: GoogleCalendarApplicationDependencies;
   mediaBlobStore?: ProtectedMediaBlobStore;
   plannerExtractionService?: PlannerExtractionRouteService;
+  storyTextSuggestionService?: StoryTextSuggestionRouteService;
 };
 
 type SessionActiveCheck = (
@@ -295,6 +300,7 @@ export function createApiApplication(options: AuthApplicationOptions) {
       ...createEvidenceAttemptRoutes(evidenceAttemptService),
       ...createProtectedMediaRoutes(protectedMediaService),
       ...createPlannerRoutes(options.pool, options.plannerExtractionService, options.now),
+      ...createStoryTextSuggestionRoutes(options.storyTextSuggestionService),
       ...calendarConnectionRoutes,
       ...appleCalendarRoutes,
       ...googleCalendarRoutes,
