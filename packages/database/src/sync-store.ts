@@ -2030,9 +2030,7 @@ async function acceptMutation(
 
   const existingMatch = await existingMutationMatches(client, mutation, timing);
   if (existingMatch === true) {
-    return mutation.entityType === 'story'
-      ? storyConflictForMutation(client, mutation)
-      : null;
+    return mutation.entityType === 'story' ? storyConflictForMutation(client, mutation) : null;
   }
   if (existingMatch === false) throw new SyncMutationConflictError();
 
