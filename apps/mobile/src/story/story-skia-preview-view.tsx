@@ -98,7 +98,14 @@ export function StorySkiaPreviewView({
             ]}
           >
             {image === null ? null : (
-              <SkiaImage image={image} fit="cover" x={0} y={0} width={1080} height={1920}>
+              <SkiaImage
+                image={image}
+                fit="cover"
+                x={0}
+                y={0}
+                width={1080}
+                height={1920}
+              >
                 {contrastAmount === null ? null : (
                   <ColorMatrix matrix={contrastMatrix(contrastAmount)} />
                 )}
