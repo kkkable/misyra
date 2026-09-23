@@ -35,17 +35,10 @@ describe('MTS-093 Story style-profile contracts', () => {
     const maximum = { referenceAssetIds: referenceIds };
     const tooFew = { referenceAssetIds: referenceIds.slice(0, 2) };
     const tooMany = {
-      referenceAssetIds: [
-        ...referenceIds,
-        '99999999-9999-4999-8999-999999999999',
-      ],
+      referenceAssetIds: [...referenceIds, '99999999-9999-4999-8999-999999999999'],
     };
     const duplicate = {
-      referenceAssetIds: [
-        referenceIds[0],
-        referenceIds[1],
-        referenceIds[0],
-      ],
+      referenceAssetIds: [referenceIds[0], referenceIds[1], referenceIds[0]],
     };
 
     expect(storyStyleProfileRebuildRequestSchema.safeParse(minimum).success).toBe(true);
