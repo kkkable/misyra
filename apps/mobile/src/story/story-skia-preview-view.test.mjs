@@ -15,7 +15,10 @@ vi.mock('react-native', async () => {
 
 vi.mock('@shopify/react-native-skia', async () => {
   const { createElement: h } = await import('react');
-  const host = (name) => ({ children, ...props }) => h(name, props, children);
+  const host = (name) => {
+    const Host = ({ children, ...props }) => h(name, props, children);
+    return Host;
+  };
   return {
     Canvas: host('SkiaCanvas'),
     ColorMatrix: host('SkiaColorMatrix'),
