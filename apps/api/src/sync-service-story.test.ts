@@ -34,16 +34,16 @@ describe('MTS-090 Story sync-service conflicts', () => {
     const trailingId = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
     let call = 0;
 
-    const storePush = vi.fn<PostgresSyncStore['push']>(async (_account, mutations) => {
+    const storePush = vi.fn<PostgresSyncStore['push']>((_account, mutations) => {
       const current = mutations[0];
       if (current === undefined) {
         throw new Error('Expected one mutation per sync-service store call');
       }
       call += 1;
       if (call === 1) {
-        return { acceptedMutationIds: [current.mutationId] };
+        return Promise.resolve({ acceptedMutationIds: [current.mutationId] });
       }
-      return {
+      return Promise.resolve({
         acceptedMutationIds: [],
         conflicts: [
           {
@@ -52,17 +52,18 @@ describe('MTS-090 Story sync-service conflicts', () => {
             storyDraftId: draftId,
           },
         ],
-      };
+      });
     });
     const store = {
       push: storePush,
-      pull: async () => ({
-        kind: 'incremental' as const,
-        changes: [],
-        nextCursor: 0,
-        hasMore: false,
-      }),
-      snapshot: async () => ({ entries: [], nextCursor: 0 }),
+      pull: () =>
+        Promise.resolve({
+          kind: 'incremental' as const,
+          changes: [],
+          nextCursor: 0,
+          hasMore: false,
+        }),
+      snapshot: () => Promise.resolve({ entries: [], nextCursor: 0 }),
     } satisfies PostgresSyncStore;
     const service = createSyncService(store);
 
