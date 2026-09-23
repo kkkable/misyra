@@ -27,9 +27,7 @@ const abstractProfile = {
 } as const;
 
 describe('MTS-093 Story style-profile service', () => {
-  it(
-    'extracts from exactly the owned active style references and updates only the profile row',
-    async () => {
+  it('extracts from exactly the owned active style references and updates only the profile row', async () => {
       const query = vi.fn((sql: string) => {
         if (/FROM media_assets/i.test(sql)) {
           return Promise.resolve({ rows: referenceIds.map((id) => ({ id })) });
@@ -46,9 +44,7 @@ describe('MTS-093 Story style-profile service', () => {
         now: () => new Date('2026-09-23T12:00:00.000Z'),
       });
 
-      await expect(
-        service.rebuild(accountId, { referenceAssetIds: referenceIds }),
-      ).resolves.toEqual({
+      await expect(service.rebuild(accountId, { referenceAssetIds: referenceIds })).resolves.toEqual({
         mode: 'custom',
         profile: abstractProfile,
       });
@@ -78,8 +74,8 @@ describe('MTS-093 Story style-profile service', () => {
       expect(sql).toMatch(/deletion_state\s*=\s*'active'/i);
       expect(sql).toMatch(/INSERT INTO story_style_profiles/i);
       expect(sql).not.toMatch(/story_drafts|story_compositions|story_image_versions/i);
-    },
-  );
+    });
+
 
   it('rejects missing or non-owned references before invoking AI', async () => {
     const query = vi.fn(() =>
