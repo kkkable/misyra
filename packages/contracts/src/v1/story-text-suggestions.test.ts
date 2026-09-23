@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   storyTextSuggestionsAiOutputSchema,
   storyTextSuggestionsGatewayRequestSchema,
-} from './story-text-suggestions.ts';
+} from './story-text-suggestions.js';
 
 describe('MTS-092 Story text suggestion contracts', () => {
   it('allows only the approved Story-text request context and abstract style profile', () => {
