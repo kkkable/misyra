@@ -10,10 +10,12 @@ export type StoryTextSuggestionsPanelMessages = Readonly<{
   photoOnly: string;
 }>;
 
-export function StoryTextSuggestionsPanel(_props: Readonly<{
-  suggestions: StoryTextSuggestionsResult;
-  messages: StoryTextSuggestionsPanelMessages;
-  onChoose: (selection: StoryTextSuggestionSelection) => void;
-}>) {
+export function StoryTextSuggestionsPanel(
+  _props: Readonly<{
+    suggestions: StoryTextSuggestionsResult;
+    messages: StoryTextSuggestionsPanelMessages;
+    onChoose: (selection: StoryTextSuggestionSelection) => void;
+  }>,
+) {
   return null;
 }
