@@ -316,5 +316,4 @@ describe('MTS-090 Story authenticated sync projection', () => {
     expect(JSON.parse(row.composition_json)).toEqual(localPayload);
     expect(await queue.listPending()).toHaveLength(1);
   });
-
 });
