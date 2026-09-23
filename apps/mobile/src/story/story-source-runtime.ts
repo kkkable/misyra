@@ -15,13 +15,15 @@ export type StorySourceFiles = Readonly<{
   ): Promise<Readonly<{ uri: string; width: number; height: number }>>;
 }>;
 
-export function createStorySourceRuntime(input: Readonly<{
-  api: Pick<
-    ReturnType<typeof import('../evidence/evidence-api.js').createEvidenceApi>,
-    'listStorySourceAttempts'
-  >;
-  files: StorySourceFiles;
-}>) {
+export function createStorySourceRuntime(
+  input: Readonly<{
+    api: Pick<
+      ReturnType<typeof import('../evidence/evidence-api.js').createEvidenceApi>,
+      'listStorySourceAttempts'
+    >;
+    files: StorySourceFiles;
+  }>,
+) {
   return Object.freeze({
     list(occurrenceId: string): Promise<readonly EvidenceStorySourceAttempt[]> {
       return input.api.listStorySourceAttempts(occurrenceId);
