@@ -178,6 +178,47 @@ describe('MTS-091 Story editor interactions', () => {
     expect(preview.props.composition.background.scale).toBe(1);
   });
 
+  it('places explicit text suggestions into the current undoable editor session', () => {
+    const onTextSuggestionsResolved = vi.fn();
+    const { renderer } = renderScreen({
+      textSuggestions: {
+        headline: 'Done before dinner',
+        supportingText: 'A steady 5K after work.',
+        sharingNotes: {
+          musicMood: 'upbeat',
+          mention: null,
+          location: null,
+          poll: null,
+        },
+      },
+      textSuggestionMessages: {
+        title: 'Suggestions',
+        useHeadline: 'Use headline',
+        useSupportingText: 'Use supporting text',
+        useBoth: 'Use both',
+        photoOnly: 'Photo only',
+        sharingNotes: 'Sharing Notes',
+        musicMood: 'Music / mood',
+        mention: 'Mention',
+        location: 'Location',
+        poll: 'Poll',
+      },
+      onTextSuggestionsResolved,
+    });
+
+    act(() => renderer.root.findByProps({ testID: 'story-suggestion-use-both' }).props.onPress());
+
+    let preview = renderer.root.findByType('StorySkiaPreviewView');
+    expect(preview.props.composition.headline?.text).toBe('Done before dinner');
+    expect(preview.props.composition.supportingText?.text).toBe('A steady 5K after work.');
+    expect(onTextSuggestionsResolved).toHaveBeenCalledTimes(1);
+
+    act(() => renderer.root.findByProps({ testID: 'story-undo' }).props.onPress());
+    preview = renderer.root.findByType('StorySkiaPreviewView');
+    expect(preview.props.composition.headline).toBeNull();
+    expect(preview.props.composition.supportingText).toBeNull();
+  });
+
   it('edits, moves, resizes, recolours, changes font and removes optional text layers', () => {
     const { renderer, props } = renderScreen();
 
