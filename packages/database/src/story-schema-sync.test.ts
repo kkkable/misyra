@@ -411,4 +411,69 @@ describe('MTS-090 Story schema and synchronization contracts', () => {
       ],
     });
   });
+
+  it('breaks equal Story save times deterministically by mutation id after receipt time', async () => {
+    const fixture = await createMissionFixture(true);
+    const draftId = randomUUID();
+    const sourceVersionId = randomUUID();
+    const generatedVersionId = randomUUID();
+    const savedAt = '2026-09-23T09:34:00.000Z';
+    const higherPayload = storyPayload(
+      draftId,
+      sourceVersionId,
+      generatedVersionId,
+      'higher-id',
+      5,
+      savedAt,
+    );
+    const lowerPayload = storyPayload(
+      draftId,
+      sourceVersionId,
+      generatedVersionId,
+      'lower-id',
+      5,
+      savedAt,
+    );
+
+    for (const [mutationId, payload] of [
+      ['bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', higherPayload],
+      ['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', lowerPayload],
+    ]) {
+      await expect(
+        fixture.store.push(fixture.account.id, [
+          {
+            mutationId,
+            accountId: fixture.account.id,
+            deviceId: fixture.firstDevice,
+            entityType: 'story',
+            entityId: fixture.occurrenceId,
+            operation: 'update',
+            baseVersion: null,
+            clientOccurredAt: savedAt,
+            payload,
+          },
+        ]),
+      ).resolves.toEqual({ acceptedMutationIds: [mutationId] });
+    }
+
+    const current = await pool.query<{
+      notes: Record<string, unknown>;
+      winnerMutationId: string;
+    }>(
+      `SELECT notes, winner_mutation_id AS "winnerMutationId"
+         FROM story_drafts
+        WHERE account_id = $1
+          AND occurrence_id = $2
+          AND state = 'active'`,
+      [fixture.account.id, fixture.occurrenceId],
+    );
+
+    expect(current.rows).toEqual([
+      {
+        notes: higherPayload.notes,
+        winnerMutationId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+      },
+    ]);
+  });
+
 });
