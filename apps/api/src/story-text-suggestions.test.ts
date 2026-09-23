@@ -76,7 +76,7 @@ describe('MTS-092 Story text suggestion service', () => {
       claimPolicy: { mayClaimVerification: true },
     });
 
-    const sql = query.mock.calls.map(([statement]) => String(statement)).join('\n');
+    const sql = query.mock.calls.map(([statement]) => statement).join('\n');
     expect(sql).not.toMatch(/UPDATE\s+story_drafts/i);
     expect(sql).not.toMatch(/ai_generation_count\s*=|ai_generation_count\s*\+/i);
   });
