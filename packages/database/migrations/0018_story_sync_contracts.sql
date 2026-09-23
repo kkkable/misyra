@@ -19,7 +19,7 @@ ALTER TABLE story_compositions
   ADD COLUMN image_version_id uuid,
   ADD COLUMN revision integer NOT NULL DEFAULT 0;
 
-DO $
+DO $story_sync$
 BEGIN
   IF EXISTS (
     SELECT 1
@@ -33,7 +33,7 @@ BEGIN
     RAISE EXCEPTION 'Cannot migrate Story composition without an image version';
   END IF;
 END
-$;
+$story_sync$;
 
 CREATE TEMP TABLE story_legacy_latest_compositions ON COMMIT DROP AS
 SELECT DISTINCT ON (draft_id)
