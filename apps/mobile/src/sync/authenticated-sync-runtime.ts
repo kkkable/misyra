@@ -578,6 +578,7 @@ async function hasPendingStoryMutation(
       WHERE account_id = ?
         AND json_extract(command_json, '$.mutation.entityType') = 'story'
         AND json_extract(command_json, '$.mutation.entityId') = ?
+        AND COALESCE(json_extract(command_json, '$.inFlight'), 0) <> 1
       LIMIT 1`,
     accountId,
     occurrenceId,
@@ -884,12 +885,26 @@ async function applyAuthenticatedConflicts(
 
   for (const conflict of conflicts) {
     if (conflict.kind === 'mission_deleted') continue;
-    if (conflict.kind !== 'mission_completed_elsewhere' && conflict.kind !== 'mission_updated') {
-      throw new Error(CONFLICT_APPLICATION_HANDLER_REQUIRED);
-    }
 
     const pending = pendingById.get(conflict.mutationId);
     const mutation = pending?.mutation;
+
+    if (conflict.kind === 'story_updated') {
+      const payload = mutation === undefined ? undefined : mutation.payload;
+      if (
+        mutation?.entityType !== 'story' ||
+        pending?.destination.kind !== 'server' ||
+        !isRecord(payload) ||
+        payload.draftId !== conflict.storyDraftId
+      ) {
+        throw new Error(CONFLICT_APPLICATION_HANDLER_REQUIRED);
+      }
+      continue;
+    }
+
+    if (conflict.kind !== 'mission_completed_elsewhere' && conflict.kind !== 'mission_updated') {
+      throw new Error(CONFLICT_APPLICATION_HANDLER_REQUIRED);
+    }
     if (!matchingNoEvidenceCompletion(mutation, pending?.destination.kind, conflict.missionId)) {
       throw new Error(CONFLICT_APPLICATION_HANDLER_REQUIRED);
     }
