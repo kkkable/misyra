@@ -16,28 +16,7 @@ import { createStoryPreviewLayout } from './story-skia-preview.js';
 function contrastMatrix(amount: number): readonly number[] {
   const factor = Math.max(0, 1 + amount);
   const offset = 128 * (1 - factor);
-  return [
-    factor,
-    0,
-    0,
-    0,
-    offset,
-    0,
-    factor,
-    0,
-    0,
-    offset,
-    0,
-    0,
-    factor,
-    0,
-    offset,
-    0,
-    0,
-    0,
-    1,
-    0,
-  ];
+  return [factor, 0, 0, 0, offset, 0, factor, 0, 0, offset, 0, 0, factor, 0, offset, 0, 0, 0, 1, 0];
 }
 
 function fontFor(layer: StoryTextLayer) {
@@ -98,14 +77,7 @@ export function StorySkiaPreviewView({
             ]}
           >
             {image === null ? null : (
-              <SkiaImage
-                image={image}
-                fit="cover"
-                x={0}
-                y={0}
-                width={1080}
-                height={1920}
-              >
+              <SkiaImage image={image} fit="cover" x={0} y={0} width={1080} height={1920}>
                 {contrastAmount === null ? null : (
                   <ColorMatrix matrix={contrastMatrix(contrastAmount)} />
                 )}
