@@ -153,6 +153,12 @@ describe('MTS-089 atomic Planner confirmation', () => {
     } as const;
 
     const first = await confirmPlannerDraft(pool, input);
+    await pool.query(
+      `UPDATE idempotency_keys
+          SET expires_at = CURRENT_TIMESTAMP + INTERVAL '1 hour'
+        WHERE account_id = $1 AND key = $2`,
+      [account.id, idempotencyKey],
+    );
     const second = await confirmPlannerDraft(pool, input);
 
     expect(second).toEqual(first);
