@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { storyDraftSyncPayloadSchema } from '@misyra/contracts';
+import {
+  storyDraftSyncPayloadSchema,
+  type StoryTextSuggestionsResult,
+} from '@misyra/contracts';
 import { localizationCatalogs } from '@misyra/localization';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useColorScheme } from 'react-native';
@@ -28,6 +31,8 @@ import { StoryEditorScreen, type StoryEditorMessages } from '../src/story/story-
 import type { StorySourceImage } from '../src/story/story-editor-state.js';
 import { createStoryOfflineDraftStore } from '../src/story/story-offline-draft.js';
 import { createStorySourceRuntime } from '../src/story/story-source-runtime.js';
+import { createStoryTextSuggestionsApi } from '../src/story/story-text-suggestions-api.js';
+import type { StoryTextSuggestionsPanelMessages } from '../src/story/story-text-suggestions-panel.js';
 
 const UUID_HEX = '0123456789abcdef';
 const UUID_VARIANTS = '89ab';
@@ -40,11 +45,13 @@ type StoryRouteState = Readonly<{
   selectedAttemptId: string;
   sourceAttempts: readonly EvidenceStorySourceAttempt[];
   sourceImage: StorySourceImage;
+  textSuggestions: StoryTextSuggestionsResult | null;
 }>;
 
 type StoryRouteRuntime = Readonly<{
   store: ReturnType<typeof createStoryOfflineDraftStore>;
   source: ReturnType<typeof createStorySourceRuntime>;
+  textSuggestions: ReturnType<typeof createStoryTextSuggestionsApi>;
 }>;
 
 function randomHex(length: number): string {
@@ -88,6 +95,23 @@ function withComposition(state: StoryRouteState, composition: StoryComposition):
   };
 }
 
+function suggestionMessages(
+  catalog: (typeof localizationCatalogs)[keyof typeof localizationCatalogs],
+): StoryTextSuggestionsPanelMessages {
+  return {
+    title: catalog['story.suggestions.title'],
+    useHeadline: catalog['story.suggestions.useHeadline'],
+    useSupportingText: catalog['story.suggestions.useSupportingText'],
+    useBoth: catalog['story.suggestions.useBoth'],
+    photoOnly: catalog['story.suggestions.photoOnly'],
+    sharingNotes: catalog['story.suggestions.sharingNotes'],
+    musicMood: catalog['story.suggestions.musicMood'],
+    mention: catalog['story.suggestions.mention'],
+    location: catalog['story.suggestions.location'],
+    poll: catalog['story.suggestions.poll'],
+  };
+}
+
 function editorMessages(
   catalog: (typeof localizationCatalogs)[keyof typeof localizationCatalogs],
 ): StoryEditorMessages {
@@ -123,12 +147,20 @@ export default function StoryRoute() {
   const occurrenceId = routeOccurrenceId(params.occurrenceId);
   const router = useRouter();
   const language = useAppLanguage();
-  const messages = editorMessages(localizationCatalogs[language]);
+  const catalog = localizationCatalogs[language];
+  const messages = editorMessages(catalog);
+  const textSuggestionMessages = suggestionMessages(catalog);
   const nativeColorScheme = useColorScheme();
   const colorScheme: ColorScheme = nativeColorScheme === 'dark' ? 'dark' : 'light';
   const [editorState, setEditorState] = useState<StoryRouteState | null>(null);
+  const editorStateRef = useRef<StoryRouteState | null>(null);
   const runtimeRef = useRef<StoryRouteRuntime | null>(null);
   const saveChainRef = useRef<Promise<void>>(Promise.resolve());
+
+  const commitEditorState = useCallback((next: StoryRouteState) => {
+    editorStateRef.current = next;
+    setEditorState(next);
+  }, []);
 
   const enqueueSave = useCallback(
     (payload: StoryDraftPayload): Promise<void> => {
@@ -176,7 +208,11 @@ export default function StoryRoute() {
             accessToken: authState.session.accessToken,
           }),
         });
-        runtimeRef.current = { store, source };
+        const textSuggestions = createStoryTextSuggestionsApi({
+          baseUrl: getAuthApiBaseUrl(),
+          accessToken: authState.session.accessToken,
+        });
+        runtimeRef.current = { store, source, textSuggestions };
 
         const existing = await store.load(occurrenceId);
         if (existing !== null) {
@@ -185,21 +221,23 @@ export default function StoryRoute() {
           const sourceImage = await loadExpoStoryWorkingCopy(version.id);
           if (lifecycle.cancelled) return;
 
-          setEditorState({
+          commitEditorState({
             payload: existing,
             imageVersionId: version.id,
             selectedAttemptId: '',
             sourceAttempts: [],
             sourceImage,
+            textSuggestions: null,
           });
 
           void source
             .list(occurrenceId)
             .then((attempts) => {
               if (lifecycle.cancelled) return;
-              setEditorState((current) =>
-                current === null ? null : { ...current, sourceAttempts: attempts },
-              );
+              const current = editorStateRef.current;
+              if (current !== null) {
+                commitEditorState({ ...current, sourceAttempts: attempts });
+              }
             })
             .catch(() => undefined);
           return;
@@ -233,7 +271,7 @@ export default function StoryRoute() {
         await store.save(occurrenceId, payload);
         if (lifecycle.cancelled) return;
 
-        setEditorState({
+        commitEditorState({
           payload,
           imageVersionId,
           selectedAttemptId: selected.attemptId,
@@ -244,7 +282,27 @@ export default function StoryRoute() {
             width: materialized.width,
             height: materialized.height,
           },
+          textSuggestions: null,
         });
+
+        void textSuggestions
+          .suggest(occurrenceId)
+          .then(async (suggestions) => {
+            if (lifecycle.cancelled) return;
+            const current = editorStateRef.current;
+            if (current === null || current.payload.draftId !== draftId) return;
+            const next: StoryRouteState = {
+              ...current,
+              payload: storyDraftSyncPayloadSchema.parse({
+                ...current.payload,
+                notes: suggestions.sharingNotes,
+              }),
+              textSuggestions: suggestions,
+            };
+            commitEditorState(next);
+            await enqueueSave(next.payload);
+          })
+          .catch(() => undefined);
       } catch {
         if (!lifecycle.cancelled) router.back();
       }
@@ -254,7 +312,7 @@ export default function StoryRoute() {
     return () => {
       lifecycle.cancelled = true;
     };
-  }, [occurrenceId, router]);
+  }, [commitEditorState, enqueueSave, occurrenceId, router]);
 
   if (occurrenceId === null || editorState === null) return null;
 
@@ -266,6 +324,11 @@ export default function StoryRoute() {
       selectedAttemptId={editorState.selectedAttemptId}
       sourceAttempts={editorState.sourceAttempts}
       sourceImage={editorState.sourceImage}
+      textSuggestionMessages={textSuggestionMessages}
+      textSuggestions={editorState.textSuggestions}
+      onTextSuggestionsResolved={() => {
+        commitEditorState({ ...editorState, textSuggestions: null });
+      }}
       onClose={() => {
         void enqueueSave(editorState.payload)
           .catch(() => undefined)
@@ -275,12 +338,12 @@ export default function StoryRoute() {
       }}
       onCompositionChange={(composition) => {
         const next = withComposition(editorState, composition);
-        setEditorState(next);
+        commitEditorState(next);
         void enqueueSave(next.payload).catch(() => undefined);
       }}
       onSave={(composition) => {
         const next = withComposition(editorState, composition);
-        setEditorState(next);
+        commitEditorState(next);
         void enqueueSave(next.payload)
           .then(() => {
             haptics.triggerNonBlocking('storySave');
@@ -318,8 +381,9 @@ export default function StoryRoute() {
               width: materialized.width,
               height: materialized.height,
             },
+            textSuggestions: editorState.textSuggestions,
           };
-          setEditorState(next);
+          commitEditorState(next);
           await enqueueSave(payload);
         })().catch(() => undefined);
       }}
