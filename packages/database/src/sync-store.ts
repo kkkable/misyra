@@ -2113,7 +2113,9 @@ export function createPostgresSyncStore(pool: Pool, now: () => Date = () => new 
           }
         }
         await client.query('COMMIT');
-        return conflicts.length === 0 ? { acceptedMutationIds } : { acceptedMutationIds, conflicts };
+        return conflicts.length === 0
+          ? { acceptedMutationIds }
+          : { acceptedMutationIds, conflicts };
       } catch (error) {
         await client.query('ROLLBACK');
         throw error;
