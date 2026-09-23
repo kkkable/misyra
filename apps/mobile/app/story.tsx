@@ -75,10 +75,7 @@ function activeComposition(state: StoryRouteState): StoryComposition {
   return validateStoryComposition(version.composition);
 }
 
-function withComposition(
-  state: StoryRouteState,
-  composition: StoryComposition,
-): StoryRouteState {
+function withComposition(state: StoryRouteState, composition: StoryComposition): StoryRouteState {
   const imageVersions = state.payload.imageVersions.map((version) =>
     version.id === state.imageVersionId ? { ...version, composition } : version,
   );
