@@ -11,9 +11,10 @@ afterEach(() => {
 describe('MTS-092 Story text suggestion mobile API', () => {
   it('posts only the occurrence target and validates the structured response', async () => {
     const fetch = vi.fn(() =>
-      Promise.resolve(
-        new Response(
-          JSON.stringify({
+      Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({
             version: 1,
             requestId: '11111111-1111-4111-8111-111111111111',
             ok: true,
@@ -28,9 +29,7 @@ describe('MTS-092 Story text suggestion mobile API', () => {
               },
             },
           }),
-          { status: 200, headers: { 'content-type': 'application/json' } },
-        ),
-      ),
+      }),
     );
     globalThis.fetch = fetch;
 
