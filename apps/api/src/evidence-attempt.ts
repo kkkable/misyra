@@ -79,6 +79,13 @@ interface LatestAttemptIdRow extends QueryResultRow {
   id: string;
 }
 
+interface StorySourceAttemptRow extends QueryResultRow {
+  attemptId: string;
+  attemptNumber: number;
+  effectiveSubmittedAt: Date;
+  verificationStatus: string;
+}
+
 interface AttemptResultRow extends QueryResultRow {
   id: string;
   status: string;
@@ -264,6 +271,35 @@ export function createEvidenceAttemptService(options: EvidenceAttemptServiceOpti
   }
 
   return {
+    async listStorySources(accountId: string, occurrenceIdSource: unknown) {
+      const occurrenceId = parseUuid(occurrenceIdSource);
+      const result = await options.pool.query<StorySourceAttemptRow>(
+        `SELECT
+           a.id AS "attemptId",
+           a.attempt_number AS "attemptNumber",
+           a.effective_submitted_at AS "effectiveSubmittedAt",
+           a.verification_status AS "verificationStatus"
+         FROM evidence_attempts a
+         JOIN media_assets m
+           ON m.id = a.media_asset_id AND m.account_id = a.account_id
+         WHERE a.account_id = $1
+           AND a.occurrence_id = $2
+           AND a.upload_status = 'uploaded'
+           AND a.status <> 'duplicate_loser'
+           AND m.deletion_state = 'active'
+         ORDER BY a.attempt_number`,
+        [accountId, occurrenceId],
+      );
+      return {
+        attempts: result.rows.map((attempt) => ({
+          attemptId: attempt.attemptId,
+          attemptNumber: attempt.attemptNumber,
+          effectiveSubmittedAt: attempt.effectiveSubmittedAt.toISOString(),
+          verificationStatus: attempt.verificationStatus,
+        })),
+      } as const;
+    },
+
     async getMediaOriginal(accountId: string, attemptIdSource: unknown) {
       const attemptId = parseUuid(attemptIdSource);
       const result = await options.pool.query<{
