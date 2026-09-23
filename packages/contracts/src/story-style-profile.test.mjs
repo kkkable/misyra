@@ -75,27 +75,30 @@ describe('MTS-093 Story style-profile contracts', () => {
     }
   });
 
-  it('builds a provider-neutral request that identifies protected references and forbids exact copying', () => {
-    const request = storyStyleProfileGatewayRequestSchema.parse({
-      referenceImages: referenceIds.slice(0, 3).map((assetId) => ({
-        assetId,
-        purpose: 'style-references',
-        variant: 'original',
-      })),
-      policy: {
-        abstractOnly: true,
-        prohibitedExactContent: [
-          'templates',
-          'usernames',
-          'logos',
-          'watermarks',
-          'faces',
-          'captions',
-        ],
-      },
-    });
+  it(
+    'builds a provider-neutral request that identifies protected references and forbids exact copying',
+    () => {
+      const request = storyStyleProfileGatewayRequestSchema.parse({
+        referenceImages: referenceIds.slice(0, 3).map((assetId) => ({
+          assetId,
+          purpose: 'style-references',
+          variant: 'original',
+        })),
+        policy: {
+          abstractOnly: true,
+          prohibitedExactContent: [
+            'templates',
+            'usernames',
+            'logos',
+            'watermarks',
+            'faces',
+            'captions',
+          ],
+        },
+      });
 
-    expect(request.referenceImages).toHaveLength(3);
-    expect(request.policy.abstractOnly).toBe(true);
-  });
+      expect(request.referenceImages).toHaveLength(3);
+      expect(request.policy.abstractOnly).toBe(true);
+    },
+  );
 });
