@@ -25,6 +25,18 @@ function dimensions(uri: string): Promise<Readonly<{ width: number; height: numb
   });
 }
 
+export async function loadExpoStoryWorkingCopy(
+  imageVersionId: string,
+): Promise<Readonly<{ id: string; uri: string; width: number; height: number }>> {
+  const uri = `${storyWorkingDirectory()}${imageVersionId}.jpg`;
+  const info = await FileSystem.getInfoAsync(uri);
+  if (!info.exists) {
+    throw new Error('story_working_copy_unavailable');
+  }
+  const size = await dimensions(uri);
+  return { id: imageVersionId, uri, width: size.width, height: size.height };
+}
+
 export function createExpoStorySourceFiles(
   input: Readonly<{
     baseUrl: string;
