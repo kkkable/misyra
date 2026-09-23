@@ -42,6 +42,11 @@ describe('MTS-092 Story text suggestion panel', () => {
             useSupportingText: 'Use supporting text',
             useBoth: 'Use both',
             photoOnly: 'Photo only',
+            sharingNotes: 'Sharing Notes',
+            musicMood: 'Music / mood',
+            mention: 'Mention',
+            location: 'Location',
+            poll: 'Poll',
           },
           onChoose,
         }),
@@ -54,6 +59,15 @@ describe('MTS-092 Story text suggestion panel', () => {
     expect(
       renderer.root.findByProps({ testID: 'story-suggestion-supporting' }).props.children,
     ).toBe('A steady 5K after work.');
+    expect(
+      renderer.root.findByProps({ testID: 'story-suggestion-music-mood' }).props.children,
+    ).toContain('upbeat running track');
+    expect(
+      renderer.root.findByProps({ testID: 'story-suggestion-location' }).props.children,
+    ).toContain('Hong Kong');
+    expect(renderer.root.findByProps({ testID: 'story-suggestion-poll' }).props.children).toContain(
+      'Run again tomorrow?',
+    );
     expect(onChoose).not.toHaveBeenCalled();
 
     act(() => renderer.root.findByProps({ testID: 'story-suggestion-use-both' }).props.onPress());
