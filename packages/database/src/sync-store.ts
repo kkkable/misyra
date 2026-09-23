@@ -559,11 +559,7 @@ function parseStorySharingNotes(value: unknown): StorySharingNotesPayload {
   };
 }
 
-function requireFiniteNumber(
-  source: Record<string, unknown>,
-  key: string,
-  label: string,
-): number {
+function requireFiniteNumber(source: Record<string, unknown>, key: string, label: string): number {
   const value = source[key];
   if (typeof value !== 'number' || !Number.isFinite(value)) {
     throw new SyncMutationValidationError(`${label} must be a finite number`);
@@ -590,11 +586,7 @@ function parseStoryComposition(value: unknown): StoryCompositionPayload {
   }
 
   const canvas = asRecord(source.canvas, 'Story canvas');
-  if (
-    Object.keys(canvas).length !== 2 ||
-    canvas.width !== 1080 ||
-    canvas.height !== 1920
-  ) {
+  if (Object.keys(canvas).length !== 2 || canvas.width !== 1080 || canvas.height !== 1920) {
     throw new SyncMutationValidationError('Story canvas must be 1080 × 1920');
   }
 
@@ -626,16 +618,8 @@ function parseStoryComposition(value: unknown): StoryCompositionPayload {
     canvas: { width: 1080, height: 1920 },
     background: {
       scale,
-      translateX: requireFiniteNumber(
-        background,
-        'translateX',
-        'Story background translateX',
-      ),
-      translateY: requireFiniteNumber(
-        background,
-        'translateY',
-        'Story background translateY',
-      ),
+      translateX: requireFiniteNumber(background, 'translateX', 'Story background translateX'),
+      translateY: requireFiniteNumber(background, 'translateY', 'Story background translateY'),
       rotation: requireFiniteNumber(background, 'rotation', 'Story background rotation'),
     },
     headline: source.headline ?? null,
@@ -1352,9 +1336,7 @@ async function applyStoryMutation(
     target.deletionState !== 'active' ||
     !target.hasCompletion
   ) {
-    throw new SyncMutationValidationError(
-      'Story drafts require an active completed mission',
-    );
+    throw new SyncMutationValidationError('Story drafts require an active completed mission');
   }
 
   const existing = await client.query<{
