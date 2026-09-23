@@ -36,7 +36,7 @@ export class StoryTextSuggestionContextError extends Error {
 }
 
 const UNSAFE_VERIFICATION_CLAIM =
-  /\b(?:ai[ -]?verified|verified by ai|verified|verification|evidence accepted|proof accepted)\b|(?:已驗證|驗證通過|證據已接受)/iu;
+  /\b(?:ai[ -]?(?:verified|confirmed|approved)|(?:verified|confirmed|approved) by ai|verified|verification|evidence (?:accepted|confirmed|approved)|proof (?:accepted|confirmed|approved))\b|(?:已驗證|驗證通過|證據已接受|證據已確認|證據通過|(?:AI|人工智能)已?確認)/iu;
 
 function mayClaimVerification(
   completionType: StoryTextSuggestionContextRow['completionType'],
