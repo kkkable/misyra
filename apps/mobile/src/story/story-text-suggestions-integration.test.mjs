@@ -12,7 +12,7 @@ describe('MTS-092 production Story suggestion integration', () => {
     const route = readFileSync(routePath, 'utf8');
 
     expect(route).toMatch(/createStoryTextSuggestionsApi/);
-    expect(route).toMatch(/textSuggestions\.suggest\(occurrenceId\)/);
+    expect(route).toMatch(/textSuggestions\s*\.suggest\(occurrenceId\)/);
     expect(route).toMatch(/notes:\s*suggestions\.sharingNotes/);
     expect(route).toMatch(/enqueueSave\(next\.payload\)/);
   });
