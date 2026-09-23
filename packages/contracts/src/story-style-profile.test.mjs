@@ -31,74 +31,71 @@ const abstractProfile = {
 
 describe('MTS-093 Story style-profile contracts', () => {
   it('requires 3-8 unique reference images', () => {
-    expect(
-      storyStyleProfileRebuildRequestSchema.safeParse({
-        referenceAssetIds: referenceIds.slice(0, 3),
-      }).success,
-    ).toBe(true);
-    expect(
-      storyStyleProfileRebuildRequestSchema.safeParse({
-        referenceAssetIds: referenceIds,
-      }).success,
-    ).toBe(true);
-    expect(
-      storyStyleProfileRebuildRequestSchema.safeParse({
-        referenceAssetIds: referenceIds.slice(0, 2),
-      }).success,
-    ).toBe(false);
-    expect(
-      storyStyleProfileRebuildRequestSchema.safeParse({
-        referenceAssetIds: [...referenceIds, '99999999-9999-4999-8999-999999999999'],
-      }).success,
-    ).toBe(false);
-    expect(
-      storyStyleProfileRebuildRequestSchema.safeParse({
-        referenceAssetIds: [referenceIds[0], referenceIds[1], referenceIds[0]],
-      }).success,
-    ).toBe(false);
+    const minimum = { referenceAssetIds: referenceIds.slice(0, 3) };
+    const maximum = { referenceAssetIds: referenceIds };
+    const tooFew = { referenceAssetIds: referenceIds.slice(0, 2) };
+    const tooMany = {
+      referenceAssetIds: [
+        ...referenceIds,
+        '99999999-9999-4999-8999-999999999999',
+      ],
+    };
+    const duplicate = {
+      referenceAssetIds: [
+        referenceIds[0],
+        referenceIds[1],
+        referenceIds[0],
+      ],
+    };
+
+    expect(storyStyleProfileRebuildRequestSchema.safeParse(minimum).success).toBe(true);
+    expect(storyStyleProfileRebuildRequestSchema.safeParse(maximum).success).toBe(true);
+    expect(storyStyleProfileRebuildRequestSchema.safeParse(tooFew).success).toBe(false);
+    expect(storyStyleProfileRebuildRequestSchema.safeParse(tooMany).success).toBe(false);
+    expect(storyStyleProfileRebuildRequestSchema.safeParse(duplicate).success).toBe(false);
   });
 
-  it('accepts only abstract style features and rejects copied identity/template fields', () => {
+  it('accepts only abstract style fields', () => {
     expect(storyStyleProfileAiOutputSchema.safeParse(abstractProfile).success).toBe(true);
 
-    for (const forbidden of [
+    const forbiddenFields = [
       { username: '@creator' },
       { logo: 'brand mark' },
       { watermark: 'creator watermark' },
       { face: 'person identity' },
       { caption: 'exact caption' },
       { template: 'exact layout template' },
-    ]) {
-      expect(
-        storyStyleProfileAiOutputSchema.safeParse({ ...abstractProfile, ...forbidden }).success,
-      ).toBe(false);
+    ];
+    for (const forbidden of forbiddenFields) {
+      const candidate = { ...abstractProfile, ...forbidden };
+      expect(storyStyleProfileAiOutputSchema.safeParse(candidate).success).toBe(false);
     }
   });
 
-  it(
-    'builds a provider-neutral request that identifies protected references and forbids exact copying',
-    () => {
-      const request = storyStyleProfileGatewayRequestSchema.parse({
-        referenceImages: referenceIds.slice(0, 3).map((assetId) => ({
-          assetId,
-          purpose: 'style-references',
-          variant: 'original',
-        })),
-        policy: {
-          abstractOnly: true,
-          prohibitedExactContent: [
-            'templates',
-            'usernames',
-            'logos',
-            'watermarks',
-            'faces',
-            'captions',
-          ],
-        },
-      });
+  it('builds protected-reference requests with an exact-copy prohibition', () => {
+    const referenceImages = referenceIds.slice(0, 3).map((assetId) => ({
+      assetId,
+      purpose: 'style-references',
+      variant: 'original',
+    }));
+    const policy = {
+      abstractOnly: true,
+      prohibitedExactContent: [
+        'templates',
+        'usernames',
+        'logos',
+        'watermarks',
+        'faces',
+        'captions',
+      ],
+    };
 
-      expect(request.referenceImages).toHaveLength(3);
-      expect(request.policy.abstractOnly).toBe(true);
-    },
-  );
+    const request = storyStyleProfileGatewayRequestSchema.parse({
+      referenceImages,
+      policy,
+    });
+
+    expect(request.referenceImages).toHaveLength(3);
+    expect(request.policy.abstractOnly).toBe(true);
+  });
 });
