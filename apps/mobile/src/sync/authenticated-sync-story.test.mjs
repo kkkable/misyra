@@ -2,6 +2,7 @@ import { DatabaseSync } from 'node:sqlite';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { createMutationQueue } from '../storage/mutation-queue.js';
 import { applyMobileMigrations } from '../storage/schema.js';
 import { runAuthenticatedServerSync } from './authenticated-sync-runtime.js';
 
@@ -221,4 +222,99 @@ describe('MTS-090 Story authenticated sync projection', () => {
     );
     expect(JSON.parse(row.composition_json)).toEqual(newest);
   });
+
+  it('does not overwrite a Story edit queued after the push phase with an older pull', async () => {
+    const database = new NodeSqliteAdapter();
+    databases.push(database);
+    await applyMobileMigrations(database);
+    await seedCompletedMission(database);
+
+    const localPayload = {
+      draftId,
+      notes: { musicMood: 'local', mention: null, location: null, poll: null },
+      imageVersions: [
+        {
+          id: '88888888-8888-4888-8888-888888888888',
+          kind: 'source',
+          storageKey: 'story/source/88888888-8888-4888-8888-888888888888',
+          composition: composition('local edit', 4),
+        },
+      ],
+    };
+    const olderServerPayload = {
+      draftId,
+      notes: { musicMood: 'server old', mention: null, location: null, poll: null },
+      imageVersions: [
+        {
+          id: '88888888-8888-4888-8888-888888888888',
+          kind: 'source',
+          storageKey: 'story/source/88888888-8888-4888-8888-888888888888',
+          composition: composition('server old', 3),
+        },
+      ],
+    };
+    const queue = createMutationQueue(database, accountId);
+
+    const api = {
+      push: vi.fn(() => Promise.resolve({ acceptedMutationIds: [], conflicts: [] })),
+      pull: vi.fn(async () => {
+        await queue.enqueue({
+          mutation: {
+            mutationId: '99999999-9999-4999-8999-999999999999',
+            accountId,
+            deviceId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+            entityType: 'story',
+            entityId: occurrenceId,
+            operation: 'update',
+            baseVersion: null,
+            clientOccurredAt: '2026-09-23T09:35:00.000Z',
+            payload: localPayload,
+          },
+          destination: { kind: 'server' },
+          applyLocal: async (transaction) => {
+            await transaction.runAsync(
+              `INSERT INTO story_drafts
+                 (account_id, occurrence_id, draft_id, composition_json, updated_at)
+               VALUES (?, ?, ?, ?, ?)
+               ON CONFLICT(account_id, occurrence_id) DO UPDATE SET
+                 draft_id = excluded.draft_id,
+                 composition_json = excluded.composition_json,
+                 updated_at = excluded.updated_at`,
+              accountId,
+              occurrenceId,
+              draftId,
+              JSON.stringify(localPayload),
+              '2026-09-23T09:35:00.000Z',
+            );
+          },
+        });
+        return {
+          kind: 'incremental',
+          changes: [
+            {
+              sequence: 1,
+              entityType: 'story',
+              entityId: occurrenceId,
+              operation: 'upsert',
+              payload: olderServerPayload,
+            },
+          ],
+          nextCursor: 1,
+          hasMore: false,
+        };
+      }),
+      snapshot: vi.fn(() => Promise.resolve({ entries: [], nextCursor: 1 })),
+    };
+
+    await runAuthenticatedServerSync({ database, accountId, api });
+
+    const row = await database.getFirstAsync(
+      'SELECT composition_json FROM story_drafts WHERE account_id = ? AND occurrence_id = ?',
+      accountId,
+      occurrenceId,
+    );
+    expect(JSON.parse(row.composition_json)).toEqual(localPayload);
+    expect(await queue.listPending()).toHaveLength(1);
+  });
+
 });
