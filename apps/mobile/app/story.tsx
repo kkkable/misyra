@@ -15,7 +15,11 @@ import { haptics } from '../src/experience/native-haptics.js';
 import { useAppLanguage } from '../src/localization/use-app-language.js';
 import { openMobileDatabase } from '../src/storage/database.js';
 import { requireRegisteredDeviceId } from '../src/sync/root-sync-runtime.js';
-import { createEmptyStoryComposition, type StoryComposition } from '../src/story/story-composition.js';
+import {
+  createEmptyStoryComposition,
+  validateStoryComposition,
+  type StoryComposition,
+} from '../src/story/story-composition.js';
 import {
   createExpoStorySourceFiles,
   loadExpoStoryWorkingCopy,
@@ -61,6 +65,14 @@ function routeOccurrenceId(value: string | string[] | undefined): string | null 
 
 function sourceVersion(payload: StoryDraftPayload) {
   return payload.imageVersions.find((version) => version.kind === 'source') ?? null;
+}
+
+function activeComposition(state: StoryRouteState): StoryComposition {
+  const version = state.payload.imageVersions.find(
+    (candidate) => candidate.id === state.imageVersionId,
+  );
+  if (version === undefined) throw new Error('story_active_image_version_missing');
+  return validateStoryComposition(version.composition);
 }
 
 function withComposition(
@@ -252,11 +264,7 @@ export default function StoryRoute() {
   return (
     <StoryEditorScreen
       colorScheme={colorScheme}
-      composition={
-        editorState.payload.imageVersions.find(
-          (version) => version.id === editorState.imageVersionId,
-        )?.composition ?? createEmptyStoryComposition(new Date().toISOString())
-      }
+      composition={activeComposition(editorState)}
       messages={messages}
       selectedAttemptId={editorState.selectedAttemptId}
       sourceAttempts={editorState.sourceAttempts}
