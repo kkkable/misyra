@@ -19,7 +19,7 @@ ALTER TABLE story_compositions
   ADD COLUMN image_version_id uuid,
   ADD COLUMN revision integer NOT NULL DEFAULT 0;
 
-DO $$
+DO $
 BEGIN
   IF EXISTS (
     SELECT 1
@@ -33,17 +33,29 @@ BEGIN
     RAISE EXCEPTION 'Cannot migrate Story composition without an image version';
   END IF;
 END
-$$;
+$;
 
-UPDATE story_compositions composition
-   SET image_version_id = (
-     SELECT version.id
-       FROM story_image_versions version
-      WHERE version.draft_id = composition.draft_id
-      ORDER BY version.created_at, version.id
-      LIMIT 1
-   )
- WHERE image_version_id IS NULL;
+CREATE TEMP TABLE story_legacy_latest_compositions ON COMMIT DROP AS
+SELECT DISTINCT ON (draft_id)
+       draft_id,
+       composition,
+       saved_at
+  FROM story_compositions
+ ORDER BY draft_id, saved_at DESC, id DESC;
+
+DELETE FROM story_compositions;
+
+INSERT INTO story_compositions
+  (id, draft_id, image_version_id, composition, revision, saved_at)
+SELECT gen_random_uuid(),
+       version.draft_id,
+       version.id,
+       legacy.composition,
+       0,
+       legacy.saved_at
+  FROM story_image_versions version
+  JOIN story_legacy_latest_compositions legacy
+    ON legacy.draft_id = version.draft_id;
 
 ALTER TABLE story_compositions
   ALTER COLUMN image_version_id SET NOT NULL,
