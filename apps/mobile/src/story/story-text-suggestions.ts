@@ -2,11 +2,7 @@ import type { StoryTextSuggestionsResult } from '@misyra/contracts';
 
 import type { StoryComposition } from './story-composition.js';
 
-export type StoryTextSuggestionSelection =
-  | 'headline'
-  | 'supporting_text'
-  | 'both'
-  | 'photo_only';
+export type StoryTextSuggestionSelection = 'headline' | 'supporting_text' | 'both' | 'photo_only';
 
 export function applyStoryTextSuggestionSelection(
   _input: Readonly<{
