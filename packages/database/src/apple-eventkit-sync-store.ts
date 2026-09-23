@@ -7,6 +7,7 @@ import {
   SyncMutationValidationError,
   createPostgresSyncStore,
   type PostgresSyncStore,
+  type StoredSyncConflict,
   type StoredSyncMutation,
   type StoredSyncPushResult,
 } from './sync-store.js';
@@ -1069,11 +1070,14 @@ export function createPostgresEventKitSyncStore(
       mutations: readonly StoredSyncMutation[],
     ): Promise<StoredSyncPushResult> {
       const acceptedMutationIds: string[] = [];
+      const conflicts: StoredSyncConflict[] = [];
       for (const mutation of mutations) {
         if (mutation.accountId !== accountId) throw new SyncDeviceOwnershipError();
         if (!isAppleEventKitMutation(mutation)) {
           const result = await generic.push(accountId, [mutation]);
           acceptedMutationIds.push(...result.acceptedMutationIds);
+          conflicts.push(...(result.conflicts ?? []));
+          if ((result.conflicts?.length ?? 0) > 0) break;
           continue;
         }
         const client = await pool.connect();
@@ -1089,7 +1093,7 @@ export function createPostgresEventKitSyncStore(
           client.release();
         }
       }
-      return { acceptedMutationIds };
+      return conflicts.length === 0 ? { acceptedMutationIds } : { acceptedMutationIds, conflicts };
     },
     pull(accountId, input) {
       return generic.pull(accountId, input);

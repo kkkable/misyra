@@ -19,8 +19,15 @@ export type StoredSyncMutation = Readonly<{
   payload: unknown;
 }>;
 
+export type StoredSyncConflict = Readonly<{
+  kind: 'story_updated';
+  mutationId: string;
+  storyDraftId: string;
+}>;
+
 export type StoredSyncPushResult = Readonly<{
   acceptedMutationIds: readonly string[];
+  conflicts?: readonly StoredSyncConflict[];
 }>;
 
 export type StoredSyncPullResult =
@@ -203,8 +210,44 @@ type PlannerDraftPayload = Readonly<{
   items?: readonly PlannerDraftItemPayload[];
 }>;
 
+type StorySharingNotesPayload = Readonly<{
+  musicMood: string | null;
+  mention: string | null;
+  location: string | null;
+  poll: unknown;
+}>;
+
+type StoryCompositionPayload = Readonly<{
+  canvas: Readonly<{ width: 1080; height: 1920 }>;
+  background: Readonly<{
+    scale: number;
+    translateX: number;
+    translateY: number;
+    rotation: number;
+  }>;
+  headline: unknown;
+  supportingText: unknown;
+  effects: readonly unknown[];
+  revision: number;
+  savedAt: string;
+}>;
+
+type StoryImageVersionPayload = Readonly<{
+  id: string;
+  kind: 'source' | 'generated';
+  storageKey: string;
+  composition: StoryCompositionPayload;
+}>;
+
+type StoryDraftPayload = Readonly<{
+  draftId: string;
+  notes: StorySharingNotesPayload;
+  imageVersions: readonly StoryImageVersionPayload[];
+}>;
+
 type ClientTiming = Readonly<{
   clientOccurredAt: Date;
+  serverReceiptTime: Date;
   effectiveTime: Date;
   validationResult: 'valid' | 'invalid_replaced';
 }>;
@@ -222,18 +265,35 @@ function resolveClientTiming(source: string, serverReceiptTime: Date): ClientTim
   if (!Number.isFinite(parsed.getTime())) {
     return {
       clientOccurredAt: serverReceiptTime,
+      serverReceiptTime,
       effectiveTime: serverReceiptTime,
       validationResult: 'invalid_replaced',
     };
   }
   return {
     clientOccurredAt: parsed,
+    serverReceiptTime,
     effectiveTime: parsed,
     validationResult: 'valid',
   };
 }
 
 function assertExecutableMutationShape(mutation: StoredSyncMutation): void {
+  if (mutation.entityType === 'story') {
+    if (mutation.operation !== 'create' && mutation.operation !== 'update') {
+      throw new SyncMutationValidationError(
+        'Story synchronization supports create and update operations only',
+      );
+    }
+    if (mutation.baseVersion !== null) {
+      throw new SyncMutationValidationError(
+        'Story synchronization uses effective save time instead of base version',
+      );
+    }
+    parseStoryDraftPayload(mutation.payload);
+    return;
+  }
+
   if (mutation.entityType === 'planner') {
     if (mutation.entityId !== mutation.accountId) {
       throw new SyncMutationValidationError(
@@ -477,6 +537,149 @@ function parsePlannerDraftPayload(payload: unknown): PlannerDraftPayload {
     throw new SyncMutationValidationError('Planner draft item ids must be unique');
   }
   return { text: source.text, imageAssetIds, items };
+}
+
+function parseStorySharingNotes(value: unknown): StorySharingNotesPayload {
+  const source = asRecord(value, 'Story Sharing Notes');
+  const supported = ['musicMood', 'mention', 'location', 'poll'] as const;
+  if (
+    Object.keys(source).length !== supported.length ||
+    supported.some((key) => !Object.hasOwn(source, key))
+  ) {
+    throw new SyncMutationValidationError(
+      'Story Sharing Notes must contain musicMood, mention, location, and poll',
+    );
+  }
+  const nullableString = (key: 'musicMood' | 'mention' | 'location') => {
+    const item = source[key];
+    if (item === null) return null;
+    if (typeof item !== 'string') {
+      throw new SyncMutationValidationError(`Story Sharing Notes ${key} must be a string or null`);
+    }
+    return item;
+  };
+  return {
+    musicMood: nullableString('musicMood'),
+    mention: nullableString('mention'),
+    location: nullableString('location'),
+    poll: source.poll ?? null,
+  };
+}
+
+function requireFiniteNumber(source: Record<string, unknown>, key: string, label: string): number {
+  const value = source[key];
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    throw new SyncMutationValidationError(`${label} must be a finite number`);
+  }
+  return value;
+}
+
+function parseStoryComposition(value: unknown): StoryCompositionPayload {
+  const source = asRecord(value, 'Story composition');
+  const supported = [
+    'canvas',
+    'background',
+    'headline',
+    'supportingText',
+    'effects',
+    'revision',
+    'savedAt',
+  ];
+  if (
+    Object.keys(source).length !== supported.length ||
+    supported.some((key) => !Object.hasOwn(source, key))
+  ) {
+    throw new SyncMutationValidationError('Story composition contains unsupported fields');
+  }
+
+  const canvas = asRecord(source.canvas, 'Story canvas');
+  if (Object.keys(canvas).length !== 2 || canvas.width !== 1080 || canvas.height !== 1920) {
+    throw new SyncMutationValidationError('Story canvas must be 1080 × 1920');
+  }
+
+  const background = asRecord(source.background, 'Story background transform');
+  const backgroundKeys = ['scale', 'translateX', 'translateY', 'rotation'];
+  if (
+    Object.keys(background).length !== backgroundKeys.length ||
+    backgroundKeys.some((key) => !Object.hasOwn(background, key))
+  ) {
+    throw new SyncMutationValidationError('Story background transform is invalid');
+  }
+  const scale = requireFiniteNumber(background, 'scale', 'Story background scale');
+  if (scale <= 0) {
+    throw new SyncMutationValidationError('Story background scale must be positive');
+  }
+
+  if (!Array.isArray(source.effects)) {
+    throw new SyncMutationValidationError('Story effects must be an array');
+  }
+  if (!Number.isSafeInteger(source.revision) || (source.revision as number) < 0) {
+    throw new SyncMutationValidationError('Story composition revision must be non-negative');
+  }
+  const savedAt = requireString(source, 'savedAt', 'Story composition savedAt');
+  if (!Number.isFinite(Date.parse(savedAt))) {
+    throw new SyncMutationValidationError('Story composition savedAt must be an ISO instant');
+  }
+
+  return {
+    canvas: { width: 1080, height: 1920 },
+    background: {
+      scale,
+      translateX: requireFiniteNumber(background, 'translateX', 'Story background translateX'),
+      translateY: requireFiniteNumber(background, 'translateY', 'Story background translateY'),
+      rotation: requireFiniteNumber(background, 'rotation', 'Story background rotation'),
+    },
+    headline: source.headline ?? null,
+    supportingText: source.supportingText ?? null,
+    effects: source.effects,
+    revision: source.revision as number,
+    savedAt,
+  };
+}
+
+function parseStoryImageVersion(value: unknown): StoryImageVersionPayload {
+  const source = asRecord(value, 'Story image version');
+  const supported = ['id', 'kind', 'storageKey', 'composition'];
+  if (
+    Object.keys(source).length !== supported.length ||
+    supported.some((key) => !Object.hasOwn(source, key))
+  ) {
+    throw new SyncMutationValidationError('Story image version contains unsupported fields');
+  }
+  return {
+    id: requireUuid(source, 'id', 'Story image version id'),
+    kind: requireLiteral(
+      source,
+      'kind',
+      ['source', 'generated'] as const,
+      'Story image version kind',
+    ),
+    storageKey: requireString(source, 'storageKey', 'Story image version storage key'),
+    composition: parseStoryComposition(source.composition),
+  };
+}
+
+function parseStoryDraftPayload(payload: unknown): StoryDraftPayload {
+  const source = asRecord(payload, 'Story draft payload');
+  const supported = ['draftId', 'notes', 'imageVersions'];
+  if (
+    Object.keys(source).length !== supported.length ||
+    supported.some((key) => !Object.hasOwn(source, key))
+  ) {
+    throw new SyncMutationValidationError('Story draft payload contains unsupported fields');
+  }
+  if (!Array.isArray(source.imageVersions)) {
+    throw new SyncMutationValidationError('Story imageVersions must be an array');
+  }
+  const imageVersions = source.imageVersions.map(parseStoryImageVersion);
+  if (new Set(imageVersions.map((version) => version.id)).size !== imageVersions.length) {
+    throw new SyncMutationValidationError('Story image-version ids must be unique');
+  }
+  return {
+    draftId: requireUuid(source, 'draftId', 'Story draft id'),
+    notes: parseStorySharingNotes(source.notes),
+    imageVersions,
+  };
 }
 
 function requireString(source: Record<string, unknown>, key: string, label: string): string {
@@ -1064,6 +1267,246 @@ async function applyPlannerMutation(
   };
 }
 
+async function loadStoryDraftPayload(
+  client: PoolClient,
+  accountId: string,
+  occurrenceId: string,
+): Promise<StoryDraftPayload> {
+  const draft = await client.query<{ id: string; notes: StorySharingNotesPayload }>(
+    `SELECT id, notes
+       FROM story_drafts
+      WHERE account_id = $1
+        AND occurrence_id = $2
+        AND state = 'active'`,
+    [accountId, occurrenceId],
+  );
+  const current = draft.rows[0];
+  if (current === undefined) {
+    throw new Error('Story draft disappeared while synchronization was applied');
+  }
+  const versions = await client.query<{
+    id: string;
+    kind: 'source' | 'generated';
+    storageKey: string;
+    composition: StoryCompositionPayload;
+  }>(
+    `SELECT version.id,
+            version.kind,
+            version.storage_key AS "storageKey",
+            composition.composition
+       FROM story_image_versions version
+       JOIN story_compositions composition
+         ON composition.draft_id = version.draft_id
+        AND composition.image_version_id = version.id
+      WHERE version.draft_id = $1
+      ORDER BY CASE version.kind WHEN 'source' THEN 0 ELSE 1 END,
+               version.created_at,
+               version.id`,
+    [current.id],
+  );
+  return {
+    draftId: current.id,
+    notes: current.notes,
+    imageVersions: versions.rows,
+  };
+}
+
+function storySaveIsNewer(
+  current: Readonly<{
+    effectiveSaveTime: Date;
+    serverReceiptTime: Date;
+    winnerMutationId: string | null;
+  }>,
+  timing: ClientTiming,
+  mutationId: string,
+): boolean {
+  const effectiveComparison = timing.effectiveTime.getTime() - current.effectiveSaveTime.getTime();
+  if (effectiveComparison !== 0) return effectiveComparison > 0;
+
+  const receiptComparison =
+    timing.serverReceiptTime.getTime() - current.serverReceiptTime.getTime();
+  if (receiptComparison !== 0) return receiptComparison > 0;
+
+  return current.winnerMutationId === null || mutationId > current.winnerMutationId;
+}
+
+type StoryMutationApplyResult = Readonly<{
+  payload: StoryDraftPayload;
+  conflict: boolean;
+}>;
+
+async function applyStoryMutation(
+  client: PoolClient,
+  mutation: StoredSyncMutation,
+  timing: ClientTiming,
+): Promise<StoryMutationApplyResult> {
+  const payload = parseStoryDraftPayload(mutation.payload);
+  const occurrence = await client.query<{
+    completionState: string;
+    deletionState: string;
+    hasCompletion: boolean;
+  }>(
+    `SELECT occurrence.completion_state AS "completionState",
+            occurrence.deletion_state AS "deletionState",
+            EXISTS (
+              SELECT 1
+                FROM mission_completions completion
+               WHERE completion.occurrence_id = occurrence.id
+                 AND completion.account_id = occurrence.account_id
+            ) AS "hasCompletion"
+       FROM mission_occurrences occurrence
+      WHERE occurrence.id = $1
+        AND occurrence.account_id = $2
+      FOR UPDATE`,
+    [mutation.entityId, mutation.accountId],
+  );
+  const target = occurrence.rows[0];
+  if (
+    target === undefined ||
+    target.completionState !== 'completed' ||
+    target.deletionState !== 'active' ||
+    !target.hasCompletion
+  ) {
+    throw new SyncMutationValidationError('Story drafts require an active completed mission');
+  }
+
+  const existing = await client.query<{
+    id: string;
+    effectiveSaveTime: Date;
+    serverReceiptTime: Date;
+    winnerMutationId: string | null;
+  }>(
+    `SELECT id,
+            effective_save_time AS "effectiveSaveTime",
+            server_receipt_time AS "serverReceiptTime",
+            winner_mutation_id AS "winnerMutationId"
+       FROM story_drafts
+      WHERE account_id = $1
+        AND occurrence_id = $2
+        AND state = 'active'
+      FOR UPDATE`,
+    [mutation.accountId, mutation.entityId],
+  );
+  const current = existing.rows[0];
+  if (current !== undefined && current.id !== payload.draftId) {
+    throw new SyncMutationConflictError(
+      'A different unfinished Story draft already exists for this mission',
+    );
+  }
+  if (current !== undefined && !storySaveIsNewer(current, timing, mutation.mutationId)) {
+    return {
+      payload: await loadStoryDraftPayload(client, mutation.accountId, mutation.entityId),
+      conflict: true,
+    };
+  }
+
+  const draftRevision = payload.imageVersions.reduce(
+    (revision, version) => Math.max(revision, version.composition.revision),
+    0,
+  );
+  if (current === undefined) {
+    await client.query(
+      `INSERT INTO story_drafts (
+         id,
+         account_id,
+         occurrence_id,
+         state,
+         notes,
+         revision,
+         original_client_time,
+         server_receipt_time,
+         effective_save_time,
+         validation_result,
+         winner_mutation_id
+       ) VALUES ($1, $2, $3, 'active', $4::jsonb, $5, $6, $7, $8, $9, $10)`,
+      [
+        payload.draftId,
+        mutation.accountId,
+        mutation.entityId,
+        JSON.stringify(payload.notes),
+        draftRevision,
+        timing.clientOccurredAt,
+        timing.serverReceiptTime,
+        timing.effectiveTime,
+        timing.validationResult,
+        mutation.mutationId,
+      ],
+    );
+  } else {
+    const updated = await client.query(
+      `UPDATE story_drafts
+          SET notes = $4::jsonb,
+              revision = $5,
+              original_client_time = $6,
+              server_receipt_time = $7,
+              effective_save_time = $8,
+              validation_result = $9,
+              winner_mutation_id = $10,
+              updated_at = now()
+        WHERE id = $1
+          AND account_id = $2
+          AND occurrence_id = $3
+          AND state = 'active'`,
+      [
+        payload.draftId,
+        mutation.accountId,
+        mutation.entityId,
+        JSON.stringify(payload.notes),
+        draftRevision,
+        timing.clientOccurredAt,
+        timing.serverReceiptTime,
+        timing.effectiveTime,
+        timing.validationResult,
+        mutation.mutationId,
+      ],
+    );
+    if (updated.rowCount !== 1) {
+      throw new SyncMutationConflictError('Story draft changed while it was saved');
+    }
+  }
+
+  for (const version of payload.imageVersions) {
+    const savedVersion = await client.query(
+      `INSERT INTO story_image_versions (id, draft_id, kind, storage_key)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (id) DO UPDATE
+         SET kind = EXCLUDED.kind,
+             storage_key = EXCLUDED.storage_key
+       WHERE story_image_versions.draft_id = EXCLUDED.draft_id`,
+      [version.id, payload.draftId, version.kind, version.storageKey],
+    );
+    if (savedVersion.rowCount !== 1) {
+      throw new SyncMutationConflictError('Story image version belongs to another draft');
+    }
+    await client.query(
+      `INSERT INTO story_compositions
+         (id, draft_id, image_version_id, composition, revision, saved_at)
+       VALUES ($1, $2, $1, $3::jsonb, $4, $5)
+       ON CONFLICT (image_version_id) DO UPDATE
+         SET composition = EXCLUDED.composition,
+             revision = EXCLUDED.revision,
+             saved_at = EXCLUDED.saved_at
+       WHERE story_compositions.draft_id = EXCLUDED.draft_id`,
+      [
+        version.id,
+        payload.draftId,
+        JSON.stringify(version.composition),
+        version.composition.revision,
+        new Date(version.composition.savedAt),
+      ],
+    );
+  }
+
+  const retainedIds = payload.imageVersions.map((version) => version.id);
+  await client.query(
+    `DELETE FROM story_image_versions
+      WHERE draft_id = $1
+        AND NOT (id = ANY($2::uuid[]))`,
+    [payload.draftId, retainedIds],
+  );
+  return { payload, conflict: false };
+}
+
 async function applySettingsMutation(
   client: PoolClient,
   accountId: string,
@@ -1547,20 +1990,48 @@ async function applyExecutableMutation(
   );
 }
 
+async function storyConflictForMutation(
+  client: PoolClient,
+  mutation: StoredSyncMutation,
+): Promise<StoredSyncConflict | null> {
+  const result = await client.query<{ draftId: string; winnerMutationId: string | null }>(
+    `SELECT id AS "draftId", winner_mutation_id AS "winnerMutationId"
+       FROM story_drafts
+      WHERE account_id = $1
+        AND occurrence_id = $2
+        AND state = 'active'`,
+    [mutation.accountId, mutation.entityId],
+  );
+  const current = result.rows[0];
+  if (current === undefined || current.winnerMutationId === mutation.mutationId) return null;
+  return {
+    kind: 'story_updated',
+    mutationId: mutation.mutationId,
+    storyDraftId: current.draftId,
+  };
+}
+
 async function acceptMutation(
   client: PoolClient,
   mutation: StoredSyncMutation,
   serverReceiptTime: Date,
-): Promise<void> {
+): Promise<StoredSyncConflict | null> {
   assertExecutableMutationShape(mutation);
   await requireDeviceOwnership(client, mutation.accountId, mutation.deviceId);
   const timing = resolveClientTiming(mutation.clientOccurredAt, serverReceiptTime);
 
   const existingMatch = await existingMutationMatches(client, mutation, timing);
-  if (existingMatch === true) return;
+  if (existingMatch === true) {
+    return mutation.entityType === 'story' ? storyConflictForMutation(client, mutation) : null;
+  }
   if (existingMatch === false) throw new SyncMutationConflictError();
 
-  const authoritativePayload = await applyExecutableMutation(client, mutation, timing);
+  const storyResult =
+    mutation.entityType === 'story' ? await applyStoryMutation(client, mutation, timing) : null;
+  const authoritativePayload =
+    storyResult === null
+      ? await applyExecutableMutation(client, mutation, timing)
+      : storyResult.payload;
 
   await client.query(
     `INSERT INTO device_sync_mutations (
@@ -1600,6 +2071,14 @@ async function acceptMutation(
     operation: changeOperation(mutation.operation),
     payload: authoritativePayload,
   });
+
+  return storyResult?.conflict === true
+    ? {
+        kind: 'story_updated',
+        mutationId: mutation.mutationId,
+        storyDraftId: storyResult.payload.draftId,
+      }
+    : null;
 }
 
 export function createPostgresSyncStore(pool: Pool, now: () => Date = () => new Date()) {
@@ -1612,13 +2091,21 @@ export function createPostgresSyncStore(pool: Pool, now: () => Date = () => new 
       try {
         await client.query('BEGIN');
         const acceptedMutationIds: string[] = [];
+        const conflicts: StoredSyncConflict[] = [];
         for (const mutation of mutations) {
           if (mutation.accountId !== accountId) throw new SyncDeviceOwnershipError();
-          await acceptMutation(client, mutation, now());
-          acceptedMutationIds.push(mutation.mutationId);
+          const conflict = await acceptMutation(client, mutation, now());
+          if (conflict === null) {
+            acceptedMutationIds.push(mutation.mutationId);
+          } else {
+            conflicts.push(conflict);
+            break;
+          }
         }
         await client.query('COMMIT');
-        return { acceptedMutationIds };
+        return conflicts.length === 0
+          ? { acceptedMutationIds }
+          : { acceptedMutationIds, conflicts };
       } catch (error) {
         await client.query('ROLLBACK');
         throw error;

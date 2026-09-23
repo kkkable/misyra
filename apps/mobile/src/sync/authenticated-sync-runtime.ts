@@ -1,6 +1,7 @@
 import {
   accountSettingsSchema,
   mobileMissionPersonalNoteSchema,
+  storyDraftSyncPayloadSchema,
   type AccountSettings,
   type AuthoritativeCompletionTypeContract,
 } from '@misyra/contracts';
@@ -566,6 +567,56 @@ async function hasPendingPlannerMutation(
   return row !== null;
 }
 
+async function hasPendingStoryMutation(
+  transaction: ServerSyncDatabase,
+  accountId: string,
+  occurrenceId: string,
+): Promise<boolean> {
+  const row = await transaction.getFirstAsync<{ mutation_id: string }>(
+    `SELECT mutation_id
+       FROM mutation_queue
+      WHERE account_id = ?
+        AND json_extract(command_json, '$.mutation.entityType') = 'story'
+        AND json_extract(command_json, '$.mutation.entityId') = ?
+        AND COALESCE(json_extract(command_json, '$.inFlight'), 0) <> 1
+      LIMIT 1`,
+    accountId,
+    occurrenceId,
+  );
+  return row !== null;
+}
+
+function storyDraftFromChange(change: ServerAccountChange) {
+  if (change.entityType !== 'story') return null;
+  if (change.operation !== 'upsert') {
+    throw new Error('Unsupported Story draft change operation.');
+  }
+  return storyDraftSyncPayloadSchema.parse(change.payload);
+}
+
+async function applyStoryDraftProjection(
+  transaction: ServerSyncDatabase,
+  accountId: string,
+  occurrenceId: string,
+  payload: ReturnType<typeof storyDraftSyncPayloadSchema.parse>,
+  updatedAt: string,
+): Promise<void> {
+  await transaction.runAsync(
+    `INSERT INTO story_drafts
+       (account_id, occurrence_id, draft_id, composition_json, updated_at)
+     VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(account_id, occurrence_id) DO UPDATE SET
+       draft_id = excluded.draft_id,
+       composition_json = excluded.composition_json,
+       updated_at = excluded.updated_at`,
+    accountId,
+    occurrenceId,
+    payload.draftId,
+    JSON.stringify(payload),
+    updatedAt,
+  );
+}
+
 async function applyAuthoritativeChanges(
   transaction: ServerSyncDatabase,
   accountId: string,
@@ -601,6 +652,18 @@ async function applyAuthoritativeChanges(
         accountId,
         JSON.stringify(plannerDraft),
         updatedAt,
+      );
+      continue;
+    }
+    const storyDraft = storyDraftFromChange(change);
+    if (storyDraft !== null) {
+      if (await hasPendingStoryMutation(transaction, accountId, change.entityId)) continue;
+      await applyStoryDraftProjection(
+        transaction,
+        accountId,
+        change.entityId,
+        storyDraft,
+        new Date().toISOString(),
       );
       continue;
     }
@@ -676,8 +739,12 @@ async function applyAuthoritativeSnapshot(
 ) {
   const ordered = [
     ...entries.filter(
-      (entry) => entry.entityType !== 'mission_personal_note' && entry.entityType !== 'progress',
+      (entry) =>
+        entry.entityType !== 'story' &&
+        entry.entityType !== 'mission_personal_note' &&
+        entry.entityType !== 'progress',
     ),
+    ...entries.filter((entry) => entry.entityType === 'story'),
     ...entries.filter((entry) => entry.entityType === 'mission_personal_note'),
     ...entries.filter((entry) => entry.entityType === 'progress'),
   ];
@@ -818,12 +885,23 @@ async function applyAuthenticatedConflicts(
 
   for (const conflict of conflicts) {
     if (conflict.kind === 'mission_deleted') continue;
-    if (conflict.kind !== 'mission_completed_elsewhere' && conflict.kind !== 'mission_updated') {
-      throw new Error(CONFLICT_APPLICATION_HANDLER_REQUIRED);
-    }
 
     const pending = pendingById.get(conflict.mutationId);
     const mutation = pending?.mutation;
+
+    if (conflict.kind === 'story_updated') {
+      const payload = mutation === undefined ? undefined : mutation.payload;
+      if (
+        mutation?.entityType !== 'story' ||
+        pending?.destination.kind !== 'server' ||
+        !isRecord(payload) ||
+        payload.draftId !== conflict.storyDraftId
+      ) {
+        throw new Error(CONFLICT_APPLICATION_HANDLER_REQUIRED);
+      }
+      continue;
+    }
+
     if (!matchingNoEvidenceCompletion(mutation, pending?.destination.kind, conflict.missionId)) {
       throw new Error(CONFLICT_APPLICATION_HANDLER_REQUIRED);
     }

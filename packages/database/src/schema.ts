@@ -359,6 +359,21 @@ export const storyDrafts = pgTable(
     occurrenceId: uuid('occurrence_id').notNull(),
     state: text('state').notNull().default('active'),
     aiGenerationCount: smallint('ai_generation_count').notNull().default(0),
+    notes: jsonb('notes')
+      .notNull()
+      .default(sql`'{"musicMood":null,"mention":null,"location":null,"poll":null}'::jsonb`),
+    revision: integer('revision').notNull().default(0),
+    originalClientTime: timestamp('original_client_time', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    serverReceiptTime: timestamp('server_receipt_time', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    effectiveSaveTime: timestamp('effective_save_time', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    validationResult: text('validation_result').notNull().default('valid'),
+    winnerMutationId: uuid('winner_mutation_id'),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -376,6 +391,11 @@ export const storyDrafts = pgTable(
       'story_drafts_ai_generation_count_check',
       sql`${table.aiGenerationCount} between 0 and 3`,
     ),
+    check('story_drafts_revision_check', sql`${table.revision} >= 0`),
+    check(
+      'story_drafts_validation_result_check',
+      sql`${table.validationResult} in ('valid', 'invalid_replaced')`,
+    ),
   ],
 );
 
@@ -390,7 +410,10 @@ export const storyImageVersions = pgTable(
     storageKey: text('storage_key').notNull(),
     createdAt: createdAt(),
   },
-  (table) => [index('story_image_versions_draft_idx').on(table.draftId)],
+  (table) => [
+    index('story_image_versions_draft_idx').on(table.draftId),
+    uniqueIndex('story_image_versions_draft_id_uidx').on(table.draftId, table.id),
+  ],
 );
 
 export const storyCompositions = pgTable(
@@ -400,10 +423,21 @@ export const storyCompositions = pgTable(
     draftId: uuid('draft_id')
       .notNull()
       .references(() => storyDrafts.id, { onDelete: 'cascade' }),
+    imageVersionId: uuid('image_version_id').notNull(),
     composition: jsonb('composition').notNull(),
+    revision: integer('revision').notNull().default(0),
     savedAt: timestamp('saved_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [index('story_compositions_draft_idx').on(table.draftId)],
+  (table) => [
+    index('story_compositions_draft_idx').on(table.draftId),
+    uniqueIndex('story_compositions_image_version_uidx').on(table.imageVersionId),
+    foreignKey({
+      columns: [table.draftId, table.imageVersionId],
+      foreignColumns: [storyImageVersions.draftId, storyImageVersions.id],
+      name: 'story_compositions_draft_image_version_fk',
+    }).onDelete('cascade'),
+    check('story_compositions_revision_check', sql`${table.revision} >= 0`),
+  ],
 );
 
 export const storyStyleProfiles = pgTable(

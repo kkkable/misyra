@@ -76,11 +76,18 @@ export function createSyncService(
   return {
     push: async (accountId, mutations) => {
       const acceptedMutationIds: string[] = [];
-      const conflicts: Array<{
-        kind: 'mission_deleted';
-        mutationId: string;
-        missionId: string;
-      }> = [];
+      const conflicts: Array<
+        | Readonly<{
+            kind: 'mission_deleted';
+            mutationId: string;
+            missionId: string;
+          }>
+        | Readonly<{
+            kind: 'story_updated';
+            mutationId: string;
+            storyDraftId: string;
+          }>
+      > = [];
 
       for (const mutation of mutations) {
         const storedMutation = {
@@ -90,6 +97,8 @@ export function createSyncService(
         try {
           const result = await store.push(accountId, [storedMutation]);
           acceptedMutationIds.push(...result.acceptedMutationIds);
+          conflicts.push(...(result.conflicts ?? []));
+          if ((result.conflicts?.length ?? 0) > 0) break;
         } catch (error) {
           if (
             error instanceof SyncMutationConflictError &&
