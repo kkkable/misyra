@@ -66,7 +66,10 @@ export function createStoryTextSuggestionService(input: {
   readonly gateway: Pick<AiGateway, 'suggestStoryText'>;
 }) {
   return Object.freeze({
-    async suggest(accountId: string, occurrenceId: string): Promise<StoryTextSuggestionsResult> {
+    async suggest(
+      accountId: string,
+      occurrenceId: string,
+    ): Promise<StoryTextSuggestionsResult> {
       const context = await input.pool.query<StoryTextSuggestionContextRow>(
         `SELECT
            s.title AS "missionTitle",
@@ -104,7 +107,8 @@ export function createStoryTextSuggestionService(input: {
         missionContext: {
           missionTitle: row.missionTitle,
           providerTaskDetails: row.providerTaskDetails,
-          scheduleContext: `${row.localStart} → ${row.localFinish} · ${row.timeZone} · ${row.timeBehavior}`,
+          scheduleContext:
+            `${row.localStart} → ${row.localFinish} · ${row.timeZone} · ${row.timeBehavior}`,
           personalNote: row.personalNote,
         },
         completionType: row.completionType,
