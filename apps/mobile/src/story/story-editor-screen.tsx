@@ -1,4 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
+
+import type { StoryTextSuggestionsResult } from '@misyra/contracts';
+
 import type { EvidenceStorySourceAttempt } from '../evidence/evidence-api.js';
 import {
   PrimaryButton,
@@ -14,6 +17,11 @@ import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } fr
 import { createStoryEditorSession, type StorySourceImage } from './story-editor-state.js';
 import type { StoryComposition, StoryTextLayer } from './story-composition.js';
 import { StorySkiaPreviewView } from './story-skia-preview-view.js';
+import {
+  StoryTextSuggestionsPanel,
+  type StoryTextSuggestionsPanelMessages,
+} from './story-text-suggestions-panel.js';
+import { applyStoryTextSuggestionSelection } from './story-text-suggestions.js';
 
 export type StoryEditorMessages = Readonly<{
   title: string;
@@ -76,6 +84,9 @@ export function StoryEditorScreen({
   selectedAttemptId,
   sourceAttempts,
   sourceImage,
+  textSuggestionMessages,
+  textSuggestions,
+  onTextSuggestionsResolved,
 }: Readonly<{
   colorScheme: ColorScheme;
   composition: StoryComposition;
@@ -87,6 +98,9 @@ export function StoryEditorScreen({
   selectedAttemptId: string;
   sourceAttempts: readonly EvidenceStorySourceAttempt[];
   sourceImage: StorySourceImage;
+  textSuggestionMessages?: StoryTextSuggestionsPanelMessages;
+  textSuggestions?: StoryTextSuggestionsResult | null;
+  onTextSuggestionsResolved?: () => void;
 }>) {
   const window = useWindowDimensions();
   const colors = themeColors(colorScheme);
@@ -212,6 +226,29 @@ export function StoryEditorScreen({
             );
           })}
         </View>
+
+        {textSuggestions !== null &&
+        textSuggestions !== undefined &&
+        textSuggestionMessages !== undefined &&
+        onTextSuggestionsResolved !== undefined ? (
+          <StoryTextSuggestionsPanel
+            messages={textSuggestionMessages}
+            suggestions={textSuggestions}
+            onChoose={(selection) => {
+              if (selection !== 'photo_only') {
+                const next = applyStoryTextSuggestionSelection({
+                  composition,
+                  suggestions: textSuggestions,
+                  selection,
+                  savedAt: new Date().toISOString(),
+                });
+                session.applyComposition(next);
+                publish();
+              }
+              onTextSuggestionsResolved();
+            }}
+          />
+        ) : null}
 
         <View style={styles.previewWrap}>
           <StorySkiaPreviewView

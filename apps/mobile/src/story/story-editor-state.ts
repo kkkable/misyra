@@ -79,6 +79,12 @@ export function createStoryEditorSession({
       return redoHistory.length > 0;
     },
 
+    applyComposition(composition: StoryComposition): void {
+      undoHistory.push(current);
+      current = cloneStoryComposition(validateStoryComposition(composition));
+      redoHistory.length = 0;
+    },
+
     transformBackground(background: StoryBackgroundTransform): void {
       commit(validateStoryComposition({ ...current, background }));
     },

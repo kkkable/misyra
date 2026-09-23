@@ -60,6 +60,34 @@ describe('MTS-091 source Story editor session', () => {
     });
   });
 
+  it('accepts a suggestion placement as one undoable editor action', () => {
+    const session = createStoryEditorSession({
+      sourceImage,
+      savedComposition: null,
+      now: () => '2026-09-23T10:35:00.000Z',
+    });
+    const current = session.getComposition();
+    session.applyComposition({
+      ...current,
+      headline: {
+        text: 'Suggested',
+        x: 120,
+        y: 260,
+        width: 840,
+        fontSize: 72,
+        fontCategory: 'system-bold',
+        color: '#FFFFFF',
+      },
+      revision: current.revision + 1,
+      savedAt: '2026-09-23T10:35:00.000Z',
+    });
+
+    expect(session.getComposition().headline?.text).toBe('Suggested');
+    expect(session.canUndo()).toBe(true);
+    session.undo();
+    expect(session.getComposition().headline).toBeNull();
+  });
+
   it('keeps undo/redo session-local and starts a reopened draft with an empty edit stack', () => {
     const first = createStoryEditorSession({
       sourceImage,
