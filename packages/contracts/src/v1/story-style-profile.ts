@@ -30,8 +30,6 @@ export const storyStyleProfileGatewayRequestSchema = z
   })
   .strict();
 
-export type StoryStyleProfileRebuildRequest = z.infer<
-  typeof storyStyleProfileRebuildRequestSchema
->;
+export type StoryStyleProfileRebuildRequest = z.infer<typeof storyStyleProfileRebuildRequestSchema>;
 export type StoryStyleProfileAiOutput = z.infer<typeof storyStyleProfileAiOutputSchema>;
 export type StoryStyleProfileGatewayRequest = z.infer<typeof storyStyleProfileGatewayRequestSchema>;
