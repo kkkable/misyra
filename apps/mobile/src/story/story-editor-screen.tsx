@@ -393,9 +393,12 @@ export function StoryEditorScreen({
             onPress={() => {
               updateCurrentLayer((layer) => {
                 const index = TEXT_COLORS.indexOf(layer.color as (typeof TEXT_COLORS)[number]);
+                const color =
+                  TEXT_COLORS[(index + 1 + TEXT_COLORS.length) % TEXT_COLORS.length] ??
+                  TEXT_COLORS[0];
                 return {
                   ...layer,
-                  color: TEXT_COLORS[(index + 1 + TEXT_COLORS.length) % TEXT_COLORS.length],
+                  color,
                 };
               });
             }}
