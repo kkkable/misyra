@@ -1304,6 +1304,25 @@ async function loadStoryDraftPayload(
   };
 }
 
+function storySaveIsNewer(
+  current: Readonly<{
+    effectiveSaveTime: Date;
+    serverReceiptTime: Date;
+    winnerMutationId: string | null;
+  }>,
+  timing: ClientTiming,
+  mutationId: string,
+): boolean {
+  const effectiveComparison = timing.effectiveTime.getTime() - current.effectiveSaveTime.getTime();
+  if (effectiveComparison !== 0) return effectiveComparison > 0;
+
+  const receiptComparison =
+    timing.serverReceiptTime.getTime() - current.serverReceiptTime.getTime();
+  if (receiptComparison !== 0) return receiptComparison > 0;
+
+  return current.winnerMutationId === null || mutationId > current.winnerMutationId;
+}
+
 async function applyStoryMutation(
   client: PoolClient,
   mutation: StoredSyncMutation,
@@ -1342,8 +1361,13 @@ async function applyStoryMutation(
   const existing = await client.query<{
     id: string;
     effectiveSaveTime: Date;
+    serverReceiptTime: Date;
+    winnerMutationId: string | null;
   }>(
-    `SELECT id, effective_save_time AS "effectiveSaveTime"
+    `SELECT id,
+            effective_save_time AS "effectiveSaveTime",
+            server_receipt_time AS "serverReceiptTime",
+            winner_mutation_id AS "winnerMutationId"
        FROM story_drafts
       WHERE account_id = $1
         AND occurrence_id = $2
@@ -1357,10 +1381,7 @@ async function applyStoryMutation(
       'A different unfinished Story draft already exists for this mission',
     );
   }
-  if (
-    current !== undefined &&
-    current.effectiveSaveTime.getTime() >= timing.effectiveTime.getTime()
-  ) {
+  if (current !== undefined && !storySaveIsNewer(current, timing, mutation.mutationId)) {
     return loadStoryDraftPayload(client, mutation.accountId, mutation.entityId);
   }
 
@@ -1380,8 +1401,9 @@ async function applyStoryMutation(
          original_client_time,
          server_receipt_time,
          effective_save_time,
-         validation_result
-       ) VALUES ($1, $2, $3, 'active', $4::jsonb, $5, $6, $7, $8, $9)`,
+         validation_result,
+         winner_mutation_id
+       ) VALUES ($1, $2, $3, 'active', $4::jsonb, $5, $6, $7, $8, $9, $10)`,
       [
         payload.draftId,
         mutation.accountId,
@@ -1392,6 +1414,7 @@ async function applyStoryMutation(
         timing.serverReceiptTime,
         timing.effectiveTime,
         timing.validationResult,
+        mutation.mutationId,
       ],
     );
   } else {
@@ -1403,6 +1426,7 @@ async function applyStoryMutation(
               server_receipt_time = $7,
               effective_save_time = $8,
               validation_result = $9,
+              winner_mutation_id = $10,
               updated_at = now()
         WHERE id = $1
           AND account_id = $2
@@ -1418,6 +1442,7 @@ async function applyStoryMutation(
         timing.serverReceiptTime,
         timing.effectiveTime,
         timing.validationResult,
+        mutation.mutationId,
       ],
     );
     if (updated.rowCount !== 1) {
