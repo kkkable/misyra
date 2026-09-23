@@ -76,11 +76,15 @@ describe('MTS-091 rendered Skia Story preview', () => {
     expect(renderer.toJSON()).toMatchInlineSnapshot(`
       <View
         style={
-          {
-            "height": 640,
-            "overflow": "hidden",
-            "width": 360,
-          }
+          [
+            {
+              "overflow": "hidden",
+            },
+            {
+              "height": 640,
+              "width": 360,
+            },
+          ]
         }
       >
         <SkiaCanvas
