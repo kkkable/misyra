@@ -30,7 +30,8 @@ vi.mock('../design-system/index.js', async () => {
     SecondaryButton: button('SecondaryButton'),
     Screen: ({ children, ...props }) => h('Screen', props, children),
     TextField: ({ label, ...props }) => h('TextField', props, label),
-    TopBar: ({ title, ...props }) => h('TopBar', props, title),
+    TopBar: ({ leading, title, trailing, ...props }) =>
+      h('TopBar', props, leading, title, trailing),
     themeColors: () => ({
       canvas: '#fff',
       border: '#ddd',
