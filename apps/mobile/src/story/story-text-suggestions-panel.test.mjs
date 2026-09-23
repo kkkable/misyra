@@ -23,7 +23,10 @@ const suggestions = {
     musicMood: 'upbeat running track',
     mention: null,
     location: 'Hong Kong',
-    poll: null,
+    poll: {
+      question: 'Run again tomorrow?',
+      options: ['Yes', 'Rest day'],
+    },
   },
 };
 
