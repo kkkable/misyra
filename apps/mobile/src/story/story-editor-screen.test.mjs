@@ -154,6 +154,29 @@ describe('MTS-091 Story editor interactions', () => {
     expect(preview.props.composition.effects).toEqual([{ kind: 'contrast', amount: 0.1 }]);
   });
 
+  it('preserves the current-session undo stack when autosave returns a newer composition prop', () => {
+    const { renderer, props } = renderScreen();
+
+    act(() => renderer.root.findByProps({ testID: 'story-zoom-in' }).props.onPress());
+    const autosaved = props.onCompositionChange.mock.calls.at(-1)?.[0];
+    expect(autosaved.background.scale).toBe(1.1);
+
+    act(() => {
+      renderer.update(
+        createElement(StoryEditorScreen, {
+          ...props,
+          composition: autosaved,
+        }),
+      );
+    });
+
+    expect(renderer.root.findByProps({ testID: 'story-undo' }).props.disabled).toBe(false);
+    act(() => renderer.root.findByProps({ testID: 'story-undo' }).props.onPress());
+
+    const preview = renderer.root.findByType('StorySkiaPreviewView');
+    expect(preview.props.composition.background.scale).toBe(1);
+  });
+
   it('edits, moves, resizes, recolours, changes font and removes optional text layers', () => {
     const { renderer, props } = renderScreen();
 
