@@ -8,7 +8,7 @@ const occurrenceId = '22222222-2222-4222-8222-222222222222';
 
 describe('MTS-091 Story source evidence discovery', () => {
   it('returns retained uploaded evidence attempts in attempt order and excludes duplicate-loser/deleted media in SQL', async () => {
-    const query = vi.fn(() =>
+    const query = vi.fn((_sql: string, _params: readonly string[]) =>
       Promise.resolve({
         rows: [
           {
@@ -53,7 +53,10 @@ describe('MTS-091 Story source evidence discovery', () => {
     });
 
     expect(query).toHaveBeenCalledTimes(1);
-    const [sql, params] = query.mock.calls[0];
+    const call = query.mock.calls[0];
+    expect(call).toBeDefined();
+    if (call === undefined) throw new Error('Expected one Story source query.');
+    const [sql, params] = call;
     expect(sql).toMatch(/upload_status\s*=\s*'uploaded'/i);
     expect(sql).toMatch(/deletion_state\s*=\s*'active'/i);
     expect(sql).toMatch(/status\s*<>\s*'duplicate_loser'/i);
