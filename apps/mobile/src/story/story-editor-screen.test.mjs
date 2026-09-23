@@ -7,11 +7,7 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 vi.mock('react-native', async () => {
   const { createElement: h } = await import('react');
   const Pressable = ({ children, ...props }) =>
-    h(
-      'Pressable',
-      props,
-      typeof children === 'function' ? children({ pressed: false }) : children,
-    );
+    h('Pressable', props, typeof children === 'function' ? children({ pressed: false }) : children);
   return {
     Pressable,
     ScrollView: ({ children, ...props }) => h('ScrollView', props, children),
@@ -25,7 +21,10 @@ vi.mock('react-native', async () => {
 
 vi.mock('../design-system/index.js', async () => {
   const { createElement: h } = await import('react');
-  const button = (name) => ({ label, ...props }) => h(name, props, label);
+  const button =
+    (name) =>
+    ({ label, ...props }) =>
+      h(name, props, label);
   return {
     PrimaryButton: button('PrimaryButton'),
     SecondaryButton: button('SecondaryButton'),
