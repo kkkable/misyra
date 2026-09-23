@@ -49,7 +49,7 @@ describe('MTS-091 Story composition serialization', () => {
       parseStoryComposition(
         JSON.stringify({
           ...validComposition,
-          stickers: [{ kind: 'gif', value: 'not-supported' }],
+          extraEditorState: { unsupported: true },
         }),
       ),
     ).toThrow(/unrecognized|unknown|unsupported/i);
