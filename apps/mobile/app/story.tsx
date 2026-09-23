@@ -1,9 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import {
-  storyDraftSyncPayloadSchema,
-  type StoryTextSuggestionsResult,
-} from '@misyra/contracts';
+import { storyDraftSyncPayloadSchema, type StoryTextSuggestionsResult } from '@misyra/contracts';
 import { localizationCatalogs } from '@misyra/localization';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useColorScheme } from 'react-native';
