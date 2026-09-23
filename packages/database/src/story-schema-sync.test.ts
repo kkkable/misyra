@@ -378,7 +378,7 @@ describe('MTS-090 Story schema and synchronization contracts', () => {
     const current = await pool.query<{
       notes: Record<string, unknown>;
       revision: number;
-      effectiveSaveTime: string;
+      effectiveSaveTime: Date;
     }>(
       `SELECT notes,
               revision,
@@ -475,5 +475,4 @@ describe('MTS-090 Story schema and synchronization contracts', () => {
       },
     ]);
   });
-
 });
