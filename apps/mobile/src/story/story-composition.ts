@@ -84,7 +84,7 @@ function effect(value: unknown, index: number): StoryEffect {
   if (source.amount !== undefined) {
     finiteNumber(source.amount, `Story effect ${String(index)} amount`);
   }
-  return Object.freeze({ ...source, kind }) as StoryEffect;
+  return Object.freeze({ ...source, kind });
 }
 
 export function validateStoryComposition(value: unknown): StoryComposition {
