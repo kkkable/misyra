@@ -84,7 +84,7 @@ describe('MTS-090 Story sync-service conflicts', () => {
           },
         ],
       });
-        expect(storePush).toHaveBeenCalledTimes(2);
+      expect(storePush).toHaveBeenCalledTimes(2);
     },
   );
 });
