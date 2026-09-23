@@ -266,9 +266,9 @@ describe('MTS-048 mission deletion synchronization', () => {
       [storyImageId, storyDraftId, `story/${occurrenceId}/generated.jpg`],
     );
     await pool.query(
-      `INSERT INTO story_compositions (id, draft_id, composition)
-       VALUES ($1, $2, '{"caption":"Sensitive Story text"}'::jsonb)`,
-      [storyCompositionId, storyDraftId],
+      `INSERT INTO story_compositions (id, draft_id, image_version_id, composition)
+       VALUES ($1, $2, $3, '{"caption":"Sensitive Story text"}'::jsonb)`,
+      [storyCompositionId, storyDraftId, storyImageId],
     );
     await pool.query(
       `INSERT INTO media_assets (id, account_id, purpose, storage_key)
