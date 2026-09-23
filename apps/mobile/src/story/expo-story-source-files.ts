@@ -15,8 +15,12 @@ function dimensions(uri: string): Promise<Readonly<{ width: number; height: numb
   return new Promise((resolve, reject) => {
     Image.getSize(
       uri,
-      (width, height) => resolve({ width, height }),
-      (error) => reject(error),
+      (width, height) => {
+        resolve({ width, height });
+      },
+      (error) => {
+        reject(error instanceof Error ? error : new Error(String(error)));
+      },
     );
   });
 }
