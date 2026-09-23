@@ -15,6 +15,7 @@ type StoryOfflineDraftStoreOptions = Readonly<{
 }>;
 
 type StoryDraftRow = Readonly<{ draft_id: string }>;
+type StoryDraftPayloadRow = Readonly<{ composition_json: string }>;
 type StoryMissionRow = Readonly<{
   completion_state: string | null;
   deletion_state: string | null;
@@ -46,6 +47,18 @@ export function createStoryOfflineDraftStore({
   const queue = createMutationQueue(database, accountId);
 
   return Object.freeze({
+    async load(occurrenceId: string) {
+      const row = await database.getFirstAsync<StoryDraftPayloadRow>(
+        `SELECT composition_json
+           FROM story_drafts
+          WHERE account_id = ? AND occurrence_id = ?`,
+        accountId,
+        occurrenceId,
+      );
+      if (row === null) return null;
+      return storyDraftSyncPayloadSchema.parse(JSON.parse(row.composition_json) as unknown);
+    },
+
     async save(occurrenceId: string, value: unknown): Promise<void> {
       const payload = storyDraftSyncPayloadSchema.parse(value);
       if (payload.imageVersions.length === 0) {
