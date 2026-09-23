@@ -421,7 +421,7 @@ describe('MTS-090 Story schema and synchronization contracts', () => {
     expect(current.rows).toEqual([
       {
         notes: newestPayload.notes,
-        revision: 3,
+        revision: 4,
         effectiveSaveTime: new Date('2026-09-23T09:34:00.000Z'),
       },
     ]);
