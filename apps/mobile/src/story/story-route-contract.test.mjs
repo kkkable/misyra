@@ -30,7 +30,8 @@ describe('MTS-091 production Story route contract', () => {
     expect(route).toMatch(/materialize\(/);
     expect(sourceRuntime).toMatch(/copyOriginalToStoryWorking/);
     expect(editor).toMatch(/createStoryEditorSession/);
-    expect(editor).toMatch(/\[savedComposition, sourceImage\]/);
+    expect(editor).toMatch(/sourceImageId/);
+    expect(editor).toMatch(/sourceImage\.id/);
   });
 
   it('uses the shared Story-save haptic and contains no excluded media/sticker editing', () => {
