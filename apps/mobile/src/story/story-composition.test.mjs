@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  parseStoryComposition,
-  serializeStoryComposition,
-} from './story-composition.ts';
+import { parseStoryComposition, serializeStoryComposition } from './story-composition.ts';
 
 const validComposition = {
   canvas: { width: 1080, height: 1920 },
