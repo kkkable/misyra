@@ -21,10 +21,12 @@ function dimensions(uri: string): Promise<Readonly<{ width: number; height: numb
   });
 }
 
-export function createExpoStorySourceFiles(input: Readonly<{
-  baseUrl: string;
-  accessToken: string;
-}>): StorySourceFiles {
+export function createExpoStorySourceFiles(
+  input: Readonly<{
+    baseUrl: string;
+    accessToken: string;
+  }>,
+): StorySourceFiles {
   const root = input.baseUrl.endsWith('/') ? input.baseUrl.slice(0, -1) : input.baseUrl;
 
   return Object.freeze({
