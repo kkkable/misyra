@@ -8,10 +8,7 @@ import {
 
 export type StoryTextSuggestionSelection = 'headline' | 'supporting_text' | 'both' | 'photo_only';
 
-function suggestedLayer(
-  role: 'headline' | 'supportingText',
-  text: string,
-): StoryTextLayer {
+function suggestedLayer(role: 'headline' | 'supportingText', text: string): StoryTextLayer {
   return {
     text,
     x: 120,
@@ -34,8 +31,7 @@ export function applyStoryTextSuggestionSelection(
   if (input.selection === 'photo_only') return input.composition;
 
   const useHeadline = input.selection === 'headline' || input.selection === 'both';
-  const useSupporting =
-    input.selection === 'supporting_text' || input.selection === 'both';
+  const useSupporting = input.selection === 'supporting_text' || input.selection === 'both';
 
   return validateStoryComposition({
     ...input.composition,
