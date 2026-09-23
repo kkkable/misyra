@@ -616,7 +616,6 @@ async function applyStoryDraftProjection(
   );
 }
 
-
 async function applyAuthoritativeChanges(
   transaction: ServerSyncDatabase,
   accountId: string,
