@@ -45,10 +45,12 @@ function textNode(role: 'headline' | 'supportingText', layer: StoryTextLayer) {
   });
 }
 
-export function createStorySkiaSceneSnapshot(input: Readonly<{
-  image: StorySourceImage;
-  composition: StoryComposition;
-}>) {
+export function createStorySkiaSceneSnapshot(
+  input: Readonly<{
+    image: StorySourceImage;
+    composition: StoryComposition;
+  }>,
+) {
   const nodes: object[] = [
     Object.freeze({
       kind: 'image' as const,
