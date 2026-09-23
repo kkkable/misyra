@@ -115,7 +115,10 @@ describe('MTS-093 Story style-profile service', () => {
   });
 
   it('persists Use default without mutating existing Story drafts', async () => {
-    const query = vi.fn(() => Promise.resolve({ rows: [] }));
+    const query = vi.fn((sql: string) => {
+      void sql;
+      return Promise.resolve({ rows: [] });
+    });
     const service = createStoryStyleProfileService({
       pool: { query } as unknown as Pool,
     });
