@@ -160,26 +160,25 @@ describe('MTS-090 Story authenticated sync projection', () => {
     expect(JSON.parse(row.composition_json)).toEqual(payload);
   });
 
-  it('replaces the losing cached Story with the latest authoritative save', async () => {
+  it('reloads the authoritative Story and settles a losing in-flight mutation', async () => {
     const database = new NodeSqliteAdapter();
     databases.push(database);
     await applyMobileMigrations(database);
     await seedCompletedMission(database);
-    await database.runAsync(
-      `INSERT INTO story_drafts
-         (account_id, occurrence_id, draft_id, composition_json, updated_at)
-       VALUES (?, ?, ?, ?, ?)`,
-      accountId,
-      occurrenceId,
-      draftId,
-      JSON.stringify({
-        draftId,
-        notes: { musicMood: 'old', mention: null, location: null, poll: null },
-        imageVersions: [],
-      }),
-      '2026-09-23T09:30:00.000Z',
-    );
 
+    const staleMutationId = '99999999-9999-4999-8999-999999999999';
+    const stale = {
+      draftId,
+      notes: { musicMood: 'stale local', mention: null, location: null, poll: null },
+      imageVersions: [
+        {
+          id: '77777777-7777-4777-8777-777777777777',
+          kind: 'source',
+          storageKey: 'story/source/77777777-7777-4777-8777-777777777777',
+          composition: composition('stale local', 2),
+        },
+      ],
+    };
     const newest = {
       draftId,
       notes: { musicMood: 'newest', mention: null, location: null, poll: null },
@@ -192,8 +191,51 @@ describe('MTS-090 Story authenticated sync projection', () => {
         },
       ],
     };
+    const queue = createMutationQueue(database, accountId);
+    await queue.enqueue({
+      mutation: {
+        mutationId: staleMutationId,
+        accountId,
+        deviceId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+        entityType: 'story',
+        entityId: occurrenceId,
+        operation: 'update',
+        baseVersion: null,
+        clientOccurredAt: '2026-09-23T09:32:00.000Z',
+        payload: stale,
+      },
+      destination: { kind: 'server' },
+      applyLocal: async (transaction) => {
+        await transaction.runAsync(
+          `INSERT INTO story_drafts
+             (account_id, occurrence_id, draft_id, composition_json, updated_at)
+           VALUES (?, ?, ?, ?, ?)
+           ON CONFLICT(account_id, occurrence_id) DO UPDATE SET
+             draft_id = excluded.draft_id,
+             composition_json = excluded.composition_json,
+             updated_at = excluded.updated_at`,
+          accountId,
+          occurrenceId,
+          draftId,
+          JSON.stringify(stale),
+          '2026-09-23T09:32:00.000Z',
+        );
+      },
+    });
+
     const api = {
-      push: vi.fn(() => Promise.resolve({ acceptedMutationIds: [], conflicts: [] })),
+      push: vi.fn(() =>
+        Promise.resolve({
+          acceptedMutationIds: [],
+          conflicts: [
+            {
+              kind: 'story_updated',
+              mutationId: staleMutationId,
+              storyDraftId: draftId,
+            },
+          ],
+        }),
+      ),
       pull: vi.fn(() =>
         Promise.resolve({
           kind: 'incremental',
@@ -213,7 +255,10 @@ describe('MTS-090 Story authenticated sync projection', () => {
       snapshot: vi.fn(() => Promise.resolve({ entries: [], nextCursor: 1 })),
     };
 
-    await runAuthenticatedServerSync({ database, accountId, api });
+    await expect(runAuthenticatedServerSync({ database, accountId, api })).resolves.toEqual({
+      settledMutations: 1,
+      cursor: 1,
+    });
 
     const row = await database.getFirstAsync(
       'SELECT composition_json FROM story_drafts WHERE account_id = ? AND occurrence_id = ?',
@@ -221,6 +266,7 @@ describe('MTS-090 Story authenticated sync projection', () => {
       occurrenceId,
     );
     expect(JSON.parse(row.composition_json)).toEqual(newest);
+    expect(await queue.listPending()).toEqual([]);
   });
 
   it('does not overwrite a Story edit queued after the push phase with an older pull', async () => {
