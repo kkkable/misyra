@@ -96,7 +96,18 @@ export const storyCompositionSchema = z
     revision: z.number().int().nonnegative(),
     savedAt: instantSchema,
   })
-  .strict();
+  .strict()
+  .superRefine((value, context) => {
+    for (const key of ['headline', 'supportingText'] as const) {
+      if (!Object.hasOwn(value, key)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Story composition must contain ${key}`,
+          path: [key],
+        });
+      }
+    }
+  });
 
 export const storySharingNotesSchema = z
   .object({
@@ -105,7 +116,16 @@ export const storySharingNotesSchema = z
     location: z.string().nullable(),
     poll: z.unknown().nullable(),
   })
-  .strict();
+  .strict()
+  .superRefine((value, context) => {
+    if (!Object.hasOwn(value, 'poll')) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Story Sharing Notes must contain poll',
+        path: ['poll'],
+      });
+    }
+  });
 
 export const storyImageVersionSyncSchema = z
   .object({
