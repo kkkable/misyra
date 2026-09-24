@@ -30,6 +30,7 @@ vi.mock('../design-system/index.js', async () => {
     SecondaryButton: button('SecondaryButton'),
     Screen: ({ children, ...props }) => h('Screen', props, children),
     TextField: ({ label, ...props }) => h('TextField', props, label),
+    Toast: ({ message, ...props }) => h('Toast', props, message),
     TopBar: ({ leading, title, trailing, ...props }) =>
       h('TopBar', props, leading, title, trailing),
     themeColors: () => ({
@@ -266,6 +267,14 @@ describe('MTS-094 Story generation budget surface', () => {
 });
 
 describe('MTS-096 Story offline and conflict editor behavior', () => {
+  it('shows the approved non-blocking conflict message when another device wins', () => {
+    const approved = 'This Story draft was updated on another device. Your editor has been reloaded.';
+    const { renderer } = renderScreen({ conflictMessage: approved });
+
+    const notice = renderer.root.findByProps({ testID: 'story-conflict-message' });
+    expect(notice.props.children).toBe(approved);
+  });
+
   it('disables AI generation while offline without blocking manual edits', () => {
     const onGenerateVersion = vi.fn();
     const { renderer } = renderScreen({
