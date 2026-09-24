@@ -59,16 +59,7 @@ export const storyStyleProfileSchema = z
       .array(effectSchema)
       .max(6)
       .refine((effects) => new Set(effects).size === effects.length, 'Effects must be unique'),
-    tone: z.enum([
-      'calm',
-      'energetic',
-      'playful',
-      'minimal',
-      'editorial',
-      'warm',
-      'bold',
-      'soft',
-    ]),
+    tone: z.enum(['calm', 'energetic', 'playful', 'minimal', 'editorial', 'warm', 'bold', 'soft']),
   })
   .strict();
 
