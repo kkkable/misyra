@@ -364,7 +364,6 @@ describe('MTS-095 Story version selector interactions', () => {
   });
 });
 
-
 describe('MTS-097 Story export actions', () => {
   it('invokes direct save/share actions and shows the approved saved confirmation', () => {
     const onSaveToPhotos = vi.fn();
