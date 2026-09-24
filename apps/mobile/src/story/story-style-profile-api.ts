@@ -23,41 +23,38 @@ export function createStoryStyleProfileApi({ baseUrl, accessToken }: StoryStyleP
   const root = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
   const authorization = `Bearer ${accessToken}`;
 
-  const parseResponse = async (response: Response): Promise<StoryStyleProfileStatus> => {
-    const responseBody: unknown = await response.json();
-    if (!response.ok) throw new Error('story_style_profile_request_failed');
-    return storyStyleProfileStatusSchema.parse(payloadFromEnvelope(responseBody));
-  };
-
   return Object.freeze({
     async getStatus(): Promise<StoryStyleProfileStatus> {
-      return parseResponse(
-        await fetch(`${root}/v1/stories/style-profile`, {
-          headers: { authorization },
-        }),
-      );
+      const response = await fetch(`${root}/v1/stories/style-profile`, {
+        headers: { authorization },
+      });
+      const responseBody: unknown = await response.json();
+      if (!response.ok) throw new Error('story_style_profile_request_failed');
+      return storyStyleProfileStatusSchema.parse(payloadFromEnvelope(responseBody));
     },
 
     async rebuild(referenceAssetIds: readonly string[]): Promise<StoryStyleProfileStatus> {
-      return parseResponse(
-        await fetch(`${root}/v1/stories/style-profile/rebuild`, {
-          method: 'POST',
-          headers: {
-            authorization,
-            'content-type': 'application/json',
-          },
-          body: JSON.stringify({ referenceAssetIds }),
-        }),
-      );
+      const response = await fetch(`${root}/v1/stories/style-profile/rebuild`, {
+        method: 'POST',
+        headers: {
+          authorization,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({ referenceAssetIds }),
+      });
+      const responseBody: unknown = await response.json();
+      if (!response.ok) throw new Error('story_style_profile_request_failed');
+      return storyStyleProfileStatusSchema.parse(payloadFromEnvelope(responseBody));
     },
 
     async useDefault(): Promise<StoryStyleProfileStatus> {
-      return parseResponse(
-        await fetch(`${root}/v1/stories/style-profile/default`, {
-          method: 'POST',
-          headers: { authorization },
-        }),
-      );
+      const response = await fetch(`${root}/v1/stories/style-profile/default`, {
+        method: 'POST',
+        headers: { authorization },
+      });
+      const responseBody: unknown = await response.json();
+      if (!response.ok) throw new Error('story_style_profile_request_failed');
+      return storyStyleProfileStatusSchema.parse(payloadFromEnvelope(responseBody));
     },
   });
 }
