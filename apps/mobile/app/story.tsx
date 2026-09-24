@@ -383,7 +383,7 @@ export default function StoryRoute() {
             },
           ],
         });
-        await store.save(occurrenceId, payload);
+        await enqueueSave(payload);
         if (lifecycle.cancelled) return;
 
         commitEditorState({
