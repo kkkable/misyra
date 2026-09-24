@@ -28,6 +28,7 @@ import { StoryEditorScreen, type StoryEditorMessages } from '../src/story/story-
 import type { StorySourceImage } from '../src/story/story-editor-state.js';
 import { createStoryOfflineDraftStore } from '../src/story/story-offline-draft.js';
 import { createStorySourceRuntime } from '../src/story/story-source-runtime.js';
+import { createStoryStyleProfileApi } from '../src/story/story-style-profile-api.js';
 import { createStoryTextSuggestionsApi } from '../src/story/story-text-suggestions-api.js';
 import type { StoryTextSuggestionsPanelMessages } from '../src/story/story-text-suggestions-panel.js';
 
@@ -49,6 +50,7 @@ type StoryRouteRuntime = Readonly<{
   store: ReturnType<typeof createStoryOfflineDraftStore>;
   source: ReturnType<typeof createStorySourceRuntime>;
   textSuggestions: ReturnType<typeof createStoryTextSuggestionsApi>;
+  styleProfile: ReturnType<typeof createStoryStyleProfileApi>;
 }>;
 
 function randomHex(length: number): string {
@@ -209,7 +211,11 @@ export default function StoryRoute() {
           baseUrl: getAuthApiBaseUrl(),
           accessToken: authState.session.accessToken,
         });
-        runtimeRef.current = { store, source, textSuggestions };
+        const styleProfile = createStoryStyleProfileApi({
+          baseUrl: getAuthApiBaseUrl(),
+          accessToken: authState.session.accessToken,
+        });
+        runtimeRef.current = { store, source, textSuggestions, styleProfile };
 
         const existing = await store.load(occurrenceId);
         if (existing !== null) {
@@ -237,6 +243,14 @@ export default function StoryRoute() {
               }
             })
             .catch(() => undefined);
+          return;
+        }
+
+        const styleStatus = await styleProfile.getStatus();
+        if (styleStatus.mode === 'unset') {
+          if (!lifecycle.cancelled) {
+            router.replace({ pathname: '/story-style-profile', params: { occurrenceId } });
+          }
           return;
         }
 
