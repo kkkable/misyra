@@ -88,7 +88,6 @@ describe('MTS-094 Story generation route contract', () => {
   });
 });
 
-
 describe('MTS-098 Instagram handoff route contract', () => {
   it('wires persisted draft Sharing Notes to copy/open actions before external handoff', () => {
     const route = readFileSync(routePath, 'utf8');
