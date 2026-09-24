@@ -10,7 +10,7 @@ const localizationPath = fileURLToPath(
   new URL('../../../../packages/localization/src/catalogs.ts', import.meta.url),
 );
 const appConfigPath = fileURLToPath(new URL('../../app.config.ts', import.meta.url));
-const deviceScriptUrl = new URL('../../scripts/mts-097-story-export-device-check.mjs', import.meta.url);
+const deviceScriptUrl = new URL(\n  '../../scripts/mts-097-story-export-device-check.mjs',\n  import.meta.url,\n);
 
 async function readRequiredFile(path, label) {
   try {
