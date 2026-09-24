@@ -86,10 +86,11 @@ async function seedCompletedMission(database) {
     `INSERT INTO cached_mission_occurrences
        (account_id, occurrence_id, series_id, local_date, scheduled_start, scheduled_end,
         all_day, payload_json, server_version, updated_at)
-     VALUES (?, ?, ?, '2026-09-23', '18:00', '18:30', 0, '{}', 1, ?)`,
+     VALUES (?, ?, ?, '2026-09-23', '18:00', '18:30', 0, ?, 1, ?)`,
     accountId,
     occurrenceId,
     seriesId,
+    JSON.stringify({ completionState: 'completed', deletionState: 'active' }),
     '2026-09-23T09:31:00.000Z',
   );
 }
