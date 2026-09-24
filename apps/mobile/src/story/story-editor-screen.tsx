@@ -273,7 +273,9 @@ export function StoryEditorScreen({
               accessibilityLabel={messages.generateVersion}
               colorScheme={colorScheme}
               label={messages.generateVersion}
-              onPress={onGenerateVersion}
+              onPress={() => {
+                onGenerateVersion?.();
+              }}
               testID="story-generate-version"
             />
           ) : null}
