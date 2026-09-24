@@ -144,7 +144,7 @@ describe('MTS-094 Story image generation budget and versions', () => {
     const generateStoryImage = vi.fn(async () => {
       const current = ++serial;
       await new Promise((resolve) => setTimeout(resolve, 5));
-      return { storageKey: `story/generated/concurrent-${current}` };
+      return { storageKey: `story/generated/concurrent-${String(current)}` };
     });
     const service = createStoryImageGenerationService({
       pool,
@@ -173,9 +173,7 @@ describe('MTS-094 Story image generation budget and versions', () => {
     const state = await readGenerationState(fixture.draftId);
     expect(state.count).toBe(3);
     expect(state.versions.filter((version) => version.kind === 'generated')).toHaveLength(3);
-    const remainingCounts = fulfilled.flatMap((result) =>
-      result.status === 'fulfilled' ? [result.value.remainingGenerations] : [],
-    );
+    const remainingCounts = fulfilled.map((result) => result.value.remainingGenerations);
     expect(remainingCounts).toContain(0);
   });
 

@@ -28,9 +28,12 @@ export function createStoryImageGenerationService(input: {
 
   return Object.freeze({
     async generate(
-      _accountId: string,
-      _request: Readonly<{ draftId: string; sourceVersionId: string }>,
+      accountId: string,
+      request: Readonly<{ draftId: string; sourceVersionId: string }>,
     ): Promise<StoryImageGenerationResult> {
+      void accountId;
+      void request;
+      await Promise.resolve();
       throw new Error('MTS-094 Story image generation is not implemented.');
     },
   });
