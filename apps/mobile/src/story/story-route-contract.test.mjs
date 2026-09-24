@@ -67,6 +67,9 @@ describe('MTS-096 Story offline conflict route contract', () => {
     const route = readFileSync(routePath, 'utf8');
     const editor = readFileSync(editorPath, 'utf8');
 
+    expect(route).toMatch(/networkAvailabilityChannel\.subscribe/);
+    expect(route).toMatch(/availability === 'unavailable'/);
+    expect(route).toMatch(/imageGeneration\.getBudget/);
     expect(route).toMatch(/aiOperationsAvailable/);
     expect(editor).toMatch(/disabled=\{!aiOperationsAvailable\}/);
   });
