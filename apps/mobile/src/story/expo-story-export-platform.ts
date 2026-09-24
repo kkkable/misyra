@@ -50,7 +50,7 @@ async function renderStoryPng(input: StoryExportInput): Promise<StoryExportArtif
   const directory = requireExportDirectory();
   await FileSystem.makeDirectoryAsync(directory, { intermediates: true });
   const safeVersionId = input.imageVersionId.replace(/[^a-zA-Z0-9_-]/g, '_');
-  const uri = `${directory}story-${safeVersionId}-${Date.now()}.png`;
+  const uri = `${directory}story-${safeVersionId}-${Date.now().toString()}.png`;
   const base64 = image.encodeToBase64(ImageFormat.PNG, 100);
   await FileSystem.writeAsStringAsync(uri, base64, {
     encoding: FileSystem.EncodingType.Base64,
