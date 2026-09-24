@@ -441,10 +441,7 @@ describe('MTS-098 Instagram Sharing Notes flow', () => {
     expect(onCopySharingNote).toHaveBeenNthCalledWith(1, 'upbeat running track');
     expect(onCopySharingNote).toHaveBeenNthCalledWith(2, '@misyra');
     expect(onCopySharingNote).toHaveBeenNthCalledWith(3, 'Hong Kong');
-    expect(onCopySharingNote).toHaveBeenNthCalledWith(
-      4,
-      'Run again tomorrow? — Yes / Maybe later',
-    );
+    expect(onCopySharingNote).toHaveBeenNthCalledWith(4, 'Run again tomorrow? — Yes / Maybe later');
 
     pressByTestId(renderer, 'story-sharing-notes-open');
     expect(onOpenInstagram).toHaveBeenCalledTimes(1);
