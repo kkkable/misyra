@@ -3,7 +3,7 @@ import { Image } from 'react-native';
 
 import type { StorySourceFiles } from './story-source-runtime.js';
 
-function storyWorkingDirectory(): string {
+export function storyWorkingDirectory(): string {
   const root = FileSystem.documentDirectory;
   if (root === null) {
     throw new Error('Protected app document storage is unavailable.');
@@ -25,10 +25,14 @@ function dimensions(uri: string): Promise<Readonly<{ width: number; height: numb
   });
 }
 
+export function storyWorkingCopyUri(imageVersionId: string): string {
+  return `${storyWorkingDirectory()}${imageVersionId}.jpg`;
+}
+
 export async function loadExpoStoryWorkingCopy(
   imageVersionId: string,
 ): Promise<Readonly<{ id: string; uri: string; width: number; height: number }>> {
-  const uri = `${storyWorkingDirectory()}${imageVersionId}.jpg`;
+  const uri = storyWorkingCopyUri(imageVersionId);
   const info = await FileSystem.getInfoAsync(uri);
   if (!info.exists) {
     throw new Error('story_working_copy_unavailable');
@@ -65,3 +69,48 @@ export function createExpoStorySourceFiles(
     },
   });
 }
+
+
+export function createExpoStoryVersionFiles(
+  input: Readonly<{
+    baseUrl: string;
+    accessToken: string;
+  }>,
+) {
+  const root = input.baseUrl.endsWith('/') ? input.baseUrl.slice(0, -1) : input.baseUrl;
+
+  return Object.freeze({
+    load(imageVersionId: string) {
+      return loadExpoStoryWorkingCopy(imageVersionId);
+    },
+
+    async materializeGenerated(draftId: string, imageVersionId: string) {
+      const directory = storyWorkingDirectory();
+      await FileSystem.makeDirectoryAsync(directory, { intermediates: true });
+      const destination = storyWorkingCopyUri(imageVersionId);
+      const response = await FileSystem.downloadAsync(
+        `${root}/v1/stories/${encodeURIComponent(draftId)}/image-versions/${encodeURIComponent(imageVersionId)}/media`,
+        destination,
+        {
+          headers: { authorization: `Bearer ${input.accessToken}` },
+        },
+      );
+      if (response.status < 200 || response.status >= 300) {
+        throw new Error('story_generated_download_failed');
+      }
+      const size = await dimensions(response.uri);
+      return {
+        id: imageVersionId,
+        uri: response.uri,
+        width: size.width,
+        height: size.height,
+      };
+    },
+
+    async delete(imageVersionId: string) {
+      await FileSystem.deleteAsync(storyWorkingCopyUri(imageVersionId), { idempotent: true });
+    },
+  });
+}
+
+export type ExpoStoryVersionFiles = ReturnType<typeof createExpoStoryVersionFiles>;

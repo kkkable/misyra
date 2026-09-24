@@ -41,6 +41,26 @@ export function createStoryImageGenerationApi({
       return storyImageGenerationBudgetSchema.parse(payloadFromEnvelope(responseBody));
     },
 
+    async deleteVersion(draftId: string, versionId: string): Promise<void> {
+      const response = await fetch(
+        `${root}/v1/stories/${encodeURIComponent(draftId)}/image-versions/${encodeURIComponent(versionId)}`,
+        {
+          method: 'DELETE',
+          headers: { authorization: `Bearer ${accessToken}` },
+        },
+      );
+      const responseBody: unknown = await response.json();
+      if (!response.ok) throw new Error('story_image_generation_request_failed');
+      const payload = payloadFromEnvelope(responseBody);
+      if (
+        !isRecord(payload) ||
+        payload.deleted !== true ||
+        payload.versionId !== versionId
+      ) {
+        throw new Error('story_image_generation_request_failed');
+      }
+    },
+
     async generate(draftId: string, sourceVersionId: string): Promise<StoryImageGenerationResult> {
       const response = await fetch(
         `${root}/v1/stories/${encodeURIComponent(draftId)}/image-generations`,
