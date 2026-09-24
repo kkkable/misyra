@@ -3,10 +3,12 @@ import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { createPostgresAuthStore } from '../../../packages/database/src/auth-store.js';
-import { createPostgresDeviceSettingsStore } from '../../../packages/database/src/device-settings-store.js';
-import { applyMigrations } from '../../../packages/database/src/migrations.js';
-import { createPostgresSyncStore } from '../../../packages/database/src/sync-store.js';
+import {
+  applyMigrations,
+  createPostgresAuthStore,
+  createPostgresDeviceSettingsStore,
+  createPostgresSyncStore,
+} from '@misyra/database';
 import {
   StoryImageGenerationBudgetExceededError,
   createStoryImageGenerationService,
