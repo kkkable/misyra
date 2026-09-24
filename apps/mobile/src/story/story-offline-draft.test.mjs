@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 
 import { afterEach, describe, expect, it } from 'vitest';
@@ -6,8 +9,8 @@ import { applyMobileMigrations } from '../storage/schema.ts';
 import { createStoryOfflineDraftStore } from './story-offline-draft.ts';
 
 class NodeSqliteAdapter {
-  constructor() {
-    this.database = new DatabaseSync(':memory:');
+  constructor(filename = ':memory:') {
+    this.database = new DatabaseSync(filename);
   }
 
   async execAsync(sql) {
@@ -44,6 +47,7 @@ class NodeSqliteAdapter {
 }
 
 const databases = [];
+const temporaryDirectories = [];
 const accountId = '11111111-1111-4111-8111-111111111111';
 const deviceId = '22222222-2222-4222-8222-222222222222';
 const occurrenceId = '33333333-3333-4333-8333-333333333333';
@@ -53,6 +57,10 @@ const imageVersionId = '66666666-6666-4666-8666-666666666666';
 
 afterEach(() => {
   while (databases.length > 0) databases.pop()?.close();
+  while (temporaryDirectories.length > 0) {
+    const directory = temporaryDirectories.pop();
+    if (directory !== undefined) rmSync(directory, { force: true, recursive: true });
+  }
 });
 
 async function seedCompletedMission(database) {
@@ -105,7 +113,7 @@ function payload(revision) {
   };
 }
 
-describe('MTS-091 offline Story draft persistence', () => {
+describe('MTS-091/MTS-096 offline Story draft persistence', () => {
   it('loads an existing local Story draft without a network dependency', async () => {
     const database = new NodeSqliteAdapter();
     databases.push(database);
@@ -121,6 +129,56 @@ describe('MTS-091 offline Story draft persistence', () => {
     await store.save(occurrenceId, payload(1));
 
     await expect(store.load(occurrenceId)).resolves.toEqual(payload(1));
+  });
+
+  it('survives a database restart with the offline edit and reconnect mutation intact', async () => {
+    const directory = mkdtempSync(join(tmpdir(), 'misyra-mts096-story-'));
+    temporaryDirectories.push(directory);
+    const filename = join(directory, 'story.sqlite');
+
+    let database = new NodeSqliteAdapter(filename);
+    databases.push(database);
+    await applyMobileMigrations(database);
+    await seedCompletedMission(database);
+
+    const store = createStoryOfflineDraftStore({
+      database,
+      accountId,
+      deviceId,
+      generateMutationId: () => '77777777-7777-4777-8777-777777777777',
+    });
+    await store.save(occurrenceId, payload(1));
+
+    database.close();
+    databases.pop();
+
+    database = new NodeSqliteAdapter(filename);
+    databases.push(database);
+    const reopened = createStoryOfflineDraftStore({
+      database,
+      accountId,
+      deviceId,
+      generateMutationId: () => '88888888-8888-4888-8888-888888888888',
+    });
+
+    await expect(reopened.load(occurrenceId)).resolves.toEqual(payload(1));
+    const queued = await database.getAllAsync(
+      `SELECT command_json
+         FROM mutation_queue
+        WHERE account_id = ?
+        ORDER BY sequence`,
+      accountId,
+    );
+    expect(queued).toHaveLength(1);
+    expect(JSON.parse(queued[0].command_json)).toMatchObject({
+      destination: { kind: 'server' },
+      mutation: {
+        entityType: 'story',
+        entityId: occurrenceId,
+        clientOccurredAt: '2026-09-23T06:21:00.000Z',
+        payload: payload(1),
+      },
+    });
   });
 
   it('saves manual edits locally and queues server sync without requiring a network call', async () => {

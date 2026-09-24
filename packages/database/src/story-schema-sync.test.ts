@@ -169,7 +169,7 @@ function storyPayload(
   };
 }
 
-describe('MTS-090 Story schema and synchronization contracts', () => {
+describe('MTS-090/MTS-096 Story schema and synchronization contracts', () => {
   it('persists a separate serialized composition for every image version', async () => {
     const { account, occurrenceId } = await createMissionFixture(true);
     const draftId = randomUUID();
@@ -438,6 +438,93 @@ describe('MTS-090 Story schema and synchronization contracts', () => {
         },
       ],
     });
+  });
+
+  it('uses receipt time silently when a Story save has an invalid device timestamp', async () => {
+    const fixture = await createMissionFixture(true);
+    const draftId = randomUUID();
+    const sourceVersionId = randomUUID();
+    const generatedVersionId = randomUUID();
+    const receiptTime = new Date('2026-09-23T09:35:00.000Z');
+    const store = createPostgresSyncStore(pool, () => receiptTime);
+
+    const firstMutationId = randomUUID();
+    await expect(
+      store.push(fixture.account.id, [
+        {
+          mutationId: firstMutationId,
+          accountId: fixture.account.id,
+          deviceId: fixture.firstDevice,
+          entityType: 'story',
+          entityId: fixture.occurrenceId,
+          operation: 'update',
+          baseVersion: null,
+          clientOccurredAt: '2026-09-23T09:34:00.000Z',
+          payload: storyPayload(
+            draftId,
+            sourceVersionId,
+            generatedVersionId,
+            'valid',
+            1,
+            '2026-09-23T09:34:00.000Z',
+          ),
+        },
+      ]),
+    ).resolves.toEqual({ acceptedMutationIds: [firstMutationId] });
+
+    const invalidMutationId = randomUUID();
+    const invalidPayload = storyPayload(
+      draftId,
+      sourceVersionId,
+      generatedVersionId,
+      'receipt-fallback',
+      2,
+      receiptTime.toISOString(),
+    );
+    await expect(
+      store.push(fixture.account.id, [
+        {
+          mutationId: invalidMutationId,
+          accountId: fixture.account.id,
+          deviceId: fixture.secondDevice,
+          entityType: 'story',
+          entityId: fixture.occurrenceId,
+          operation: 'update',
+          baseVersion: null,
+          clientOccurredAt: 'not-a-valid-device-time',
+          payload: invalidPayload,
+        },
+      ]),
+    ).resolves.toEqual({ acceptedMutationIds: [invalidMutationId] });
+
+    const current = await pool.query<{
+      notes: Record<string, unknown>;
+      originalClientTime: Date;
+      serverReceiptTime: Date;
+      effectiveSaveTime: Date;
+      validationResult: string;
+    }>(
+      `SELECT notes,
+              original_client_time AS "originalClientTime",
+              server_receipt_time AS "serverReceiptTime",
+              effective_save_time AS "effectiveSaveTime",
+              validation_result AS "validationResult"
+         FROM story_drafts
+        WHERE account_id = $1
+          AND occurrence_id = $2
+          AND state = 'active'`,
+      [fixture.account.id, fixture.occurrenceId],
+    );
+
+    expect(current.rows).toEqual([
+      {
+        notes: invalidPayload.notes,
+        originalClientTime: receiptTime,
+        serverReceiptTime: receiptTime,
+        effectiveSaveTime: receiptTime,
+        validationResult: 'invalid_replaced',
+      },
+    ]);
   });
 
   it('breaks equal Story save times deterministically by mutation id after receipt time', async () => {

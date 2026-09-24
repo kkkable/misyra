@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 const rootLayoutPath = fileURLToPath(new URL('../../app/_layout.tsx', import.meta.url));
 const gatePath = fileURLToPath(new URL('./sync-runtime-gate.tsx', import.meta.url));
+const rootRuntimePath = fileURLToPath(new URL('./root-sync-runtime.ts', import.meta.url));
 
 describe('MTS-031/MTS-039 signed-in root sync lifecycle', () => {
   it('composes synchronization after authentication and before onboarding/application routes', async () => {
@@ -15,6 +16,13 @@ describe('MTS-031/MTS-039 signed-in root sync lifecycle', () => {
     expect(source).toContain('<OnboardingGate');
     expect(source.indexOf('<AuthGate')).toBeLessThan(source.indexOf('<SyncRuntimeGate'));
     expect(source.indexOf('<SyncRuntimeGate')).toBeLessThan(source.indexOf('<OnboardingGate'));
+  });
+
+  it('publishes authenticated network availability from the real root sync outcome', async () => {
+    const source = await readFile(rootRuntimePath, 'utf8');
+
+    expect(source).toContain("networkAvailabilityChannel.publish('unavailable')");
+    expect(source).toContain("networkAvailabilityChannel.publish('available')");
   });
 
   it('uses TanStack Query for the server-sync lifecycle without gating local children on network state', async () => {

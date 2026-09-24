@@ -2,9 +2,11 @@ import { DatabaseSync } from 'node:sqlite';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { createStoryOfflineDraftStore } from '../story/story-offline-draft.js';
 import { createMutationQueue } from '../storage/mutation-queue.js';
 import { applyMobileMigrations } from '../storage/schema.js';
 import { runAuthenticatedServerSync } from './authenticated-sync-runtime.js';
+import { storyConflictSettlementChannel } from './story-conflict-settlement-runtime.js';
 
 class NodeSqliteAdapter {
   constructor() {
@@ -84,10 +86,11 @@ async function seedCompletedMission(database) {
     `INSERT INTO cached_mission_occurrences
        (account_id, occurrence_id, series_id, local_date, scheduled_start, scheduled_end,
         all_day, payload_json, server_version, updated_at)
-     VALUES (?, ?, ?, '2026-09-23', '18:00', '18:30', 0, '{}', 1, ?)`,
+     VALUES (?, ?, ?, '2026-09-23', '18:00', '18:30', 0, ?, 1, ?)`,
     accountId,
     occurrenceId,
     seriesId,
+    JSON.stringify({ completionState: 'completed', deletionState: 'active' }),
     '2026-09-23T09:31:00.000Z',
   );
 }
@@ -158,6 +161,66 @@ describe('MTS-090 Story authenticated sync projection', () => {
     );
     expect(row.draft_id).toBe(draftId);
     expect(JSON.parse(row.composition_json)).toEqual(payload);
+  });
+
+  it('pushes a locally queued Story save after reconnect and settles the offline mutation', async () => {
+    const database = new NodeSqliteAdapter();
+    databases.push(database);
+    await applyMobileMigrations(database);
+    await seedCompletedMission(database);
+
+    const offlinePayload = {
+      draftId,
+      notes: { musicMood: 'offline', mention: null, location: null, poll: null },
+      imageVersions: [
+        {
+          id: '77777777-7777-4777-8777-777777777777',
+          kind: 'source',
+          storageKey: 'story/source/77777777-7777-4777-8777-777777777777',
+          composition: composition('offline reconnect', 2),
+        },
+      ],
+    };
+    const mutationId = '99999999-9999-4999-8999-999999999998';
+    const store = createStoryOfflineDraftStore({
+      database,
+      accountId,
+      deviceId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      generateMutationId: () => mutationId,
+    });
+    await store.save(occurrenceId, offlinePayload);
+
+    const pushed = [];
+    const api = {
+      push: vi.fn((mutations) => {
+        pushed.push(...mutations);
+        return Promise.resolve({ acceptedMutationIds: [mutationId], conflicts: [] });
+      }),
+      pull: vi.fn(() =>
+        Promise.resolve({
+          kind: 'incremental',
+          changes: [],
+          nextCursor: 0,
+          hasMore: false,
+        }),
+      ),
+      snapshot: vi.fn(() => Promise.resolve({ entries: [], nextCursor: 0 })),
+    };
+
+    await expect(runAuthenticatedServerSync({ database, accountId, api })).resolves.toEqual({
+      settledMutations: 1,
+      cursor: 0,
+    });
+
+    expect(pushed).toHaveLength(1);
+    expect(pushed[0]).toMatchObject({
+      mutationId,
+      entityType: 'story',
+      entityId: occurrenceId,
+      payload: offlinePayload,
+    });
+    await expect(store.load(occurrenceId)).resolves.toEqual(offlinePayload);
+    expect(await createMutationQueue(database, accountId).listPending()).toEqual([]);
   });
 
   it('reloads the authoritative Story and settles a losing in-flight mutation', async () => {
@@ -255,10 +318,17 @@ describe('MTS-090 Story authenticated sync projection', () => {
       snapshot: vi.fn(() => Promise.resolve({ entries: [], nextCursor: 1 })),
     };
 
+    const settlements = [];
+    const unsubscribe = storyConflictSettlementChannel.subscribe((settlement) => {
+      settlements.push(settlement);
+    });
     await expect(runAuthenticatedServerSync({ database, accountId, api })).resolves.toEqual({
       settledMutations: 1,
       cursor: 1,
     });
+    unsubscribe();
+
+    expect(settlements).toEqual([{ storyDraftId: draftId, occurrenceId }]);
 
     const row = await database.getFirstAsync(
       'SELECT composition_json FROM story_drafts WHERE account_id = ? AND occurrence_id = ?',

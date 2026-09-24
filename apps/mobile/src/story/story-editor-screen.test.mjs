@@ -30,6 +30,7 @@ vi.mock('../design-system/index.js', async () => {
     SecondaryButton: button('SecondaryButton'),
     Screen: ({ children, ...props }) => h('Screen', props, children),
     TextField: ({ label, ...props }) => h('TextField', props, label),
+    Toast: ({ message, ...props }) => h('Toast', props, message),
     TopBar: ({ leading, title, trailing, ...props }) =>
       h('TopBar', props, leading, title, trailing),
     themeColors: () => ({
@@ -262,6 +263,60 @@ describe('MTS-094 Story generation budget surface', () => {
     const { renderer } = renderScreen({ remainingGenerations: 2 });
     const remaining = renderer.root.findByProps({ testID: 'story-generation-remaining' });
     expect(remaining.props.children).toBe('2 AI generations remaining');
+  });
+});
+
+describe('MTS-096 Story offline and conflict editor behavior', () => {
+  it('shows the approved non-blocking conflict message when another device wins', () => {
+    const approved = 'This Story draft was updated on another device.';
+    const { renderer } = renderScreen({ conflictMessage: approved });
+
+    const notice = renderer.root.findByProps({ testID: 'story-conflict-message' });
+    expect(notice.props.message).toBe(approved);
+  });
+
+  it('disables AI generation while offline without blocking manual edits', () => {
+    const onGenerateVersion = vi.fn();
+    const { renderer } = renderScreen({
+      aiOperationsAvailable: false,
+      onGenerateVersion,
+    });
+
+    const generate = renderer.root.findByProps({ testID: 'story-generate-version' });
+    expect(generate.props.disabled).toBe(true);
+
+    act(() => renderer.root.findByProps({ testID: 'story-zoom-in' }).props.onPress());
+    const preview = renderer.root.findByType('StorySkiaPreviewView');
+    expect(preview.props.composition.background.scale).toBe(1.1);
+    expect(onGenerateVersion).not.toHaveBeenCalled();
+  });
+
+  it('reloads authoritative composition and clears undo/redo after a losing conflict', () => {
+    const { renderer, props } = renderScreen({ editorSessionEpoch: 0 });
+
+    act(() => renderer.root.findByProps({ testID: 'story-zoom-in' }).props.onPress());
+    expect(renderer.root.findByProps({ testID: 'story-undo' }).props.disabled).toBe(false);
+
+    const authoritative = {
+      ...composition,
+      background: { ...composition.background, scale: 1.7, translateX: 160 },
+      revision: 7,
+      savedAt: '2026-09-24T10:15:00.000Z',
+    };
+    act(() => {
+      renderer.update(
+        createElement(StoryEditorScreen, {
+          ...props,
+          composition: authoritative,
+          editorSessionEpoch: 1,
+        }),
+      );
+    });
+
+    const preview = renderer.root.findByType('StorySkiaPreviewView');
+    expect(preview.props.composition).toEqual(authoritative);
+    expect(renderer.root.findByProps({ testID: 'story-undo' }).props.disabled).toBe(true);
+    expect(renderer.root.findByProps({ testID: 'story-redo' }).props.disabled).toBe(true);
   });
 });
 
