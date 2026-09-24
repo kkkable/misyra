@@ -260,7 +260,6 @@ describe('MTS-094 Story generation budget surface', () => {
   });
 });
 
-
 describe('MTS-095 per-version switching surface', () => {
   const imageVersions = [
     { id: 'source-version', kind: 'source' },

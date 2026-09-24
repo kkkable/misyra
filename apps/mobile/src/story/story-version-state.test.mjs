@@ -143,18 +143,21 @@ describe('MTS-095 independent per-version composition state', () => {
     });
   });
 
-  it('deletes only a generated version and safely falls back to Source when the active version is removed', () => {
-    const sourceId = payload.imageVersions[0].id;
-    const generatedId = payload.imageVersions[1].id;
-    let state = createStoryVersionState(payload, generatedId);
+  it(
+    'deletes only a generated version and safely falls back to Source when the active version is removed',
+    () => {
+      const sourceId = payload.imageVersions[0].id;
+      const generatedId = payload.imageVersions[1].id;
+      let state = createStoryVersionState(payload, generatedId);
 
-    state = deleteStoryGeneratedVersion(state, generatedId);
+      state = deleteStoryGeneratedVersion(state, generatedId);
 
-    expect(state.activeVersionId).toBe(sourceId);
-    expect(state.payload.imageVersions.map((version) => version.id)).toEqual([
-      sourceId,
-      payload.imageVersions[2].id,
-    ]);
-    expect(() => deleteStoryGeneratedVersion(state, sourceId)).toThrow(/source/i);
-  });
+      expect(state.activeVersionId).toBe(sourceId);
+      expect(state.payload.imageVersions.map((version) => version.id)).toEqual([
+        sourceId,
+        payload.imageVersions[2].id,
+      ]);
+      expect(() => deleteStoryGeneratedVersion(state, sourceId)).toThrow(/source/i);
+    },
+  );
 });
