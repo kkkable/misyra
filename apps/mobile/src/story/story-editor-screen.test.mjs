@@ -392,6 +392,10 @@ describe('MTS-097 Story export actions', () => {
   });
 });
 
+function pressByTestId(renderer, testID) {
+  act(() => renderer.root.findByProps({ testID }).props.onPress());
+}
+
 describe('MTS-098 Instagram Sharing Notes flow', () => {
   const sharingNotes = {
     musicMood: 'upbeat running track',
@@ -403,7 +407,7 @@ describe('MTS-098 Instagram Sharing Notes flow', () => {
     },
   };
 
-  it('shows persisted Sharing Notes before Instagram opens and copies each populated suggestion', () => {
+  it('shows Sharing Notes before Instagram opens and supports copy actions', () => {
     const onCopySharingNote = vi.fn();
     const onOpenInstagram = vi.fn();
     const { renderer } = renderScreen({
@@ -412,7 +416,7 @@ describe('MTS-098 Instagram Sharing Notes flow', () => {
       onOpenInstagram,
     });
 
-    act(() => renderer.root.findByProps({ testID: 'story-open-instagram' }).props.onPress());
+    pressByTestId(renderer, 'story-open-instagram');
 
     expect(onOpenInstagram).not.toHaveBeenCalled();
     expect(renderer.root.findByProps({ testID: 'story-sharing-notes' })).toBeDefined();
@@ -429,10 +433,10 @@ describe('MTS-098 Instagram Sharing Notes flow', () => {
       renderer.root.findByProps({ testID: 'story-sharing-note-poll' }).props.children,
     ).toContain('Run again tomorrow?');
 
-    act(() => renderer.root.findByProps({ testID: 'story-copy-musicMood' }).props.onPress());
-    act(() => renderer.root.findByProps({ testID: 'story-copy-mention' }).props.onPress());
-    act(() => renderer.root.findByProps({ testID: 'story-copy-location' }).props.onPress());
-    act(() => renderer.root.findByProps({ testID: 'story-copy-poll' }).props.onPress());
+    pressByTestId(renderer, 'story-copy-musicMood');
+    pressByTestId(renderer, 'story-copy-mention');
+    pressByTestId(renderer, 'story-copy-location');
+    pressByTestId(renderer, 'story-copy-poll');
 
     expect(onCopySharingNote).toHaveBeenNthCalledWith(1, 'upbeat running track');
     expect(onCopySharingNote).toHaveBeenNthCalledWith(2, '@misyra');
@@ -442,7 +446,7 @@ describe('MTS-098 Instagram Sharing Notes flow', () => {
       'Run again tomorrow? — Yes / Maybe later',
     );
 
-    act(() => renderer.root.findByProps({ testID: 'story-sharing-notes-open' }).props.onPress());
+    pressByTestId(renderer, 'story-sharing-notes-open');
     expect(onOpenInstagram).toHaveBeenCalledTimes(1);
   });
 
@@ -457,6 +461,9 @@ describe('MTS-098 Instagram Sharing Notes flow', () => {
       .findAll((node) => typeof node.props.testID === 'string')
       .map((node) => node.props.testID);
 
-    expect(ids.some((id) => /did-you-post|post-status|posted-status/i.test(id))).toBe(false);
+    const hasPostTracking = ids.some((id) =>
+      /did-you-post|post-status|posted-status/i.test(id),
+    );
+    expect(hasPostTracking).toBe(false);
   });
 });
