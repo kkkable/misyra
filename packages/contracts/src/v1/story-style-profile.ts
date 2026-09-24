@@ -10,26 +10,102 @@ const referenceImageSchema = z
   })
   .strict();
 
-export const storyStyleProfileRebuildRequestSchema = z
+const uniqueReferenceIdsSchema = z
+  .array(uuidSchema)
+  .min(3)
+  .max(8)
+  .refine((ids) => new Set(ids).size === ids.length, 'Story style reference ids must be unique');
+
+const uniqueReferenceImagesSchema = z
+  .array(referenceImageSchema)
+  .min(3)
+  .max(8)
+  .refine(
+    (images) => new Set(images.map((image) => image.assetId)).size === images.length,
+    'Story style reference images must be unique',
+  );
+
+const effectSchema = z.enum([
+  'none',
+  'grain',
+  'vignette',
+  'blur',
+  'glow',
+  'shadow',
+  'outline',
+  'duotone',
+]);
+
+export const storyStyleProfileSchema = z
   .object({
-    referenceAssetIds: z.array(uuidSchema),
+    palette: z.array(z.string().trim().min(1).max(32)).min(1).max(8),
+    contrast: z.enum(['low', 'medium', 'high']),
+    crop: z.enum(['tight', 'balanced', 'wide']),
+    textPosition: z.enum([
+      'upper_left',
+      'upper_middle',
+      'upper_right',
+      'center_left',
+      'center',
+      'center_right',
+      'lower_left',
+      'lower_middle',
+      'lower_right',
+    ]),
+    fontCategory: z.enum(['sans', 'serif', 'display', 'monospace', 'handwritten']),
+    textDensity: z.enum(['sparse', 'balanced', 'dense']),
+    emoji: z.enum(['none', 'sparse', 'balanced', 'frequent']),
+    effects: z
+      .array(effectSchema)
+      .max(6)
+      .refine((effects) => new Set(effects).size === effects.length, 'Effects must be unique'),
+    tone: z.string().trim().min(1).max(64),
   })
   .strict();
 
-export const storyStyleProfileAiOutputSchema = z.record(z.string(), z.unknown());
+export const storyStyleProfileRebuildRequestSchema = z
+  .object({
+    referenceAssetIds: uniqueReferenceIdsSchema,
+  })
+  .strict();
+
+export const storyStyleProfileAiOutputSchema = storyStyleProfileSchema;
+
+const prohibitedExactContentSchema = z.enum([
+  'templates',
+  'usernames',
+  'logos',
+  'watermarks',
+  'faces',
+  'captions',
+]);
 
 export const storyStyleProfileGatewayRequestSchema = z
   .object({
-    referenceImages: z.array(referenceImageSchema),
+    referenceImages: uniqueReferenceImagesSchema,
     policy: z
       .object({
-        abstractOnly: z.boolean(),
-        prohibitedExactContent: z.array(z.string()),
+        abstractOnly: z.literal(true),
+        prohibitedExactContent: z
+          .array(prohibitedExactContentSchema)
+          .length(6)
+          .refine(
+            (values) => new Set(values).size === values.length,
+            'All prohibited exact-content categories must be unique',
+          ),
       })
       .strict(),
   })
   .strict();
 
+export const storyStyleProfileStatusSchema = z.discriminatedUnion('mode', [
+  z.object({ mode: z.literal('unset') }).strict(),
+  z.object({ mode: z.literal('default') }).strict(),
+  z.object({ mode: z.literal('custom'), profile: storyStyleProfileSchema }).strict(),
+]);
+
+export type StoryStyleProfile = z.infer<typeof storyStyleProfileSchema>;
 export type StoryStyleProfileRebuildRequest = z.infer<typeof storyStyleProfileRebuildRequestSchema>;
 export type StoryStyleProfileAiOutput = z.infer<typeof storyStyleProfileAiOutputSchema>;
 export type StoryStyleProfileGatewayRequest = z.infer<typeof storyStyleProfileGatewayRequestSchema>;
+export type StoryStyleProfileStatus = z.infer<typeof storyStyleProfileStatusSchema>;
