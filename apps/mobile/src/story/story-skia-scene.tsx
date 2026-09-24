@@ -13,28 +13,7 @@ import type { StoryComposition, StoryTextLayer } from './story-composition.js';
 function contrastMatrix(amount: number): number[] {
   const factor = Math.max(0, 1 + amount);
   const offset = 128 * (1 - factor);
-  return [
-    factor,
-    0,
-    0,
-    0,
-    offset,
-    0,
-    factor,
-    0,
-    0,
-    offset,
-    0,
-    0,
-    factor,
-    0,
-    offset,
-    0,
-    0,
-    0,
-    1,
-    0,
-  ];
+  return [factor, 0, 0, 0, offset, 0, factor, 0, 0, offset, 0, 0, factor, 0, offset, 0, 0, 0, 1, 0];
 }
 
 function fontFor(layer: StoryTextLayer) {
