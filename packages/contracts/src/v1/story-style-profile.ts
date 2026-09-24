@@ -38,7 +38,7 @@ const effectSchema = z.enum([
 
 export const storyStyleProfileSchema = z
   .object({
-    palette: z.array(z.string().trim().min(1).max(32)).min(1).max(8),
+    palette: z.array(z.string().regex(/^#[0-9a-f]{6}$/i)).min(1).max(8),
     contrast: z.enum(['low', 'medium', 'high']),
     crop: z.enum(['tight', 'balanced', 'wide']),
     textPosition: z.enum([
@@ -59,7 +59,7 @@ export const storyStyleProfileSchema = z
       .array(effectSchema)
       .max(6)
       .refine((effects) => new Set(effects).size === effects.length, 'Effects must be unique'),
-    tone: z.string().trim().min(1).max(64),
+    tone: z.enum(['calm', 'energetic', 'playful', 'minimal', 'editorial', 'warm', 'bold', 'soft']),
   })
   .strict();
 
