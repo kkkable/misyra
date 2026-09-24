@@ -65,7 +65,7 @@ export default function StoryStyleProfileRoute() {
   };
 
   useEffect(() => {
-    let cancelled = false;
+    const lifecycle = { cancelled: false };
     void (async () => {
       const authState = await rootAuthController.restore();
       if (authState.status !== 'signed_in') return;
@@ -74,10 +74,10 @@ export default function StoryStyleProfileRoute() {
         accessToken: authState.session.accessToken,
       });
       const current = await api.getStatus();
-      if (!cancelled) setStatus(current.mode);
+      if (!lifecycle.cancelled) setStatus(current.mode);
     })().catch(() => undefined);
     return () => {
-      cancelled = true;
+      lifecycle.cancelled = true;
     };
   }, []);
 
