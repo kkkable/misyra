@@ -122,9 +122,9 @@ describe('MTS-095 independent per-version composition state', () => {
     state = switchStoryImageVersion(state, sourceId);
 
     expect(activeStoryImageVersion(state).composition).toEqual(editedSource);
-    expect(state.payload.imageVersions.find((version) => version.id === generatedId)?.composition).toEqual(
-      editedGenerated,
-    );
+    expect(
+      state.payload.imageVersions.find((version) => version.id === generatedId)?.composition,
+    ).toEqual(editedGenerated);
   });
 
   it('does not migrate Source composition into a generated version that starts empty', () => {

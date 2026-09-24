@@ -296,7 +296,9 @@ describe('MTS-095 per-version switching surface', () => {
       onGenerateVersion: vi.fn(),
     });
 
-    expect(() => renderer.root.findByProps({ testID: 'story-delete-version-source-version' })).toThrow();
+    expect(() =>
+      renderer.root.findByProps({ testID: 'story-delete-version-source-version' }),
+    ).toThrow();
 
     act(() =>
       renderer.root.findByProps({ testID: 'story-delete-version-generated-one' }).props.onPress(),
