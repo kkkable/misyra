@@ -17,7 +17,7 @@ describe('MTS-091 production Story route contract', () => {
     expect(route).toMatch(/\.load\(occurrenceId\)/);
     expect(route).toMatch(/\.save\(occurrenceId/);
     expect(route).toMatch(/onCompositionChange/);
-    expect(route).not.toMatch(/planner|generation|AI Story|saveToPhotos|shareAsync/i);
+    expect(route).not.toMatch(/planner|AI Story|saveToPhotos|shareAsync/i);
   });
 
   it('materializes selected evidence into Story working storage and keeps editor history session-local', () => {
@@ -47,5 +47,14 @@ describe('MTS-091 production Story route contract', () => {
       expect(editor).not.toMatch(forbidden);
       expect(route).not.toMatch(forbidden);
     }
+  });
+});
+
+describe('MTS-094 Story generation route contract', () => {
+  it('loads the authoritative generation budget for the active Story draft', () => {
+    const route = readFileSync(routePath, 'utf8');
+    expect(route).toMatch(/createStoryImageGenerationApi/);
+    expect(route).toMatch(/getBudget\(/);
+    expect(route).toMatch(/remainingGenerations/);
   });
 });

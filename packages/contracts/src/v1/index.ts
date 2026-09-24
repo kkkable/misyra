@@ -11,3 +11,4 @@ export * from './evidence-verification.js';
 export * from './ai-planner-extraction.js';
 export * from './story-text-suggestions.js';
 export * from './story-style-profile.js';
+export * from './story-image-generation.js';

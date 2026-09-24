@@ -76,6 +76,7 @@ const messages = {
   font: 'Font',
   removeText: 'Remove text',
   contrast: 'Contrast',
+  remainingGenerations: '{count} AI generations remaining',
 };
 
 const sourceAttempts = [
@@ -120,6 +121,7 @@ function renderScreen(overrides = {}) {
     onSave: vi.fn(),
     onSelectSource: vi.fn(),
     selectedAttemptId: 'attempt-1',
+    remainingGenerations: 3,
     sourceAttempts,
     sourceImage,
     ...overrides,
@@ -247,5 +249,13 @@ describe('MTS-091 Story editor interactions', () => {
 
     act(() => renderer.root.findByProps({ testID: 'story-save' }).props.onPress());
     expect(props.onSave).toHaveBeenCalledWith(preview.props.composition);
+  });
+});
+
+describe('MTS-094 Story generation budget surface', () => {
+  it('shows the remaining AI generation count in the editor', () => {
+    const { renderer } = renderScreen({ remainingGenerations: 2 });
+    const remaining = renderer.root.findByProps({ testID: 'story-generation-remaining' });
+    expect(remaining.props.children).toBe('2 AI generations remaining');
   });
 });
