@@ -6,7 +6,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useColorScheme } from 'react-native';
 
 import { getAuthApiBaseUrl, rootAuthController } from '../src/auth/auth-runtime.js';
-import { Toast, type ColorScheme } from '../src/design-system/index.js';
+import type { ColorScheme } from '../src/design-system/index.js';
 import {
   createEvidenceApi,
   type EvidenceStorySourceAttempt,
@@ -448,195 +448,188 @@ export default function StoryRoute() {
   if (occurrenceId === null || editorState === null) return null;
 
   return (
-    <>
       <StoryEditorScreen
-        aiOperationsAvailable={editorState.aiOperationsAvailable}
-        colorScheme={colorScheme}
-        editorSessionEpoch={editorSessionEpoch}
-        composition={activeComposition(editorState)}
-        imageVersions={editorState.payload.imageVersions.map(({ id, kind }) => ({ id, kind }))}
-        messages={messages}
-        remainingGenerations={editorState.remainingGenerations}
-        selectedImageVersionId={editorState.imageVersionId}
-        selectedAttemptId={editorState.selectedAttemptId}
-        sourceAttempts={editorState.sourceAttempts}
-        sourceImage={editorState.sourceImage}
-        textSuggestionMessages={textSuggestionMessages}
-        textSuggestions={editorState.textSuggestions}
-        onTextSuggestionsResolved={() => {
-          commitEditorState({ ...editorState, textSuggestions: null });
-        }}
-        onClose={() => {
-          void enqueueSave(editorState.payload)
-            .catch(() => undefined)
-            .finally(() => {
-              router.back();
-            });
-        }}
-        onCompositionChange={(composition) => {
-          const next = withComposition(editorState, composition);
+      aiOperationsAvailable={editorState.aiOperationsAvailable}
+      colorScheme={colorScheme}
+      editorSessionEpoch={editorSessionEpoch}
+      composition={activeComposition(editorState)}
+      conflictMessage={conflictMessage}
+      imageVersions={editorState.payload.imageVersions.map(({ id, kind }) => ({ id, kind }))}
+      messages={messages}
+      remainingGenerations={editorState.remainingGenerations}
+      selectedImageVersionId={editorState.imageVersionId}
+      selectedAttemptId={editorState.selectedAttemptId}
+      sourceAttempts={editorState.sourceAttempts}
+      sourceImage={editorState.sourceImage}
+      textSuggestionMessages={textSuggestionMessages}
+      textSuggestions={editorState.textSuggestions}
+      onTextSuggestionsResolved={() => {
+        commitEditorState({ ...editorState, textSuggestions: null });
+      }}
+      onClose={() => {
+        void enqueueSave(editorState.payload)
+          .catch(() => undefined)
+          .finally(() => {
+            router.back();
+          });
+      }}
+      onCompositionChange={(composition) => {
+        const next = withComposition(editorState, composition);
+        commitEditorState(next);
+        void enqueueSave(next.payload).catch(() => undefined);
+      }}
+      onSave={(composition) => {
+        const next = withComposition(editorState, composition);
+        commitEditorState(next);
+        void enqueueSave(next.payload)
+          .then(() => {
+            haptics.triggerNonBlocking('storySave');
+          })
+          .catch(() => undefined);
+      }}
+      onSelectImageVersion={(versionId) => {
+        const runtime = runtimeRef.current;
+        if (runtime === null || versionId === editorState.imageVersionId) return;
+
+        void (async () => {
+          const switched = switchStoryImageVersion(
+            createStoryVersionState(editorState.payload, editorState.imageVersionId),
+            versionId,
+          );
+          const target = activeStoryImageVersion(switched);
+          const sourceImage =
+            target.kind === 'source'
+              ? await runtime.versionFiles.load(target.id)
+              : await runtime.versionFiles.materializeGenerated(
+                  switched.payload.draftId,
+                  target.id,
+                );
+          commitEditorState({
+            ...editorState,
+            payload: switched.payload,
+            imageVersionId: switched.activeVersionId,
+            selectedAttemptId: target.kind === 'source' ? editorState.selectedAttemptId : '',
+            sourceImage,
+          });
+        })().catch(() => undefined);
+      }}
+      onGenerateVersion={() => {
+        const runtime = runtimeRef.current;
+        const source = sourceVersion(editorState.payload);
+        if (
+          runtime === null ||
+          source === null ||
+          !editorState.aiOperationsAvailable ||
+          editorState.remainingGenerations === 0
+        ) {
+          return;
+        }
+
+        void (async () => {
+          const generated = await runtime.imageGeneration.generate(
+            editorState.payload.draftId,
+            source.id,
+          );
+          const composition = createEmptyStoryComposition(new Date().toISOString());
+          const payload = storyDraftSyncPayloadSchema.parse({
+            ...editorState.payload,
+            imageVersions: [
+              ...editorState.payload.imageVersions,
+              { ...generated.version, composition },
+            ],
+          });
+          const sourceImage = await runtime.versionFiles.materializeGenerated(
+            payload.draftId,
+            generated.version.id,
+          );
+          const next: StoryRouteState = {
+            ...editorState,
+            payload,
+            imageVersionId: generated.version.id,
+            selectedAttemptId: '',
+            sourceImage,
+            remainingGenerations: generated.remainingGenerations,
+          };
           commitEditorState(next);
-          void enqueueSave(next.payload).catch(() => undefined);
-        }}
-        onSave={(composition) => {
-          const next = withComposition(editorState, composition);
-          commitEditorState(next);
-          void enqueueSave(next.payload)
-            .then(() => {
-              haptics.triggerNonBlocking('storySave');
-            })
-            .catch(() => undefined);
-        }}
-        onSelectImageVersion={(versionId) => {
-          const runtime = runtimeRef.current;
-          if (runtime === null || versionId === editorState.imageVersionId) return;
-  
-          void (async () => {
-            const switched = switchStoryImageVersion(
-              createStoryVersionState(editorState.payload, editorState.imageVersionId),
-              versionId,
-            );
-            const target = activeStoryImageVersion(switched);
-            const sourceImage =
+          await enqueueSave(payload);
+        })().catch(() => undefined);
+      }}
+      onDeleteImageVersion={(versionId) => {
+        const runtime = runtimeRef.current;
+        if (runtime === null) return;
+
+        void (async () => {
+          await runtime.imageGeneration.deleteVersion(editorState.payload.draftId, versionId);
+          const deleted = deleteStoryGeneratedVersion(
+            createStoryVersionState(editorState.payload, editorState.imageVersionId),
+            versionId,
+          );
+          await runtime.versionFiles.delete(versionId);
+
+          let sourceImage = editorState.sourceImage;
+          let selectedAttemptId = editorState.selectedAttemptId;
+          if (deleted.activeVersionId !== editorState.imageVersionId) {
+            const target = activeStoryImageVersion(deleted);
+            sourceImage =
               target.kind === 'source'
                 ? await runtime.versionFiles.load(target.id)
                 : await runtime.versionFiles.materializeGenerated(
-                    switched.payload.draftId,
+                    deleted.payload.draftId,
                     target.id,
                   );
-            commitEditorState({
-              ...editorState,
-              payload: switched.payload,
-              imageVersionId: switched.activeVersionId,
-              selectedAttemptId: target.kind === 'source' ? editorState.selectedAttemptId : '',
-              sourceImage,
-            });
-          })().catch(() => undefined);
-        }}
-        onGenerateVersion={() => {
-          const runtime = runtimeRef.current;
-          const source = sourceVersion(editorState.payload);
-          if (
-            runtime === null ||
-            source === null ||
-            !editorState.aiOperationsAvailable ||
-            editorState.remainingGenerations === 0
-          ) {
-            return;
+            if (target.kind === 'generated') selectedAttemptId = '';
           }
-  
-          void (async () => {
-            const generated = await runtime.imageGeneration.generate(
-              editorState.payload.draftId,
-              source.id,
-            );
-            const composition = createEmptyStoryComposition(new Date().toISOString());
-            const payload = storyDraftSyncPayloadSchema.parse({
-              ...editorState.payload,
-              imageVersions: [
-                ...editorState.payload.imageVersions,
-                { ...generated.version, composition },
-              ],
-            });
-            const sourceImage = await runtime.versionFiles.materializeGenerated(
-              payload.draftId,
-              generated.version.id,
-            );
-            const next: StoryRouteState = {
-              ...editorState,
-              payload,
-              imageVersionId: generated.version.id,
-              selectedAttemptId: '',
-              sourceImage,
-              remainingGenerations: generated.remainingGenerations,
-            };
-            commitEditorState(next);
-            await enqueueSave(payload);
-          })().catch(() => undefined);
-        }}
-        onDeleteImageVersion={(versionId) => {
-          const runtime = runtimeRef.current;
-          if (runtime === null) return;
-  
-          void (async () => {
-            await runtime.imageGeneration.deleteVersion(editorState.payload.draftId, versionId);
-            const deleted = deleteStoryGeneratedVersion(
-              createStoryVersionState(editorState.payload, editorState.imageVersionId),
-              versionId,
-            );
-            await runtime.versionFiles.delete(versionId);
-  
-            let sourceImage = editorState.sourceImage;
-            let selectedAttemptId = editorState.selectedAttemptId;
-            if (deleted.activeVersionId !== editorState.imageVersionId) {
-              const target = activeStoryImageVersion(deleted);
-              sourceImage =
-                target.kind === 'source'
-                  ? await runtime.versionFiles.load(target.id)
-                  : await runtime.versionFiles.materializeGenerated(
-                      deleted.payload.draftId,
-                      target.id,
-                    );
-              if (target.kind === 'generated') selectedAttemptId = '';
-            }
-  
-            const next: StoryRouteState = {
-              ...editorState,
-              payload: deleted.payload,
-              imageVersionId: deleted.activeVersionId,
-              selectedAttemptId,
-              sourceImage,
-            };
-            commitEditorState(next);
-            await enqueueSave(next.payload);
-          })().catch(() => undefined);
-        }}
-        onSelectSource={(selected) => {
-          const runtime = runtimeRef.current;
-          if (runtime === null) return;
-  
-          void (async () => {
-            const imageVersionId = generateUuid();
-            const materialized = await runtime.source.materialize(selected, imageVersionId);
-            const composition = createEmptyStoryComposition(new Date().toISOString());
-            const payload = storyDraftSyncPayloadSchema.parse({
-              ...editorState.payload,
-              imageVersions: [
-                {
-                  id: imageVersionId,
-                  kind: 'source',
-                  storageKey: `story/source/${imageVersionId}`,
-                  composition,
-                },
-                ...editorState.payload.imageVersions.filter((version) => version.kind !== 'source'),
-              ],
-            });
-            const next: StoryRouteState = {
-              payload,
-              imageVersionId,
-              selectedAttemptId: selected.attemptId,
-              sourceAttempts: editorState.sourceAttempts,
-              sourceImage: {
-                id: materialized.imageVersionId,
-                uri: materialized.uri,
-                width: materialized.width,
-                height: materialized.height,
+
+          const next: StoryRouteState = {
+            ...editorState,
+            payload: deleted.payload,
+            imageVersionId: deleted.activeVersionId,
+            selectedAttemptId,
+            sourceImage,
+          };
+          commitEditorState(next);
+          await enqueueSave(next.payload);
+        })().catch(() => undefined);
+      }}
+      onSelectSource={(selected) => {
+        const runtime = runtimeRef.current;
+        if (runtime === null) return;
+
+        void (async () => {
+          const imageVersionId = generateUuid();
+          const materialized = await runtime.source.materialize(selected, imageVersionId);
+          const composition = createEmptyStoryComposition(new Date().toISOString());
+          const payload = storyDraftSyncPayloadSchema.parse({
+            ...editorState.payload,
+            imageVersions: [
+              {
+                id: imageVersionId,
+                kind: 'source',
+                storageKey: `story/source/${imageVersionId}`,
+                composition,
               },
-              remainingGenerations: editorState.remainingGenerations,
-              textSuggestions: editorState.textSuggestions,
-              aiOperationsAvailable: editorState.aiOperationsAvailable,
-            };
-            commitEditorState(next);
-            await enqueueSave(payload);
-          })().catch(() => undefined);
-        }}
-        />
-      <Toast
-        colorScheme={colorScheme}
-        message={conflictMessage ?? ''}
-        testID="story-conflict-message"
-        visible={conflictMessage !== null}
+              ...editorState.payload.imageVersions.filter((version) => version.kind !== 'source'),
+            ],
+          });
+          const next: StoryRouteState = {
+            payload,
+            imageVersionId,
+            selectedAttemptId: selected.attemptId,
+            sourceAttempts: editorState.sourceAttempts,
+            sourceImage: {
+              id: materialized.imageVersionId,
+              uri: materialized.uri,
+              width: materialized.width,
+              height: materialized.height,
+            },
+            remainingGenerations: editorState.remainingGenerations,
+            textSuggestions: editorState.textSuggestions,
+            aiOperationsAvailable: editorState.aiOperationsAvailable,
+          };
+          commitEditorState(next);
+          await enqueueSave(payload);
+        })().catch(() => undefined);
+      }}
       />
-    </>
   );
 }
