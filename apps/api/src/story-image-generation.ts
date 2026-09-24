@@ -48,11 +48,7 @@ export class StoryImageGenerationUnavailableError extends Error {
 
 function customStyleProfile(value: unknown): StoryStyleProfile | null {
   if (value === null || value === undefined) return null;
-  if (
-    typeof value === 'object' &&
-    !Array.isArray(value) &&
-    Object.keys(value).length === 0
-  ) {
+  if (typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length === 0) {
     return null;
   }
   const parsed = storyStyleProfileSchema.safeParse(value);
