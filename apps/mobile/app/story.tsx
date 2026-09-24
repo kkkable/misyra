@@ -14,6 +14,7 @@ import {
 import { haptics } from '../src/experience/native-haptics.js';
 import { useAppLanguage } from '../src/localization/use-app-language.js';
 import { openMobileDatabase } from '../src/storage/database.js';
+import { networkAvailabilityChannel } from '../src/sync/network-availability-runtime.js';
 import { requireRegisteredDeviceId, rootSyncRuntime } from '../src/sync/root-sync-runtime.js';
 import { storyConflictSettlementChannel } from '../src/sync/story-conflict-settlement-runtime.js';
 import {
@@ -195,6 +196,45 @@ export default function StoryRoute() {
     },
     [occurrenceId],
   );
+
+  useEffect(() => {
+    if (occurrenceId === null) return;
+
+    return networkAvailabilityChannel.subscribe((availability) => {
+      const runtime = runtimeRef.current;
+      const current = editorStateRef.current;
+      if (runtime === null || current === null) return;
+
+      if (availability === 'unavailable') {
+        if (current.aiOperationsAvailable) {
+          commitEditorState({ ...current, aiOperationsAvailable: false });
+        }
+        return;
+      }
+
+      void runtime.imageGeneration
+        .getBudget(current.payload.draftId)
+        .then((budget) => {
+          const latest = editorStateRef.current;
+          if (latest === null || latest.payload.draftId !== current.payload.draftId) return;
+          commitEditorState({
+            ...latest,
+            remainingGenerations: budget.remainingGenerations,
+            aiOperationsAvailable: true,
+          });
+        })
+        .catch(() => {
+          const latest = editorStateRef.current;
+          if (
+            latest !== null &&
+            latest.payload.draftId === current.payload.draftId &&
+            latest.aiOperationsAvailable
+          ) {
+            commitEditorState({ ...latest, aiOperationsAvailable: false });
+          }
+        });
+    });
+  }, [commitEditorState, occurrenceId]);
 
   useEffect(() => {
     if (occurrenceId === null) return;
