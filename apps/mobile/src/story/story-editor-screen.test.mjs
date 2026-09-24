@@ -392,7 +392,6 @@ describe('MTS-097 Story export actions', () => {
   });
 });
 
-
 describe('MTS-098 Instagram Sharing Notes flow', () => {
   const sharingNotes = {
     musicMood: 'upbeat running track',
@@ -420,15 +419,15 @@ describe('MTS-098 Instagram Sharing Notes flow', () => {
     expect(
       renderer.root.findByProps({ testID: 'story-sharing-note-musicMood' }).props.children,
     ).toContain('upbeat running track');
-    expect(renderer.root.findByProps({ testID: 'story-sharing-note-mention' }).props.children).toContain(
-      '@misyra',
-    );
-    expect(renderer.root.findByProps({ testID: 'story-sharing-note-location' }).props.children).toContain(
-      'Hong Kong',
-    );
-    expect(renderer.root.findByProps({ testID: 'story-sharing-note-poll' }).props.children).toContain(
-      'Run again tomorrow?',
-    );
+    expect(
+      renderer.root.findByProps({ testID: 'story-sharing-note-mention' }).props.children,
+    ).toContain('@misyra');
+    expect(
+      renderer.root.findByProps({ testID: 'story-sharing-note-location' }).props.children,
+    ).toContain('Hong Kong');
+    expect(
+      renderer.root.findByProps({ testID: 'story-sharing-note-poll' }).props.children,
+    ).toContain('Run again tomorrow?');
 
     act(() => renderer.root.findByProps({ testID: 'story-copy-musicMood' }).props.onPress());
     act(() => renderer.root.findByProps({ testID: 'story-copy-mention' }).props.onPress());
