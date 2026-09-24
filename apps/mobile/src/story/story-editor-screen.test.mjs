@@ -461,9 +461,7 @@ describe('MTS-098 Instagram Sharing Notes flow', () => {
       .findAll((node) => typeof node.props.testID === 'string')
       .map((node) => node.props.testID);
 
-    const hasPostTracking = ids.some((id) =>
-      /did-you-post|post-status|posted-status/i.test(id),
-    );
+    const hasPostTracking = ids.some((id) => /did-you-post|post-status|posted-status/i.test(id));
     expect(hasPostTracking).toBe(false);
   });
 });
