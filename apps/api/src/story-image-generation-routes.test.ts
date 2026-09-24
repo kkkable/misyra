@@ -70,3 +70,57 @@ describe('MTS-094 Story image generation routes', () => {
     expect(application).toMatch(/storyImageGenerationService/);
   });
 });
+
+
+describe('MTS-095 generated Story version routes', () => {
+  const generatedVersionId = '44444444-4444-4444-8444-444444444444';
+
+  it('serves retained generated-version media through the authenticated draft route', async () => {
+    const getVersionMedia = vi.fn(() => Promise.resolve(Buffer.from('png-bytes')));
+    const server = createApiServer({
+      authenticate: () => ({ accountId }),
+      routes: createStoryImageGenerationRoutes({
+        getBudget: vi.fn(() => Promise.resolve({ remainingGenerations: 2 })),
+        getVersionMedia,
+        generate: vi.fn(() => Promise.reject(new Error('not used'))),
+      }),
+    });
+
+    const response = await server.inject({
+      method: 'GET',
+      url: `/v1/stories/${draftId}/image-versions/${generatedVersionId}/media`,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.headers['content-type']).toContain('image/png');
+    expect(getVersionMedia).toHaveBeenCalledWith(accountId, draftId, generatedVersionId);
+    await server.close();
+  });
+
+  it('deletes a generated version through the authenticated draft route', async () => {
+    const deleteVersion = vi.fn(() =>
+      Promise.resolve({ versionId: generatedVersionId, deleted: true as const }),
+    );
+    const server = createApiServer({
+      authenticate: () => ({ accountId }),
+      routes: createStoryImageGenerationRoutes({
+        getBudget: vi.fn(() => Promise.resolve({ remainingGenerations: 2 })),
+        deleteVersion,
+        generate: vi.fn(() => Promise.reject(new Error('not used'))),
+      }),
+    });
+
+    const response = await server.inject({
+      method: 'DELETE',
+      url: `/v1/stories/${draftId}/image-versions/${generatedVersionId}`,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      ok: true,
+      payload: { versionId: generatedVersionId, deleted: true },
+    });
+    expect(deleteVersion).toHaveBeenCalledWith(accountId, draftId, generatedVersionId);
+    await server.close();
+  });
+});

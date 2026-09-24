@@ -11,6 +11,7 @@ import {
 } from '@misyra/database';
 import {
   StoryImageGenerationBudgetExceededError,
+  StoryImageGenerationSourceVersionError,
   createStoryImageGenerationService,
 } from './story-image-generation.js';
 
@@ -310,5 +311,90 @@ describe('MTS-094 Story image generation budget and versions', () => {
     );
     expect(state.versions).toHaveLength(2);
     expect(generated.remainingGenerations).toBe(2);
+  });
+});
+
+
+describe('MTS-095 generated Story version lifecycle', () => {
+  it('creates a generated version with an empty independent composition', async () => {
+    const fixture = await createStoryFixture();
+    const savedAt = new Date('2026-09-24T06:30:00.000Z');
+    const service = createStoryImageGenerationService({
+      pool,
+      gateway: {
+        generateStoryImage: vi.fn(() =>
+          Promise.resolve({ storageKey: 'story/generated/independent-composition' }),
+        ),
+      },
+      now: () => savedAt,
+    });
+
+    const generated = await service.generate(fixture.accountId, {
+      draftId: fixture.draftId,
+      sourceVersionId: fixture.sourceVersionId,
+    });
+    const composition = await pool.query<{ composition: unknown }>(
+      `SELECT composition
+         FROM story_compositions
+        WHERE draft_id = $1
+          AND image_version_id = $2`,
+      [fixture.draftId, generated.version.id],
+    );
+
+    expect(composition.rows[0]?.composition).toEqual({
+      canvas: { width: 1080, height: 1920 },
+      background: { scale: 1, translateX: 0, translateY: 0, rotation: 0 },
+      headline: null,
+      supportingText: null,
+      effects: [],
+      revision: 0,
+      savedAt: savedAt.toISOString(),
+    });
+  });
+
+  it('reads and safely deletes only generated versions with their composition', async () => {
+    const fixture = await createStoryFixture();
+    const bytes = Buffer.from('generated-story-version');
+    const get = vi.fn(() => Promise.resolve(bytes));
+    const deleteBlob = vi.fn(() => Promise.resolve());
+    const put = vi.fn(() => Promise.resolve());
+    const service = createStoryImageGenerationService({
+      pool,
+      gateway: {
+        generateStoryImage: vi.fn(() =>
+          Promise.resolve({ storageKey: 'story/generated/delete-me' }),
+        ),
+      },
+      blobStore: { get, delete: deleteBlob, put },
+      now: () => new Date('2026-09-24T06:31:00.000Z'),
+    });
+
+    const generated = await service.generate(fixture.accountId, {
+      draftId: fixture.draftId,
+      sourceVersionId: fixture.sourceVersionId,
+    });
+
+    await expect(
+      service.getVersionMedia(fixture.accountId, fixture.draftId, generated.version.id),
+    ).resolves.toEqual(bytes);
+    expect(get).toHaveBeenCalledWith('story-working', generated.version.storageKey);
+
+    await expect(
+      service.deleteVersion(fixture.accountId, fixture.draftId, generated.version.id),
+    ).resolves.toEqual({ versionId: generated.version.id, deleted: true });
+    expect(deleteBlob).toHaveBeenCalledWith('story-working', generated.version.storageKey);
+
+    const remaining = await pool.query<{ versions: number; compositions: number }>(
+      `SELECT
+         (SELECT COUNT(*)::int FROM story_image_versions WHERE id = $1) AS versions,
+         (SELECT COUNT(*)::int FROM story_compositions WHERE image_version_id = $1) AS compositions`,
+      [generated.version.id],
+    );
+    expect(remaining.rows[0]).toEqual({ versions: 0, compositions: 0 });
+
+    await expect(
+      service.deleteVersion(fixture.accountId, fixture.draftId, fixture.sourceVersionId),
+    ).rejects.toBeInstanceOf(StoryImageGenerationSourceVersionError);
+    expect(put).not.toHaveBeenCalled();
   });
 });
