@@ -101,6 +101,12 @@ async function createStoryFixture() {
       WHERE id = $1 AND account_id = $2`,
     [occurrenceId, account.id],
   );
+  await pool.query(
+    `INSERT INTO mission_completions
+       (id, account_id, occurrence_id, completion_type, action_time)
+     VALUES ($1, $2, $3, 'trust_mode', $4)`,
+    [randomUUID(), account.id, occurrenceId, new Date('2026-09-24T04:45:00.000Z')],
+  );
 
   const draftId = randomUUID();
   const sourceVersionId = randomUUID();
