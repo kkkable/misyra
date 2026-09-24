@@ -42,13 +42,16 @@ export function createStoryExportDescriptor(input: StoryExportInput): StoryExpor
 }
 
 export function createStoryExportController(platform: StoryExportPlatform) {
+  void platform;
   return Object.freeze({
-    async saveToPhotos(_input: StoryExportInput): Promise<'saved' | 'permission_denied'> {
-      throw new Error('story_export_not_implemented');
+    saveToPhotos(input: StoryExportInput): Promise<'saved' | 'permission_denied'> {
+      void input;
+      return Promise.reject(new Error('story_export_not_implemented'));
     },
 
-    async share(_input: StoryExportInput): Promise<void> {
-      throw new Error('story_export_not_implemented');
+    share(input: StoryExportInput): Promise<void> {
+      void input;
+      return Promise.reject(new Error('story_export_not_implemented'));
     },
   });
 }
