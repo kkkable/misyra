@@ -1501,6 +1501,7 @@ async function applyStoryMutation(
   await client.query(
     `DELETE FROM story_image_versions
       WHERE draft_id = $1
+        AND kind <> 'generated'
         AND NOT (id = ANY($2::uuid[]))`,
     [payload.draftId, retainedIds],
   );
