@@ -18,6 +18,7 @@ import {
 import { rootAppleCalendarConnectionCache } from './apple-calendar-connection-cache-runtime.js';
 import { createAppleCalendarDeviceRuntime } from './apple-calendar-device-runtime.js';
 import { completionSettlementChannel } from './completion-settlement-runtime.js';
+import { networkAvailabilityChannel } from './network-availability-runtime.js';
 
 const installationStore = {
   getItem: (key: string) => SecureStore.getItemAsync(key),
@@ -155,11 +156,13 @@ export const rootSyncRuntime = Object.freeze({
     try {
       result = await runAuthenticatedSyncAndRebuildNotifications();
     } catch (error) {
+      networkAvailabilityChannel.publish('unavailable');
       await rootAppleCalendarRuntime.runBestEffortBackground();
       throw error;
     }
 
     if (result !== null) {
+      networkAvailabilityChannel.publish('available');
       await rootAppleCalendarRuntime.runForeground().catch(() => undefined);
     }
     return result;
