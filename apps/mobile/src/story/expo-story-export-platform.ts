@@ -1,10 +1,6 @@
 import { createElement } from 'react';
 
-import {
-  ImageFormat,
-  Skia,
-  drawAsImage,
-} from '@shopify/react-native-skia';
+import { ImageFormat, Skia, drawAsImage } from '@shopify/react-native-skia';
 import * as FileSystem from 'expo-file-system/legacy';
 import { Asset, requestPermissionsAsync } from 'expo-media-library';
 import { shareAsync } from 'expo-sharing';
