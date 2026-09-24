@@ -103,17 +103,17 @@ export function StoryEditorScreen({
   colorScheme: ColorScheme;
   composition: StoryComposition;
   messages: StoryEditorMessages;
-  imageVersions: readonly Readonly<{ id: string; kind: 'source' | 'generated' }>[];
+  imageVersions?: readonly Readonly<{ id: string; kind: 'source' | 'generated' }>[];
   onClose: () => void;
   onCompositionChange: (composition: StoryComposition) => void;
-  onDeleteImageVersion: (versionId: string) => void;
-  onGenerateVersion: () => void;
+  onDeleteImageVersion?: (versionId: string) => void;
+  onGenerateVersion?: () => void;
   onSave: (composition: StoryComposition) => void;
-  onSelectImageVersion: (versionId: string) => void;
+  onSelectImageVersion?: (versionId: string) => void;
   onSelectSource: (source: EvidenceStorySourceAttempt) => void;
   remainingGenerations: number | null;
   selectedAttemptId: string;
-  selectedImageVersionId: string;
+  selectedImageVersionId?: string;
   sourceAttempts: readonly EvidenceStorySourceAttempt[];
   sourceImage: StorySourceImage;
   textSuggestionMessages?: StoryTextSuggestionsPanelMessages;
@@ -188,6 +188,9 @@ export function StoryEditorScreen({
       : 0;
 
   const previewWidth = Math.max(1, window.width - 32);
+  const displayedImageVersions =
+    imageVersions ?? [{ id: sourceImage.id, kind: 'source' as const }];
+  const activeImageVersionId = selectedImageVersionId ?? sourceImage.id;
 
   return (
     <Screen colorScheme={colorScheme} testID="story-editor">
@@ -218,11 +221,11 @@ export function StoryEditorScreen({
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>{messages.versions}</Text>
         <View style={styles.sourceRow}>
-          {imageVersions.map((version) => {
-            const selected = version.id === selectedImageVersionId;
+          {displayedImageVersions.map((version) => {
+            const selected = version.id === activeImageVersionId;
             const generatedIndex =
               version.kind === 'generated'
-                ? imageVersions
+                ? displayedImageVersions
                     .filter((candidate) => candidate.kind === 'generated')
                     .findIndex((candidate) => candidate.id === version.id) + 1
                 : 0;
@@ -237,7 +240,7 @@ export function StoryEditorScreen({
                   accessibilityRole="button"
                   accessibilityState={{ selected }}
                   onPress={() => {
-                    onSelectImageVersion(version.id);
+                    onSelectImageVersion?.(version.id);
                   }}
                   style={[
                     styles.sourceButton,
@@ -256,7 +259,7 @@ export function StoryEditorScreen({
                     colorScheme={colorScheme}
                     label={messages.deleteVersion}
                     onPress={() => {
-                      onDeleteImageVersion(version.id);
+                      onDeleteImageVersion?.(version.id);
                     }}
                     testID={`story-delete-version-${version.id}`}
                   />
