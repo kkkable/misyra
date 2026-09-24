@@ -6,7 +6,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useColorScheme } from 'react-native';
 
 import { getAuthApiBaseUrl, rootAuthController } from '../src/auth/auth-runtime.js';
-import type { ColorScheme } from '../src/design-system/index.js';
+import { Toast, type ColorScheme } from '../src/design-system/index.js';
 import {
   createEvidenceApi,
   type EvidenceStorySourceAttempt,
@@ -14,7 +14,8 @@ import {
 import { haptics } from '../src/experience/native-haptics.js';
 import { useAppLanguage } from '../src/localization/use-app-language.js';
 import { openMobileDatabase } from '../src/storage/database.js';
-import { requireRegisteredDeviceId } from '../src/sync/root-sync-runtime.js';
+import { requireRegisteredDeviceId, rootSyncRuntime } from '../src/sync/root-sync-runtime.js';
+import { storyConflictSettlementChannel } from '../src/sync/story-conflict-settlement-runtime.js';
 import {
   createEmptyStoryComposition,
   validateStoryComposition,
@@ -54,6 +55,7 @@ type StoryRouteState = Readonly<{
   sourceImage: StorySourceImage;
   remainingGenerations: number | null;
   textSuggestions: StoryTextSuggestionsResult | null;
+  aiOperationsAvailable: boolean;
 }>;
 
 type StoryRouteRuntime = Readonly<{
@@ -170,6 +172,8 @@ export default function StoryRoute() {
   const editorStateRef = useRef<StoryRouteState | null>(null);
   const runtimeRef = useRef<StoryRouteRuntime | null>(null);
   const saveChainRef = useRef<Promise<void>>(Promise.resolve());
+  const [editorSessionEpoch, setEditorSessionEpoch] = useState(0);
+  const [conflictMessage, setConflictMessage] = useState<string | null>(null);
 
   const commitEditorState = useCallback((next: StoryRouteState) => {
     editorStateRef.current = next;
@@ -182,12 +186,65 @@ export default function StoryRoute() {
       if (runtime === null || occurrenceId === null) return Promise.resolve();
       const next = saveChainRef.current
         .catch(() => undefined)
-        .then(() => runtime.store.save(occurrenceId, payload));
+        .then(async () => {
+          await runtime.store.save(occurrenceId, payload);
+          void rootSyncRuntime.run().catch(() => undefined);
+        });
       saveChainRef.current = next;
       return next;
     },
     [occurrenceId],
   );
+
+  useEffect(() => {
+    if (occurrenceId === null) return;
+
+    return storyConflictSettlementChannel.subscribe((settlement) => {
+      const runtime = runtimeRef.current;
+      const current = editorStateRef.current;
+      if (
+        runtime === null ||
+        current === null ||
+        settlement.occurrenceId !== occurrenceId ||
+        settlement.storyDraftId !== current.payload.draftId
+      ) {
+        return;
+      }
+
+      void (async () => {
+        const authoritative = await runtime.store.load(occurrenceId);
+        if (authoritative === null || authoritative.draftId !== settlement.storyDraftId) return;
+
+        const activeVersion =
+          authoritative.imageVersions.find((version) => version.id === current.imageVersionId) ??
+          sourceVersion(authoritative);
+        if (activeVersion === null) return;
+
+        let sourceImage = current.sourceImage;
+        if (sourceImage.id !== activeVersion.id) {
+          sourceImage =
+            activeVersion.kind === 'source'
+              ? await runtime.versionFiles.load(activeVersion.id)
+              : await runtime.versionFiles.materializeGenerated(
+                  authoritative.draftId,
+                  activeVersion.id,
+                );
+        }
+
+        commitEditorState({
+          ...current,
+          payload: authoritative,
+          imageVersionId: activeVersion.id,
+          selectedAttemptId:
+            activeVersion.kind === 'source' ? current.selectedAttemptId : '',
+          sourceImage,
+          textSuggestions: null,
+        });
+        setEditorSessionEpoch((value) => value + 1);
+        setConflictMessage(catalog['sync.conflict.storyUpdated']);
+      })().catch(() => undefined);
+    });
+  }, [catalog, commitEditorState, occurrenceId]);
 
   useEffect(() => {
     if (occurrenceId === null) {
@@ -262,6 +319,7 @@ export default function StoryRoute() {
             sourceImage,
             remainingGenerations: null,
             textSuggestions: null,
+            aiOperationsAvailable: false,
           });
 
           void imageGeneration
@@ -273,6 +331,7 @@ export default function StoryRoute() {
                 commitEditorState({
                   ...current,
                   remainingGenerations: budget.remainingGenerations,
+                  aiOperationsAvailable: true,
                 });
               }
             })
@@ -340,6 +399,7 @@ export default function StoryRoute() {
           },
           remainingGenerations: null,
           textSuggestions: null,
+          aiOperationsAvailable: true,
         });
 
         void imageGeneration
@@ -388,8 +448,11 @@ export default function StoryRoute() {
   if (occurrenceId === null || editorState === null) return null;
 
   return (
-    <StoryEditorScreen
+    <>
+      <StoryEditorScreen
+      aiOperationsAvailable={editorState.aiOperationsAvailable}
       colorScheme={colorScheme}
+      editorSessionEpoch={editorSessionEpoch}
       composition={activeComposition(editorState)}
       imageVersions={editorState.payload.imageVersions.map(({ id, kind }) => ({ id, kind }))}
       messages={messages}
@@ -453,7 +516,14 @@ export default function StoryRoute() {
       onGenerateVersion={() => {
         const runtime = runtimeRef.current;
         const source = sourceVersion(editorState.payload);
-        if (runtime === null || source === null || editorState.remainingGenerations === 0) return;
+        if (
+          runtime === null ||
+          source === null ||
+          !editorState.aiOperationsAvailable ||
+          editorState.remainingGenerations === 0
+        ) {
+          return;
+        }
 
         void (async () => {
           const generated = await runtime.imageGeneration.generate(
@@ -554,11 +624,19 @@ export default function StoryRoute() {
             },
             remainingGenerations: editorState.remainingGenerations,
             textSuggestions: editorState.textSuggestions,
+            aiOperationsAvailable: editorState.aiOperationsAvailable,
           };
           commitEditorState(next);
           await enqueueSave(payload);
         })().catch(() => undefined);
       }}
-    />
+      />
+      <Toast
+        colorScheme={colorScheme}
+        message={conflictMessage ?? ''}
+        testID="story-conflict-message"
+        visible={conflictMessage !== null}
+      />
+    </>
   );
 }
