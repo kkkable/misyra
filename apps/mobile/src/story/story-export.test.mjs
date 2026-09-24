@@ -1,9 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import {
-  createStoryExportController,
-  createStoryExportDescriptor,
-} from './story-export.ts';
+import { createStoryExportController, createStoryExportDescriptor } from './story-export.ts';
 
 const sourceImage = {
   id: 'source-version',
@@ -12,11 +9,7 @@ const sourceImage = {
   height: 4032,
 };
 
-function composition({
-  scale = 1,
-  translateX = 0,
-  savedAt = '2026-09-24T12:25:00.000Z',
-} = {}) {
+function composition({ scale = 1, translateX = 0, savedAt = '2026-09-24T12:25:00.000Z' } = {}) {
   return {
     canvas: { width: 1080, height: 1920 },
     background: {
