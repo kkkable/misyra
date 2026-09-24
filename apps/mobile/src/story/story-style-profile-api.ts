@@ -1,7 +1,4 @@
-import {
-  storyStyleProfileStatusSchema,
-  type StoryStyleProfileStatus,
-} from '@misyra/contracts';
+import { storyStyleProfileStatusSchema, type StoryStyleProfileStatus } from '@misyra/contracts';
 
 type StoryStyleProfileApiOptions = Readonly<{
   baseUrl: string;
