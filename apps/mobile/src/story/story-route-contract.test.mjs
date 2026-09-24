@@ -87,3 +87,31 @@ describe('MTS-094 Story generation route contract', () => {
     expect(route).toMatch(/remainingGenerations/);
   });
 });
+
+
+describe('MTS-098 Instagram handoff route contract', () => {
+  it('wires persisted draft Sharing Notes to copy/open actions before external handoff', () => {
+    const route = readFileSync(routePath, 'utf8');
+    const editor = readFileSync(editorPath, 'utf8');
+
+    expect(route).toMatch(/payload\.notes/);
+    expect(route).toMatch(/onCopySharingNote/);
+    expect(route).toMatch(/onOpenInstagram/);
+    expect(editor).toMatch(/story-open-instagram/);
+    expect(editor).toMatch(/story-sharing-notes-open/);
+    expect(editor).toMatch(/story-copy-musicMood/);
+    expect(editor).toMatch(/story-copy-mention/);
+    expect(editor).toMatch(/story-copy-location/);
+    expect(editor).toMatch(/story-copy-poll/);
+  });
+
+  it('contains no posting confirmation, status tracking, or native Instagram sticker placement', () => {
+    const route = readFileSync(routePath, 'utf8');
+    const editor = readFileSync(editorPath, 'utf8');
+    const combined = `${route}\n${editor}`;
+
+    expect(combined).not.toMatch(/did you post/i);
+    expect(combined).not.toMatch(/post(?:ing|ed)?Status|post_status|posting_status/i);
+    expect(combined).not.toMatch(/nativeSticker|musicSticker|pollSticker|locationSticker/i);
+  });
+});
