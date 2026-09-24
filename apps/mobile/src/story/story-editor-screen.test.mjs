@@ -265,6 +265,52 @@ describe('MTS-094 Story generation budget surface', () => {
   });
 });
 
+describe('MTS-096 Story offline and conflict editor behavior', () => {
+  it('disables AI generation while offline without blocking manual edits', () => {
+    const onGenerateVersion = vi.fn();
+    const { renderer } = renderScreen({
+      aiOperationsAvailable: false,
+      onGenerateVersion,
+    });
+
+    const generate = renderer.root.findByProps({ testID: 'story-generate-version' });
+    expect(generate.props.disabled).toBe(true);
+
+    act(() => renderer.root.findByProps({ testID: 'story-zoom-in' }).props.onPress());
+    const preview = renderer.root.findByType('StorySkiaPreviewView');
+    expect(preview.props.composition.background.scale).toBe(1.1);
+    expect(onGenerateVersion).not.toHaveBeenCalled();
+  });
+
+  it('reloads authoritative composition and clears undo/redo after a losing conflict', () => {
+    const { renderer, props } = renderScreen({ editorSessionEpoch: 0 });
+
+    act(() => renderer.root.findByProps({ testID: 'story-zoom-in' }).props.onPress());
+    expect(renderer.root.findByProps({ testID: 'story-undo' }).props.disabled).toBe(false);
+
+    const authoritative = {
+      ...composition,
+      background: { ...composition.background, scale: 1.7, translateX: 160 },
+      revision: 7,
+      savedAt: '2026-09-24T10:15:00.000Z',
+    };
+    act(() => {
+      renderer.update(
+        createElement(StoryEditorScreen, {
+          ...props,
+          composition: authoritative,
+          editorSessionEpoch: 1,
+        }),
+      );
+    });
+
+    const preview = renderer.root.findByType('StorySkiaPreviewView');
+    expect(preview.props.composition).toEqual(authoritative);
+    expect(renderer.root.findByProps({ testID: 'story-undo' }).props.disabled).toBe(true);
+    expect(renderer.root.findByProps({ testID: 'story-redo' }).props.disabled).toBe(true);
+  });
+});
+
 describe('MTS-095 Story version selector interactions', () => {
   const imageVersions = [
     { id: 'source-version', kind: 'source' },
