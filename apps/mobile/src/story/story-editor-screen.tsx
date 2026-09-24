@@ -188,8 +188,7 @@ export function StoryEditorScreen({
       : 0;
 
   const previewWidth = Math.max(1, window.width - 32);
-  const displayedImageVersions =
-    imageVersions ?? [{ id: sourceImage.id, kind: 'source' as const }];
+  const displayedImageVersions = imageVersions ?? [{ id: sourceImage.id, kind: 'source' as const }];
   const activeImageVersionId = selectedImageVersionId ?? sourceImage.id;
 
   return (
