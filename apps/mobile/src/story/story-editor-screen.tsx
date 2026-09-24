@@ -219,7 +219,9 @@ export function StoryEditorScreen({
         }
       />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>{messages.versions}</Text>
+        <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
+          {messages.versions}
+        </Text>
         <View style={styles.sourceRow}>
           {displayedImageVersions.map((version) => {
             const selected = version.id === activeImageVersionId;

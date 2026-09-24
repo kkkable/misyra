@@ -52,11 +52,7 @@ export function createStoryImageGenerationApi({
       const responseBody: unknown = await response.json();
       if (!response.ok) throw new Error('story_image_generation_request_failed');
       const payload = payloadFromEnvelope(responseBody);
-      if (
-        !isRecord(payload) ||
-        payload.deleted !== true ||
-        payload.versionId !== versionId
-      ) {
+      if (!isRecord(payload) || payload.deleted !== true || payload.versionId !== versionId) {
         throw new Error('story_image_generation_request_failed');
       }
     },

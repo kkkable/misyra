@@ -70,7 +70,6 @@ export function createExpoStorySourceFiles(
   });
 }
 
-
 export function createExpoStoryVersionFiles(
   input: Readonly<{
     baseUrl: string;
