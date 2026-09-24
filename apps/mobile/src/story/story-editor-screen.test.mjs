@@ -77,6 +77,11 @@ const messages = {
   removeText: 'Remove text',
   contrast: 'Contrast',
   remainingGenerations: '{count} AI generations remaining',
+  versions: 'Versions',
+  versionSource: 'Source',
+  versionGenerated: 'AI {number}',
+  generateVersion: 'Generate AI version',
+  deleteVersion: 'Delete version',
 };
 
 const sourceAttempts = [
@@ -257,5 +262,46 @@ describe('MTS-094 Story generation budget surface', () => {
     const { renderer } = renderScreen({ remainingGenerations: 2 });
     const remaining = renderer.root.findByProps({ testID: 'story-generation-remaining' });
     expect(remaining.props.children).toBe('2 AI generations remaining');
+  });
+});
+
+describe('MTS-095 Story version selector interactions', () => {
+  const imageVersions = [
+    { id: 'source-version', kind: 'source' },
+    { id: 'generated-one', kind: 'generated' },
+  ];
+
+  it('switches to a retained version without invoking AI generation', () => {
+    const onSelectImageVersion = vi.fn();
+    const onGenerateVersion = vi.fn();
+    const { renderer } = renderScreen({
+      imageVersions,
+      selectedImageVersionId: 'source-version',
+      onSelectImageVersion,
+      onGenerateVersion,
+    });
+
+    act(() => renderer.root.findByProps({ testID: 'story-version-generated-one' }).props.onPress());
+
+    expect(onSelectImageVersion).toHaveBeenCalledTimes(1);
+    expect(onSelectImageVersion).toHaveBeenCalledWith('generated-one');
+    expect(onGenerateVersion).not.toHaveBeenCalled();
+  });
+
+  it('does not expose a delete action for Source', () => {
+    const { renderer } = renderScreen({
+      imageVersions,
+      selectedImageVersionId: 'source-version',
+      onSelectImageVersion: vi.fn(),
+      onDeleteImageVersion: vi.fn(),
+      onGenerateVersion: vi.fn(),
+    });
+
+    expect(() =>
+      renderer.root.findByProps({ testID: 'story-delete-version-source-version' }),
+    ).toThrow();
+    expect(
+      renderer.root.findByProps({ testID: 'story-delete-version-generated-one' }),
+    ).toBeDefined();
   });
 });

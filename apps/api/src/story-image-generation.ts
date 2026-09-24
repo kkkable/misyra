@@ -13,6 +13,7 @@ import {
 import type { Pool, PoolClient } from 'pg';
 
 import type { AiGateway } from './ai-gateway.js';
+import type { ProtectedMediaBlobStore } from './protected-media.js';
 
 const MAX_GENERATIONS = 3;
 
@@ -29,6 +30,13 @@ export class StoryImageGenerationContextError extends Error {
   constructor() {
     super('Story image generation context is unavailable.');
     this.name = 'StoryImageGenerationContextError';
+  }
+}
+
+export class StoryImageGenerationSourceVersionError extends Error {
+  constructor() {
+    super('Source Story image version cannot be deleted.');
+    this.name = 'StoryImageGenerationSourceVersionError';
   }
 }
 
@@ -67,7 +75,11 @@ async function rollback(client: PoolClient): Promise<void> {
 export function createStoryImageGenerationService(input: {
   readonly pool: Pool;
   readonly gateway?: StoryImageGenerationGateway;
+  readonly blobStore?: Pick<ProtectedMediaBlobStore, 'delete' | 'get' | 'put'>;
+  readonly now?: () => Date;
 }) {
+  const now = input.now ?? (() => new Date());
+
   return Object.freeze({
     async getBudget(accountId: string, draftId: string): Promise<StoryImageGenerationBudget> {
       const result = await input.pool.query<{ aiGenerationCount: number }>(
@@ -83,6 +95,91 @@ export function createStoryImageGenerationService(input: {
       return storyImageGenerationBudgetSchema.parse({
         remainingGenerations: MAX_GENERATIONS - row.aiGenerationCount,
       });
+    },
+
+    async getVersionMedia(accountId: string, draftId: string, versionId: string): Promise<Buffer> {
+      if (input.blobStore === undefined) throw new StoryImageGenerationUnavailableError();
+      const result = await input.pool.query<{ storageKey: string }>(
+        `SELECT version.storage_key AS "storageKey"
+           FROM story_drafts draft
+           JOIN story_image_versions version
+             ON version.draft_id = draft.id
+            AND version.id = $3
+            AND version.kind = 'generated'
+          WHERE draft.account_id = $1
+            AND draft.id = $2
+            AND draft.state = 'active'`,
+        [accountId, draftId, versionId],
+      );
+      const row = result.rows[0];
+      if (row === undefined) throw new StoryImageGenerationContextError();
+      try {
+        return await input.blobStore.get('story-working', row.storageKey);
+      } catch {
+        throw new StoryImageGenerationUnavailableError();
+      }
+    },
+
+    async deleteVersion(
+      accountId: string,
+      draftId: string,
+      versionId: string,
+    ): Promise<Readonly<{ versionId: string; deleted: true }>> {
+      if (input.blobStore === undefined) throw new StoryImageGenerationUnavailableError();
+
+      const client = await input.pool.connect();
+      let deletedBytes: Buffer | null = null;
+      let storageKey: string | null = null;
+      try {
+        await client.query('BEGIN');
+        const result = await client.query<{ kind: 'source' | 'generated'; storageKey: string }>(
+          `SELECT version.kind,
+                  version.storage_key AS "storageKey"
+             FROM story_drafts draft
+             JOIN story_image_versions version
+               ON version.draft_id = draft.id
+              AND version.id = $3
+            WHERE draft.account_id = $1
+              AND draft.id = $2
+              AND draft.state = 'active'
+            FOR UPDATE OF version`,
+          [accountId, draftId, versionId],
+        );
+        const row = result.rows[0];
+        if (row === undefined) throw new StoryImageGenerationContextError();
+        if (row.kind === 'source') throw new StoryImageGenerationSourceVersionError();
+
+        storageKey = row.storageKey;
+        try {
+          deletedBytes = await input.blobStore.get('story-working', storageKey);
+          await input.blobStore.delete('story-working', storageKey);
+        } catch {
+          throw new StoryImageGenerationUnavailableError();
+        }
+
+        const deleted = await client.query(
+          `DELETE FROM story_image_versions
+            WHERE id = $1
+              AND draft_id = $2
+              AND kind = 'generated'`,
+          [versionId, draftId],
+        );
+        if (deleted.rowCount !== 1) throw new StoryImageGenerationContextError();
+        await client.query('COMMIT');
+        return Object.freeze({ versionId, deleted: true as const });
+      } catch (error) {
+        await rollback(client);
+        if (deletedBytes !== null && storageKey !== null) {
+          try {
+            await input.blobStore.put('story-working', storageKey, deletedBytes, 'image/png');
+          } catch {
+            // Preserve the original deletion failure.
+          }
+        }
+        throw error;
+      } finally {
+        client.release();
+      }
     },
 
     async generate(
@@ -157,6 +254,26 @@ export function createStoryImageGenerationService(input: {
           `INSERT INTO story_image_versions (id, draft_id, kind, storage_key)
            VALUES ($1, $2, 'generated', $3)`,
           [version.id, request.draftId, version.storageKey],
+        );
+        const savedAt = now().toISOString();
+        await client.query(
+          `INSERT INTO story_compositions
+             (id, draft_id, image_version_id, composition, revision, saved_at)
+           VALUES ($1, $2, $1, $3::jsonb, 0, $4)`,
+          [
+            version.id,
+            request.draftId,
+            JSON.stringify({
+              canvas: { width: 1080, height: 1920 },
+              background: { scale: 1, translateX: 0, translateY: 0, rotation: 0 },
+              headline: null,
+              supportingText: null,
+              effects: [],
+              revision: 0,
+              savedAt,
+            }),
+            new Date(savedAt),
+          ],
         );
         await client.query('COMMIT');
 

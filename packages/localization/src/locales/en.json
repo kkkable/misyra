@@ -64,5 +64,10 @@
   "story.styleProfile.statusUnset": "Style not set up",
   "story.styleProfile.statusDefault": "Using default style",
   "story.styleProfile.statusCustom": "Custom style active",
-  "story.editor.remainingGenerations": "{count} AI generations remaining"
+  "story.editor.remainingGenerations": "{count} AI generations remaining",
+  "story.editor.versions": "Versions",
+  "story.editor.versionSource": "Source",
+  "story.editor.versionGenerated": "AI {number}",
+  "story.editor.generateVersion": "Generate AI version",
+  "story.editor.deleteVersion": "Delete version"
 }

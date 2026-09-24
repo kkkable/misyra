@@ -64,5 +64,10 @@
   "story.styleProfile.statusUnset": "尚未設定風格",
   "story.styleProfile.statusDefault": "正在使用預設風格",
   "story.styleProfile.statusCustom": "自訂風格已啟用",
-  "story.editor.remainingGenerations": "剩餘 {count} 次 AI 生成機會"
+  "story.editor.remainingGenerations": "剩餘 {count} 次 AI 生成機會",
+  "story.editor.versions": "版本",
+  "story.editor.versionSource": "來源",
+  "story.editor.versionGenerated": "AI {number}",
+  "story.editor.generateVersion": "生成 AI 版本",
+  "story.editor.deleteVersion": "刪除版本"
 }

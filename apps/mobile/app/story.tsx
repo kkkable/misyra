@@ -22,6 +22,7 @@ import {
 } from '../src/story/story-composition.js';
 import {
   createExpoStorySourceFiles,
+  createExpoStoryVersionFiles,
   loadExpoStoryWorkingCopy,
 } from '../src/story/expo-story-source-files.js';
 import { StoryEditorScreen, type StoryEditorMessages } from '../src/story/story-editor-screen.js';
@@ -30,6 +31,13 @@ import { createStoryImageGenerationApi } from '../src/story/story-image-generati
 import { createStoryOfflineDraftStore } from '../src/story/story-offline-draft.js';
 import { createStorySourceRuntime } from '../src/story/story-source-runtime.js';
 import { createStoryStyleProfileApi } from '../src/story/story-style-profile-api.js';
+import {
+  activeStoryImageVersion,
+  createStoryVersionState,
+  deleteStoryGeneratedVersion,
+  switchStoryImageVersion,
+  updateActiveStoryComposition,
+} from '../src/story/story-version-state.js';
 import { createStoryTextSuggestionsApi } from '../src/story/story-text-suggestions-api.js';
 import type { StoryTextSuggestionsPanelMessages } from '../src/story/story-text-suggestions-panel.js';
 
@@ -52,6 +60,7 @@ type StoryRouteRuntime = Readonly<{
   store: ReturnType<typeof createStoryOfflineDraftStore>;
   source: ReturnType<typeof createStorySourceRuntime>;
   imageGeneration: ReturnType<typeof createStoryImageGenerationApi>;
+  versionFiles: ReturnType<typeof createExpoStoryVersionFiles>;
   textSuggestions: ReturnType<typeof createStoryTextSuggestionsApi>;
   styleProfile: ReturnType<typeof createStoryStyleProfileApi>;
 }>;
@@ -77,23 +86,20 @@ function sourceVersion(payload: StoryDraftPayload) {
 }
 
 function activeComposition(state: StoryRouteState): StoryComposition {
-  const version = state.payload.imageVersions.find(
-    (candidate) => candidate.id === state.imageVersionId,
+  return validateStoryComposition(
+    activeStoryImageVersion(createStoryVersionState(state.payload, state.imageVersionId))
+      .composition,
   );
-  if (version === undefined) throw new Error('story_active_image_version_missing');
-  return validateStoryComposition(version.composition);
 }
 
 function withComposition(state: StoryRouteState, composition: StoryComposition): StoryRouteState {
-  const imageVersions = state.payload.imageVersions.map((version) =>
-    version.id === state.imageVersionId ? { ...version, composition } : version,
+  const next = updateActiveStoryComposition(
+    createStoryVersionState(state.payload, state.imageVersionId),
+    composition,
   );
   return {
     ...state,
-    payload: storyDraftSyncPayloadSchema.parse({
-      ...state.payload,
-      imageVersions,
-    }),
+    payload: next.payload,
   };
 }
 
@@ -142,6 +148,11 @@ function editorMessages(
     removeText: catalog['story.editor.removeText'],
     contrast: catalog['story.editor.contrast'],
     remainingGenerations: catalog['story.editor.remainingGenerations'],
+    versions: catalog['story.editor.versions'],
+    versionSource: catalog['story.editor.versionSource'],
+    versionGenerated: catalog['story.editor.versionGenerated'],
+    generateVersion: catalog['story.editor.generateVersion'],
+    deleteVersion: catalog['story.editor.deleteVersion'],
   };
 }
 
@@ -215,6 +226,10 @@ export default function StoryRoute() {
           baseUrl: getAuthApiBaseUrl(),
           accessToken: authState.session.accessToken,
         });
+        const versionFiles = createExpoStoryVersionFiles({
+          baseUrl: getAuthApiBaseUrl(),
+          accessToken: authState.session.accessToken,
+        });
         const textSuggestions = createStoryTextSuggestionsApi({
           baseUrl: getAuthApiBaseUrl(),
           accessToken: authState.session.accessToken,
@@ -223,7 +238,14 @@ export default function StoryRoute() {
           baseUrl: getAuthApiBaseUrl(),
           accessToken: authState.session.accessToken,
         });
-        runtimeRef.current = { store, source, imageGeneration, textSuggestions, styleProfile };
+        runtimeRef.current = {
+          store,
+          source,
+          imageGeneration,
+          versionFiles,
+          textSuggestions,
+          styleProfile,
+        };
 
         const existing = await store.load(occurrenceId);
         if (existing !== null) {
@@ -369,8 +391,10 @@ export default function StoryRoute() {
     <StoryEditorScreen
       colorScheme={colorScheme}
       composition={activeComposition(editorState)}
+      imageVersions={editorState.payload.imageVersions.map(({ id, kind }) => ({ id, kind }))}
       messages={messages}
       remainingGenerations={editorState.remainingGenerations}
+      selectedImageVersionId={editorState.imageVersionId}
       selectedAttemptId={editorState.selectedAttemptId}
       sourceAttempts={editorState.sourceAttempts}
       sourceImage={editorState.sourceImage}
@@ -399,6 +423,103 @@ export default function StoryRoute() {
             haptics.triggerNonBlocking('storySave');
           })
           .catch(() => undefined);
+      }}
+      onSelectImageVersion={(versionId) => {
+        const runtime = runtimeRef.current;
+        if (runtime === null || versionId === editorState.imageVersionId) return;
+
+        void (async () => {
+          const switched = switchStoryImageVersion(
+            createStoryVersionState(editorState.payload, editorState.imageVersionId),
+            versionId,
+          );
+          const target = activeStoryImageVersion(switched);
+          const sourceImage =
+            target.kind === 'source'
+              ? await runtime.versionFiles.load(target.id)
+              : await runtime.versionFiles.materializeGenerated(
+                  switched.payload.draftId,
+                  target.id,
+                );
+          commitEditorState({
+            ...editorState,
+            payload: switched.payload,
+            imageVersionId: switched.activeVersionId,
+            selectedAttemptId: target.kind === 'source' ? editorState.selectedAttemptId : '',
+            sourceImage,
+          });
+        })().catch(() => undefined);
+      }}
+      onGenerateVersion={() => {
+        const runtime = runtimeRef.current;
+        const source = sourceVersion(editorState.payload);
+        if (runtime === null || source === null || editorState.remainingGenerations === 0) return;
+
+        void (async () => {
+          const generated = await runtime.imageGeneration.generate(
+            editorState.payload.draftId,
+            source.id,
+          );
+          const composition = createEmptyStoryComposition(new Date().toISOString());
+          const payload = storyDraftSyncPayloadSchema.parse({
+            ...editorState.payload,
+            imageVersions: [
+              ...editorState.payload.imageVersions,
+              { ...generated.version, composition },
+            ],
+          });
+          const sourceImage = await runtime.versionFiles.materializeGenerated(
+            payload.draftId,
+            generated.version.id,
+          );
+          const next: StoryRouteState = {
+            ...editorState,
+            payload,
+            imageVersionId: generated.version.id,
+            selectedAttemptId: '',
+            sourceImage,
+            remainingGenerations: generated.remainingGenerations,
+          };
+          commitEditorState(next);
+          await enqueueSave(payload);
+        })().catch(() => undefined);
+      }}
+      onDeleteImageVersion={(versionId) => {
+        const runtime = runtimeRef.current;
+        if (runtime === null) return;
+
+        void (async () => {
+          await runtime.imageGeneration.deleteVersion(editorState.payload.draftId, versionId);
+          const deleted = deleteStoryGeneratedVersion(
+            createStoryVersionState(editorState.payload, editorState.imageVersionId),
+            versionId,
+          );
+          await runtime.versionFiles.delete(versionId);
+
+          let sourceImage = editorState.sourceImage;
+          let selectedAttemptId = editorState.selectedAttemptId;
+          if (deleted.activeVersionId !== editorState.imageVersionId) {
+            const target = activeStoryImageVersion(deleted);
+            sourceImage =
+              target.kind === 'source'
+                ? await runtime.versionFiles.load(target.id)
+                : await runtime.versionFiles.materializeGenerated(
+                    deleted.payload.draftId,
+                    target.id,
+                  );
+            if (target.kind === 'generated') selectedAttemptId = '';
+          }
+
+          const next: StoryRouteState = {
+            ...editorState,
+            payload: deleted.payload,
+            imageVersionId: deleted.activeVersionId,
+            selectedAttemptId,
+            sourceImage,
+          };
+          commitEditorState(next);
+          await enqueueSave(next.payload);
+        })().catch(() => undefined);
       }}
       onSelectSource={(selected) => {
         const runtime = runtimeRef.current;
