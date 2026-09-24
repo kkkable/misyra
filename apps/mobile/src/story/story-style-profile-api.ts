@@ -19,10 +19,7 @@ function payloadFromEnvelope(value: unknown): unknown {
   return value.payload;
 }
 
-export function createStoryStyleProfileApi({
-  baseUrl,
-  accessToken,
-}: StoryStyleProfileApiOptions) {
+export function createStoryStyleProfileApi({ baseUrl, accessToken }: StoryStyleProfileApiOptions) {
   const root = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
   const authorization = `Bearer ${accessToken}`;
 
