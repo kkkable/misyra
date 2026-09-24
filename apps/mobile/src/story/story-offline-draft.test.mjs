@@ -131,6 +131,36 @@ describe('MTS-091/MTS-096 offline Story draft persistence', () => {
     await expect(store.load(occurrenceId)).resolves.toEqual(payload(1));
   });
 
+  it('persists Sharing Notes inside the same Story draft lifecycle', async () => {
+    const database = new NodeSqliteAdapter();
+    databases.push(database);
+    await applyMobileMigrations(database);
+    await seedCompletedMission(database);
+
+    const store = createStoryOfflineDraftStore({
+      database,
+      accountId,
+      deviceId,
+      generateMutationId: () => '77777777-7777-4777-8777-777777777777',
+    });
+    const value = {
+      ...payload(1),
+      notes: {
+        musicMood: 'upbeat running track',
+        mention: '@misyra',
+        location: 'Hong Kong',
+        poll: {
+          question: 'Run again tomorrow?',
+          options: ['Yes', 'Maybe later'],
+        },
+      },
+    };
+
+    await store.save(occurrenceId, value);
+
+    await expect(store.load(occurrenceId)).resolves.toMatchObject({ notes: value.notes });
+  });
+
   it('survives a database restart with the offline edit and reconnect mutation intact', async () => {
     const directory = mkdtempSync(join(tmpdir(), 'misyra-mts096-story-'));
     temporaryDirectories.push(directory);
