@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createMutationQueue } from '../storage/mutation-queue.js';
 import { applyMobileMigrations } from '../storage/schema.js';
 import { runAuthenticatedServerSync } from './authenticated-sync-runtime.js';
+import { storyConflictSettlementChannel } from './story-conflict-settlement-runtime.js';
 
 class NodeSqliteAdapter {
   constructor() {
@@ -255,10 +256,17 @@ describe('MTS-090 Story authenticated sync projection', () => {
       snapshot: vi.fn(() => Promise.resolve({ entries: [], nextCursor: 1 })),
     };
 
+    const settlements = [];
+    const unsubscribe = storyConflictSettlementChannel.subscribe((settlement) => {
+      settlements.push(settlement);
+    });
     await expect(runAuthenticatedServerSync({ database, accountId, api })).resolves.toEqual({
       settledMutations: 1,
       cursor: 1,
     });
+    unsubscribe();
+
+    expect(settlements).toEqual([{ storyDraftId: draftId, occurrenceId }]);
 
     const row = await database.getFirstAsync(
       'SELECT composition_json FROM story_drafts WHERE account_id = ? AND occurrence_id = ?',
