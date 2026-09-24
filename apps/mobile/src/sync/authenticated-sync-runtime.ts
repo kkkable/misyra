@@ -31,6 +31,7 @@ import {
   type PlannerCalendarDraftDocument,
 } from '../ai-planner/calendar-draft-preview.js';
 import { applyProgressProjectionChange } from './progress-projection.js';
+import { storyConflictSettlementChannel } from './story-conflict-settlement-runtime.js';
 import {
   createServerSync,
   type ServerAccountChange,
@@ -899,6 +900,10 @@ async function applyAuthenticatedConflicts(
       ) {
         throw new Error(CONFLICT_APPLICATION_HANDLER_REQUIRED);
       }
+      storyConflictSettlementChannel.publish({
+        storyDraftId: conflict.storyDraftId,
+        occurrenceId: mutation.entityId,
+      });
       continue;
     }
 
