@@ -2,6 +2,9 @@ import type { StoryComposition } from './story-composition.js';
 import type { StorySourceImage } from './story-editor-state.js';
 import { createStorySkiaSceneSnapshot } from './story-skia-preview.js';
 
+export const STORY_EXPORT_WIDTH = 1080;
+export const STORY_EXPORT_HEIGHT = 1920;
+
 export type StoryExportInput = Readonly<{
   imageVersionId: string;
   sourceImage: StorySourceImage;
@@ -31,8 +34,8 @@ export type StoryExportPlatform = Readonly<{
 
 export function createStoryExportDescriptor(input: StoryExportInput): StoryExportDescriptor {
   return Object.freeze({
-    width: 0,
-    height: 0,
+    width: STORY_EXPORT_WIDTH,
+    height: STORY_EXPORT_HEIGHT,
     imageVersionId: input.imageVersionId,
     scene: createStorySkiaSceneSnapshot({
       image: input.sourceImage,
@@ -41,17 +44,37 @@ export function createStoryExportDescriptor(input: StoryExportInput): StoryExpor
   });
 }
 
+function assertFinalArtifact(
+  input: StoryExportInput,
+  artifact: StoryExportArtifact,
+): StoryExportArtifact {
+  if (artifact.width !== STORY_EXPORT_WIDTH || artifact.height !== STORY_EXPORT_HEIGHT) {
+    throw new Error('story_export_dimensions_invalid');
+  }
+  if (artifact.imageVersionId !== input.imageVersionId) {
+    throw new Error('story_export_version_mismatch');
+  }
+  return artifact;
+}
+
 export function createStoryExportController(platform: StoryExportPlatform) {
-  void platform;
+  async function render(input: StoryExportInput): Promise<StoryExportArtifact> {
+    return assertFinalArtifact(input, await platform.renderPng(input));
+  }
+
   return Object.freeze({
-    saveToPhotos(input: StoryExportInput): Promise<'saved' | 'permission_denied'> {
-      void input;
-      return Promise.reject(new Error('story_export_not_implemented'));
+    async saveToPhotos(input: StoryExportInput): Promise<'saved' | 'permission_denied'> {
+      const permissionGranted = await platform.requestSavePermission();
+      if (!permissionGranted) return 'permission_denied';
+
+      const artifact = await render(input);
+      await platform.saveToPhotos(artifact);
+      return 'saved';
     },
 
-    share(input: StoryExportInput): Promise<void> {
-      void input;
-      return Promise.reject(new Error('story_export_not_implemented'));
+    async share(input: StoryExportInput): Promise<void> {
+      const artifact = await render(input);
+      await platform.share(artifact);
     },
   });
 }
