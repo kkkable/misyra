@@ -50,7 +50,6 @@ describe('MTS-091 production Story route contract', () => {
   });
 });
 
-
 describe('MTS-094 Story generation route contract', () => {
   it('loads the authoritative generation budget for the active Story draft', () => {
     const route = readFileSync(routePath, 'utf8');

@@ -252,7 +252,6 @@ describe('MTS-091 Story editor interactions', () => {
   });
 });
 
-
 describe('MTS-094 Story generation budget surface', () => {
   it('shows the remaining AI generation count in the editor', () => {
     const { renderer } = renderScreen({ remainingGenerations: 2 });
