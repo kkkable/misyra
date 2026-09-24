@@ -228,14 +228,15 @@ export function createApiApplication(options: AuthApplicationOptions) {
   const evidenceAttemptLifecycle: { service: EvidenceAttemptService | undefined } = {
     service: undefined,
   };
+  const mediaBlobStore =
+    options.mediaBlobStore ??
+    createProtectedMediaBlobStore({
+      AZURITE_BLOB_PORT: process.env.AZURITE_BLOB_PORT,
+    });
   const protectedMediaService = createProtectedMediaService({
     pool: options.pool,
     signingSecret: options.reauthenticationProofSecret,
-    blobStore:
-      options.mediaBlobStore ??
-      createProtectedMediaBlobStore({
-        AZURITE_BLOB_PORT: process.env.AZURITE_BLOB_PORT,
-      }),
+    blobStore: mediaBlobStore,
     ...(options.now === undefined ? {} : { now: options.now }),
     onUploadCommitted: async (input) => {
       await evidenceAttemptLifecycle.service?.handleMediaUploaded(input);
@@ -295,6 +296,8 @@ export function createApiApplication(options: AuthApplicationOptions) {
     options.storyImageGenerationService ??
     createStoryImageGenerationService({
       pool: options.pool,
+      blobStore: mediaBlobStore,
+      ...(options.now === undefined ? {} : { now: options.now }),
     });
   const storyStyleProfileService =
     options.storyStyleProfileService ??
