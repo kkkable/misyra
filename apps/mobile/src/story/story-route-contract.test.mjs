@@ -50,6 +50,28 @@ describe('MTS-091 production Story route contract', () => {
   });
 });
 
+describe('MTS-096 Story offline conflict route contract', () => {
+  it('queues local saves for root sync and reloads active conflicts with the approved message', () => {
+    const route = readFileSync(routePath, 'utf8');
+    const editor = readFileSync(editorPath, 'utf8');
+
+    expect(route).toMatch(/rootSyncRuntime\.run\(\)/);
+    expect(route).toMatch(/storyConflictSettlementChannel\.subscribe/);
+    expect(route).toMatch(/sync\.conflict\.storyUpdated/);
+    expect(route).toMatch(/story-conflict-message/);
+    expect(route).toMatch(/editorSessionEpoch/);
+    expect(editor).toMatch(/editorSessionEpoch/);
+  });
+
+  it('passes explicit offline AI availability to the editor generation control', () => {
+    const route = readFileSync(routePath, 'utf8');
+    const editor = readFileSync(editorPath, 'utf8');
+
+    expect(route).toMatch(/aiOperationsAvailable/);
+    expect(editor).toMatch(/disabled=\{!aiOperationsAvailable\}/);
+  });
+});
+
 describe('MTS-094 Story generation route contract', () => {
   it('loads the authoritative generation budget for the active Story draft', () => {
     const route = readFileSync(routePath, 'utf8');
