@@ -63,5 +63,6 @@
   "story.styleProfile.networkRequired": "An internet connection is required to build your style.",
   "story.styleProfile.statusUnset": "Style not set up",
   "story.styleProfile.statusDefault": "Using default style",
-  "story.styleProfile.statusCustom": "Custom style active"
+  "story.styleProfile.statusCustom": "Custom style active",
+  "story.editor.remainingGenerations": "{count} AI generations remaining"
 }

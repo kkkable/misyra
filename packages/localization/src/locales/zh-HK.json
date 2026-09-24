@@ -63,5 +63,6 @@
   "story.styleProfile.networkRequired": "建立風格時需要網絡連線。",
   "story.styleProfile.statusUnset": "尚未設定風格",
   "story.styleProfile.statusDefault": "正在使用預設風格",
-  "story.styleProfile.statusCustom": "自訂風格已啟用"
+  "story.styleProfile.statusCustom": "自訂風格已啟用",
+  "story.editor.remainingGenerations": "剩餘 {count} 次 AI 生成機會"
 }

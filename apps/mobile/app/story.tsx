@@ -26,6 +26,7 @@ import {
 } from '../src/story/expo-story-source-files.js';
 import { StoryEditorScreen, type StoryEditorMessages } from '../src/story/story-editor-screen.js';
 import type { StorySourceImage } from '../src/story/story-editor-state.js';
+import { createStoryImageGenerationApi } from '../src/story/story-image-generation-api.js';
 import { createStoryOfflineDraftStore } from '../src/story/story-offline-draft.js';
 import { createStorySourceRuntime } from '../src/story/story-source-runtime.js';
 import { createStoryStyleProfileApi } from '../src/story/story-style-profile-api.js';
@@ -43,12 +44,14 @@ type StoryRouteState = Readonly<{
   selectedAttemptId: string;
   sourceAttempts: readonly EvidenceStorySourceAttempt[];
   sourceImage: StorySourceImage;
+  remainingGenerations: number | null;
   textSuggestions: StoryTextSuggestionsResult | null;
 }>;
 
 type StoryRouteRuntime = Readonly<{
   store: ReturnType<typeof createStoryOfflineDraftStore>;
   source: ReturnType<typeof createStorySourceRuntime>;
+  imageGeneration: ReturnType<typeof createStoryImageGenerationApi>;
   textSuggestions: ReturnType<typeof createStoryTextSuggestionsApi>;
   styleProfile: ReturnType<typeof createStoryStyleProfileApi>;
 }>;
@@ -138,6 +141,7 @@ function editorMessages(
     font: catalog['story.editor.font'],
     removeText: catalog['story.editor.removeText'],
     contrast: catalog['story.editor.contrast'],
+    remainingGenerations: catalog['story.editor.remainingGenerations'],
   };
 }
 
@@ -207,6 +211,10 @@ export default function StoryRoute() {
             accessToken: authState.session.accessToken,
           }),
         });
+        const imageGeneration = createStoryImageGenerationApi({
+          baseUrl: getAuthApiBaseUrl(),
+          accessToken: authState.session.accessToken,
+        });
         const textSuggestions = createStoryTextSuggestionsApi({
           baseUrl: getAuthApiBaseUrl(),
           accessToken: authState.session.accessToken,
@@ -215,7 +223,7 @@ export default function StoryRoute() {
           baseUrl: getAuthApiBaseUrl(),
           accessToken: authState.session.accessToken,
         });
-        runtimeRef.current = { store, source, textSuggestions, styleProfile };
+        runtimeRef.current = { store, source, imageGeneration, textSuggestions, styleProfile };
 
         const existing = await store.load(occurrenceId);
         if (existing !== null) {
@@ -230,8 +238,23 @@ export default function StoryRoute() {
             selectedAttemptId: '',
             sourceAttempts: [],
             sourceImage,
+            remainingGenerations: null,
             textSuggestions: null,
           });
+
+          void imageGeneration
+            .getBudget(existing.draftId)
+            .then((budget) => {
+              if (lifecycle.cancelled) return;
+              const current = editorStateRef.current;
+              if (current !== null && current.payload.draftId === existing.draftId) {
+                commitEditorState({
+                  ...current,
+                  remainingGenerations: budget.remainingGenerations,
+                });
+              }
+            })
+            .catch(() => undefined);
 
           void source
             .list(occurrenceId)
@@ -293,8 +316,23 @@ export default function StoryRoute() {
             width: materialized.width,
             height: materialized.height,
           },
+          remainingGenerations: null,
           textSuggestions: null,
         });
+
+        void imageGeneration
+          .getBudget(draftId)
+          .then((budget) => {
+            if (lifecycle.cancelled) return;
+            const current = editorStateRef.current;
+            if (current !== null && current.payload.draftId === draftId) {
+              commitEditorState({
+                ...current,
+                remainingGenerations: budget.remainingGenerations,
+              });
+            }
+          })
+          .catch(() => undefined);
 
         void textSuggestions
           .suggest(occurrenceId)
@@ -332,6 +370,7 @@ export default function StoryRoute() {
       colorScheme={colorScheme}
       composition={activeComposition(editorState)}
       messages={messages}
+      remainingGenerations={editorState.remainingGenerations}
       selectedAttemptId={editorState.selectedAttemptId}
       sourceAttempts={editorState.sourceAttempts}
       sourceImage={editorState.sourceImage}
@@ -392,6 +431,7 @@ export default function StoryRoute() {
               width: materialized.width,
               height: materialized.height,
             },
+            remainingGenerations: editorState.remainingGenerations,
             textSuggestions: editorState.textSuggestions,
           };
           commitEditorState(next);

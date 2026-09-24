@@ -47,6 +47,7 @@ export type StoryEditorMessages = Readonly<{
   font: string;
   removeText: string;
   contrast: string;
+  remainingGenerations: string;
 }>;
 
 type TextRole = 'headline' | 'supportingText';
@@ -81,6 +82,7 @@ export function StoryEditorScreen({
   onCompositionChange,
   onSave,
   onSelectSource,
+  remainingGenerations,
   selectedAttemptId,
   sourceAttempts,
   sourceImage,
@@ -95,6 +97,7 @@ export function StoryEditorScreen({
   onCompositionChange: (composition: StoryComposition) => void;
   onSave: (composition: StoryComposition) => void;
   onSelectSource: (source: EvidenceStorySourceAttempt) => void;
+  remainingGenerations: number | null;
   selectedAttemptId: string;
   sourceAttempts: readonly EvidenceStorySourceAttempt[];
   sourceImage: StorySourceImage;
@@ -249,6 +252,15 @@ export function StoryEditorScreen({
             }}
           />
         ) : null}
+
+        {remainingGenerations === null ? null : (
+          <Text
+            style={[styles.generationCount, { color: colors.textSecondary }]}
+            testID="story-generation-remaining"
+          >
+            {messages.remainingGenerations.replace('{count}', String(remainingGenerations))}
+          </Text>
+        )}
 
         <View style={styles.previewWrap}>
           <StorySkiaPreviewView
@@ -518,6 +530,9 @@ const styles = StyleSheet.create({
   content: {
     gap: 12,
     paddingBottom: 32,
+  },
+  generationCount: {
+    fontSize: 14,
   },
   previewWrap: {
     alignItems: 'center',
