@@ -71,7 +71,10 @@ describe('MTS-096 Story offline conflict route contract', () => {
     expect(route).toMatch(/networkAvailabilityChannel\.subscribe/);
     expect(route).toMatch(/availability === 'unavailable'/);
     expect(route).toMatch(/runtime\.imageGeneration[\s\S]{0,120}\.getBudget/);
-    expect(route).toMatch(/aiOperationsAvailable/);
+    expect(route.match(/aiOperationsAvailable: false/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
+    expect(route).toMatch(
+      /remainingGenerations: budget\.remainingGenerations,[\s\S]{0,100}aiOperationsAvailable: true/,
+    );
     expect(editor).toMatch(/disabled=\{!aiOperationsAvailable\}/);
   });
 });
