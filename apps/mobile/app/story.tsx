@@ -438,7 +438,7 @@ export default function StoryRoute() {
           },
           remainingGenerations: null,
           textSuggestions: null,
-          aiOperationsAvailable: true,
+          aiOperationsAvailable: false,
         });
 
         void imageGeneration
@@ -450,6 +450,7 @@ export default function StoryRoute() {
               commitEditorState({
                 ...current,
                 remainingGenerations: budget.remainingGenerations,
+                aiOperationsAvailable: true,
               });
             }
           })
