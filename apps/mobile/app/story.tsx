@@ -22,11 +22,13 @@ import {
   validateStoryComposition,
   type StoryComposition,
 } from '../src/story/story-composition.js';
+import { createExpoStoryExportPlatform } from '../src/story/expo-story-export-platform.js';
 import {
   createExpoStorySourceFiles,
   createExpoStoryVersionFiles,
   loadExpoStoryWorkingCopy,
 } from '../src/story/expo-story-source-files.js';
+import { createStoryExportController } from '../src/story/story-export.js';
 import { StoryEditorScreen, type StoryEditorMessages } from '../src/story/story-editor-screen.js';
 import type { StorySourceImage } from '../src/story/story-editor-state.js';
 import { createStoryImageGenerationApi } from '../src/story/story-image-generation-api.js';
@@ -45,6 +47,7 @@ import type { StoryTextSuggestionsPanelMessages } from '../src/story/story-text-
 
 const UUID_HEX = '0123456789abcdef';
 const UUID_VARIANTS = '89ab';
+const storyExportController = createStoryExportController(createExpoStoryExportPlatform());
 
 type StoryDraftPayload = ReturnType<typeof storyDraftSyncPayloadSchema.parse>;
 
@@ -156,6 +159,9 @@ function editorMessages(
     versionGenerated: catalog['story.editor.versionGenerated'],
     generateVersion: catalog['story.editor.generateVersion'],
     deleteVersion: catalog['story.editor.deleteVersion'],
+    saveToPhotos: catalog['story.editor.saveToPhotos'],
+    shareElsewhere: catalog['story.editor.shareElsewhere'],
+    savedToPhotos: catalog['story.editor.savedToPhotos'],
   };
 }
 
@@ -175,6 +181,7 @@ export default function StoryRoute() {
   const saveChainRef = useRef<Promise<void>>(Promise.resolve());
   const [editorSessionEpoch, setEditorSessionEpoch] = useState(0);
   const [conflictMessage, setConflictMessage] = useState<string | null>(null);
+  const [savedToPhotosMessage, setSavedToPhotosMessage] = useState<string | null>(null);
 
   const commitEditorState = useCallback((next: StoryRouteState) => {
     editorStateRef.current = next;
@@ -494,6 +501,7 @@ export default function StoryRoute() {
       editorSessionEpoch={editorSessionEpoch}
       composition={activeComposition(editorState)}
       conflictMessage={conflictMessage}
+      savedToPhotosMessage={savedToPhotosMessage}
       imageVersions={editorState.payload.imageVersions.map(({ id, kind }) => ({ id, kind }))}
       messages={messages}
       remainingGenerations={editorState.remainingGenerations}
@@ -527,6 +535,27 @@ export default function StoryRoute() {
           })
           .catch(() => undefined);
       }}
+      onSaveToPhotos={() => {
+        setSavedToPhotosMessage(null);
+        return storyExportController
+          .saveToPhotos({
+            imageVersionId: editorState.imageVersionId,
+            sourceImage: editorState.sourceImage,
+            composition: activeComposition(editorState),
+          })
+          .then((result) => {
+            if (result === 'saved') {
+              setSavedToPhotosMessage(messages.savedToPhotos);
+            }
+          });
+      }}
+      onShareElsewhere={() =>
+        storyExportController.share({
+          imageVersionId: editorState.imageVersionId,
+          sourceImage: editorState.sourceImage,
+          composition: activeComposition(editorState),
+        })
+      }
       onSelectImageVersion={(versionId) => {
         const runtime = runtimeRef.current;
         if (runtime === null || versionId === editorState.imageVersionId) return;
