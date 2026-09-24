@@ -29,69 +29,7 @@ beforeAll(async () => {
   await admin.end();
   await applyMigrations(databaseUrl);
   pool = new Pool({ connectionString: databaseUrl });
-  it('retains a server-generated version across a later source-only Story autosave', async () => {
-    const fixture = await createStoryFixture();
-    const storageKey = 'story/generated/autosave-retained';
-    const service = createStoryImageGenerationService({
-      pool,
-      gateway: { generateStoryImage: vi.fn(() => Promise.resolve({ storageKey })) },
-    });
-
-    const generated = await service.generate(fixture.accountId, {
-      draftId: fixture.draftId,
-      sourceVersionId: fixture.sourceVersionId,
-    });
-
-    const savedAt = '2026-09-24T04:46:00.000Z';
-    const mutationId = randomUUID();
-    await expect(
-      fixture.store.push(fixture.accountId, [
-        {
-          mutationId,
-          accountId: fixture.accountId,
-          deviceId: fixture.deviceId,
-          entityType: 'story',
-          entityId: fixture.occurrenceId,
-          operation: 'update',
-          baseVersion: null,
-          clientOccurredAt: savedAt,
-          payload: {
-            draftId: fixture.draftId,
-            notes: { musicMood: null, mention: null, location: null, poll: null },
-            imageVersions: [
-              {
-                id: fixture.sourceVersionId,
-                kind: 'source',
-                storageKey: `story/source/${fixture.sourceVersionId}`,
-                composition: {
-                  canvas: { width: 1080, height: 1920 },
-                  background: { scale: 1, translateX: 0, translateY: 0, rotation: 0 },
-                  headline: null,
-                  supportingText: null,
-                  effects: [],
-                  revision: 1,
-                  savedAt,
-                },
-              },
-            ],
-          },
-        },
-      ]),
-    ).resolves.toEqual({ acceptedMutationIds: [mutationId] });
-
-    const state = await readGenerationState(fixture.draftId);
-    expect(state.count).toBe(1);
-    expect(state.versions).toEqual(
-      expect.arrayContaining([
-        { kind: 'source', storageKey: `story/source/${fixture.sourceVersionId}` },
-        { kind: 'generated', storageKey },
-      ]),
-    );
-    expect(state.versions).toHaveLength(2);
-    expect(generated.remainingGenerations).toBe(2);
-  });
 });
-
 afterAll(async () => {
   await pool.end();
   const admin = new Pool({ connectionString: adminUrl });
@@ -304,5 +242,67 @@ describe('MTS-094 Story image generation budget and versions', () => {
       ]),
     );
     expect(state.versions).toHaveLength(3);
+  });
+
+  it('retains a server-generated version across a later source-only Story autosave', async () => {
+    const fixture = await createStoryFixture();
+    const storageKey = 'story/generated/autosave-retained';
+    const service = createStoryImageGenerationService({
+      pool,
+      gateway: { generateStoryImage: vi.fn(() => Promise.resolve({ storageKey })) },
+    });
+  
+    const generated = await service.generate(fixture.accountId, {
+      draftId: fixture.draftId,
+      sourceVersionId: fixture.sourceVersionId,
+    });
+  
+    const savedAt = '2026-09-24T04:46:00.000Z';
+    const mutationId = randomUUID();
+    await expect(
+      fixture.store.push(fixture.accountId, [
+        {
+          mutationId,
+          accountId: fixture.accountId,
+          deviceId: fixture.deviceId,
+          entityType: 'story',
+          entityId: fixture.occurrenceId,
+          operation: 'update',
+          baseVersion: null,
+          clientOccurredAt: savedAt,
+          payload: {
+            draftId: fixture.draftId,
+            notes: { musicMood: null, mention: null, location: null, poll: null },
+            imageVersions: [
+              {
+                id: fixture.sourceVersionId,
+                kind: 'source',
+                storageKey: `story/source/${fixture.sourceVersionId}`,
+                composition: {
+                  canvas: { width: 1080, height: 1920 },
+                  background: { scale: 1, translateX: 0, translateY: 0, rotation: 0 },
+                  headline: null,
+                  supportingText: null,
+                  effects: [],
+                  revision: 1,
+                  savedAt,
+                },
+              },
+            ],
+          },
+        },
+      ]),
+    ).resolves.toEqual({ acceptedMutationIds: [mutationId] });
+  
+    const state = await readGenerationState(fixture.draftId);
+    expect(state.count).toBe(1);
+    expect(state.versions).toEqual(
+      expect.arrayContaining([
+        { kind: 'source', storageKey: `story/source/${fixture.sourceVersionId}` },
+        { kind: 'generated', storageKey },
+      ]),
+    );
+    expect(state.versions).toHaveLength(2);
+    expect(generated.remainingGenerations).toBe(2);
   });
 });
