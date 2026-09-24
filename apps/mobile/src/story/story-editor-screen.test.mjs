@@ -265,7 +265,6 @@ describe('MTS-094 Story generation budget surface', () => {
   });
 });
 
-
 describe('MTS-095 Story version selector interactions', () => {
   const imageVersions = [
     { id: 'source-version', kind: 'source' },

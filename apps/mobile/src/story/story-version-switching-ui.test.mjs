@@ -28,7 +28,10 @@ describe('MTS-095 Story version switching UI contract', () => {
     expect(selectHandler).toMatch(/switchStoryImageVersion/);
     expect(selectHandler).not.toMatch(/imageGeneration\.generate/);
 
-    const generateHandler = route.slice(generateStart, route.indexOf('onDeleteImageVersion=', generateStart));
+    const generateHandler = route.slice(
+      generateStart,
+      route.indexOf('onDeleteImageVersion=', generateStart),
+    );
     expect(generateHandler).toMatch(/imageGeneration\.generate/);
   });
 });
