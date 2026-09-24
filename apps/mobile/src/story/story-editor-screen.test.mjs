@@ -268,7 +268,7 @@ describe('MTS-094 Story generation budget surface', () => {
 
 describe('MTS-096 Story offline and conflict editor behavior', () => {
   it('shows the approved non-blocking conflict message when another device wins', () => {
-    const approved = 'This Story draft was updated on another device. Your editor has been reloaded.';
+    const approved = 'This Story draft was updated on another device.';
     const { renderer } = renderScreen({ conflictMessage: approved });
 
     const notice = renderer.root.findByProps({ testID: 'story-conflict-message' });
