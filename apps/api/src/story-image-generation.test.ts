@@ -314,7 +314,6 @@ describe('MTS-094 Story image generation budget and versions', () => {
   });
 });
 
-
 describe('MTS-095 generated Story version lifecycle', () => {
   it('creates a generated version with an empty independent composition', async () => {
     const fixture = await createStoryFixture();

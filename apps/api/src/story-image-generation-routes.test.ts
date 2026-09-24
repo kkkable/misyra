@@ -71,7 +71,6 @@ describe('MTS-094 Story image generation routes', () => {
   });
 });
 
-
 describe('MTS-095 generated Story version routes', () => {
   const generatedVersionId = '44444444-4444-4444-8444-444444444444';
 
