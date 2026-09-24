@@ -173,13 +173,10 @@ describe('MTS-094 Story image generation budget and versions', () => {
     const state = await readGenerationState(fixture.draftId);
     expect(state.count).toBe(3);
     expect(state.versions.filter((version) => version.kind === 'generated')).toHaveLength(3);
-    expect(
-      Math.min(
-        ...fulfilled.map((result) =>
-          result.status === 'fulfilled' ? result.value.remainingGenerations : 3,
-        ),
-      ),
-    ).toBe(0);
+    const remainingCounts = fulfilled.flatMap((result) =>
+      result.status === 'fulfilled' ? [result.value.remainingGenerations] : [],
+    );
+    expect(remainingCounts).toContain(0);
   });
 
   it('releases a reserved request when the provider fails', async () => {
@@ -211,10 +208,7 @@ describe('MTS-094 Story image generation budget and versions', () => {
 
   it('retains successful generated versions and consumes exactly one request each', async () => {
     const fixture = await createStoryFixture();
-    const generatedStorageKeys = [
-      'story/generated/retained-one',
-      'story/generated/retained-two',
-    ];
+    const generatedStorageKeys = ['story/generated/retained-one', 'story/generated/retained-two'];
     const generateStoryImage = vi
       .fn()
       .mockResolvedValueOnce({ storageKey: generatedStorageKeys[0] })
