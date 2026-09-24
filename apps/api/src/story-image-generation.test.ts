@@ -251,12 +251,12 @@ describe('MTS-094 Story image generation budget and versions', () => {
       pool,
       gateway: { generateStoryImage: vi.fn(() => Promise.resolve({ storageKey })) },
     });
-  
+
     const generated = await service.generate(fixture.accountId, {
       draftId: fixture.draftId,
       sourceVersionId: fixture.sourceVersionId,
     });
-  
+
     const savedAt = '2026-09-24T04:46:00.000Z';
     const mutationId = randomUUID();
     await expect(
@@ -293,7 +293,7 @@ describe('MTS-094 Story image generation budget and versions', () => {
         },
       ]),
     ).resolves.toEqual({ acceptedMutationIds: [mutationId] });
-  
+
     const state = await readGenerationState(fixture.draftId);
     expect(state.count).toBe(1);
     expect(state.versions).toEqual(
