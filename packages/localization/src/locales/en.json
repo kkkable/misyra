@@ -48,5 +48,20 @@
   "story.suggestions.musicMood": "Music / mood",
   "story.suggestions.mention": "Mention",
   "story.suggestions.location": "Location",
-  "story.suggestions.poll": "Poll"
+  "story.suggestions.poll": "Poll",
+  "story.styleProfile.title": "Story style profile",
+  "story.styleProfile.settings": "Story style profile",
+  "story.styleProfile.manage": "Manage Story style",
+  "story.styleProfile.body": "Choose 3–8 reference images. Misyra keeps only abstract style traits, not exact templates or identity details.",
+  "story.styleProfile.setup": "Set up my style",
+  "story.styleProfile.useDefault": "Use default",
+  "story.styleProfile.replaceReferences": "Add or replace references",
+  "story.styleProfile.rebuild": "Build style from references",
+  "story.styleProfile.resetDefault": "Reset to default",
+  "story.styleProfile.selectedCount": "{count} references selected",
+  "story.styleProfile.referenceLimit": "Choose between 3 and 8 reference images.",
+  "story.styleProfile.networkRequired": "An internet connection is required to build your style.",
+  "story.styleProfile.statusUnset": "Style not set up",
+  "story.styleProfile.statusDefault": "Using default style",
+  "story.styleProfile.statusCustom": "Custom style active"
 }
