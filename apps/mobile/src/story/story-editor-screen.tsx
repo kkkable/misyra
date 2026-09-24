@@ -80,6 +80,7 @@ function clamp(value: number, minimum: number, maximum: number): number {
 }
 
 export function StoryEditorScreen({
+  aiOperationsAvailable = true,
   colorScheme,
   composition: savedComposition,
   messages,
@@ -99,7 +100,9 @@ export function StoryEditorScreen({
   textSuggestionMessages,
   textSuggestions,
   onTextSuggestionsResolved,
+  editorSessionEpoch = 0,
 }: Readonly<{
+  aiOperationsAvailable?: boolean;
   colorScheme: ColorScheme;
   composition: StoryComposition;
   messages: StoryEditorMessages;
@@ -119,16 +122,23 @@ export function StoryEditorScreen({
   textSuggestionMessages?: StoryTextSuggestionsPanelMessages;
   textSuggestions?: StoryTextSuggestionsResult | null;
   onTextSuggestionsResolved?: () => void;
+  editorSessionEpoch?: number;
 }>) {
   const window = useWindowDimensions();
   const colors = themeColors(colorScheme);
   const sessionRef = useRef<{
     sourceImageId: string;
+    epoch: number;
     session: ReturnType<typeof createStoryEditorSession>;
   } | null>(null);
-  if (sessionRef.current === null || sessionRef.current.sourceImageId !== sourceImage.id) {
+  if (
+    sessionRef.current === null ||
+    sessionRef.current.sourceImageId !== sourceImage.id ||
+    sessionRef.current.epoch !== editorSessionEpoch
+  ) {
     sessionRef.current = {
       sourceImageId: sourceImage.id,
+      epoch: editorSessionEpoch,
       session: createStoryEditorSession({
         sourceImage,
         savedComposition,
@@ -272,6 +282,7 @@ export function StoryEditorScreen({
             <SecondaryButton
               accessibilityLabel={messages.generateVersion}
               colorScheme={colorScheme}
+              disabled={!aiOperationsAvailable}
               label={messages.generateVersion}
               onPress={() => {
                 onGenerateVersion?.();
