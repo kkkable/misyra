@@ -54,6 +54,9 @@ export type StoryEditorMessages = Readonly<{
   versionGenerated: string;
   generateVersion: string;
   deleteVersion: string;
+  saveToPhotos: string;
+  shareElsewhere: string;
+  savedToPhotos: string;
 }>;
 
 type TextRole = 'headline' | 'supportingText';
@@ -85,6 +88,7 @@ export function StoryEditorScreen({
   colorScheme,
   composition: savedComposition,
   conflictMessage = null,
+  savedToPhotosMessage = null,
   messages,
   imageVersions,
   onClose,
@@ -92,6 +96,8 @@ export function StoryEditorScreen({
   onDeleteImageVersion,
   onGenerateVersion,
   onSave,
+  onSaveToPhotos,
+  onShareElsewhere,
   onSelectImageVersion,
   onSelectSource,
   remainingGenerations,
@@ -108,6 +114,7 @@ export function StoryEditorScreen({
   colorScheme: ColorScheme;
   composition: StoryComposition;
   conflictMessage?: string | null;
+  savedToPhotosMessage?: string | null;
   messages: StoryEditorMessages;
   imageVersions?: readonly Readonly<{ id: string; kind: 'source' | 'generated' }>[];
   onClose: () => void;
@@ -115,6 +122,8 @@ export function StoryEditorScreen({
   onDeleteImageVersion?: (versionId: string) => void;
   onGenerateVersion?: () => void;
   onSave: (composition: StoryComposition) => void;
+  onSaveToPhotos?: () => void | Promise<void>;
+  onShareElsewhere?: () => void | Promise<void>;
   onSelectImageVersion?: (versionId: string) => void;
   onSelectSource: (source: EvidenceStorySourceAttempt) => void;
   remainingGenerations: number | null;
@@ -238,7 +247,35 @@ export function StoryEditorScreen({
           visible
         />
       )}
+      {savedToPhotosMessage === null ? null : (
+        <Toast
+          colorScheme={colorScheme}
+          message={savedToPhotosMessage}
+          testID="story-saved-to-photos"
+          visible
+        />
+      )}
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <View style={styles.sourceRow}>
+          <SecondaryButton
+            accessibilityLabel={messages.saveToPhotos}
+            colorScheme={colorScheme}
+            label={messages.saveToPhotos}
+            onPress={() => {
+              void onSaveToPhotos?.();
+            }}
+            testID="story-save-to-photos"
+          />
+          <SecondaryButton
+            accessibilityLabel={messages.shareElsewhere}
+            colorScheme={colorScheme}
+            label={messages.shareElsewhere}
+            onPress={() => {
+              void onShareElsewhere?.();
+            }}
+            testID="story-share-elsewhere"
+          />
+        </View>
         <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
           {messages.versions}
         </Text>

@@ -17,7 +17,7 @@ describe('MTS-091 production Story route contract', () => {
     expect(route).toMatch(/\.load\(occurrenceId\)/);
     expect(route).toMatch(/\.save\(occurrenceId/);
     expect(route).toMatch(/onCompositionChange/);
-    expect(route).not.toMatch(/planner|AI Story|saveToPhotos|shareAsync/i);
+    expect(route).not.toMatch(/planner|AI Story/i);
   });
 
   it('materializes selected evidence into Story working storage and keeps editor history session-local', () => {
