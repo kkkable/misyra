@@ -8,6 +8,7 @@ import {
   Screen,
   SecondaryButton,
   TextField,
+  Toast,
   TopBar,
   themeColors,
   type ColorScheme,
@@ -83,6 +84,7 @@ export function StoryEditorScreen({
   aiOperationsAvailable = true,
   colorScheme,
   composition: savedComposition,
+  conflictMessage = null,
   messages,
   imageVersions,
   onClose,
@@ -105,6 +107,7 @@ export function StoryEditorScreen({
   aiOperationsAvailable?: boolean;
   colorScheme: ColorScheme;
   composition: StoryComposition;
+  conflictMessage?: string | null;
   messages: StoryEditorMessages;
   imageVersions?: readonly Readonly<{ id: string; kind: 'source' | 'generated' }>[];
   onClose: () => void;
@@ -227,6 +230,14 @@ export function StoryEditorScreen({
           />
         }
       />
+      {conflictMessage === null ? null : (
+        <Toast
+          colorScheme={colorScheme}
+          message={conflictMessage}
+          testID="story-conflict-message"
+          visible
+        />
+      )}
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
           {messages.versions}
