@@ -115,11 +115,14 @@ describe('MTS-093 Story style-profile service', () => {
   });
 
   it('reports unset, default, and custom status without touching Story drafts', async () => {
-    const query = vi
-      .fn()
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [{ profile: {} }] })
-      .mockResolvedValueOnce({ rows: [{ profile: abstractProfile }] });
+    const statusRows = [[], [{ profile: {} }], [{ profile: abstractProfile }]] as const;
+    let callIndex = 0;
+    const query = vi.fn((sql: string) => {
+      void sql;
+      const rows = statusRows[callIndex] ?? [];
+      callIndex += 1;
+      return Promise.resolve({ rows });
+    });
     const service = createStoryStyleProfileService({
       pool: { query } as unknown as Pool,
     });
