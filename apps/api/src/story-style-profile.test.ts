@@ -114,6 +114,28 @@ describe('MTS-093 Story style-profile service', () => {
     expect(query).toHaveBeenCalledTimes(1);
   });
 
+  it('reports unset, default, and custom status without touching Story drafts', async () => {
+    const query = vi
+      .fn()
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ profile: {} }] })
+      .mockResolvedValueOnce({ rows: [{ profile: abstractProfile }] });
+    const service = createStoryStyleProfileService({
+      pool: { query } as unknown as Pool,
+    });
+
+    await expect(service.getStatus(accountId)).resolves.toEqual({ mode: 'unset' });
+    await expect(service.getStatus(accountId)).resolves.toEqual({ mode: 'default' });
+    await expect(service.getStatus(accountId)).resolves.toEqual({
+      mode: 'custom',
+      profile: abstractProfile,
+    });
+
+    const sql = query.mock.calls.map(([statement]) => statement).join('\n');
+    expect(sql).toMatch(/SELECT profile/i);
+    expect(sql).not.toMatch(/story_drafts|story_compositions|story_image_versions/i);
+  });
+
   it('persists Use default without mutating existing Story drafts', async () => {
     const query = vi.fn((sql: string) => {
       void sql;
