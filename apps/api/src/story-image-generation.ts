@@ -97,11 +97,7 @@ export function createStoryImageGenerationService(input: {
       });
     },
 
-    async getVersionMedia(
-      accountId: string,
-      draftId: string,
-      versionId: string,
-    ): Promise<Buffer> {
+    async getVersionMedia(accountId: string, draftId: string, versionId: string): Promise<Buffer> {
       if (input.blobStore === undefined) throw new StoryImageGenerationUnavailableError();
       const result = await input.pool.query<{ storageKey: string }>(
         `SELECT version.storage_key AS "storageKey"
