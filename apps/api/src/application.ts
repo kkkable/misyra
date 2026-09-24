@@ -72,6 +72,11 @@ import {
 } from './protected-media.js';
 import { createProviderProofVerifier } from './provider-proof-verifier.js';
 import {
+  createStoryStyleProfileRoutes,
+  type StoryStyleProfileRouteService,
+} from './story-style-profile-routes.js';
+import { createStoryStyleProfileService } from './story-style-profile.js';
+import {
   createStoryTextSuggestionRoutes,
   type StoryTextSuggestionRouteService,
 } from './story-text-suggestions-routes.js';
@@ -99,6 +104,7 @@ type AuthApplicationOptions = {
   mediaBlobStore?: ProtectedMediaBlobStore;
   plannerExtractionService?: PlannerExtractionRouteService;
   storyTextSuggestionService?: StoryTextSuggestionRouteService;
+  storyStyleProfileService?: StoryStyleProfileRouteService;
 };
 
 type SessionActiveCheck = (
@@ -279,6 +285,12 @@ export function createApiApplication(options: AuthApplicationOptions) {
       }
     },
   });
+  const storyStyleProfileService =
+    options.storyStyleProfileService ??
+    createStoryStyleProfileService({
+      pool: options.pool,
+      ...(options.now === undefined ? {} : { now: options.now }),
+    });
   const googleCalendarRoutes =
     googleCalendarService === undefined
       ? []
@@ -301,6 +313,7 @@ export function createApiApplication(options: AuthApplicationOptions) {
       ...createProtectedMediaRoutes(protectedMediaService),
       ...createPlannerRoutes(options.pool, options.plannerExtractionService, options.now),
       ...createStoryTextSuggestionRoutes(options.storyTextSuggestionService),
+      ...createStoryStyleProfileRoutes(storyStyleProfileService),
       ...calendarConnectionRoutes,
       ...appleCalendarRoutes,
       ...googleCalendarRoutes,

@@ -48,5 +48,20 @@
   "story.suggestions.musicMood": "音樂／氣氛",
   "story.suggestions.mention": "提及帳戶",
   "story.suggestions.location": "地點",
-  "story.suggestions.poll": "投票"
+  "story.suggestions.poll": "投票",
+  "story.styleProfile.title": "Story 風格設定",
+  "story.styleProfile.settings": "Story 風格設定",
+  "story.styleProfile.manage": "管理 Story 風格",
+  "story.styleProfile.body": "選擇 3–8 張參考圖片。Misyra 只會保留抽象風格特徵，不會複製完整範本或身份資料。",
+  "story.styleProfile.setup": "設定我的風格",
+  "story.styleProfile.useDefault": "使用預設",
+  "story.styleProfile.replaceReferences": "新增或更換參考圖片",
+  "story.styleProfile.rebuild": "根據參考圖片建立風格",
+  "story.styleProfile.resetDefault": "重設為預設",
+  "story.styleProfile.selectedCount": "已選擇 {count} 張參考圖片",
+  "story.styleProfile.referenceLimit": "請選擇 3 至 8 張參考圖片。",
+  "story.styleProfile.networkRequired": "建立風格時需要網絡連線。",
+  "story.styleProfile.statusUnset": "尚未設定風格",
+  "story.styleProfile.statusDefault": "正在使用預設風格",
+  "story.styleProfile.statusCustom": "自訂風格已啟用"
 }

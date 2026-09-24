@@ -12,7 +12,8 @@ import {
 import type { CalendarConnection } from '@misyra/contracts';
 import { space, typography } from '@misyra/design-tokens';
 import type { RecurringSeriesScope } from '@misyra/domain';
-import { notificationSettingsCatalogs } from '@misyra/localization';
+import { localizationCatalogs, notificationSettingsCatalogs } from '@misyra/localization';
+import { useRouter } from 'expo-router';
 
 import { getAuthApiBaseUrl, rootAuthController } from '../auth/auth-runtime.js';
 import { CalendarRecurringScopeChooser } from '../calendar/calendar-recurring-scope-chooser.js';
@@ -44,11 +45,13 @@ function hiddenEventDateLabel(event: HiddenCalendarEvent, language: 'en' | 'zh-H
 }
 
 export function SettingsRouteScreen() {
+  const router = useRouter();
   const language = useAppLanguage();
   const nativeColorScheme = useColorScheme();
   const colorScheme: ColorScheme = nativeColorScheme === 'dark' ? 'dark' : 'light';
   const colors = themeColors(colorScheme);
   const catalog = notificationSettingsCatalogs[language];
+  const generalCatalog = localizationCatalogs[language];
   const permissionService = useMemo(
     () =>
       createExpoNotificationPermissionService({
@@ -219,6 +222,24 @@ export function SettingsRouteScreen() {
             </View>
           </View>
         )}
+
+        <View
+          style={[styles.section, { borderColor: colors.border }]}
+          testID="settings-story-style-profile"
+        >
+          <Text allowFontScaling style={[styles.sectionTitle, { color: colors.textPrimary }]}>
+            {generalCatalog['story.styleProfile.settings']}
+          </Text>
+          <PrimaryButton
+            accessibilityLabel={generalCatalog['story.styleProfile.settings']}
+            colorScheme={colorScheme}
+            label={generalCatalog['story.styleProfile.manage']}
+            onPress={() => {
+              router.push('/story-style-profile');
+            }}
+            testID="settings-story-style-profile-action"
+          />
+        </View>
 
         <View
           style={[styles.section, { borderColor: colors.border }]}
