@@ -272,7 +272,7 @@ describe('MTS-096 Story offline and conflict editor behavior', () => {
     const { renderer } = renderScreen({ conflictMessage: approved });
 
     const notice = renderer.root.findByProps({ testID: 'story-conflict-message' });
-    expect(notice.props.children).toBe(approved);
+    expect(notice.props.message).toBe(approved);
   });
 
   it('disables AI generation while offline without blocking manual edits', () => {
