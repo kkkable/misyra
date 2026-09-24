@@ -235,8 +235,7 @@ export default function StoryRoute() {
           ...current,
           payload: authoritative,
           imageVersionId: activeVersion.id,
-          selectedAttemptId:
-            activeVersion.kind === 'source' ? current.selectedAttemptId : '',
+          selectedAttemptId: activeVersion.kind === 'source' ? current.selectedAttemptId : '',
           sourceImage,
           textSuggestions: null,
         });
@@ -448,7 +447,7 @@ export default function StoryRoute() {
   if (occurrenceId === null || editorState === null) return null;
 
   return (
-      <StoryEditorScreen
+    <StoryEditorScreen
       aiOperationsAvailable={editorState.aiOperationsAvailable}
       colorScheme={colorScheme}
       editorSessionEpoch={editorSessionEpoch}
@@ -630,6 +629,6 @@ export default function StoryRoute() {
           await enqueueSave(payload);
         })().catch(() => undefined);
       }}
-      />
+    />
   );
 }
