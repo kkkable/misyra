@@ -50,6 +50,18 @@ describe('MTS-093 Story style-profile contracts', () => {
 
   it('accepts only abstract style fields', () => {
     expect(storyStyleProfileAiOutputSchema.safeParse(abstractProfile).success).toBe(true);
+    expect(
+      storyStyleProfileAiOutputSchema.safeParse({
+        ...abstractProfile,
+        palette: ['@copied-user'],
+      }).success,
+    ).toBe(false);
+    expect(
+      storyStyleProfileAiOutputSchema.safeParse({
+        ...abstractProfile,
+        tone: 'copy this exact caption',
+      }).success,
+    ).toBe(false);
 
     const forbiddenFields = [
       { username: '@creator' },
