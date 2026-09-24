@@ -10,7 +10,10 @@ const localizationPath = fileURLToPath(
   new URL('../../../../packages/localization/src/catalogs.ts', import.meta.url),
 );
 const appConfigPath = fileURLToPath(new URL('../../app.config.ts', import.meta.url));
-const deviceScriptUrl = new URL(\n  '../../scripts/mts-097-story-export-device-check.mjs',\n  import.meta.url,\n);
+const deviceScriptUrl = new URL(
+  '../../scripts/mts-097-story-export-device-check.mjs',
+  import.meta.url,
+);
 
 async function readRequiredFile(path, label) {
   try {
@@ -21,7 +24,7 @@ async function readRequiredFile(path, label) {
 }
 
 describe('MTS-097 Story export production wiring', () => {
-  it('exposes direct Save to Photos and Share elsewhere editor actions with the approved saved confirmation', async () => {
+  it('adds direct save/share editor actions and saved confirmation', async () => {
     const editor = await readRequiredFile(editorPath, 'Story editor');
 
     expect(editor).toMatch(/onSaveToPhotos/);
@@ -33,7 +36,7 @@ describe('MTS-097 Story export production wiring', () => {
     expect(editor).not.toMatch(/Alert\.alert|confirm\s*\(/);
   });
 
-  it('wires the active retained version directly to a local export controller', async () => {
+  it('wires the active retained version to the local export controller', async () => {
     const route = await readRequiredFile(routePath, 'Story route');
 
     expect(route).toMatch(/createStoryExportController/);
@@ -45,7 +48,7 @@ describe('MTS-097 Story export production wiring', () => {
     expect(route).toMatch(/\.share\(/);
   });
 
-  it('renders and hands off the PNG locally without a Story server round trip', async () => {
+  it('renders and hands off the PNG locally without a Story API call', async () => {
     const runtime = await readRequiredFile(runtimePath, 'Story export platform');
 
     expect(runtime).toMatch(/@shopify\/react-native-skia/);
@@ -57,7 +60,7 @@ describe('MTS-097 Story export production wiring', () => {
     expect(runtime).not.toMatch(/\bfetch\s*\(|\/v1\/|https?:\/\//);
   });
 
-  it('keeps approved confirmation copy localized and Save to Photos permission copy Story-aware', async () => {
+  it('localizes the saved message and uses Story-aware permission copy', async () => {
     const [localization, appConfig] = await Promise.all([
       readRequiredFile(localizationPath, 'Localization catalog'),
       readRequiredFile(appConfigPath, 'Expo app config'),
@@ -69,11 +72,10 @@ describe('MTS-097 Story export production wiring', () => {
     expect(appConfig).toMatch(/savePhotosPermission:[\s\S]{0,180}Story/i);
   });
 
-  it('provides a physical-device recorder for 1080x1920 save and native-share evidence', async () => {
-    const scriptSource = await readRequiredFile(
-      fileURLToPath(deviceScriptUrl),
-      'MTS-097 physical-device recorder',
-    );
+  it('provides a 1080x1920 physical-device save/share recorder', async () => {
+    const scriptPath = fileURLToPath(deviceScriptUrl);
+    const scriptSource = await readRequiredFile(scriptPath, 'MTS-097 device recorder');
+
     expect(scriptSource).toMatch(/1080/);
     expect(scriptSource).toMatch(/1920/);
 
