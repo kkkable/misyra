@@ -83,6 +83,9 @@ const messages = {
   versionGenerated: 'AI {number}',
   generateVersion: 'Generate AI version',
   deleteVersion: 'Delete version',
+  saveToPhotos: 'Save to Photos',
+  shareElsewhere: 'Share elsewhere',
+  savedToPhotos: 'Saved to Photos.',
 };
 
 const sourceAttempts = [
@@ -358,5 +361,26 @@ describe('MTS-095 Story version selector interactions', () => {
     expect(
       renderer.root.findByProps({ testID: 'story-delete-version-generated-one' }),
     ).toBeDefined();
+  });
+});
+
+
+describe('MTS-097 Story export actions', () => {
+  it('invokes direct save/share actions and shows the approved saved confirmation', () => {
+    const onSaveToPhotos = vi.fn();
+    const onShareElsewhere = vi.fn();
+    const { renderer } = renderScreen({
+      onSaveToPhotos,
+      onShareElsewhere,
+      savedToPhotosMessage: 'Saved to Photos.',
+    });
+
+    act(() => renderer.root.findByProps({ testID: 'story-save-to-photos' }).props.onPress());
+    act(() => renderer.root.findByProps({ testID: 'story-share-elsewhere' }).props.onPress());
+
+    expect(onSaveToPhotos).toHaveBeenCalledTimes(1);
+    expect(onShareElsewhere).toHaveBeenCalledTimes(1);
+    const notice = renderer.root.findByProps({ testID: 'story-saved-to-photos' });
+    expect(notice.props.message).toBe('Saved to Photos.');
   });
 });
