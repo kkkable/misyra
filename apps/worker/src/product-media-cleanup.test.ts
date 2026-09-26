@@ -442,28 +442,48 @@ async function seedMts099StoryDraft(createdAt: string) {
   );
 
   const draftId = randomUUID();
-  await pool.query(
-    `INSERT INTO story_drafts (
-       id, account_id, occurrence_id, state, notes,
-       original_client_time, server_receipt_time, effective_save_time,
-       created_at, updated_at
-     ) VALUES (
-       $1, $2, $3, 'active', $4::jsonb,
-       $5, $5, $5, $5, $5
-     )`,
-    [
-      draftId,
-      accountId,
-      occurrenceId,
-      JSON.stringify({
-        musicMood: 'retained mood',
-        mention: '@misyra',
-        location: 'Hong Kong',
-        poll: null,
-      }),
-      new Date(createdAt),
-    ],
-  );
+  const sourceVersionId = randomUUID();
+  const storyMutationId = randomUUID();
+  await expect(
+    store.push(accountId, [
+      {
+        mutationId: storyMutationId,
+        accountId,
+        deviceId,
+        entityType: 'story',
+        entityId: occurrenceId,
+        operation: 'create',
+        baseVersion: null,
+        clientOccurredAt: createdAt,
+        payload: {
+          draftId,
+          notes: {
+            musicMood: 'retained mood',
+            mention: '@misyra',
+            location: 'Hong Kong',
+            poll: null,
+          },
+          imageVersions: [
+            {
+              id: sourceVersionId,
+              kind: 'source',
+              storageKey: `story/source/${sourceVersionId}`,
+              composition: {
+                canvas: { width: 1080, height: 1920 },
+                background: { scale: 1, translateX: 0, translateY: 0, rotation: 0 },
+                headline: null,
+                supportingText: null,
+                effects: [],
+                revision: 0,
+                savedAt: createdAt,
+              },
+            },
+          ],
+        },
+      },
+    ]),
+  ).resolves.toEqual({ acceptedMutationIds: [storyMutationId] });
+
   await pool.query(
     `INSERT INTO story_style_profiles (account_id, profile, updated_at)
      VALUES ($1, $2::jsonb, $3)
@@ -473,14 +493,15 @@ async function seedMts099StoryDraft(createdAt: string) {
     [accountId, JSON.stringify({ mode: 'custom', palette: ['#ffffff'] }), new Date(createdAt)],
   );
 
-  return { draftId, occurrenceId };
+  return { draftId, occurrenceId, storyMutationId };
 }
 
 describe('MTS-099 Story and style retention integration', () => {
   it('time-travels the exact 30-day deadline, deletes Story draft/media, and retains the abstract style profile', async () => {
     const createdAt = '2026-08-22T12:00:00.000Z';
     const dueAt = '2026-09-21T12:00:00.000Z';
-    const { draftId, occurrenceId } = await seedMts099StoryDraft(createdAt);
+    const { draftId, occurrenceId, storyMutationId } =
+      await seedMts099StoryDraft(createdAt);
     const storyKeys = [
       `${accountId}/mts099/story/cache`,
       `${accountId}/mts099/story/original`,
@@ -532,7 +553,7 @@ describe('MTS-099 Story and style retention integration', () => {
     );
     expect(profile.rows[0]?.profile).toEqual({ mode: 'custom', palette: ['#ffffff'] });
 
-    const storyDeletion = await pool.query<{
+    const storyChanges = await pool.query<{
       entityType: string;
       entityId: string;
       operation: string;
@@ -546,16 +567,27 @@ describe('MTS-099 Story and style retention integration', () => {
         WHERE account_id = $1
           AND entity_type = 'story'
           AND entity_id = $2
-        ORDER BY sequence DESC
-        LIMIT 1`,
+        ORDER BY sequence`,
       [accountId, occurrenceId],
     );
-    expect(storyDeletion.rows).toEqual([
+    expect(storyChanges.rows).toEqual([
       {
         entityType: 'story',
         entityId: occurrenceId,
         operation: 'delete',
         payload: { expiredDraftId: draftId },
+      },
+    ]);
+
+    const storedMutation = await pool.query<{ payload: unknown }>(
+      `SELECT payload
+         FROM device_sync_mutations
+        WHERE id = $1`,
+      [storyMutationId],
+    );
+    expect(storedMutation.rows).toEqual([
+      {
+        payload: { retentionDeleted: true, draftId },
       },
     ]);
   });
