@@ -434,7 +434,6 @@ describe('MTS-090 Story authenticated sync projection', () => {
   });
 });
 
-
 describe('MTS-099 Story retention synchronization', () => {
   it('stores authoritative Story creation time for exact offline retention on another device', async () => {
     const database = new NodeSqliteAdapter();
@@ -562,7 +561,6 @@ describe('MTS-099 Story retention synchronization', () => {
     ).toEqual({ draft_id: draftId });
   });
 });
-
 
 describe('MTS-099 authoritative Story retention delete', () => {
   it('removes retained local Story content and returns the mission to ready without a user-facing deletion state', async () => {
