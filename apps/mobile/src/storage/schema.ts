@@ -272,6 +272,17 @@ export const mobileMigrations: readonly MobileMigration[] = [
       )`,
     ],
   },
+  {
+    version: 8,
+    name: 'story-draft-retention-created-at',
+    statements: [
+      `ALTER TABLE story_drafts
+        ADD COLUMN created_at TEXT`,
+      `UPDATE story_drafts
+          SET created_at = updated_at
+        WHERE created_at IS NULL`,
+    ],
+  },
 ];
 
 export const MOBILE_SCHEMA_VERSION = mobileMigrations.length;
