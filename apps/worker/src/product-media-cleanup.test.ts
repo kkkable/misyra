@@ -515,24 +515,21 @@ describe('MTS-099 Story and style retention integration', () => {
 
     now = new Date('2026-09-21T11:59:59.999Z');
     await expect(service.runOnce()).resolves.toEqual({ scanned: 0, deleted: 0, retryPending: 0 });
-    expect(
-      (await pool.query('SELECT 1 FROM story_drafts WHERE id = $1', [draftId])).rowCount,
-    ).toBe(1);
+    const draftBefore = await pool.query('SELECT 1 FROM story_drafts WHERE id = $1', [draftId]);
+    expect(draftBefore.rowCount).toBe(1);
 
     now = new Date(dueAt);
     await expect(service.runOnce()).resolves.toEqual({ scanned: 2, deleted: 2, retryPending: 0 });
 
     for (const key of storyKeys) expect(await blobExists('story-working', key)).toBe(false);
     for (const key of styleKeys) expect(await blobExists('style-references', key)).toBe(false);
-    expect(
-      (await pool.query('SELECT 1 FROM story_drafts WHERE id = $1', [draftId])).rowCount,
-    ).toBe(0);
-    expect(
-      (
-        await pool.query('SELECT profile FROM story_style_profiles WHERE account_id = $1', [
-          accountId,
-        ])
-      ).rows[0]?.profile,
-    ).toEqual({ mode: 'custom', palette: ['#ffffff'] });
+    const draftAfter = await pool.query('SELECT 1 FROM story_drafts WHERE id = $1', [draftId]);
+    expect(draftAfter.rowCount).toBe(0);
+
+    const profile = await pool.query<{ profile: unknown }>(
+      'SELECT profile FROM story_style_profiles WHERE account_id = $1',
+      [accountId],
+    );
+    expect(profile.rows[0]?.profile).toEqual({ mode: 'custom', palette: ['#ffffff'] });
   });
 });
