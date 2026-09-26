@@ -344,7 +344,7 @@ export function SettingsRouteScreen() {
             }}
             selected={selectedEntry === 'hidden-calendar-events'}
             testID="settings-row-hidden-calendar-events"
-            value={hiddenEvents.length === 0 ? undefined : String(hiddenEvents.length)}
+            {...(hiddenEvents.length === 0 ? {} : { value: String(hiddenEvents.length) })}
           />
           {selectedEntry === 'hidden-calendar-events' ? (
             hiddenEvents.length === 0 ? (
@@ -396,7 +396,7 @@ export function SettingsRouteScreen() {
             }}
             selected={selectedEntry === 'notification-status'}
             testID="settings-row-notification-status"
-            value={model?.statusLabel}
+            {...(model === null ? {} : { value: model.statusLabel })}
           />
         </View>
 
