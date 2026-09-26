@@ -707,5 +707,63 @@ describe('MTS-099 Story retention replacement', () => {
       [fixture.account.id, fixture.occurrenceId],
     );
     expect(current.rows).toEqual([{ id: replacementDraftId, storyState: 'draft' }]);
+
+    const storyChanges = await pool.query<{ operation: string; payload: unknown }>(
+      `SELECT operation, payload
+         FROM account_change_log
+        WHERE account_id = $1
+          AND entity_type = 'story'
+          AND entity_id = $2
+        ORDER BY sequence`,
+      [fixture.account.id, fixture.occurrenceId],
+    );
+    expect(storyChanges.rows).toEqual([
+      {
+        operation: 'delete',
+        payload: { expiredDraftId: firstDraftId },
+      },
+      {
+        operation: 'upsert',
+        payload: expect.objectContaining({
+          draftId: replacementDraftId,
+          createdAt: replacementAt.toISOString(),
+        }),
+      },
+    ]);
+
+    const expiredMutation = await pool.query<{ payload: unknown }>(
+      'SELECT payload FROM device_sync_mutations WHERE id = $1',
+      [firstMutationId],
+    );
+    expect(expiredMutation.rows).toEqual([
+      {
+        payload: { retentionDeleted: true, draftId: firstDraftId },
+      },
+    ]);
+
+    await expect(
+      replacementStore.push(fixture.account.id, [
+        {
+          mutationId: firstMutationId,
+          accountId: fixture.account.id,
+          deviceId: fixture.firstDevice,
+          entityType: 'story',
+          entityId: fixture.occurrenceId,
+          operation: 'create',
+          baseVersion: null,
+          clientOccurredAt: createdAt,
+          payload: firstPayload,
+        },
+      ]),
+    ).resolves.toEqual({
+      acceptedMutationIds: [],
+      conflicts: [
+        {
+          kind: 'story_updated',
+          mutationId: firstMutationId,
+          storyDraftId: replacementDraftId,
+        },
+      ],
+    });
   });
 });
