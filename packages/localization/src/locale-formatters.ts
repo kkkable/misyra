@@ -16,7 +16,10 @@ export function resolveLocalizationLocale(
 
   const scriptCode = locale?.languageScriptCode?.toLowerCase() ?? null;
   const regionCode = locale?.regionCode?.toUpperCase() ?? null;
-  if (scriptCode === 'hant' || (regionCode !== null && TRADITIONAL_CHINESE_REGIONS.has(regionCode))) {
+  if (
+    scriptCode === 'hant' ||
+    (regionCode !== null && TRADITIONAL_CHINESE_REGIONS.has(regionCode))
+  ) {
     return 'zh-HK';
   }
 
