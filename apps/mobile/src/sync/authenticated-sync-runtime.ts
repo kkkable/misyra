@@ -651,13 +651,14 @@ async function applyStoryRetentionDeleteProjection(
       WHERE account_id = ?
         AND json_extract(command_json, '$.mutation.entityType') = 'story'
         AND json_extract(command_json, '$.mutation.entityId') = ?
-        AND json_extract(command_json, '$.mutation.payload.draftId') = ?`,
+        AND json_extract(command_json, '$.mutation.payload.draftId') = ?
+        AND COALESCE(json_extract(command_json, '$.inFlight'), 0) <> 1`,
     accountId,
     occurrenceId,
     expiredDraftId,
   );
 
-  if (current?.draft_id !== expiredDraftId) return;
+  if (current !== null && current.draft_id !== expiredDraftId) return;
 
   await transaction.runAsync(
     `DELETE FROM story_drafts
