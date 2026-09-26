@@ -704,6 +704,7 @@ async function applyStoryDraftProjection(
     );
   }
 
+  const createdAt = payload.createdAt ?? updatedAt;
   await transaction.runAsync(
     `INSERT INTO story_drafts
        (account_id, occurrence_id, draft_id, composition_json, updated_at, created_at)
@@ -712,13 +713,13 @@ async function applyStoryDraftProjection(
        draft_id = excluded.draft_id,
        composition_json = excluded.composition_json,
        updated_at = excluded.updated_at,
-       created_at = COALESCE(story_drafts.created_at, excluded.created_at)`,
+       created_at = excluded.created_at`,
     accountId,
     occurrenceId,
     payload.draftId,
     JSON.stringify(payload),
     updatedAt,
-    updatedAt,
+    createdAt,
   );
   await transaction.runAsync(
     `UPDATE cached_mission_occurrences
