@@ -647,6 +647,22 @@ describe('MTS-099 Story retention replacement', () => {
       ]),
     ).resolves.toEqual({ acceptedMutationIds: [firstMutationId] });
 
+    const published = await pool.query<{ payload: Record<string, unknown> }>(
+      `SELECT payload
+         FROM account_change_log
+        WHERE account_id = $1
+          AND entity_type = 'story'
+          AND entity_id = $2
+          AND operation = 'upsert'
+        ORDER BY sequence DESC
+        LIMIT 1`,
+      [fixture.account.id, fixture.occurrenceId],
+    );
+    expect(published.rows[0]?.payload).toMatchObject({
+      draftId: firstDraftId,
+      createdAt,
+    });
+
     const replacementAt = new Date('2026-10-23T09:32:00.000Z');
     const replacementStore = createPostgresSyncStore(pool, () => replacementAt);
     const replacementDraftId = randomUUID();
