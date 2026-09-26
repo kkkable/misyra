@@ -1510,7 +1510,12 @@ async function applyStoryMutation(
           AND deletion_state = 'active'`,
       [mutation.entityId, mutation.accountId],
     );
-    await appendStoryRetentionDelete(client, mutation.accountId, mutation.entityId, expiredDraftId);
+    await appendStoryRetentionDelete(
+      client,
+      mutation.accountId,
+      mutation.entityId,
+      expiredDraftId,
+    );
     current = undefined;
 
     if (expiredDraftId === payload.draftId) {
