@@ -186,10 +186,13 @@ export function createProductMediaCleanupService(options: ProductMediaCleanupSer
         const expiredDrafts = await retentionClient.query<{
           accountId: string;
           occurrenceId: string;
+          draftId: string;
         }>(
           `DELETE FROM story_drafts
             WHERE created_at <= $1 - INTERVAL '30 days'
-            RETURNING account_id AS "accountId", occurrence_id AS "occurrenceId"`,
+            RETURNING account_id AS "accountId",
+                      occurrence_id AS "occurrenceId",
+                      id AS "draftId"`,
           [now],
         );
         for (const expired of expiredDrafts.rows) {
@@ -207,7 +210,7 @@ export function createProductMediaCleanupService(options: ProductMediaCleanupSer
             entityType: 'story',
             entityId: expired.occurrenceId,
             operation: 'delete',
-            payload: null,
+            payload: { expiredDraftId: expired.draftId },
           });
         }
         await retentionClient.query('COMMIT');
