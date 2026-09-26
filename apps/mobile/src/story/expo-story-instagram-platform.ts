@@ -8,8 +8,8 @@ const INSTAGRAM_WEB_URL = 'https://www.instagram.com/';
 
 export function createExpoStoryInstagramPlatform(): StoryInstagramPlatform {
   return Object.freeze({
-    copyText(value: string): Promise<void> {
-      return Clipboard.setStringAsync(value);
+    async copyText(value: string): Promise<void> {
+      await Clipboard.setStringAsync(value);
     },
 
     async openInstagram(): Promise<void> {
