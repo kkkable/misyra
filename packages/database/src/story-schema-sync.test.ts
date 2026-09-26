@@ -614,7 +614,6 @@ describe('MTS-090/MTS-096 Story schema and synchronization contracts', () => {
   });
 });
 
-
 describe('MTS-099 Story retention replacement', () => {
   it('allows a fresh Create Story to replace an active draft at the exact 30-day deadline', async () => {
     const fixture = await createMissionFixture(true);
