@@ -12,6 +12,7 @@ type DeviceLocale = Readonly<{
 type LocaleResolver = (locale: DeviceLocale | undefined) => 'en' | 'zh-HK';
 type DateFormatter = (value: Date, language: 'en' | 'zh-HK') => string;
 type NumberFormatter = (value: number, regionalLocale: string) => string;
+type RegionalDateFormatter = (value: Date, regionalLocale: string) => string;
 
 function requiredExport<T extends (...args: never[]) => unknown>(name: string): T {
   const value = (localization as Record<string, unknown>)[name];
@@ -63,5 +64,12 @@ describe('MTS-101 regional formatting', () => {
 
     expect(formatNumber(12345.6, 'en-US')).toBe('12,345.6');
     expect(formatNumber(12345.6, 'de-DE')).toBe('12.345,6');
+  });
+
+  it('formats numeric date order from the phone regional locale', () => {
+    const formatDate = requiredExport<RegionalDateFormatter>('formatRegionalNumericDate');
+
+    expect(formatDate(date, 'en-US')).toBe('9/1/2026');
+    expect(formatDate(date, 'en-GB')).toBe('01/09/2026');
   });
 });
