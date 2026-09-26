@@ -117,7 +117,6 @@ describe('MTS-098 Instagram handoff route contract', () => {
   });
 });
 
-
 describe('MTS-099 Story retention route contract', () => {
   it('prunes an expired local draft before deciding whether Create Story should start fresh', () => {
     const route = readFileSync(routePath, 'utf8');
