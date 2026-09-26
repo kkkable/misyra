@@ -72,6 +72,14 @@ type EvidenceSyncRunner = (
   }>,
 ) => Promise<Readonly<{ processed: number; remaining: number }>>;
 
+type StoryRetentionRunner = (
+  input: Readonly<{
+    database: SyncDatabase;
+    accountId: string;
+    session: AuthSession;
+  }>,
+) => Promise<Readonly<{ deletedDrafts: number }>>;
+
 type AppleProviderLink = Readonly<{
   connectionId: string;
   provider: 'apple';
@@ -102,6 +110,7 @@ export type AuthenticatedSyncRuntimeOptions = Readonly<{
   installationStore: InstallationStore;
   openDatabase: () => Promise<SyncDatabase>;
   apiFactory: ApiFactory;
+  runStoryRetention?: StoryRetentionRunner;
   runEvidenceSync?: EvidenceSyncRunner;
   runServerSync?: ServerSyncRunner;
   generateInstallationId: () => string;
@@ -950,6 +959,7 @@ export function createAuthenticatedSyncRuntime({
   installationStore,
   openDatabase,
   apiFactory,
+  runStoryRetention = () => Promise.resolve({ deletedDrafts: 0 }),
   runEvidenceSync = () => Promise.resolve({ processed: 0, remaining: 0 }),
   runServerSync = runAuthenticatedServerSync,
   generateInstallationId,
@@ -974,6 +984,11 @@ export function createAuthenticatedSyncRuntime({
 
     const [database, settings] = await Promise.all([openDatabase(), api.getAccountSettings()]);
     await applyAccountSettings(database, session.accountId, settings, now().toISOString());
+    await runStoryRetention({
+      database,
+      accountId: session.accountId,
+      session,
+    });
     await runEvidenceSync({
       database,
       accountId: session.accountId,
