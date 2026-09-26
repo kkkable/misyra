@@ -1489,8 +1489,7 @@ async function applyStoryMutation(
   let current = existing.rows[0];
   if (
     current !== undefined &&
-    current.createdAt.getTime() + STORY_RETENTION_MILLISECONDS <=
-      timing.serverReceiptTime.getTime()
+    current.createdAt.getTime() + STORY_RETENTION_MILLISECONDS <= timing.serverReceiptTime.getTime()
   ) {
     const expiredDraftId = current.id;
     await client.query(
@@ -1510,12 +1509,7 @@ async function applyStoryMutation(
           AND deletion_state = 'active'`,
       [mutation.entityId, mutation.accountId],
     );
-    await appendStoryRetentionDelete(
-      client,
-      mutation.accountId,
-      mutation.entityId,
-      expiredDraftId,
-    );
+    await appendStoryRetentionDelete(client, mutation.accountId, mutation.entityId, expiredDraftId);
     current = undefined;
 
     if (expiredDraftId === payload.draftId) {
