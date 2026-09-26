@@ -320,10 +320,7 @@ export function StoryEditorScreen({
             </Text>
             {sharingNotes.musicMood === null ? null : (
               <View style={styles.sharingNoteRow}>
-                <Text
-                  style={{ color: colors.textPrimary }}
-                  testID="story-sharing-note-musicMood"
-                >
+                <Text style={{ color: colors.textPrimary }} testID="story-sharing-note-musicMood">
                   {`${messages.musicMood}: ${sharingNotes.musicMood}`}
                 </Text>
                 <SecondaryButton
@@ -339,10 +336,7 @@ export function StoryEditorScreen({
             )}
             {sharingNotes.mention === null ? null : (
               <View style={styles.sharingNoteRow}>
-                <Text
-                  style={{ color: colors.textPrimary }}
-                  testID="story-sharing-note-mention"
-                >
+                <Text style={{ color: colors.textPrimary }} testID="story-sharing-note-mention">
                   {`${messages.mention}: ${sharingNotes.mention}`}
                 </Text>
                 <SecondaryButton
@@ -358,10 +352,7 @@ export function StoryEditorScreen({
             )}
             {sharingNotes.location === null ? null : (
               <View style={styles.sharingNoteRow}>
-                <Text
-                  style={{ color: colors.textPrimary }}
-                  testID="story-sharing-note-location"
-                >
+                <Text style={{ color: colors.textPrimary }} testID="story-sharing-note-location">
                   {`${messages.location}: ${sharingNotes.location}`}
                 </Text>
                 <SecondaryButton
