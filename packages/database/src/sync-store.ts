@@ -1448,16 +1448,39 @@ async function applyStoryMutation(
     }
   }
 
-  if (
-    current === undefined &&
-    (await latestStoryRetentionDeleteMatches(
+  if (current === undefined) {
+    const retentionDeleteAlreadyExists = await latestStoryRetentionDeleteMatches(
       client,
       mutation.accountId,
       mutation.entityId,
       payload.draftId,
-    ))
-  ) {
-    return { payload, conflict: true, publishChange: false };
+    );
+    if (retentionDeleteAlreadyExists) {
+      return { payload, conflict: true, publishChange: false };
+    }
+
+    if (
+      timing.clientOccurredAt.getTime() + STORY_RETENTION_MILLISECONDS <=
+      timing.serverReceiptTime.getTime()
+    ) {
+      await client.query(
+        `UPDATE mission_occurrences
+            SET story_state = 'ready'
+          WHERE id = $1
+            AND account_id = $2
+            AND completion_state = 'completed'
+            AND deletion_state = 'active'`,
+        [mutation.entityId, mutation.accountId],
+      );
+      await appendAccountChange(client, {
+        accountId: mutation.accountId,
+        entityType: 'story',
+        entityId: mutation.entityId,
+        operation: 'delete',
+        payload: { expiredDraftId: payload.draftId },
+      });
+      return { payload, conflict: true, publishChange: false };
+    }
   }
 
   if (current !== undefined && current.id !== payload.draftId) {
