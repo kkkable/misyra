@@ -8,11 +8,8 @@ import test from 'node:test';
 const pngSignature = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
 test('MTS-101 captures bilingual Settings screenshots from the visual fixture matrix', async () => {
-  const {
-    captureFixture,
-    createDeterministicScreenshotDriver,
-    visualFixtureMatrix,
-  } = await import('../../scripts/visual-regression.mjs');
+  const { captureFixture, createDeterministicScreenshotDriver, visualFixtureMatrix } =
+    await import('../../scripts/visual-regression.mjs');
 
   const fixtures = ['en', 'zh-HK'].map((locale) =>
     visualFixtureMatrix.find(
