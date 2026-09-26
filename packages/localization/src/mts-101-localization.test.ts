@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import { localizationCatalogs, notificationSettingsCatalogs } from './index.js';
+import {
+  aiPlannerCatalogs,
+  calendarConnectionCatalogs,
+  completionConfirmationCatalogs,
+  localizationCatalogs,
+  missionNotificationCatalogs,
+  notificationSettingsCatalogs,
+  progressLocalizationCatalogs,
+} from './index.js';
 import * as localization from './index.js';
 
 type DeviceLocale = Readonly<{
@@ -20,14 +28,23 @@ function requiredExport(name: string): (...args: never[]) => unknown {
   return value as (...args: never[]) => unknown;
 }
 
+function expectCatalogParity(catalogs: Readonly<Record<'en' | 'zh-HK', object>>): void {
+  expect(Object.keys(catalogs['zh-HK']).sort()).toEqual(Object.keys(catalogs.en).sort());
+}
+
 describe('MTS-101 localization catalogs', () => {
   it('keeps every runtime English key present in zh-HK and vice versa', () => {
-    expect(Object.keys(localizationCatalogs['zh-HK']).sort()).toEqual(
-      Object.keys(localizationCatalogs.en).sort(),
-    );
-    expect(Object.keys(notificationSettingsCatalogs['zh-HK']).sort()).toEqual(
-      Object.keys(notificationSettingsCatalogs.en).sort(),
-    );
+    for (const catalogs of [
+      localizationCatalogs,
+      aiPlannerCatalogs,
+      calendarConnectionCatalogs,
+      completionConfirmationCatalogs,
+      missionNotificationCatalogs,
+      notificationSettingsCatalogs,
+      progressLocalizationCatalogs,
+    ]) {
+      expectCatalogParity(catalogs);
+    }
   });
 });
 
