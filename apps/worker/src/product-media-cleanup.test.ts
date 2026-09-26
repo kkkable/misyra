@@ -480,7 +480,7 @@ describe('MTS-099 Story and style retention integration', () => {
   it('time-travels the exact 30-day deadline, deletes Story draft/media, and retains the abstract style profile', async () => {
     const createdAt = '2026-08-22T12:00:00.000Z';
     const dueAt = '2026-09-21T12:00:00.000Z';
-    const { draftId } = await seedMts099StoryDraft(createdAt);
+    const { draftId, occurrenceId } = await seedMts099StoryDraft(createdAt);
     const storyKeys = [
       `${accountId}/mts099/story/cache`,
       `${accountId}/mts099/story/original`,
@@ -531,5 +531,27 @@ describe('MTS-099 Story and style retention integration', () => {
       [accountId],
     );
     expect(profile.rows[0]?.profile).toEqual({ mode: 'custom', palette: ['#ffffff'] });
+
+    const storyDeletion = await pool.query<{
+      entityType: string;
+      entityId: string;
+      operation: string;
+      payload: unknown;
+    }>(
+      `SELECT entity_type AS "entityType",
+              entity_id AS "entityId",
+              operation,
+              payload
+         FROM account_change_log
+        WHERE account_id = $1
+          AND entity_type = 'story'
+          AND entity_id = $2
+        ORDER BY sequence DESC
+        LIMIT 1`,
+      [accountId, occurrenceId],
+    );
+    expect(storyDeletion.rows).toEqual([
+      { entityType: 'story', entityId: occurrenceId, operation: 'delete', payload: null },
+    ]);
   });
 });
