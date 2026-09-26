@@ -189,7 +189,7 @@ export function createProductMediaCleanupService(options: ProductMediaCleanupSer
           draftId: string;
         }>(
           `DELETE FROM story_drafts
-            WHERE created_at <= $1 - INTERVAL '30 days'
+            WHERE created_at <= $1::timestamptz - INTERVAL '30 days'
             RETURNING account_id AS "accountId",
                       occurrence_id AS "occurrenceId",
                       id AS "draftId"`,
