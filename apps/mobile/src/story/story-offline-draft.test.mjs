@@ -288,7 +288,6 @@ describe('MTS-091/MTS-096 offline Story draft persistence', () => {
   });
 });
 
-
 describe('MTS-099 local Story retention', () => {
   it('expires from original draft creation time, discards queued saves, and returns the mission to Create Story state', async () => {
     const database = new NodeSqliteAdapter();
