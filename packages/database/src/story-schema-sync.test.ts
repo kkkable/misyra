@@ -717,19 +717,16 @@ describe('MTS-099 Story retention replacement', () => {
         ORDER BY sequence`,
       [fixture.account.id, fixture.occurrenceId],
     );
-    expect(storyChanges.rows).toEqual([
-      {
-        operation: 'delete',
-        payload: { expiredDraftId: firstDraftId },
-      },
-      {
-        operation: 'upsert',
-        payload: expect.objectContaining({
-          draftId: replacementDraftId,
-          createdAt: replacementAt.toISOString(),
-        }),
-      },
-    ]);
+    expect(storyChanges.rows).toHaveLength(2);
+    expect(storyChanges.rows[0]).toEqual({
+      operation: 'delete',
+      payload: { expiredDraftId: firstDraftId },
+    });
+    expect(storyChanges.rows[1]?.operation).toBe('upsert');
+    expect(storyChanges.rows[1]?.payload).toMatchObject({
+      draftId: replacementDraftId,
+      createdAt: replacementAt.toISOString(),
+    });
 
     const expiredMutation = await pool.query<{ payload: unknown }>(
       'SELECT payload FROM device_sync_mutations WHERE id = $1',
