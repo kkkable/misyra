@@ -1,3 +1,4 @@
+import { appendAccountChange } from '@misyra/database';
 import type { Pool } from 'pg';
 
 export type ProductMediaCleanupBlobStore = Readonly<{
@@ -179,21 +180,43 @@ export function createProductMediaCleanupService(options: ProductMediaCleanupSer
         }
       }
 
-      await options.pool.query(
-        `WITH expired_story_drafts AS (
-           DELETE FROM story_drafts
+      const retentionClient = await options.pool.connect();
+      try {
+        await retentionClient.query('BEGIN');
+        const expiredDrafts = await retentionClient.query<{
+          accountId: string;
+          occurrenceId: string;
+        }>(
+          `DELETE FROM story_drafts
             WHERE created_at <= $1 - INTERVAL '30 days'
-            RETURNING account_id, occurrence_id
-         )
-         UPDATE mission_occurrences occurrence
-            SET story_state = 'ready'
-           FROM expired_story_drafts expired
-          WHERE occurrence.account_id = expired.account_id
-            AND occurrence.id = expired.occurrence_id
-            AND occurrence.completion_state = 'completed'
-            AND occurrence.deletion_state = 'active'`,
-        [now],
-      );
+            RETURNING account_id AS "accountId", occurrence_id AS "occurrenceId"`,
+          [now],
+        );
+        for (const expired of expiredDrafts.rows) {
+          await retentionClient.query(
+            `UPDATE mission_occurrences
+                SET story_state = 'ready'
+              WHERE account_id = $1
+                AND id = $2
+                AND completion_state = 'completed'
+                AND deletion_state = 'active'`,
+            [expired.accountId, expired.occurrenceId],
+          );
+          await appendAccountChange(retentionClient, {
+            accountId: expired.accountId,
+            entityType: 'story',
+            entityId: expired.occurrenceId,
+            operation: 'delete',
+            payload: null,
+          });
+        }
+        await retentionClient.query('COMMIT');
+      } catch (error) {
+        await retentionClient.query('ROLLBACK');
+        throw error;
+      } finally {
+        retentionClient.release();
+      }
 
       return { scanned, deleted, retryPending };
     },
