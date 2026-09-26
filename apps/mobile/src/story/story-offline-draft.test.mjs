@@ -287,3 +287,94 @@ describe('MTS-091/MTS-096 offline Story draft persistence', () => {
     expect(JSON.parse(latest.composition_json)).toEqual(payload(2));
   });
 });
+
+
+describe('MTS-099 local Story retention', () => {
+  it('expires from original draft creation time, discards queued saves, and returns the mission to Create Story state', async () => {
+    const database = new NodeSqliteAdapter();
+    databases.push(database);
+    await applyMobileMigrations(database);
+    await seedCompletedMission(database);
+    await database.runAsync(
+      `UPDATE cached_mission_occurrences
+          SET payload_json = ?
+        WHERE account_id = ? AND occurrence_id = ?`,
+      JSON.stringify({
+        completionState: 'completed',
+        deletionState: 'active',
+        storyState: 'draft',
+      }),
+      accountId,
+      occurrenceId,
+    );
+
+    let clock = new Date('2026-08-27T02:30:00.000Z');
+    let mutation = 0;
+    const store = createStoryOfflineDraftStore({
+      database,
+      accountId,
+      deviceId,
+      generateMutationId: () =>
+        mutation++ === 0
+          ? '77777777-7777-4777-8777-777777777777'
+          : '88888888-8888-4888-8888-888888888888',
+      now: () => clock,
+    });
+    const initial = {
+      ...payload(1),
+      imageVersions: [
+        {
+          ...payload(1).imageVersions[0],
+          composition: {
+            ...payload(1).imageVersions[0].composition,
+            savedAt: '2026-08-27T02:30:00.000Z',
+          },
+        },
+      ],
+    };
+    await store.save(occurrenceId, initial);
+
+    clock = new Date('2026-09-20T12:00:00.000Z');
+    const edited = {
+      ...payload(2),
+      imageVersions: [
+        {
+          ...payload(2).imageVersions[0],
+          composition: {
+            ...payload(2).imageVersions[0].composition,
+            savedAt: '2026-09-20T12:00:00.000Z',
+          },
+        },
+      ],
+    };
+    await store.save(occurrenceId, edited);
+
+    clock = new Date('2026-09-26T02:29:59.999Z');
+    await expect(store.pruneExpired()).resolves.toBe(0);
+    await expect(store.load(occurrenceId)).resolves.toEqual(edited);
+
+    clock = new Date('2026-09-26T02:30:00.000Z');
+    await expect(store.pruneExpired()).resolves.toBe(1);
+    await expect(store.load(occurrenceId)).resolves.toBeNull();
+
+    const pendingStoryMutations = await database.getAllAsync(
+      `SELECT mutation_id
+         FROM mutation_queue
+        WHERE account_id = ?
+          AND json_extract(command_json, '$.mutation.entityType') = 'story'
+          AND json_extract(command_json, '$.mutation.entityId') = ?`,
+      accountId,
+      occurrenceId,
+    );
+    expect(pendingStoryMutations).toHaveLength(0);
+
+    const mission = await database.getFirstAsync(
+      `SELECT json_extract(payload_json, '$.storyState') AS story_state
+         FROM cached_mission_occurrences
+        WHERE account_id = ? AND occurrence_id = ?`,
+      accountId,
+      occurrenceId,
+    );
+    expect(mission?.story_state).toBe('ready');
+  });
+});
