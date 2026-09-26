@@ -5,6 +5,13 @@ import { describe, expect, it } from 'vitest';
 
 const tabsPath = fileURLToPath(new URL('../../app/(tabs)/_layout.tsx', import.meta.url));
 const searchPath = fileURLToPath(new URL('../search/calendar-search-screen.tsx', import.meta.url));
+const progressPath = fileURLToPath(new URL('../progress/progress-screen.tsx', import.meta.url));
+const completionPath = fileURLToPath(
+  new URL('../calendar/completion-confirmation.ts', import.meta.url),
+);
+const missionDetailsRoutePath = fileURLToPath(
+  new URL('../calendar/calendar-mission-details-route.tsx', import.meta.url),
+);
 
 describe('MTS-101 user-visible localization boundary', () => {
   it('sources permanent tab labels from localization catalogs', async () => {
@@ -30,5 +37,22 @@ describe('MTS-101 user-visible localization boundary', () => {
 
     expect(source).not.toContain('ENGLISH_SHORT_MONTHS');
     expect(source).toContain('Intl.DateTimeFormat');
+  });
+
+  it('sources the user-visible XP unit from a localization key', async () => {
+    const [progressSource, completionSource, missionDetailsRouteSource] = await Promise.all([
+      readFile(progressPath, 'utf8'),
+      readFile(completionPath, 'utf8'),
+      readFile(missionDetailsRoutePath, 'utf8'),
+    ]);
+
+    expect(progressSource).not.toContain('} XP');
+    expect(completionSource).not.toContain("'0 XP'");
+    expect(completionSource).not.toContain('} XP`');
+    expect(missionDetailsRouteSource).not.toContain(')} XP`');
+
+    for (const source of [progressSource, completionSource, missionDetailsRouteSource]) {
+      expect(source).toContain("['common.xpUnit']");
+    }
   });
 });
