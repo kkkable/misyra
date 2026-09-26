@@ -179,6 +179,22 @@ export function createProductMediaCleanupService(options: ProductMediaCleanupSer
         }
       }
 
+      await options.pool.query(
+        `WITH expired_story_drafts AS (
+           DELETE FROM story_drafts
+            WHERE created_at <= $1 - INTERVAL '30 days'
+            RETURNING account_id, occurrence_id
+         )
+         UPDATE mission_occurrences occurrence
+            SET story_state = 'ready'
+           FROM expired_story_drafts expired
+          WHERE occurrence.account_id = expired.account_id
+            AND occurrence.id = expired.occurrence_id
+            AND occurrence.completion_state = 'completed'
+            AND occurrence.deletion_state = 'active'`,
+        [now],
+      );
+
       return { scanned, deleted, retryPending };
     },
   };
