@@ -27,6 +27,7 @@ export const accountDataTables = [
   'hidden_event_summaries',
   'planner_drafts',
   'story_drafts',
+  'story_retention_tombstones',
   'search_documents',
   'sync_cursors',
   'mutation_queue',
@@ -281,6 +282,14 @@ export const mobileMigrations: readonly MobileMigration[] = [
       `UPDATE story_drafts
           SET created_at = updated_at
         WHERE created_at IS NULL`,
+      `CREATE TABLE story_retention_tombstones (
+        account_id TEXT NOT NULL,
+        occurrence_id TEXT NOT NULL,
+        draft_id TEXT NOT NULL,
+        expired_at TEXT NOT NULL,
+        PRIMARY KEY (account_id, occurrence_id),
+        FOREIGN KEY (account_id) REFERENCES local_accounts (account_id) ON DELETE CASCADE
+      )`,
     ],
   },
 ];
