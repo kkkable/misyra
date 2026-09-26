@@ -1,5 +1,13 @@
 export { aiPlannerCatalogs } from './ai-planner-catalogs.js';
 export { localizationCatalogs } from './catalogs.js';
+export {
+  formatAppMonth,
+  formatAppWeekday,
+  formatRegionalNumber,
+  formatRegionalNumericDate,
+  resolveLocalizationLocale,
+} from './locale-formatters.js';
+export type { DeviceLanguageLocale } from './locale-formatters.js';
 export type { LocalizationLocale, LocalizationMessageKey } from './catalogs.js';
 export { appTimeZoneUpdatedMessage } from './app-time-zone-messages.js';
 export { calendarConnectionCatalogs } from './calendar-connection-catalogs.js';
