@@ -25,7 +25,10 @@ export default function TabLayout() {
         options={{ title: localizationCatalogs[language]['calendar.shell.title'] }}
       />
       <Tabs.Screen name="ai-planner" options={{ title: aiPlannerCatalogs[language].title }} />
-      <Tabs.Screen name="progress" options={{ title: progressLocalizationCatalogs[language].title }} />
+      <Tabs.Screen
+        name="progress"
+        options={{ title: progressLocalizationCatalogs[language].title }}
+      />
       <Tabs.Screen
         name="settings"
         options={{ title: notificationSettingsCatalogs[language].title }}
