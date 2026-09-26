@@ -191,7 +191,6 @@ describe('MTS-039 signed-in runtime correction', () => {
   });
 });
 
-
 describe('MTS-099 retention-before-sync ordering', () => {
   it('prunes expired Story data before evidence and generic server synchronization', async () => {
     const calls = [];
