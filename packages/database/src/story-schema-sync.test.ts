@@ -706,7 +706,7 @@ describe('MTS-099 Story retention replacement', () => {
           AND draft.state = 'active'`,
       [fixture.account.id, fixture.occurrenceId],
     );
-    expect(current.rows).toEqual([{ id: replacementDraftId, storyState: 'draft' }]);
+    expect(current.rows).toEqual([{ id: replacementDraftId, storyState: 'ready' }]);
 
     const storyChanges = await pool.query<{ operation: string; payload: unknown }>(
       `SELECT operation, payload
