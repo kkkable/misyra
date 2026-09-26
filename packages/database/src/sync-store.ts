@@ -1417,8 +1417,9 @@ async function applyStoryMutation(
          server_receipt_time,
          effective_save_time,
          validation_result,
-         winner_mutation_id
-       ) VALUES ($1, $2, $3, 'active', $4::jsonb, $5, $6, $7, $8, $9, $10)`,
+         winner_mutation_id,
+         created_at
+       ) VALUES ($1, $2, $3, 'active', $4::jsonb, $5, $6, $7, $8, $9, $10, $6)`,
       [
         payload.draftId,
         mutation.accountId,
