@@ -60,7 +60,7 @@ describe('MTS-046 general mission note migration', () => {
 
     await applyMobileMigrations(database);
 
-    expect(MOBILE_SCHEMA_VERSION).toBe(7);
+    expect(MOBILE_SCHEMA_VERSION).toBe(8);
     expect(
       database.all('PRAGMA table_info(search_documents)').map((column) => column.name),
     ).toContain('general_note');
@@ -169,7 +169,9 @@ describe('MTS-046 general mission note migration', () => {
 
     await applyMigrations(database, mobileMigrations);
 
-    expect((await database.getFirstAsync('PRAGMA user_version'))?.user_version).toBe(7);
+    expect((await database.getFirstAsync('PRAGMA user_version'))?.user_version).toBe(
+      MOBILE_SCHEMA_VERSION,
+    );
     expect(
       await database.getFirstAsync(
         `SELECT personal_note, general_note
