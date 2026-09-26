@@ -9,17 +9,20 @@ import {
   useColorScheme,
 } from 'react-native';
 
-import type { CalendarConnection } from '@misyra/contracts';
+import type { AccountSettings, CalendarConnection } from '@misyra/contracts';
 import { space, typography } from '@misyra/design-tokens';
 import type { RecurringSeriesScope } from '@misyra/domain';
 import { localizationCatalogs, notificationSettingsCatalogs } from '@misyra/localization';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { getAuthApiBaseUrl, rootAuthController } from '../auth/auth-runtime.js';
 import { CalendarRecurringScopeChooser } from '../calendar/calendar-recurring-scope-chooser.js';
 import {
-  PrimaryButton,
+  DestructiveButton,
   Screen,
+  SectionHeader,
+  SettingsRow,
+  ToggleRow,
   TopBar,
   themeColors,
   type ColorScheme,
@@ -44,8 +47,15 @@ function hiddenEventDateLabel(event: HiddenCalendarEvent, language: 'en' | 'zh-H
   }).format(new Date(event.schedule.startInstant));
 }
 
+function selectedParam(value: string | string[] | undefined): string | null {
+  if (Array.isArray(value)) return value[0] ?? null;
+  return value ?? null;
+}
+
 export function SettingsRouteScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ section?: string | string[] }>();
+  const selectedEntry = selectedParam(params.section);
   const language = useAppLanguage();
   const nativeColorScheme = useColorScheme();
   const colorScheme: ColorScheme = nativeColorScheme === 'dark' ? 'dark' : 'light';
@@ -60,52 +70,64 @@ export function SettingsRouteScreen() {
     [catalog.notifications],
   );
   const [permission, setPermission] = useState<NotificationPermissionStatus | null>(null);
+  const [accountSettings, setAccountSettings] = useState<AccountSettings | null>(null);
   const [connectedCalendar, setConnectedCalendar] = useState<CalendarConnection | null>(null);
   const [hiddenEvents, setHiddenEvents] = useState<readonly HiddenCalendarEvent[]>([]);
   const [selectedHiddenEvent, setSelectedHiddenEvent] = useState<HiddenCalendarEvent | null>(null);
   const [restoringHiddenEventId, setRestoringHiddenEventId] = useState<string | null>(null);
+  const [updatingTrustMode, setUpdatingTrustMode] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+
+  const authenticatedApi = useCallback(async () => {
+    const authState = await rootAuthController.restore();
+    if (authState.status !== 'signed_in') return null;
+    return createAuthenticatedSyncApi({
+      baseUrl: getAuthApiBaseUrl(),
+      accessToken: authState.session.accessToken,
+    });
+  }, []);
+
+  const loadAccountSettings = useCallback(async () => {
+    const api = await authenticatedApi();
+    if (api === null) {
+      setAccountSettings(null);
+      return;
+    }
+    setAccountSettings(await api.getAccountSettings());
+  }, [authenticatedApi]);
 
   const loadConnectedCalendar = useCallback(async () => {
-    const authState = await rootAuthController.restore();
-    if (authState.status !== 'signed_in') {
+    const api = await authenticatedApi();
+    if (api === null) {
       setConnectedCalendar(null);
       return;
     }
-    const api = createAuthenticatedSyncApi({
-      baseUrl: getAuthApiBaseUrl(),
-      accessToken: authState.session.accessToken,
-    });
     setConnectedCalendar(await api.getConnectedCalendarStatus());
-  }, []);
+  }, [authenticatedApi]);
 
   const loadHiddenEvents = useCallback(async () => {
-    const authState = await rootAuthController.restore();
-    if (authState.status !== 'signed_in') {
+    const api = await authenticatedApi();
+    if (api === null) {
       setHiddenEvents([]);
       return;
     }
-    const api = createAuthenticatedSyncApi({
-      baseUrl: getAuthApiBaseUrl(),
-      accessToken: authState.session.accessToken,
-    });
     setHiddenEvents(await api.listHiddenCalendarEvents());
-  }, []);
+  }, [authenticatedApi]);
 
   const refresh = useCallback(async () => {
     const [nextPermission] = await Promise.all([
       permissionService.getStatus(),
+      loadAccountSettings().catch(() => undefined),
       loadConnectedCalendar().catch(() => undefined),
       loadHiddenEvents().catch(() => undefined),
     ]);
     setPermission(nextPermission);
-  }, [loadConnectedCalendar, loadHiddenEvents, permissionService]);
+  }, [loadAccountSettings, loadConnectedCalendar, loadHiddenEvents, permissionService]);
 
   useEffect(() => {
     void refresh();
     const subscription = AppState.addEventListener('change', (state) => {
-      if (state === 'active') {
-        void refresh();
-      }
+      if (state === 'active') void refresh();
     });
     return () => {
       subscription.remove();
@@ -131,12 +153,22 @@ export function SettingsRouteScreen() {
       case 'disconnected':
         return catalog.calendarDisconnected;
       case undefined:
-        return null;
+        return catalog.calendarDisconnected;
     }
   }, [catalog, connectedCalendar?.state]);
 
-  const runAction = useCallback(async () => {
-    if (model?.action === undefined || model.action === null) return;
+  const focusEntry = useCallback(
+    (section: string) => {
+      router.setParams({ section });
+    },
+    [router],
+  );
+
+  const runNotificationAction = useCallback(async () => {
+    if (model?.action === undefined || model.action === null) {
+      await permissionService.openSettings();
+      return;
+    }
     if (model.action.kind === 'request') {
       const nextPermission = await permissionService.request();
       setPermission(nextPermission);
@@ -148,16 +180,40 @@ export function SettingsRouteScreen() {
     await permissionService.openSettings();
   }, [model, permissionService]);
 
+  const updateTrustMode = useCallback(
+    async (trustMode: boolean) => {
+      if (updatingTrustMode) return;
+      setUpdatingTrustMode(true);
+      try {
+        const api = await authenticatedApi();
+        if (api === null) return;
+        const updated = await api.updateAccountSettings({ trustMode });
+        setAccountSettings(updated);
+        await rootSyncRuntime.run().catch(() => undefined);
+      } finally {
+        setUpdatingTrustMode(false);
+      }
+    },
+    [authenticatedApi, updatingTrustMode],
+  );
+
+  const signOut = useCallback(async () => {
+    if (signingOut) return;
+    setSigningOut(true);
+    try {
+      await rootAuthController.signOut();
+    } finally {
+      setSigningOut(false);
+      router.replace('/');
+    }
+  }, [router, signingOut]);
+
   const restoreHiddenEvent = useCallback(
     async (event: HiddenCalendarEvent, recurrenceScope: RecurringSeriesScope) => {
       setRestoringHiddenEventId(event.id);
       try {
-        const authState = await rootAuthController.restore();
-        if (authState.status !== 'signed_in') return;
-        const api = createAuthenticatedSyncApi({
-          baseUrl: getAuthApiBaseUrl(),
-          accessToken: authState.session.accessToken,
-        });
+        const api = await authenticatedApi();
+        if (api === null) return;
         await api.restoreHiddenCalendarEvent(event.id, { recurrenceScope });
         await rootSyncRuntime.run().catch(() => undefined);
         await loadHiddenEvents();
@@ -166,124 +222,267 @@ export function SettingsRouteScreen() {
         setSelectedHiddenEvent(null);
       }
     },
-    [loadHiddenEvents],
+    [authenticatedApi, loadHiddenEvents],
   );
+
+  const languageLabel =
+    language === 'zh-HK' ? catalog.traditionalChineseHongKongLanguage : catalog.englishLanguage;
 
   return (
     <Screen colorScheme={colorScheme} testID="settings-route">
       <TopBar colorScheme={colorScheme} title={catalog.title} />
       <ScrollView contentContainerStyle={styles.content}>
         <View style={[styles.section, { borderColor: colors.border }]}>
-          <View style={styles.row}>
-            <Text allowFontScaling style={[styles.label, { color: colors.textPrimary }]}>
-              {catalog.notifications}
-            </Text>
-            {model === null ? null : (
-              <Text
-                accessibilityLiveRegion="polite"
-                allowFontScaling
-                style={[styles.status, { color: colors.textSecondary }]}
-                testID="settings-notification-status"
-              >
-                {model.statusLabel}
-              </Text>
-            )}
-          </View>
-          {model?.action === undefined || model.action === null ? null : (
-            <PrimaryButton
-              accessibilityLabel={model.action.label}
-              colorScheme={colorScheme}
-              label={model.action.label}
-              onPress={() => {
-                void runAction();
-              }}
-              testID="settings-notification-action"
-            />
-          )}
-        </View>
-
-        {connectedCalendar === null ? null : (
-          <View
-            style={[styles.section, { borderColor: colors.border }]}
-            testID="settings-connected-calendar"
-          >
-            <View style={styles.row}>
-              <Text allowFontScaling style={[styles.label, { color: colors.textPrimary }]}>
-                {catalog.connectedCalendar}
-              </Text>
-              <Text
-                accessibilityLiveRegion="polite"
-                allowFontScaling
-                style={[styles.status, { color: colors.textSecondary }]}
-                testID="settings-connected-calendar-status"
-              >
-                {connectedCalendarStatus}
-              </Text>
-            </View>
-          </View>
-        )}
-
-        <View
-          style={[styles.section, { borderColor: colors.border }]}
-          testID="settings-story-style-profile"
-        >
-          <Text allowFontScaling style={[styles.sectionTitle, { color: colors.textPrimary }]}>
-            {generalCatalog['story.styleProfile.settings']}
-          </Text>
-          <PrimaryButton
-            accessibilityLabel={generalCatalog['story.styleProfile.settings']}
+          <SectionHeader
             colorScheme={colorScheme}
-            label={generalCatalog['story.styleProfile.manage']}
-            onPress={() => {
-              router.push('/story-style-profile');
+            title={catalog.accountAndPreferences}
+            testID="settings-section-account-preferences"
+          />
+          <ToggleRow
+            accessibilityLabel={catalog.trustMode}
+            colorScheme={colorScheme}
+            disabled={accountSettings === null || updatingTrustMode}
+            label={catalog.trustMode}
+            onValueChange={(value) => {
+              void updateTrustMode(value);
             }}
-            testID="settings-story-style-profile-action"
+            testID="settings-row-trust-mode"
+            value={accountSettings?.trustMode ?? false}
+          />
+          <View testID="settings-connected-calendar">
+            <SettingsRow
+              accessibilityLabel={catalog.connectedCalendar}
+              colorScheme={colorScheme}
+              label={catalog.connectedCalendar}
+              onPress={() => {
+                focusEntry('connected-calendar');
+              }}
+              selected={selectedEntry === 'connected-calendar'}
+              testID="settings-row-connected-calendar"
+            />
+            <Text
+              accessibilityLiveRegion="polite"
+              allowFontScaling
+              style={[styles.status, { color: colors.textSecondary }]}
+              testID="settings-connected-calendar-status"
+            >
+              {connectedCalendarStatus}
+            </Text>
+          </View>
+          <SettingsRow
+            accessibilityLabel={catalog.language}
+            colorScheme={colorScheme}
+            label={catalog.language}
+            onPress={() => {
+              focusEntry('language');
+            }}
+            selected={selectedEntry === 'language'}
+            testID="settings-row-language"
+            value={languageLabel}
           />
         </View>
 
-        <View
-          style={[styles.section, { borderColor: colors.border }]}
-          testID="settings-hidden-events"
-        >
-          <Text allowFontScaling style={[styles.sectionTitle, { color: colors.textPrimary }]}>
-            {catalog.hiddenCalendarEvents}
-          </Text>
-          {hiddenEvents.length === 0 ? (
-            <Text allowFontScaling style={[styles.status, { color: colors.textSecondary }]}>
-              {catalog.noHiddenCalendarEvents}
-            </Text>
-          ) : (
-            hiddenEvents.map((event) => (
-              <View key={event.id} style={[styles.hiddenEventRow, { borderColor: colors.border }]}>
-                <View style={styles.hiddenEventText}>
-                  <Text allowFontScaling style={[styles.label, { color: colors.textPrimary }]}>
-                    {event.title ?? '—'}
-                  </Text>
-                  <Text allowFontScaling style={[styles.status, { color: colors.textSecondary }]}>
-                    {hiddenEventDateLabel(event, language)}
-                  </Text>
-                </View>
-                <Pressable
-                  accessibilityLabel={catalog.restoreHiddenCalendarEvent}
-                  accessibilityRole="button"
-                  disabled={restoringHiddenEventId !== null}
-                  onPress={() => {
-                    if (event.isRecurring) {
-                      setSelectedHiddenEvent(event);
-                    } else {
-                      void restoreHiddenEvent(event, 'this_occurrence');
-                    }
-                  }}
-                  style={styles.restoreButton}
-                  testID={`hidden-event-restore-${event.id}`}
+        <View style={[styles.section, { borderColor: colors.border }]}>
+          <SectionHeader
+            colorScheme={colorScheme}
+            title={catalog.privacy}
+            testID="settings-section-privacy"
+          />
+          <SettingsRow
+            accessibilityLabel={catalog.diagnostics}
+            colorScheme={colorScheme}
+            label={catalog.diagnostics}
+            onPress={() => {
+              focusEntry('diagnostics');
+            }}
+            selected={selectedEntry === 'diagnostics'}
+            testID="settings-row-diagnostics"
+          />
+          <SettingsRow
+            accessibilityLabel={catalog.mediaRetention}
+            colorScheme={colorScheme}
+            label={catalog.mediaRetention}
+            onPress={() => {
+              focusEntry('media-retention');
+            }}
+            selected={selectedEntry === 'media-retention'}
+            testID="settings-row-media-retention"
+          />
+          <SettingsRow
+            accessibilityLabel={catalog.privacyPolicy}
+            colorScheme={colorScheme}
+            label={catalog.privacyPolicy}
+            onPress={() => {
+              focusEntry('privacy-policy');
+            }}
+            selected={selectedEntry === 'privacy-policy'}
+            testID="settings-row-privacy-policy"
+          />
+          <SettingsRow
+            accessibilityLabel={catalog.termsOfService}
+            colorScheme={colorScheme}
+            label={catalog.termsOfService}
+            onPress={() => {
+              focusEntry('terms-of-service');
+            }}
+            selected={selectedEntry === 'terms-of-service'}
+            testID="settings-row-terms-of-service"
+          />
+          <DestructiveButton
+            accessibilityLabel={catalog.deleteAccount}
+            colorScheme={colorScheme}
+            label={catalog.deleteAccount}
+            onPress={() => {
+              focusEntry('delete-account');
+            }}
+            testID="settings-action-delete-account"
+          />
+        </View>
+
+        <View style={[styles.section, { borderColor: colors.border }]}>
+          <SectionHeader
+            colorScheme={colorScheme}
+            title={catalog.calendarAndMissions}
+            testID="settings-section-calendar-missions"
+          />
+          <SettingsRow
+            accessibilityLabel={catalog.hiddenCalendarEvents}
+            colorScheme={colorScheme}
+            label={catalog.hiddenCalendarEvents}
+            onPress={() => {
+              focusEntry('hidden-calendar-events');
+            }}
+            selected={selectedEntry === 'hidden-calendar-events'}
+            testID="settings-row-hidden-calendar-events"
+            {...(hiddenEvents.length === 0 ? {} : { value: String(hiddenEvents.length) })}
+          />
+          {selectedEntry === 'hidden-calendar-events' ? (
+            hiddenEvents.length === 0 ? (
+              <Text allowFontScaling style={[styles.status, { color: colors.textSecondary }]}>
+                {catalog.noHiddenCalendarEvents}
+              </Text>
+            ) : (
+              hiddenEvents.map((event) => (
+                <View
+                  key={event.id}
+                  style={[styles.hiddenEventRow, { borderColor: colors.border }]}
                 >
-                  <Text allowFontScaling style={[styles.restoreText, { color: colors.primary }]}>
-                    {catalog.restoreHiddenCalendarEvent}
-                  </Text>
-                </Pressable>
-              </View>
-            ))
-          )}
+                  <View style={styles.hiddenEventText}>
+                    <Text allowFontScaling style={[styles.label, { color: colors.textPrimary }]}>
+                      {event.title ?? '—'}
+                    </Text>
+                    <Text allowFontScaling style={[styles.status, { color: colors.textSecondary }]}>
+                      {hiddenEventDateLabel(event, language)}
+                    </Text>
+                  </View>
+                  <Pressable
+                    accessibilityLabel={catalog.restoreHiddenCalendarEvent}
+                    accessibilityRole="button"
+                    disabled={restoringHiddenEventId !== null}
+                    onPress={() => {
+                      if (event.isRecurring) {
+                        setSelectedHiddenEvent(event);
+                      } else {
+                        void restoreHiddenEvent(event, 'this_occurrence');
+                      }
+                    }}
+                    style={styles.restoreButton}
+                    testID={`hidden-event-restore-${event.id}`}
+                  >
+                    <Text allowFontScaling style={[styles.restoreText, { color: colors.primary }]}>
+                      {catalog.restoreHiddenCalendarEvent}
+                    </Text>
+                  </Pressable>
+                </View>
+              ))
+            )
+          ) : null}
+          <SettingsRow
+            accessibilityLabel={catalog.notificationStatus}
+            colorScheme={colorScheme}
+            label={catalog.notificationStatus}
+            onPress={() => {
+              void runNotificationAction();
+            }}
+            selected={selectedEntry === 'notification-status'}
+            testID="settings-row-notification-status"
+            {...(model === null ? {} : { value: model.statusLabel })}
+          />
+        </View>
+
+        <View style={[styles.section, { borderColor: colors.border }]}>
+          <SectionHeader
+            colorScheme={colorScheme}
+            title={catalog.story}
+            testID="settings-section-story"
+          />
+          <SettingsRow
+            accessibilityLabel={generalCatalog['story.styleProfile.settings']}
+            colorScheme={colorScheme}
+            label={generalCatalog['story.styleProfile.settings']}
+            onPress={() => {
+              router.push('/story-style-profile');
+            }}
+            testID="settings-row-story-style-profile"
+          />
+        </View>
+
+        <View style={[styles.section, { borderColor: colors.border }]}>
+          <SectionHeader
+            colorScheme={colorScheme}
+            title={catalog.help}
+            testID="settings-section-help"
+          />
+          <SettingsRow
+            accessibilityLabel={catalog.faq}
+            colorScheme={colorScheme}
+            label={catalog.faq}
+            onPress={() => {
+              focusEntry('faq');
+            }}
+            selected={selectedEntry === 'faq'}
+            testID="settings-row-faq"
+          />
+          <SettingsRow
+            accessibilityLabel={catalog.sendFeedback}
+            colorScheme={colorScheme}
+            label={catalog.sendFeedback}
+            onPress={() => {
+              focusEntry('send-feedback');
+            }}
+            selected={selectedEntry === 'send-feedback'}
+            testID="settings-row-send-feedback"
+          />
+          <SettingsRow
+            accessibilityLabel={catalog.reportProblem}
+            colorScheme={colorScheme}
+            label={catalog.reportProblem}
+            onPress={() => {
+              focusEntry('report-problem');
+            }}
+            selected={selectedEntry === 'report-problem'}
+            testID="settings-row-report-problem"
+          />
+          <SettingsRow
+            accessibilityLabel={catalog.about}
+            colorScheme={colorScheme}
+            label={catalog.about}
+            onPress={() => {
+              focusEntry('about');
+            }}
+            selected={selectedEntry === 'about'}
+            testID="settings-row-about"
+          />
+          <DestructiveButton
+            accessibilityLabel={catalog.signOut}
+            colorScheme={colorScheme}
+            label={catalog.signOut}
+            loading={signingOut}
+            onPress={() => {
+              void signOut();
+            }}
+            testID="settings-action-sign-out"
+          />
         </View>
       </ScrollView>
 
@@ -311,19 +510,8 @@ const styles = StyleSheet.create({
   },
   section: {
     borderTopWidth: StyleSheet.hairlineWidth,
-    gap: space[3],
-    paddingVertical: space[4],
-  },
-  sectionTitle: {
-    fontSize: typography.headline.fontSize,
-    fontWeight: typography.headline.fontWeight,
-  },
-  row: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: space[3],
-    justifyContent: 'space-between',
-    minHeight: 44,
+    gap: space[2],
+    paddingVertical: space[3],
   },
   label: {
     flexShrink: 1,
