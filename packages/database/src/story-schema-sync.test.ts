@@ -613,3 +613,84 @@ describe('MTS-090/MTS-096 Story schema and synchronization contracts', () => {
     ]);
   });
 });
+
+
+describe('MTS-099 Story retention replacement', () => {
+  it('allows a fresh Create Story to replace an active draft at the exact 30-day deadline', async () => {
+    const fixture = await createMissionFixture(true);
+    const firstDraftId = randomUUID();
+    const firstSourceId = randomUUID();
+    const firstGeneratedId = randomUUID();
+    const createdAt = '2026-09-23T09:32:00.000Z';
+    const firstPayload = storyPayload(
+      firstDraftId,
+      firstSourceId,
+      firstGeneratedId,
+      'retention-old',
+      1,
+      createdAt,
+    );
+    const firstMutationId = randomUUID();
+
+    await expect(
+      fixture.store.push(fixture.account.id, [
+        {
+          mutationId: firstMutationId,
+          accountId: fixture.account.id,
+          deviceId: fixture.firstDevice,
+          entityType: 'story',
+          entityId: fixture.occurrenceId,
+          operation: 'create',
+          baseVersion: null,
+          clientOccurredAt: createdAt,
+          payload: firstPayload,
+        },
+      ]),
+    ).resolves.toEqual({ acceptedMutationIds: [firstMutationId] });
+
+    const replacementAt = new Date('2026-10-23T09:32:00.000Z');
+    const replacementStore = createPostgresSyncStore(pool, () => replacementAt);
+    const replacementDraftId = randomUUID();
+    const replacementSourceId = randomUUID();
+    const replacementGeneratedId = randomUUID();
+    const replacementPayload = storyPayload(
+      replacementDraftId,
+      replacementSourceId,
+      replacementGeneratedId,
+      'retention-new',
+      1,
+      replacementAt.toISOString(),
+    );
+    const replacementMutationId = randomUUID();
+
+    await expect(
+      replacementStore.push(fixture.account.id, [
+        {
+          mutationId: replacementMutationId,
+          accountId: fixture.account.id,
+          deviceId: fixture.secondDevice,
+          entityType: 'story',
+          entityId: fixture.occurrenceId,
+          operation: 'create',
+          baseVersion: null,
+          clientOccurredAt: replacementAt.toISOString(),
+          payload: replacementPayload,
+        },
+      ]),
+    ).resolves.toEqual({ acceptedMutationIds: [replacementMutationId] });
+
+    const current = await pool.query<{ id: string; storyState: string }>(
+      `SELECT draft.id,
+              occurrence.story_state AS "storyState"
+         FROM story_drafts draft
+         JOIN mission_occurrences occurrence
+           ON occurrence.id = draft.occurrence_id
+          AND occurrence.account_id = draft.account_id
+        WHERE draft.account_id = $1
+          AND draft.occurrence_id = $2
+          AND draft.state = 'active'`,
+      [fixture.account.id, fixture.occurrenceId],
+    );
+    expect(current.rows).toEqual([{ id: replacementDraftId, storyState: 'draft' }]);
+  });
+});
