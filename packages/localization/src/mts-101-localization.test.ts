@@ -40,7 +40,9 @@ describe('MTS-101 locale resolution', () => {
     expect(
       resolve({ languageCode: 'zh', languageScriptCode: 'Hans', regionCode: 'CN' }),
     ).toBe('en');
-    expect(resolve({ languageCode: 'fr', languageScriptCode: null, regionCode: 'FR' })).toBe('en');
+    expect(
+      resolve({ languageCode: 'fr', languageScriptCode: null, regionCode: 'FR' }),
+    ).toBe('en');
     expect(resolve(undefined)).toBe('en');
   });
 });
