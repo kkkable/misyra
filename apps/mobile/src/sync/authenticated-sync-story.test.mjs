@@ -433,3 +433,78 @@ describe('MTS-090 Story authenticated sync projection', () => {
     expect(await queue.listPending()).toHaveLength(1);
   });
 });
+
+
+describe('MTS-099 Story retention synchronization', () => {
+  it('does not resurrect the same expired draft from an older authoritative Story upsert', async () => {
+    const database = new NodeSqliteAdapter();
+    databases.push(database);
+    await applyMobileMigrations(database);
+    await seedCompletedMission(database);
+
+    const expiredPayload = {
+      draftId,
+      notes: { musicMood: 'expired', mention: null, location: null, poll: null },
+      imageVersions: [
+        {
+          id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+          kind: 'source',
+          storageKey: 'story/source/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+          composition: composition('expired authoritative copy', 1),
+        },
+      ],
+    };
+    await database.runAsync(
+      `INSERT INTO story_retention_tombstones
+         (account_id, occurrence_id, draft_id, expired_at)
+       VALUES (?, ?, ?, ?)`,
+      accountId,
+      occurrenceId,
+      draftId,
+      '2026-09-26T07:20:00.000Z',
+    );
+
+    const api = {
+      push: vi.fn(() => Promise.resolve({ acceptedMutationIds: [], conflicts: [] })),
+      pull: vi.fn(() =>
+        Promise.resolve({
+          kind: 'incremental',
+          changes: [
+            {
+              sequence: 1,
+              entityType: 'story',
+              entityId: occurrenceId,
+              operation: 'upsert',
+              payload: expiredPayload,
+            },
+          ],
+          nextCursor: 1,
+          hasMore: false,
+        }),
+      ),
+      snapshot: vi.fn(() => Promise.resolve({ entries: [], nextCursor: 1 })),
+    };
+
+    await expect(runAuthenticatedServerSync({ database, accountId, api })).resolves.toEqual({
+      settledMutations: 0,
+      cursor: 1,
+    });
+
+    expect(
+      await database.getFirstAsync(
+        'SELECT draft_id FROM story_drafts WHERE account_id = ? AND occurrence_id = ?',
+        accountId,
+        occurrenceId,
+      ),
+    ).toBeNull();
+    expect(
+      await database.getFirstAsync(
+        `SELECT draft_id
+           FROM story_retention_tombstones
+          WHERE account_id = ? AND occurrence_id = ?`,
+        accountId,
+        occurrenceId,
+      ),
+    ).toEqual({ draft_id: draftId });
+  });
+});
