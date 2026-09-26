@@ -436,6 +436,60 @@ describe('MTS-090 Story authenticated sync projection', () => {
 
 
 describe('MTS-099 Story retention synchronization', () => {
+  it('stores authoritative Story creation time for exact offline retention on another device', async () => {
+    const database = new NodeSqliteAdapter();
+    databases.push(database);
+    await applyMobileMigrations(database);
+    await seedCompletedMission(database);
+
+    const createdAt = '2026-08-27T07:20:00.000Z';
+    const authoritative = {
+      draftId,
+      createdAt,
+      notes: { musicMood: 'synced', mention: null, location: null, poll: null },
+      imageVersions: [
+        {
+          id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+          kind: 'source',
+          storageKey: 'story/source/cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+          composition: composition('authoritative retention clock', 1),
+        },
+      ],
+    };
+    const api = {
+      push: vi.fn(() => Promise.resolve({ acceptedMutationIds: [], conflicts: [] })),
+      pull: vi.fn(() =>
+        Promise.resolve({
+          kind: 'incremental',
+          changes: [
+            {
+              sequence: 1,
+              entityType: 'story',
+              entityId: occurrenceId,
+              operation: 'upsert',
+              payload: authoritative,
+            },
+          ],
+          nextCursor: 1,
+          hasMore: false,
+        }),
+      ),
+      snapshot: vi.fn(() => Promise.resolve({ entries: [], nextCursor: 1 })),
+    };
+
+    await runAuthenticatedServerSync({ database, accountId, api });
+
+    const row = await database.getFirstAsync(
+      `SELECT created_at, composition_json
+         FROM story_drafts
+        WHERE account_id = ? AND occurrence_id = ?`,
+      accountId,
+      occurrenceId,
+    );
+    expect(row.created_at).toBe(createdAt);
+    expect(JSON.parse(row.composition_json)).toMatchObject({ draftId, createdAt });
+  });
+
   it('does not resurrect the same expired draft from an older authoritative Story upsert', async () => {
     const database = new NodeSqliteAdapter();
     databases.push(database);
