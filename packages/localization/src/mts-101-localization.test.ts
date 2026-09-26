@@ -36,10 +36,18 @@ describe('MTS-101 locale resolution', () => {
     const resolve = requiredExport<LocaleResolver>('resolveLocalizationLocale');
 
     expect(
-      resolve({ languageCode: 'zh', languageScriptCode: 'Hant', regionCode: 'HK' }),
+      resolve({
+        languageCode: 'zh',
+        languageScriptCode: 'Hant',
+        regionCode: 'HK',
+      }),
     ).toBe('zh-HK');
     expect(
-      resolve({ languageCode: 'zh', languageScriptCode: 'Hans', regionCode: 'CN' }),
+      resolve({
+        languageCode: 'zh',
+        languageScriptCode: 'Hans',
+        regionCode: 'CN',
+      }),
     ).toBe('en');
     expect(resolve({ languageCode: 'fr', languageScriptCode: null, regionCode: 'FR' })).toBe('en');
     expect(resolve(undefined)).toBe('en');
