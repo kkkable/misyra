@@ -241,4 +241,44 @@ describe('MTS-099 retention-before-sync ordering', () => {
 
     expect(calls).toEqual(['retention', 'evidence', 'server']);
   });
+
+  it('prunes local Story data even when device registration fails offline', async () => {
+    const calls = [];
+    const networkError = new Error('offline');
+    const api = {
+      registerDevice: vi.fn(() => {
+        calls.push('register');
+        return Promise.reject(networkError);
+      }),
+      getAccountSettings: vi.fn(() => Promise.resolve({ language: 'en', trustMode: false })),
+    };
+    const runtime = createAuthenticatedSyncRuntime({
+      sessionProvider: () => Promise.resolve(session),
+      installationStore: {
+        getItem: vi.fn(() => Promise.resolve('installation-stable')),
+        setItem: vi.fn(() => Promise.resolve()),
+      },
+      openDatabase: () =>
+        Promise.resolve({
+          runAsync: vi.fn(() => Promise.resolve({ changes: 1 })),
+        }),
+      apiFactory: vi.fn(() => api),
+      runStoryRetention: vi.fn(() => {
+        calls.push('retention');
+        return Promise.resolve({ deletedDrafts: 1 });
+      }),
+      generateInstallationId: () => 'installation-stable',
+      deviceMetadata: () =>
+        Promise.resolve({
+          platform: 'ios',
+          appVersion: '1.2.3',
+          notificationCapability: 'denied',
+        }),
+    });
+
+    await expect(runtime.run()).rejects.toBe(networkError);
+
+    expect(calls).toEqual(['retention', 'register']);
+    expect(api.getAccountSettings).not.toHaveBeenCalled();
+  });
 });
