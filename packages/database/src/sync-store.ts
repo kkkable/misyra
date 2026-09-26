@@ -253,6 +253,7 @@ type ClientTiming = Readonly<{
 }>;
 
 const HISTORICAL_WINDOW_MILLISECONDS = 30 * 24 * 60 * 60 * 1000;
+const STORY_RETENTION_MILLISECONDS = 30 * 24 * 60 * 60 * 1000;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const LOCAL_DATE_TIME_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/;
 const LOCAL_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -1333,7 +1334,28 @@ function storySaveIsNewer(
 type StoryMutationApplyResult = Readonly<{
   payload: StoryDraftPayload;
   conflict: boolean;
+  publishChange: boolean;
 }>;
+
+async function latestStoryRetentionDeleteMatches(
+  client: PoolClient,
+  accountId: string,
+  occurrenceId: string,
+  draftId: string,
+): Promise<boolean> {
+  const result = await client.query<{ expiredDraftId: string | null }>(
+    `SELECT payload->>'expiredDraftId' AS "expiredDraftId"
+       FROM account_change_log
+      WHERE account_id = $1
+        AND entity_type = 'story'
+        AND entity_id = $2
+        AND operation = 'delete'
+      ORDER BY sequence DESC
+      LIMIT 1`,
+    [accountId, occurrenceId],
+  );
+  return result.rows[0]?.expiredDraftId === draftId;
+}
 
 async function applyStoryMutation(
   client: PoolClient,
@@ -1372,11 +1394,13 @@ async function applyStoryMutation(
 
   const existing = await client.query<{
     id: string;
+    createdAt: Date;
     effectiveSaveTime: Date;
     serverReceiptTime: Date;
     winnerMutationId: string | null;
   }>(
     `SELECT id,
+            created_at AS "createdAt",
             effective_save_time AS "effectiveSaveTime",
             server_receipt_time AS "serverReceiptTime",
             winner_mutation_id AS "winnerMutationId"
@@ -1387,7 +1411,55 @@ async function applyStoryMutation(
       FOR UPDATE`,
     [mutation.accountId, mutation.entityId],
   );
-  const current = existing.rows[0];
+  let current = existing.rows[0];
+  if (
+    current !== undefined &&
+    current.createdAt.getTime() + STORY_RETENTION_MILLISECONDS <= timing.serverReceiptTime.getTime()
+  ) {
+    const expiredDraftId = current.id;
+    await client.query(
+      `DELETE FROM story_drafts
+        WHERE id = $1
+          AND account_id = $2
+          AND occurrence_id = $3
+          AND state = 'active'`,
+      [expiredDraftId, mutation.accountId, mutation.entityId],
+    );
+    await client.query(
+      `UPDATE mission_occurrences
+          SET story_state = 'ready'
+        WHERE id = $1
+          AND account_id = $2
+          AND completion_state = 'completed'
+          AND deletion_state = 'active'`,
+      [mutation.entityId, mutation.accountId],
+    );
+    await appendAccountChange(client, {
+      accountId: mutation.accountId,
+      entityType: 'story',
+      entityId: mutation.entityId,
+      operation: 'delete',
+      payload: { expiredDraftId },
+    });
+    current = undefined;
+
+    if (expiredDraftId === payload.draftId) {
+      return { payload, conflict: true, publishChange: false };
+    }
+  }
+
+  if (
+    current === undefined &&
+    (await latestStoryRetentionDeleteMatches(
+      client,
+      mutation.accountId,
+      mutation.entityId,
+      payload.draftId,
+    ))
+  ) {
+    return { payload, conflict: true, publishChange: false };
+  }
+
   if (current !== undefined && current.id !== payload.draftId) {
     throw new SyncMutationConflictError(
       'A different unfinished Story draft already exists for this mission',
@@ -1397,6 +1469,7 @@ async function applyStoryMutation(
     return {
       payload: await loadStoryDraftPayload(client, mutation.accountId, mutation.entityId),
       conflict: true,
+      publishChange: true,
     };
   }
 
@@ -1506,7 +1579,16 @@ async function applyStoryMutation(
         AND NOT (id = ANY($2::uuid[]))`,
     [payload.draftId, retainedIds],
   );
-  return { payload, conflict: false };
+  await client.query(
+    `UPDATE mission_occurrences
+        SET story_state = 'draft'
+      WHERE id = $1
+        AND account_id = $2
+        AND completion_state = 'completed'
+        AND deletion_state = 'active'`,
+    [mutation.entityId, mutation.accountId],
+  );
+  return { payload, conflict: false, publishChange: true };
 }
 
 async function applySettingsMutation(
@@ -2005,7 +2087,22 @@ async function storyConflictForMutation(
     [mutation.accountId, mutation.entityId],
   );
   const current = result.rows[0];
-  if (current === undefined || current.winnerMutationId === mutation.mutationId) return null;
+  if (current === undefined) {
+    const payload = parseStoryDraftPayload(mutation.payload);
+    return (await latestStoryRetentionDeleteMatches(
+      client,
+      mutation.accountId,
+      mutation.entityId,
+      payload.draftId,
+    ))
+      ? {
+          kind: 'story_updated',
+          mutationId: mutation.mutationId,
+          storyDraftId: payload.draftId,
+        }
+      : null;
+  }
+  if (current.winnerMutationId === mutation.mutationId) return null;
   return {
     kind: 'story_updated',
     mutationId: mutation.mutationId,
@@ -2066,13 +2163,15 @@ async function acceptMutation(
     ],
   );
 
-  await appendAccountChange(client, {
-    accountId: mutation.accountId,
-    entityType: mutation.entityType,
-    entityId: mutation.entityId,
-    operation: changeOperation(mutation.operation),
-    payload: authoritativePayload,
-  });
+  if (storyResult?.publishChange !== false) {
+    await appendAccountChange(client, {
+      accountId: mutation.accountId,
+      entityType: mutation.entityType,
+      entityId: mutation.entityId,
+      operation: changeOperation(mutation.operation),
+      payload: authoritativePayload,
+    });
+  }
 
   return storyResult?.conflict === true
     ? {
