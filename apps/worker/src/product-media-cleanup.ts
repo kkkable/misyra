@@ -196,15 +196,6 @@ export function createProductMediaCleanupService(options: ProductMediaCleanupSer
           [now],
         );
         for (const expired of expiredDrafts.rows) {
-          await retentionClient.query(
-            `UPDATE mission_occurrences
-                SET story_state = 'ready'
-              WHERE account_id = $1
-                AND id = $2
-                AND completion_state = 'completed'
-                AND deletion_state = 'active'`,
-            [expired.accountId, expired.occurrenceId],
-          );
           const deletion = await appendAccountChange(retentionClient, {
             accountId: expired.accountId,
             entityType: 'story',
