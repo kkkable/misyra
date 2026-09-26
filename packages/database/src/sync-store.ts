@@ -1489,7 +1489,8 @@ async function applyStoryMutation(
   let current = existing.rows[0];
   if (
     current !== undefined &&
-    current.createdAt.getTime() + STORY_RETENTION_MILLISECONDS <= timing.serverReceiptTime.getTime()
+    current.createdAt.getTime() + STORY_RETENTION_MILLISECONDS <=
+      timing.serverReceiptTime.getTime()
   ) {
     const expiredDraftId = current.id;
     await client.query(
