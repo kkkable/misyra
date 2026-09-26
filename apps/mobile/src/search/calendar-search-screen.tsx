@@ -30,12 +30,21 @@ function resultDateLabel(value: string | null, language: LocalizationLocale): st
   if (value === null) return null;
   const date = dateForFormatting(value);
   if (date === null) return value;
-  return new Intl.DateTimeFormat(language === 'en' ? 'en-GB' : language, {
+  const formatter = new Intl.DateTimeFormat(language === 'en' ? 'en-US' : language, {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
     timeZone: 'UTC',
-  }).format(date);
+  });
+  if (language !== 'en') return formatter.format(date);
+
+  const parts = formatter.formatToParts(date);
+  const day = parts.find((part) => part.type === 'day')?.value;
+  const month = parts.find((part) => part.type === 'month')?.value;
+  const year = parts.find((part) => part.type === 'year')?.value;
+  return day === undefined || month === undefined || year === undefined
+    ? formatter.format(date)
+    : `${day} ${month} ${year}`;
 }
 
 export function CalendarSearchScreen({
