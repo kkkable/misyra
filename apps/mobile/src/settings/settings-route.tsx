@@ -226,7 +226,9 @@ export function SettingsRouteScreen() {
   );
 
   const languageLabel =
-    language === 'zh-HK' ? catalog.traditionalChineseHongKongLanguage : catalog.englishLanguage;
+    language === 'zh-HK'
+      ? catalog.traditionalChineseHongKongLanguage
+      : catalog.englishLanguage;
 
   return (
     <Screen colorScheme={colorScheme} testID="settings-route">
@@ -354,7 +356,10 @@ export function SettingsRouteScreen() {
               </Text>
             ) : (
               hiddenEvents.map((event) => (
-                <View key={event.id} style={[styles.hiddenEventRow, { borderColor: colors.border }]}>
+                <View
+                  key={event.id}
+                  style={[styles.hiddenEventRow, { borderColor: colors.border }]}
+                >
                   <View style={styles.hiddenEventText}>
                     <Text allowFontScaling style={[styles.label, { color: colors.textPrimary }]}>
                       {event.title ?? '—'}
