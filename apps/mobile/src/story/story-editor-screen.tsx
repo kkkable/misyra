@@ -236,6 +236,8 @@ export function StoryEditorScreen({
   const previewWidth = Math.max(1, window.width - 32);
   const displayedImageVersions = imageVersions ?? [{ id: sourceImage.id, kind: 'source' as const }];
   const activeImageVersionId = selectedImageVersionId ?? sourceImage.id;
+  const sharingPollText =
+    sharingNotes.poll === null ? null : formatStorySharingPoll(sharingNotes.poll);
 
   return (
     <Screen colorScheme={colorScheme} testID="story-editor">
@@ -366,17 +368,17 @@ export function StoryEditorScreen({
                 />
               </View>
             )}
-            {sharingNotes.poll === null ? null : (
+            {sharingPollText === null ? null : (
               <View style={styles.sharingNoteRow}>
                 <Text style={{ color: colors.textPrimary }} testID="story-sharing-note-poll">
-                  {`${messages.poll}: ${formatStorySharingPoll(sharingNotes.poll)}`}
+                  {`${messages.poll}: ${sharingPollText}`}
                 </Text>
                 <SecondaryButton
                   accessibilityLabel={messages.copy}
                   colorScheme={colorScheme}
                   label={messages.copy}
                   onPress={() => {
-                    void onCopySharingNote?.(formatStorySharingPoll(sharingNotes.poll));
+                    void onCopySharingNote?.(sharingPollText);
                   }}
                   testID="story-copy-poll"
                 />
