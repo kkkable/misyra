@@ -398,7 +398,6 @@ describe('MTS-095 generated Story version lifecycle', () => {
   });
 });
 
-
 describe('MTS-099 generated Story media retention registration', () => {
   it('registers every generated Story version for deletion exactly 30 days after creation', async () => {
     const fixture = await createStoryFixture();
