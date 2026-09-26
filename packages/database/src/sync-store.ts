@@ -241,6 +241,7 @@ type StoryImageVersionPayload = Readonly<{
 
 type StoryDraftPayload = Readonly<{
   draftId: string;
+  createdAt?: string;
   notes: StorySharingNotesPayload;
   imageVersions: readonly StoryImageVersionPayload[];
 }>;
@@ -662,10 +663,11 @@ function parseStoryImageVersion(value: unknown): StoryImageVersionPayload {
 
 function parseStoryDraftPayload(payload: unknown): StoryDraftPayload {
   const source = asRecord(payload, 'Story draft payload');
-  const supported = ['draftId', 'notes', 'imageVersions'];
+  const supported = ['draftId', 'createdAt', 'notes', 'imageVersions'];
+  const required = ['draftId', 'notes', 'imageVersions'];
   if (
-    Object.keys(source).length !== supported.length ||
-    supported.some((key) => !Object.hasOwn(source, key))
+    Object.keys(source).some((key) => !supported.includes(key)) ||
+    required.some((key) => !Object.hasOwn(source, key))
   ) {
     throw new SyncMutationValidationError('Story draft payload contains unsupported fields');
   }
@@ -676,8 +678,16 @@ function parseStoryDraftPayload(payload: unknown): StoryDraftPayload {
   if (new Set(imageVersions.map((version) => version.id)).size !== imageVersions.length) {
     throw new SyncMutationValidationError('Story image-version ids must be unique');
   }
+  let createdAt: string | undefined;
+  if (Object.hasOwn(source, 'createdAt')) {
+    createdAt = requireString(source, 'createdAt', 'Story draft createdAt');
+    if (!Number.isFinite(Date.parse(createdAt))) {
+      throw new SyncMutationValidationError('Story draft createdAt must be an ISO instant');
+    }
+  }
   return {
     draftId: requireUuid(source, 'draftId', 'Story draft id'),
+    ...(createdAt === undefined ? {} : { createdAt }),
     notes: parseStorySharingNotes(source.notes),
     imageVersions,
   };
@@ -1273,8 +1283,12 @@ async function loadStoryDraftPayload(
   accountId: string,
   occurrenceId: string,
 ): Promise<StoryDraftPayload> {
-  const draft = await client.query<{ id: string; notes: StorySharingNotesPayload }>(
-    `SELECT id, notes
+  const draft = await client.query<{
+    id: string;
+    createdAt: Date;
+    notes: StorySharingNotesPayload;
+  }>(
+    `SELECT id, created_at AS "createdAt", notes
        FROM story_drafts
       WHERE account_id = $1
         AND occurrence_id = $2
@@ -1307,6 +1321,7 @@ async function loadStoryDraftPayload(
   );
   return {
     draftId: current.id,
+    createdAt: current.createdAt.toISOString(),
     notes: current.notes,
     imageVersions: versions.rows,
   };
@@ -1611,7 +1626,11 @@ async function applyStoryMutation(
         AND deletion_state = 'active'`,
     [mutation.entityId, mutation.accountId],
   );
-  return { payload, conflict: false, publishChange: true };
+  return {
+    payload: await loadStoryDraftPayload(client, mutation.accountId, mutation.entityId),
+    conflict: false,
+    publishChange: true,
+  };
 }
 
 async function applySettingsMutation(
