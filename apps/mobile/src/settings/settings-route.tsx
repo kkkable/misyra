@@ -12,7 +12,7 @@ import {
 import type { AccountSettings, CalendarConnection } from '@misyra/contracts';
 import { space, typography } from '@misyra/design-tokens';
 import type { RecurringSeriesScope } from '@misyra/domain';
-import { notificationSettingsCatalogs } from '@misyra/localization';
+import { localizationCatalogs, notificationSettingsCatalogs } from '@misyra/localization';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { getAuthApiBaseUrl, rootAuthController } from '../auth/auth-runtime.js';
@@ -61,6 +61,7 @@ export function SettingsRouteScreen() {
   const colorScheme: ColorScheme = nativeColorScheme === 'dark' ? 'dark' : 'light';
   const colors = themeColors(colorScheme);
   const catalog = notificationSettingsCatalogs[language];
+  const generalCatalog = localizationCatalogs[language];
   const permissionService = useMemo(
     () =>
       createExpoNotificationPermissionService({
@@ -248,17 +249,26 @@ export function SettingsRouteScreen() {
             testID="settings-row-trust-mode"
             value={accountSettings?.trustMode ?? false}
           />
-          <SettingsRow
-            accessibilityLabel={catalog.connectedCalendar}
-            colorScheme={colorScheme}
-            label={catalog.connectedCalendar}
-            onPress={() => {
-              focusEntry('connected-calendar');
-            }}
-            selected={selectedEntry === 'connected-calendar'}
-            testID="settings-row-connected-calendar"
-            value={connectedCalendarStatus}
-          />
+          <View testID="settings-connected-calendar">
+            <SettingsRow
+              accessibilityLabel={catalog.connectedCalendar}
+              colorScheme={colorScheme}
+              label={catalog.connectedCalendar}
+              onPress={() => {
+                focusEntry('connected-calendar');
+              }}
+              selected={selectedEntry === 'connected-calendar'}
+              testID="settings-row-connected-calendar"
+            />
+            <Text
+              accessibilityLiveRegion="polite"
+              allowFontScaling
+              style={[styles.status, { color: colors.textSecondary }]}
+              testID="settings-connected-calendar-status"
+            >
+              {connectedCalendarStatus}
+            </Text>
+          </View>
           <SettingsRow
             accessibilityLabel={catalog.language}
             colorScheme={colorScheme}
@@ -407,9 +417,9 @@ export function SettingsRouteScreen() {
             testID="settings-section-story"
           />
           <SettingsRow
-            accessibilityLabel={catalog.storyStyleProfile}
+            accessibilityLabel={generalCatalog['story.styleProfile.settings']}
             colorScheme={colorScheme}
-            label={catalog.storyStyleProfile}
+            label={generalCatalog['story.styleProfile.settings']}
             onPress={() => {
               router.push('/story-style-profile');
             }}
