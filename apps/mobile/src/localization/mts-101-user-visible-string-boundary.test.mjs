@@ -12,6 +12,7 @@ const completionPath = fileURLToPath(
 const missionDetailsRoutePath = fileURLToPath(
   new URL('../calendar/calendar-mission-details-route.tsx', import.meta.url),
 );
+const settingsPath = fileURLToPath(new URL('../settings/settings-route.tsx', import.meta.url));
 
 describe('MTS-101 user-visible localization boundary', () => {
   it('sources permanent tab labels from localization catalogs', async () => {
@@ -62,5 +63,15 @@ describe('MTS-101 user-visible localization boundary', () => {
     expect(source).toContain('getLocales');
     expect(source).toContain('formatRegionalNumber');
     expect(source).not.toContain('String(completion?.awarded_xp');
+  });
+
+  it('formats Settings hidden-event dates and clock style from phone regional settings', async () => {
+    const source = await readFile(settingsPath, 'utf8');
+
+    expect(source).toContain('getLocales');
+    expect(source).toContain('getCalendars');
+    expect(source).toContain('formatRegionalNumericDate');
+    expect(source).toContain('hour12: !uses24HourClock');
+    expect(source).not.toContain('return event.schedule.startLocalDate');
   });
 });
