@@ -205,13 +205,34 @@ export function createProductMediaCleanupService(options: ProductMediaCleanupSer
                 AND deletion_state = 'active'`,
             [expired.accountId, expired.occurrenceId],
           );
-          await appendAccountChange(retentionClient, {
+          const deletion = await appendAccountChange(retentionClient, {
             accountId: expired.accountId,
             entityType: 'story',
             entityId: expired.occurrenceId,
             operation: 'delete',
             payload: { expiredDraftId: expired.draftId },
           });
+          await retentionClient.query(
+            `DELETE FROM account_change_log
+              WHERE account_id = $1
+                AND entity_type = 'story'
+                AND entity_id = $2
+                AND operation <> 'delete'
+                AND sequence < $3`,
+            [expired.accountId, expired.occurrenceId, deletion.sequence],
+          );
+          await retentionClient.query(
+            `UPDATE device_sync_mutations
+                SET payload = jsonb_build_object(
+                  'retentionDeleted', true,
+                  'draftId', $3::text
+                )
+              WHERE account_id = $1
+                AND entity_type = 'story'
+                AND entity_id = $2
+                AND payload->>'draftId' = $3`,
+            [expired.accountId, expired.occurrenceId, expired.draftId],
+          );
         }
         await retentionClient.query('COMMIT');
       } catch (error) {
