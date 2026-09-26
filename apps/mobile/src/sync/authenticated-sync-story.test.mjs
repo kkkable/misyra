@@ -508,3 +508,77 @@ describe('MTS-099 Story retention synchronization', () => {
     ).toEqual({ draft_id: draftId });
   });
 });
+
+
+describe('MTS-099 authoritative Story retention delete', () => {
+  it('removes retained local Story content and returns the mission to ready without a user-facing deletion state', async () => {
+    const database = new NodeSqliteAdapter();
+    databases.push(database);
+    await applyMobileMigrations(database);
+    await seedCompletedMission(database);
+
+    const localPayload = {
+      draftId,
+      notes: { musicMood: 'retained', mention: null, location: null, poll: null },
+      imageVersions: [
+        {
+          id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+          kind: 'source',
+          storageKey: 'story/source/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+          composition: composition('retained local copy', 1),
+        },
+      ],
+    };
+    await database.runAsync(
+      `INSERT INTO story_drafts
+         (account_id, occurrence_id, draft_id, composition_json, updated_at, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      accountId,
+      occurrenceId,
+      draftId,
+      JSON.stringify(localPayload),
+      '2026-08-27T07:20:00.000Z',
+      '2026-08-27T07:20:00.000Z',
+    );
+
+    const api = {
+      push: vi.fn(() => Promise.resolve({ acceptedMutationIds: [], conflicts: [] })),
+      pull: vi.fn(() =>
+        Promise.resolve({
+          kind: 'incremental',
+          changes: [
+            {
+              sequence: 1,
+              entityType: 'story',
+              entityId: occurrenceId,
+              operation: 'delete',
+              payload: null,
+            },
+          ],
+          nextCursor: 1,
+          hasMore: false,
+        }),
+      ),
+      snapshot: vi.fn(() => Promise.resolve({ entries: [], nextCursor: 1 })),
+    };
+
+    await runAuthenticatedServerSync({ database, accountId, api });
+
+    expect(
+      await database.getFirstAsync(
+        'SELECT draft_id FROM story_drafts WHERE account_id = ? AND occurrence_id = ?',
+        accountId,
+        occurrenceId,
+      ),
+    ).toBeNull();
+    expect(
+      await database.getFirstAsync(
+        `SELECT json_extract(payload_json, '$.storyState') AS story_state
+           FROM cached_mission_occurrences
+          WHERE account_id = ? AND occurrence_id = ?`,
+        accountId,
+        occurrenceId,
+      ),
+    ).toEqual({ story_state: 'ready' });
+  });
+});
