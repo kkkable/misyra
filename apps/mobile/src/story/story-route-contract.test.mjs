@@ -8,7 +8,9 @@ const editorPath = fileURLToPath(new URL('./story-editor-screen.tsx', import.met
 const offlineStorePath = fileURLToPath(new URL('./story-offline-draft.ts', import.meta.url));
 const sourceRuntimePath = fileURLToPath(new URL('./story-source-runtime.ts', import.meta.url));
 const sourceFilesPath = fileURLToPath(new URL('./expo-story-source-files.ts', import.meta.url));
-const exportPlatformPath = fileURLToPath(new URL('./expo-story-export-platform.ts', import.meta.url));
+const exportPlatformPath = fileURLToPath(
+  new URL('./expo-story-export-platform.ts', import.meta.url),
+);
 
 describe('MTS-091 production Story route contract', () => {
   it('restores local drafts and queues autosaves without requiring online Story generation', () => {
