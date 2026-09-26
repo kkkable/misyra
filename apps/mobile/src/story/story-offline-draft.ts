@@ -175,7 +175,7 @@ export function createStoryOfflineDraftStore({
 
       const operation: SyncMutationOperation = existing === null ? 'create' : 'update';
       const localSavedAt = newestCompositionSaveTime(payload.imageVersions, now());
-      const createdAt = existing?.created_at ?? localSavedAt;
+      const createdAt = existing?.created_at ?? payload.createdAt ?? localSavedAt;
 
       await queue.enqueue({
         mutation: {
