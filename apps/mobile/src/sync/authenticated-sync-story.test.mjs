@@ -552,7 +552,7 @@ describe('MTS-099 authoritative Story retention delete', () => {
               entityType: 'story',
               entityId: occurrenceId,
               operation: 'delete',
-              payload: null,
+              payload: { expiredDraftId: draftId },
             },
           ],
           nextCursor: 1,
