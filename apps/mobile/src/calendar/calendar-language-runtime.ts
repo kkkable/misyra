@@ -1,10 +1,8 @@
-import type { LocalizationLocale } from '@misyra/localization';
-
-export type DeviceLanguageLocale = Readonly<{
-  languageCode: string | null;
-  languageScriptCode: string | null;
-  regionCode?: string | null;
-}>;
+import {
+  resolveLocalizationLocale,
+  type DeviceLanguageLocale,
+  type LocalizationLocale,
+} from '@misyra/localization';
 
 type CalendarLanguageSession = Readonly<{
   accountId: string;
@@ -22,18 +20,7 @@ export type CalendarLanguageResolution = Readonly<{
 export function resolveInitialCalendarLanguage(
   locale: DeviceLanguageLocale | undefined,
 ): LocalizationLocale {
-  if (locale?.languageCode !== 'zh') return 'en';
-
-  if (
-    locale.languageScriptCode === 'Hant' ||
-    locale.regionCode === 'HK' ||
-    locale.regionCode === 'MO' ||
-    locale.regionCode === 'TW'
-  ) {
-    return 'zh-HK';
-  }
-
-  return 'en';
+  return resolveLocalizationLocale(locale);
 }
 
 export async function resolveCalendarLanguage({

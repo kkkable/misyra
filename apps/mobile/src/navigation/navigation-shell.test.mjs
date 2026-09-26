@@ -43,6 +43,10 @@ vi.mock('../notifications/expo-notification-permission.js', () => ({
   })),
 }));
 
+vi.mock('../localization/use-app-language.js', () => ({
+  useAppLanguage: () => 'en',
+}));
+
 vi.mock('../notifications/mission-notification-response-bridge.js', () => ({
   MissionNotificationResponseBridge: () => null,
 }));

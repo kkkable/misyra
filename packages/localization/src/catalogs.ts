@@ -1,5 +1,6 @@
 export const localizationCatalogs = {
   en: {
+    'common.xpUnit': 'XP',
     'auth.signIn.title': 'Sign in to Misyra',
     'auth.signIn.apple': 'Continue with Apple',
     'auth.signIn.google': 'Continue with Google',
@@ -238,6 +239,7 @@ export const localizationCatalogs = {
     'story.styleProfile.statusCustom': 'Custom style active',
   },
   'zh-HK': {
+    'common.xpUnit': 'XP',
     'auth.signIn.title': '登入 Misyra',
     'auth.signIn.apple': '使用 Apple 繼續',
     'auth.signIn.google': '使用 Google 繼續',

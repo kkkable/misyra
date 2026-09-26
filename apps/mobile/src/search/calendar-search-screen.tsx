@@ -19,21 +19,6 @@ export interface CalendarSearchScreenProps {
   readonly onOpenResult: (result: CalendarSearchResult) => Promise<boolean>;
 }
 
-const ENGLISH_SHORT_MONTHS = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
-] as const;
-
 function dateForFormatting(value: string): Date | null {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
   if (match === null) return null;
@@ -45,17 +30,21 @@ function resultDateLabel(value: string | null, language: LocalizationLocale): st
   if (value === null) return null;
   const date = dateForFormatting(value);
   if (date === null) return value;
-  if (language === 'en') {
-    const month = ENGLISH_SHORT_MONTHS[date.getUTCMonth()];
-    if (month === undefined) return value;
-    return `${String(date.getUTCDate())} ${month} ${String(date.getUTCFullYear())}`;
-  }
-  return new Intl.DateTimeFormat('zh-HK', {
+  const formatter = new Intl.DateTimeFormat(language === 'en' ? 'en-US' : language, {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
     timeZone: 'UTC',
-  }).format(date);
+  });
+  if (language !== 'en') return formatter.format(date);
+
+  const parts = formatter.formatToParts(date);
+  const day = parts.find((part) => part.type === 'day')?.value;
+  const month = parts.find((part) => part.type === 'month')?.value;
+  const year = parts.find((part) => part.type === 'year')?.value;
+  return day === undefined || month === undefined || year === undefined
+    ? formatter.format(date)
+    : `${day} ${month} ${year}`;
 }
 
 export function CalendarSearchScreen({

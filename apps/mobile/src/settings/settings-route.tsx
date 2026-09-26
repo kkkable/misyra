@@ -12,7 +12,11 @@ import {
 import type { AccountSettings, CalendarConnection } from '@misyra/contracts';
 import { space, typography } from '@misyra/design-tokens';
 import type { RecurringSeriesScope } from '@misyra/domain';
-import { localizationCatalogs, notificationSettingsCatalogs } from '@misyra/localization';
+import {
+  localizationCatalogs,
+  notificationSettingsCatalogs,
+  type LocalizationLocale,
+} from '@misyra/localization';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { getAuthApiBaseUrl, rootAuthController } from '../auth/auth-runtime.js';
@@ -27,6 +31,7 @@ import {
   themeColors,
   type ColorScheme,
 } from '../design-system/index.js';
+import { publishAppLanguage } from '../localization/app-language-runtime.js';
 import { useAppLanguage } from '../localization/use-app-language.js';
 import { createExpoNotificationPermissionService } from '../notifications/expo-notification-permission.js';
 import type { NotificationPermissionStatus } from '../notifications/notification-permission.js';
@@ -76,6 +81,7 @@ export function SettingsRouteScreen() {
   const [selectedHiddenEvent, setSelectedHiddenEvent] = useState<HiddenCalendarEvent | null>(null);
   const [restoringHiddenEventId, setRestoringHiddenEventId] = useState<string | null>(null);
   const [updatingTrustMode, setUpdatingTrustMode] = useState(false);
+  const [updatingLanguage, setUpdatingLanguage] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
 
   const authenticatedApi = useCallback(async () => {
@@ -197,6 +203,28 @@ export function SettingsRouteScreen() {
     [authenticatedApi, updatingTrustMode],
   );
 
+  const updateLanguage = useCallback(
+    async (nextLanguage: LocalizationLocale) => {
+      if (updatingLanguage) return;
+      if (accountSettings?.language === nextLanguage) {
+        publishAppLanguage(nextLanguage);
+        return;
+      }
+      setUpdatingLanguage(true);
+      try {
+        const api = await authenticatedApi();
+        if (api === null) return;
+        const updated = await api.updateAccountSettings({ language: nextLanguage });
+        setAccountSettings(updated);
+        publishAppLanguage(updated.language);
+        await rootSyncRuntime.run().catch(() => undefined);
+      } finally {
+        setUpdatingLanguage(false);
+      }
+    },
+    [accountSettings?.language, authenticatedApi, updatingLanguage],
+  );
+
   const signOut = useCallback(async () => {
     if (signingOut) return;
     setSigningOut(true);
@@ -280,6 +308,30 @@ export function SettingsRouteScreen() {
             testID="settings-row-language"
             value={languageLabel}
           />
+          {selectedEntry === 'language' ? (
+            <View testID="settings-language-options">
+              <SettingsRow
+                accessibilityLabel={catalog.englishLanguage}
+                colorScheme={colorScheme}
+                label={catalog.englishLanguage}
+                onPress={() => {
+                  void updateLanguage('en');
+                }}
+                selected={language === 'en'}
+                testID="settings-language-option-en"
+              />
+              <SettingsRow
+                accessibilityLabel={catalog.traditionalChineseHongKongLanguage}
+                colorScheme={colorScheme}
+                label={catalog.traditionalChineseHongKongLanguage}
+                onPress={() => {
+                  void updateLanguage('zh-HK');
+                }}
+                selected={language === 'zh-HK'}
+                testID="settings-language-option-zh-HK"
+              />
+            </View>
+          ) : null}
         </View>
 
         <View style={[styles.section, { borderColor: colors.border }]}>

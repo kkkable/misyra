@@ -1,4 +1,5 @@
 {
+  "common.xpUnit": "XP",
   "auth.signIn.title": "登入 Misyra",
   "auth.signIn.apple": "使用 Apple 繼續",
   "auth.signIn.google": "使用 Google 繼續",

@@ -128,6 +128,7 @@ function projectDetails(
   search: SearchDetailsRow | null,
   completion: CompletionRow | null,
   now: Date,
+  xpUnit: string,
 ): MissionDetailsProjection {
   const occurrence = mission.occurrence;
   const organizerControlled = occurrence.fieldOwnership === 'organizer_controlled';
@@ -158,7 +159,7 @@ function projectDetails(
     completionState: occurrence.completionState,
     evidenceState: occurrence.evidenceState,
     rewardEligibility: occurrence.rewardEligibility,
-    xpSummary: `${String(completion?.awarded_xp ?? 0)} XP`,
+    xpSummary: `${String(completion?.awarded_xp ?? 0)} ${xpUnit}`,
     zeroXpReason: null,
     cancellationAttribution:
       lifecycle === 'cancelled' && organizerControlled
@@ -175,6 +176,7 @@ export function CalendarMissionDetailsRouteScreen() {
   const missionId = routeMissionId(params.id);
   const language = useAppLanguage();
   const catalog = localizationCatalogs[language];
+  const xpUnit = catalog['common.xpUnit'];
   const nativeColorScheme = useColorScheme();
   const colorScheme: ColorScheme = nativeColorScheme === 'dark' ? 'dark' : 'light';
   const colors = themeColors(colorScheme);
@@ -228,9 +230,9 @@ export function CalendarMissionDetailsRouteScreen() {
       authState.session.accountId,
       missionId,
     );
-    setDetails(projectDetails(mission, search, completion, new Date()));
+    setDetails(projectDetails(mission, search, completion, new Date(), xpUnit));
     setLoaded(true);
-  }, [missionId]);
+  }, [missionId, xpUnit]);
 
   useEffect(() => {
     let active = true;
