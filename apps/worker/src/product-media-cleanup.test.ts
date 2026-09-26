@@ -551,7 +551,12 @@ describe('MTS-099 Story and style retention integration', () => {
       [accountId, occurrenceId],
     );
     expect(storyDeletion.rows).toEqual([
-      { entityType: 'story', entityId: occurrenceId, operation: 'delete', payload: null },
+      {
+        entityType: 'story',
+        entityId: occurrenceId,
+        operation: 'delete',
+        payload: { expiredDraftId: draftId },
+      },
     ]);
   });
 });
