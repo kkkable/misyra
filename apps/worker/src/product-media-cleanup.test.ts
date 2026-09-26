@@ -500,8 +500,7 @@ describe('MTS-099 Story and style retention integration', () => {
   it('time-travels the exact 30-day deadline, deletes Story draft/media, and retains the abstract style profile', async () => {
     const createdAt = '2026-08-22T12:00:00.000Z';
     const dueAt = '2026-09-21T12:00:00.000Z';
-    const { draftId, occurrenceId, storyMutationId } =
-      await seedMts099StoryDraft(createdAt);
+    const { draftId, occurrenceId, storyMutationId } = await seedMts099StoryDraft(createdAt);
     const storyKeys = [
       `${accountId}/mts099/story/cache`,
       `${accountId}/mts099/story/original`,
