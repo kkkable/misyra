@@ -19,21 +19,6 @@ export interface CalendarSearchScreenProps {
   readonly onOpenResult: (result: CalendarSearchResult) => Promise<boolean>;
 }
 
-const ENGLISH_SHORT_MONTHS = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
-] as const;
-
 function dateForFormatting(value: string): Date | null {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
   if (match === null) return null;
@@ -45,12 +30,7 @@ function resultDateLabel(value: string | null, language: LocalizationLocale): st
   if (value === null) return null;
   const date = dateForFormatting(value);
   if (date === null) return value;
-  if (language === 'en') {
-    const month = ENGLISH_SHORT_MONTHS[date.getUTCMonth()];
-    if (month === undefined) return value;
-    return `${String(date.getUTCDate())} ${month} ${String(date.getUTCFullYear())}`;
-  }
-  return new Intl.DateTimeFormat('zh-HK', {
+  return new Intl.DateTimeFormat(language === 'en' ? 'en-GB' : language, {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
