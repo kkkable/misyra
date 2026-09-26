@@ -2,7 +2,8 @@
   "sections": [
     {
       "id": "account-preferences",
-      "rows": ["trust-mode", "connected-calendar", "language"]
+      "rows": ["trust-mode", "connected-calendar", "language"],
+      "destructive": []
     },
     {
       "id": "privacy",
@@ -11,11 +12,13 @@
     },
     {
       "id": "calendar-missions",
-      "rows": ["hidden-calendar-events", "notification-status"]
+      "rows": ["hidden-calendar-events", "notification-status"],
+      "destructive": []
     },
     {
       "id": "story",
-      "rows": ["story-style-profile"]
+      "rows": ["story-style-profile"],
+      "destructive": []
     },
     {
       "id": "help",
