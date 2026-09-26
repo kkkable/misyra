@@ -1393,8 +1393,8 @@ async function redactStoryRetentionHistory(
         AND entity_type = 'story'
         AND entity_id = $2
         AND operation <> 'delete'
-        AND sequence < $4`,
-    [accountId, occurrenceId, expiredDraftId, retentionDeleteSequence],
+        AND sequence < $3`,
+    [accountId, occurrenceId, retentionDeleteSequence],
   );
   await client.query(
     `UPDATE device_sync_mutations
