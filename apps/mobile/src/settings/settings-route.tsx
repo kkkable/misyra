@@ -226,9 +226,7 @@ export function SettingsRouteScreen() {
   );
 
   const languageLabel =
-    language === 'zh-HK'
-      ? catalog.traditionalChineseHongKongLanguage
-      : catalog.englishLanguage;
+    language === 'zh-HK' ? catalog.traditionalChineseHongKongLanguage : catalog.englishLanguage;
 
   return (
     <Screen colorScheme={colorScheme} testID="settings-route">
