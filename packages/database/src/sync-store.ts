@@ -2190,18 +2190,18 @@ async function storyConflictForMutation(
   const current = result.rows[0];
   if (current === undefined) {
     const payload = parseStoryDraftPayload(mutation.payload);
-    return (await storyRetentionDeleteMatches(
+    const retentionDeleted = await storyRetentionDeleteMatches(
       client,
       mutation.accountId,
       mutation.entityId,
       payload.draftId,
-    ))
-      ? {
-          kind: 'story_updated',
-          mutationId: mutation.mutationId,
-          storyDraftId: payload.draftId,
-        }
-      : null;
+    );
+    if (!retentionDeleted) return null;
+    return {
+      kind: 'story_updated',
+      mutationId: mutation.mutationId,
+      storyDraftId: payload.draftId,
+    };
   }
   if (current.winnerMutationId === mutation.mutationId) return null;
   return {
