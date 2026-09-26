@@ -10,7 +10,12 @@ describe('MTS-101 user-visible localization boundary', () => {
   it('sources permanent tab labels from localization catalogs', async () => {
     const source = await readFile(tabsPath, 'utf8');
 
-    for (const literal of ["title: 'Calendar'", "title: 'AI Planner'", "title: 'Progress'", "title: 'Settings'"]) {
+    for (const literal of [
+      "title: 'Calendar'",
+      "title: 'AI Planner'",
+      "title: 'Progress'",
+      "title: 'Settings'",
+    ]) {
       expect(source).not.toContain(literal);
     }
     expect(source).toContain('useAppLanguage');
