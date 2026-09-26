@@ -86,6 +86,14 @@ const messages = {
   saveToPhotos: 'Save to Photos',
   shareElsewhere: 'Share elsewhere',
   savedToPhotos: 'Saved to Photos.',
+  openInstagram: 'Open Instagram',
+  sharingNotes: 'Sharing Notes',
+  copy: 'Copy',
+  continueToInstagram: 'Continue to Instagram',
+  musicMood: 'Music / mood',
+  mention: 'Mention',
+  location: 'Location',
+  poll: 'Poll',
 };
 
 const sourceAttempts = [
@@ -381,5 +389,76 @@ describe('MTS-097 Story export actions', () => {
     expect(onShareElsewhere).toHaveBeenCalledTimes(1);
     const notice = renderer.root.findByProps({ testID: 'story-saved-to-photos' });
     expect(notice.props.message).toBe('Saved to Photos.');
+  });
+});
+
+function pressByTestId(renderer, testID) {
+  act(() => renderer.root.findByProps({ testID }).props.onPress());
+}
+
+describe('MTS-098 Instagram Sharing Notes flow', () => {
+  const sharingNotes = {
+    musicMood: 'upbeat running track',
+    mention: '@misyra',
+    location: 'Hong Kong',
+    poll: {
+      question: 'Run again tomorrow?',
+      options: ['Yes', 'Maybe later'],
+    },
+  };
+
+  it('shows Sharing Notes before Instagram opens and supports copy actions', () => {
+    const onCopySharingNote = vi.fn();
+    const onOpenInstagram = vi.fn();
+    const { renderer } = renderScreen({
+      sharingNotes,
+      onCopySharingNote,
+      onOpenInstagram,
+    });
+
+    pressByTestId(renderer, 'story-open-instagram');
+
+    expect(onOpenInstagram).not.toHaveBeenCalled();
+    expect(renderer.root.findByProps({ testID: 'story-sharing-notes' })).toBeDefined();
+    expect(
+      renderer.root.findByProps({ testID: 'story-sharing-note-musicMood' }).props.children,
+    ).toContain('upbeat running track');
+    expect(
+      renderer.root.findByProps({ testID: 'story-sharing-note-mention' }).props.children,
+    ).toContain('@misyra');
+    expect(
+      renderer.root.findByProps({ testID: 'story-sharing-note-location' }).props.children,
+    ).toContain('Hong Kong');
+    expect(
+      renderer.root.findByProps({ testID: 'story-sharing-note-poll' }).props.children,
+    ).toContain('Run again tomorrow?');
+
+    pressByTestId(renderer, 'story-copy-musicMood');
+    pressByTestId(renderer, 'story-copy-mention');
+    pressByTestId(renderer, 'story-copy-location');
+    pressByTestId(renderer, 'story-copy-poll');
+
+    expect(onCopySharingNote).toHaveBeenNthCalledWith(1, 'upbeat running track');
+    expect(onCopySharingNote).toHaveBeenNthCalledWith(2, '@misyra');
+    expect(onCopySharingNote).toHaveBeenNthCalledWith(3, 'Hong Kong');
+    expect(onCopySharingNote).toHaveBeenNthCalledWith(4, 'Run again tomorrow? — Yes / Maybe later');
+
+    pressByTestId(renderer, 'story-sharing-notes-open');
+    expect(onOpenInstagram).toHaveBeenCalledTimes(1);
+  });
+
+  it('never exposes a posting-confirmation or post-status control', () => {
+    const { renderer } = renderScreen({
+      sharingNotes,
+      onCopySharingNote: vi.fn(),
+      onOpenInstagram: vi.fn(),
+    });
+
+    const ids = renderer.root
+      .findAll((node) => typeof node.props.testID === 'string')
+      .map((node) => node.props.testID);
+
+    const hasPostTracking = ids.some((id) => /did-you-post|post-status|posted-status/i.test(id));
+    expect(hasPostTracking).toBe(false);
   });
 });

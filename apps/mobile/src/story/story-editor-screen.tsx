@@ -22,6 +22,7 @@ import {
   StoryTextSuggestionsPanel,
   type StoryTextSuggestionsPanelMessages,
 } from './story-text-suggestions-panel.js';
+import { formatStorySharingPoll } from './story-instagram-sharing.js';
 import { applyStoryTextSuggestionSelection } from './story-text-suggestions.js';
 
 export type StoryEditorMessages = Readonly<{
@@ -57,9 +58,25 @@ export type StoryEditorMessages = Readonly<{
   saveToPhotos: string;
   shareElsewhere: string;
   savedToPhotos: string;
+  openInstagram: string;
+  sharingNotes: string;
+  copy: string;
+  continueToInstagram: string;
+  musicMood: string;
+  mention: string;
+  location: string;
+  poll: string;
 }>;
 
 type TextRole = 'headline' | 'supportingText';
+type StorySharingNotes = StoryTextSuggestionsResult['sharingNotes'];
+
+const EMPTY_SHARING_NOTES: StorySharingNotes = {
+  musicMood: null,
+  mention: null,
+  location: null,
+  poll: null,
+};
 
 const TEXT_COLORS = ['#FFFFFF', '#111111', '#6D3CF3'] as const;
 
@@ -98,6 +115,8 @@ export function StoryEditorScreen({
   onSave,
   onSaveToPhotos,
   onShareElsewhere,
+  onCopySharingNote,
+  onOpenInstagram,
   onSelectImageVersion,
   onSelectSource,
   remainingGenerations,
@@ -105,6 +124,7 @@ export function StoryEditorScreen({
   selectedImageVersionId,
   sourceAttempts,
   sourceImage,
+  sharingNotes = EMPTY_SHARING_NOTES,
   textSuggestionMessages,
   textSuggestions,
   onTextSuggestionsResolved,
@@ -124,6 +144,8 @@ export function StoryEditorScreen({
   onSave: (composition: StoryComposition) => void;
   onSaveToPhotos?: () => void | Promise<void>;
   onShareElsewhere?: () => void | Promise<void>;
+  onCopySharingNote?: (value: string) => void | Promise<void>;
+  onOpenInstagram?: () => void | Promise<void>;
   onSelectImageVersion?: (versionId: string) => void;
   onSelectSource: (source: EvidenceStorySourceAttempt) => void;
   remainingGenerations: number | null;
@@ -131,6 +153,7 @@ export function StoryEditorScreen({
   selectedImageVersionId?: string;
   sourceAttempts: readonly EvidenceStorySourceAttempt[];
   sourceImage: StorySourceImage;
+  sharingNotes?: StorySharingNotes;
   textSuggestionMessages?: StoryTextSuggestionsPanelMessages;
   textSuggestions?: StoryTextSuggestionsResult | null;
   onTextSuggestionsResolved?: () => void;
@@ -160,6 +183,7 @@ export function StoryEditorScreen({
   const session = sessionRef.current.session;
   const [composition, setComposition] = useState(() => session.getComposition());
   const [selectedTextRole, setSelectedTextRole] = useState<TextRole>('headline');
+  const [sharingNotesVisible, setSharingNotesVisible] = useState(false);
 
   useEffect(() => {
     setComposition(session.getComposition());
@@ -212,6 +236,8 @@ export function StoryEditorScreen({
   const previewWidth = Math.max(1, window.width - 32);
   const displayedImageVersions = imageVersions ?? [{ id: sourceImage.id, kind: 'source' as const }];
   const activeImageVersionId = selectedImageVersionId ?? sourceImage.id;
+  const sharingPollText =
+    sharingNotes.poll === null ? null : formatStorySharingPoll(sharingNotes.poll);
 
   return (
     <Screen colorScheme={colorScheme} testID="story-editor">
@@ -267,6 +293,15 @@ export function StoryEditorScreen({
             testID="story-save-to-photos"
           />
           <SecondaryButton
+            accessibilityLabel={messages.openInstagram}
+            colorScheme={colorScheme}
+            label={messages.openInstagram}
+            onPress={() => {
+              setSharingNotesVisible(true);
+            }}
+            testID="story-open-instagram"
+          />
+          <SecondaryButton
             accessibilityLabel={messages.shareElsewhere}
             colorScheme={colorScheme}
             label={messages.shareElsewhere}
@@ -276,6 +311,90 @@ export function StoryEditorScreen({
             testID="story-share-elsewhere"
           />
         </View>
+        {sharingNotesVisible ? (
+          <View
+            accessibilityRole="summary"
+            style={[styles.sharingNotes, { borderColor: colors.border }]}
+            testID="story-sharing-notes"
+          >
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
+              {messages.sharingNotes}
+            </Text>
+            {sharingNotes.musicMood === null ? null : (
+              <View style={styles.sharingNoteRow}>
+                <Text style={{ color: colors.textPrimary }} testID="story-sharing-note-musicMood">
+                  {`${messages.musicMood}: ${sharingNotes.musicMood}`}
+                </Text>
+                <SecondaryButton
+                  accessibilityLabel={messages.copy}
+                  colorScheme={colorScheme}
+                  label={messages.copy}
+                  onPress={() => {
+                    void onCopySharingNote?.(sharingNotes.musicMood ?? '');
+                  }}
+                  testID="story-copy-musicMood"
+                />
+              </View>
+            )}
+            {sharingNotes.mention === null ? null : (
+              <View style={styles.sharingNoteRow}>
+                <Text style={{ color: colors.textPrimary }} testID="story-sharing-note-mention">
+                  {`${messages.mention}: ${sharingNotes.mention}`}
+                </Text>
+                <SecondaryButton
+                  accessibilityLabel={messages.copy}
+                  colorScheme={colorScheme}
+                  label={messages.copy}
+                  onPress={() => {
+                    void onCopySharingNote?.(sharingNotes.mention ?? '');
+                  }}
+                  testID="story-copy-mention"
+                />
+              </View>
+            )}
+            {sharingNotes.location === null ? null : (
+              <View style={styles.sharingNoteRow}>
+                <Text style={{ color: colors.textPrimary }} testID="story-sharing-note-location">
+                  {`${messages.location}: ${sharingNotes.location}`}
+                </Text>
+                <SecondaryButton
+                  accessibilityLabel={messages.copy}
+                  colorScheme={colorScheme}
+                  label={messages.copy}
+                  onPress={() => {
+                    void onCopySharingNote?.(sharingNotes.location ?? '');
+                  }}
+                  testID="story-copy-location"
+                />
+              </View>
+            )}
+            {sharingPollText === null ? null : (
+              <View style={styles.sharingNoteRow}>
+                <Text style={{ color: colors.textPrimary }} testID="story-sharing-note-poll">
+                  {`${messages.poll}: ${sharingPollText}`}
+                </Text>
+                <SecondaryButton
+                  accessibilityLabel={messages.copy}
+                  colorScheme={colorScheme}
+                  label={messages.copy}
+                  onPress={() => {
+                    void onCopySharingNote?.(sharingPollText);
+                  }}
+                  testID="story-copy-poll"
+                />
+              </View>
+            )}
+            <PrimaryButton
+              accessibilityLabel={messages.continueToInstagram}
+              colorScheme={colorScheme}
+              label={messages.continueToInstagram}
+              onPress={() => {
+                void onOpenInstagram?.();
+              }}
+              testID="story-sharing-notes-open"
+            />
+          </View>
+        ) : null}
         <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
           {messages.versions}
         </Text>
@@ -679,6 +798,15 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  sharingNotes: {
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 8,
+    padding: 12,
+  },
+  sharingNoteRow: {
+    gap: 6,
   },
   sourceButton: {
     borderRadius: 12,

@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { storyDraftSyncPayloadSchema, type StoryTextSuggestionsResult } from '@misyra/contracts';
+import {
+  storyDraftSyncPayloadSchema,
+  storyTextSharingNotesSuggestionSchema,
+  type StoryTextSuggestionsResult,
+} from '@misyra/contracts';
 import { localizationCatalogs } from '@misyra/localization';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useColorScheme } from 'react-native';
@@ -23,6 +27,7 @@ import {
   type StoryComposition,
 } from '../src/story/story-composition.js';
 import { createExpoStoryExportPlatform } from '../src/story/expo-story-export-platform.js';
+import { createExpoStoryInstagramPlatform } from '../src/story/expo-story-instagram-platform.js';
 import {
   createExpoStorySourceFiles,
   createExpoStoryVersionFiles,
@@ -32,6 +37,7 @@ import { createStoryExportController } from '../src/story/story-export.js';
 import { StoryEditorScreen, type StoryEditorMessages } from '../src/story/story-editor-screen.js';
 import type { StorySourceImage } from '../src/story/story-editor-state.js';
 import { createStoryImageGenerationApi } from '../src/story/story-image-generation-api.js';
+import { createStoryInstagramController } from '../src/story/story-instagram-sharing.js';
 import { createStoryOfflineDraftStore } from '../src/story/story-offline-draft.js';
 import { createStorySourceRuntime } from '../src/story/story-source-runtime.js';
 import { createStoryStyleProfileApi } from '../src/story/story-style-profile-api.js';
@@ -48,6 +54,7 @@ import type { StoryTextSuggestionsPanelMessages } from '../src/story/story-text-
 const UUID_HEX = '0123456789abcdef';
 const UUID_VARIANTS = '89ab';
 const storyExportController = createStoryExportController(createExpoStoryExportPlatform());
+const storyInstagramController = createStoryInstagramController(createExpoStoryInstagramPlatform());
 
 type StoryDraftPayload = ReturnType<typeof storyDraftSyncPayloadSchema.parse>;
 
@@ -89,6 +96,14 @@ function routeOccurrenceId(value: string | string[] | undefined): string | null 
 
 function sourceVersion(payload: StoryDraftPayload) {
   return payload.imageVersions.find((version) => version.kind === 'source') ?? null;
+}
+
+function sharingNotesForEditor(
+  payload: StoryDraftPayload,
+): StoryTextSuggestionsResult['sharingNotes'] {
+  const parsed = storyTextSharingNotesSuggestionSchema.safeParse(payload.notes);
+  if (parsed.success) return parsed.data;
+  return { musicMood: null, mention: null, location: null, poll: null };
 }
 
 function activeComposition(state: StoryRouteState): StoryComposition {
@@ -162,6 +177,14 @@ function editorMessages(
     saveToPhotos: catalog['story.editor.saveToPhotos'],
     shareElsewhere: catalog['story.editor.shareElsewhere'],
     savedToPhotos: catalog['story.editor.savedToPhotos'],
+    openInstagram: catalog['story.editor.openInstagram'],
+    sharingNotes: catalog['story.editor.sharingNotes'],
+    copy: catalog['story.editor.copy'],
+    continueToInstagram: catalog['story.editor.continueToInstagram'],
+    musicMood: catalog['story.editor.musicMood'],
+    mention: catalog['story.editor.mention'],
+    location: catalog['story.editor.location'],
+    poll: catalog['story.editor.poll'],
   };
 }
 
@@ -509,6 +532,7 @@ export default function StoryRoute() {
       selectedAttemptId={editorState.selectedAttemptId}
       sourceAttempts={editorState.sourceAttempts}
       sourceImage={editorState.sourceImage}
+      sharingNotes={sharingNotesForEditor(editorState.payload)}
       textSuggestionMessages={textSuggestionMessages}
       textSuggestions={editorState.textSuggestions}
       onTextSuggestionsResolved={() => {
@@ -556,6 +580,8 @@ export default function StoryRoute() {
           composition: activeComposition(editorState),
         })
       }
+      onCopySharingNote={(value) => storyInstagramController.copy(value)}
+      onOpenInstagram={() => storyInstagramController.open()}
       onSelectImageVersion={(versionId) => {
         const runtime = runtimeRef.current;
         if (runtime === null || versionId === editorState.imageVersionId) return;
