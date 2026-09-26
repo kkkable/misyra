@@ -190,3 +190,95 @@ describe('MTS-039 signed-in runtime correction', () => {
     expect(calls).toEqual(['evidence', 'server']);
   });
 });
+
+describe('MTS-099 retention-before-sync ordering', () => {
+  it('prunes expired Story data before evidence and generic server synchronization', async () => {
+    const calls = [];
+    const runtime = createAuthenticatedSyncRuntime({
+      sessionProvider: () => Promise.resolve(session),
+      installationStore: {
+        getItem: vi.fn((key) =>
+          Promise.resolve(
+            key === 'misyra.installation-id.v1'
+              ? 'installation-stable'
+              : key.includes('device-id')
+                ? deviceId
+                : null,
+          ),
+        ),
+        setItem: vi.fn(() => Promise.resolve()),
+      },
+      openDatabase: () =>
+        Promise.resolve({
+          runAsync: vi.fn(() => Promise.resolve({ changes: 1 })),
+        }),
+      apiFactory: vi.fn(() => ({
+        registerDevice: vi.fn(() => Promise.resolve({ deviceId })),
+        getAccountSettings: vi.fn(() => Promise.resolve({ language: 'en', trustMode: false })),
+      })),
+      runStoryRetention: vi.fn(() => {
+        calls.push('retention');
+        return Promise.resolve({ deletedDrafts: 1 });
+      }),
+      runEvidenceSync: vi.fn(() => {
+        calls.push('evidence');
+        return Promise.resolve({ processed: 0, remaining: 0 });
+      }),
+      runServerSync: vi.fn(() => {
+        calls.push('server');
+        return Promise.resolve({ settledMutations: 0, cursor: 0 });
+      }),
+      generateInstallationId: () => 'installation-stable',
+      deviceMetadata: () =>
+        Promise.resolve({
+          platform: 'ios',
+          appVersion: '1.2.3',
+          notificationCapability: 'denied',
+        }),
+    });
+
+    await runtime.run();
+
+    expect(calls).toEqual(['retention', 'evidence', 'server']);
+  });
+
+  it('prunes local Story data even when device registration fails offline', async () => {
+    const calls = [];
+    const networkError = new Error('offline');
+    const api = {
+      registerDevice: vi.fn(() => {
+        calls.push('register');
+        return Promise.reject(networkError);
+      }),
+      getAccountSettings: vi.fn(() => Promise.resolve({ language: 'en', trustMode: false })),
+    };
+    const runtime = createAuthenticatedSyncRuntime({
+      sessionProvider: () => Promise.resolve(session),
+      installationStore: {
+        getItem: vi.fn(() => Promise.resolve('installation-stable')),
+        setItem: vi.fn(() => Promise.resolve()),
+      },
+      openDatabase: () =>
+        Promise.resolve({
+          runAsync: vi.fn(() => Promise.resolve({ changes: 1 })),
+        }),
+      apiFactory: vi.fn(() => api),
+      runStoryRetention: vi.fn(() => {
+        calls.push('retention');
+        return Promise.resolve({ deletedDrafts: 1 });
+      }),
+      generateInstallationId: () => 'installation-stable',
+      deviceMetadata: () =>
+        Promise.resolve({
+          platform: 'ios',
+          appVersion: '1.2.3',
+          notificationCapability: 'denied',
+        }),
+    });
+
+    await expect(runtime.run()).rejects.toBe(networkError);
+
+    expect(calls).toEqual(['retention', 'register']);
+    expect(api.getAccountSettings).not.toHaveBeenCalled();
+  });
+});

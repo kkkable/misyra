@@ -27,6 +27,7 @@ export const accountDataTables = [
   'hidden_event_summaries',
   'planner_drafts',
   'story_drafts',
+  'story_retention_tombstones',
   'search_documents',
   'sync_cursors',
   'mutation_queue',
@@ -268,6 +269,25 @@ export const mobileMigrations: readonly MobileMigration[] = [
         current_streak INTEGER NOT NULL CHECK (current_streak >= 0),
         longest_streak INTEGER NOT NULL CHECK (longest_streak >= current_streak),
         updated_at TEXT NOT NULL,
+        FOREIGN KEY (account_id) REFERENCES local_accounts (account_id) ON DELETE CASCADE
+      )`,
+    ],
+  },
+  {
+    version: 8,
+    name: 'story-draft-retention-created-at',
+    statements: [
+      `ALTER TABLE story_drafts
+        ADD COLUMN created_at TEXT`,
+      `UPDATE story_drafts
+          SET created_at = updated_at
+        WHERE created_at IS NULL`,
+      `CREATE TABLE story_retention_tombstones (
+        account_id TEXT NOT NULL,
+        occurrence_id TEXT NOT NULL,
+        draft_id TEXT NOT NULL,
+        expired_at TEXT NOT NULL,
+        PRIMARY KEY (account_id, occurrence_id),
         FOREIGN KEY (account_id) REFERENCES local_accounts (account_id) ON DELETE CASCADE
       )`,
     ],

@@ -1,3 +1,4 @@
+import { appendAccountChange } from '@misyra/database';
 import type { Pool } from 'pg';
 
 export type ProductMediaCleanupBlobStore = Readonly<{
@@ -177,6 +178,59 @@ export function createProductMediaCleanupService(options: ProductMediaCleanupSer
         } finally {
           client.release();
         }
+      }
+
+      const retentionClient = await options.pool.connect();
+      try {
+        await retentionClient.query('BEGIN');
+        const expiredDrafts = await retentionClient.query<{
+          accountId: string;
+          occurrenceId: string;
+          draftId: string;
+        }>(
+          `DELETE FROM story_drafts
+            WHERE created_at <= $1::timestamptz - INTERVAL '30 days'
+            RETURNING account_id AS "accountId",
+                      occurrence_id AS "occurrenceId",
+                      id AS "draftId"`,
+          [now],
+        );
+        for (const expired of expiredDrafts.rows) {
+          const deletion = await appendAccountChange(retentionClient, {
+            accountId: expired.accountId,
+            entityType: 'story',
+            entityId: expired.occurrenceId,
+            operation: 'delete',
+            payload: { expiredDraftId: expired.draftId },
+          });
+          await retentionClient.query(
+            `DELETE FROM account_change_log
+              WHERE account_id = $1
+                AND entity_type = 'story'
+                AND entity_id = $2
+                AND operation <> 'delete'
+                AND sequence < $3`,
+            [expired.accountId, expired.occurrenceId, deletion.sequence],
+          );
+          await retentionClient.query(
+            `UPDATE device_sync_mutations
+                SET payload = jsonb_build_object(
+                  'retentionDeleted', true,
+                  'draftId', $3::text
+                )
+              WHERE account_id = $1
+                AND entity_type = 'story'
+                AND entity_id = $2
+                AND payload->>'draftId' = $3`,
+            [expired.accountId, expired.occurrenceId, expired.draftId],
+          );
+        }
+        await retentionClient.query('COMMIT');
+      } catch (error) {
+        await retentionClient.query('ROLLBACK');
+        throw error;
+      } finally {
+        retentionClient.release();
       }
 
       return { scanned, deleted, retryPending };

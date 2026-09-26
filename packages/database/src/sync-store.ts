@@ -241,6 +241,7 @@ type StoryImageVersionPayload = Readonly<{
 
 type StoryDraftPayload = Readonly<{
   draftId: string;
+  createdAt?: string;
   notes: StorySharingNotesPayload;
   imageVersions: readonly StoryImageVersionPayload[];
 }>;
@@ -253,6 +254,7 @@ type ClientTiming = Readonly<{
 }>;
 
 const HISTORICAL_WINDOW_MILLISECONDS = 30 * 24 * 60 * 60 * 1000;
+const STORY_RETENTION_MILLISECONDS = 30 * 24 * 60 * 60 * 1000;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const LOCAL_DATE_TIME_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/;
 const LOCAL_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -661,10 +663,11 @@ function parseStoryImageVersion(value: unknown): StoryImageVersionPayload {
 
 function parseStoryDraftPayload(payload: unknown): StoryDraftPayload {
   const source = asRecord(payload, 'Story draft payload');
-  const supported = ['draftId', 'notes', 'imageVersions'];
+  const supported = ['draftId', 'createdAt', 'notes', 'imageVersions'];
+  const required = ['draftId', 'notes', 'imageVersions'];
   if (
-    Object.keys(source).length !== supported.length ||
-    supported.some((key) => !Object.hasOwn(source, key))
+    Object.keys(source).some((key) => !supported.includes(key)) ||
+    required.some((key) => !Object.hasOwn(source, key))
   ) {
     throw new SyncMutationValidationError('Story draft payload contains unsupported fields');
   }
@@ -675,8 +678,16 @@ function parseStoryDraftPayload(payload: unknown): StoryDraftPayload {
   if (new Set(imageVersions.map((version) => version.id)).size !== imageVersions.length) {
     throw new SyncMutationValidationError('Story image-version ids must be unique');
   }
+  let createdAt: string | undefined;
+  if (Object.hasOwn(source, 'createdAt')) {
+    createdAt = requireString(source, 'createdAt', 'Story draft createdAt');
+    if (!Number.isFinite(Date.parse(createdAt))) {
+      throw new SyncMutationValidationError('Story draft createdAt must be an ISO instant');
+    }
+  }
   return {
     draftId: requireUuid(source, 'draftId', 'Story draft id'),
+    ...(createdAt === undefined ? {} : { createdAt }),
     notes: parseStorySharingNotes(source.notes),
     imageVersions,
   };
@@ -1150,7 +1161,14 @@ async function existingMutationMatches(
        AND base_version IS NOT DISTINCT FROM $7
        AND validation_result = $8
        AND ($8 = 'invalid_replaced' OR client_occurred_at = $9)
-       AND payload = $10::jsonb AS "exactMatch"
+       AND (
+         payload = $10::jsonb
+         OR (
+           entity_type = 'story'
+           AND payload->>'retentionDeleted' = 'true'
+           AND payload->>'draftId' = ($10::jsonb)->>'draftId'
+         )
+       ) AS "exactMatch"
      FROM device_sync_mutations
      WHERE id = $1
      FOR UPDATE`,
@@ -1272,8 +1290,12 @@ async function loadStoryDraftPayload(
   accountId: string,
   occurrenceId: string,
 ): Promise<StoryDraftPayload> {
-  const draft = await client.query<{ id: string; notes: StorySharingNotesPayload }>(
-    `SELECT id, notes
+  const draft = await client.query<{
+    id: string;
+    createdAt: Date;
+    notes: StorySharingNotesPayload;
+  }>(
+    `SELECT id, created_at AS "createdAt", notes
        FROM story_drafts
       WHERE account_id = $1
         AND occurrence_id = $2
@@ -1306,6 +1328,7 @@ async function loadStoryDraftPayload(
   );
   return {
     draftId: current.id,
+    createdAt: current.createdAt.toISOString(),
     notes: current.notes,
     imageVersions: versions.rows,
   };
@@ -1333,7 +1356,81 @@ function storySaveIsNewer(
 type StoryMutationApplyResult = Readonly<{
   payload: StoryDraftPayload;
   conflict: boolean;
+  publishChange: boolean;
 }>;
+
+async function storyRetentionDeleteMatches(
+  client: PoolClient,
+  accountId: string,
+  occurrenceId: string,
+  draftId: string,
+): Promise<boolean> {
+  const result = await client.query<{ matches: boolean }>(
+    `SELECT EXISTS (
+       SELECT 1
+         FROM account_change_log
+        WHERE account_id = $1
+          AND entity_type = 'story'
+          AND entity_id = $2
+          AND operation = 'delete'
+          AND payload->>'expiredDraftId' = $3
+     ) AS matches`,
+    [accountId, occurrenceId, draftId],
+  );
+  return result.rows[0]?.matches ?? false;
+}
+
+async function redactStoryRetentionHistory(
+  client: PoolClient,
+  accountId: string,
+  occurrenceId: string,
+  expiredDraftId: string,
+  retentionDeleteSequence: number,
+): Promise<void> {
+  await client.query(
+    `DELETE FROM account_change_log
+      WHERE account_id = $1
+        AND entity_type = 'story'
+        AND entity_id = $2
+        AND operation <> 'delete'
+        AND sequence < $3`,
+    [accountId, occurrenceId, retentionDeleteSequence],
+  );
+  await client.query(
+    `UPDATE device_sync_mutations
+        SET payload = jsonb_build_object(
+          'retentionDeleted', true,
+          'draftId', $3::text
+        )
+      WHERE account_id = $1
+        AND entity_type = 'story'
+        AND entity_id = $2
+        AND payload->>'draftId' = $3`,
+    [accountId, occurrenceId, expiredDraftId],
+  );
+}
+
+async function appendStoryRetentionDelete(
+  client: PoolClient,
+  accountId: string,
+  occurrenceId: string,
+  expiredDraftId: string,
+): Promise<void> {
+  const deletion = await appendAccountChange(client, {
+    accountId,
+    entityType: 'story',
+    entityId: occurrenceId,
+    operation: 'delete',
+    payload: { expiredDraftId },
+  });
+  await redactStoryRetentionHistory(
+    client,
+    accountId,
+    occurrenceId,
+    expiredDraftId,
+    deletion.sequence,
+  );
+}
 
 async function applyStoryMutation(
   client: PoolClient,
@@ -1372,11 +1469,13 @@ async function applyStoryMutation(
 
   const existing = await client.query<{
     id: string;
+    createdAt: Date;
     effectiveSaveTime: Date;
     serverReceiptTime: Date;
     winnerMutationId: string | null;
   }>(
     `SELECT id,
+            created_at AS "createdAt",
             effective_save_time AS "effectiveSaveTime",
             server_receipt_time AS "serverReceiptTime",
             winner_mutation_id AS "winnerMutationId"
@@ -1387,7 +1486,53 @@ async function applyStoryMutation(
       FOR UPDATE`,
     [mutation.accountId, mutation.entityId],
   );
-  const current = existing.rows[0];
+  let current = existing.rows[0];
+  if (
+    current !== undefined &&
+    current.createdAt.getTime() + STORY_RETENTION_MILLISECONDS <= timing.serverReceiptTime.getTime()
+  ) {
+    const expiredDraftId = current.id;
+    await client.query(
+      `DELETE FROM story_drafts
+        WHERE id = $1
+          AND account_id = $2
+          AND occurrence_id = $3
+          AND state = 'active'`,
+      [expiredDraftId, mutation.accountId, mutation.entityId],
+    );
+    await appendStoryRetentionDelete(client, mutation.accountId, mutation.entityId, expiredDraftId);
+    current = undefined;
+
+    if (expiredDraftId === payload.draftId) {
+      return { payload, conflict: true, publishChange: false };
+    }
+  }
+
+  if (current === undefined) {
+    const retentionDeleteAlreadyExists = await storyRetentionDeleteMatches(
+      client,
+      mutation.accountId,
+      mutation.entityId,
+      payload.draftId,
+    );
+    if (retentionDeleteAlreadyExists) {
+      return { payload, conflict: true, publishChange: false };
+    }
+
+    if (
+      timing.clientOccurredAt.getTime() + STORY_RETENTION_MILLISECONDS <=
+      timing.serverReceiptTime.getTime()
+    ) {
+      await appendStoryRetentionDelete(
+        client,
+        mutation.accountId,
+        mutation.entityId,
+        payload.draftId,
+      );
+      return { payload, conflict: true, publishChange: false };
+    }
+  }
+
   if (current !== undefined && current.id !== payload.draftId) {
     throw new SyncMutationConflictError(
       'A different unfinished Story draft already exists for this mission',
@@ -1397,6 +1542,7 @@ async function applyStoryMutation(
     return {
       payload: await loadStoryDraftPayload(client, mutation.accountId, mutation.entityId),
       conflict: true,
+      publishChange: true,
     };
   }
 
@@ -1417,8 +1563,9 @@ async function applyStoryMutation(
          server_receipt_time,
          effective_save_time,
          validation_result,
-         winner_mutation_id
-       ) VALUES ($1, $2, $3, 'active', $4::jsonb, $5, $6, $7, $8, $9, $10)`,
+         winner_mutation_id,
+         created_at
+       ) VALUES ($1, $2, $3, 'active', $4::jsonb, $5, $6, $7, $8, $9, $10, $6)`,
       [
         payload.draftId,
         mutation.accountId,
@@ -1505,7 +1652,11 @@ async function applyStoryMutation(
         AND NOT (id = ANY($2::uuid[]))`,
     [payload.draftId, retainedIds],
   );
-  return { payload, conflict: false };
+  return {
+    payload: await loadStoryDraftPayload(client, mutation.accountId, mutation.entityId),
+    conflict: false,
+    publishChange: true,
+  };
 }
 
 async function applySettingsMutation(
@@ -2004,7 +2155,22 @@ async function storyConflictForMutation(
     [mutation.accountId, mutation.entityId],
   );
   const current = result.rows[0];
-  if (current === undefined || current.winnerMutationId === mutation.mutationId) return null;
+  if (current === undefined) {
+    const payload = parseStoryDraftPayload(mutation.payload);
+    const retentionDeleted = await storyRetentionDeleteMatches(
+      client,
+      mutation.accountId,
+      mutation.entityId,
+      payload.draftId,
+    );
+    if (!retentionDeleted) return null;
+    return {
+      kind: 'story_updated',
+      mutationId: mutation.mutationId,
+      storyDraftId: payload.draftId,
+    };
+  }
+  if (current.winnerMutationId === mutation.mutationId) return null;
   return {
     kind: 'story_updated',
     mutationId: mutation.mutationId,
@@ -2065,13 +2231,15 @@ async function acceptMutation(
     ],
   );
 
-  await appendAccountChange(client, {
-    accountId: mutation.accountId,
-    entityType: mutation.entityType,
-    entityId: mutation.entityId,
-    operation: changeOperation(mutation.operation),
-    payload: authoritativePayload,
-  });
+  if (storyResult?.publishChange !== false) {
+    await appendAccountChange(client, {
+      accountId: mutation.accountId,
+      entityType: mutation.entityType,
+      entityId: mutation.entityId,
+      operation: changeOperation(mutation.operation),
+      payload: authoritativePayload,
+    });
+  }
 
   return storyResult?.conflict === true
     ? {

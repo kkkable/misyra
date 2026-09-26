@@ -282,6 +282,7 @@ export default function StoryRoute() {
       }
 
       void (async () => {
+        await runtime.store.pruneExpired();
         const authoritative = await runtime.store.load(occurrenceId);
         if (authoritative === null || authoritative.draftId !== settlement.storyDraftId) return;
 
@@ -373,6 +374,7 @@ export default function StoryRoute() {
           styleProfile,
         };
 
+        await store.pruneExpired();
         const existing = await store.load(occurrenceId);
         if (existing !== null) {
           const version = sourceVersion(existing);

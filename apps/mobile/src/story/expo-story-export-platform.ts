@@ -23,6 +23,33 @@ function requireExportDirectory(): string {
   return STORY_EXPORT_DIRECTORY;
 }
 
+const STORY_EXPORT_RETENTION_MILLISECONDS = 30 * 24 * 60 * 60 * 1000;
+
+export async function pruneExpiredStoryExportFiles(
+  now: () => Date = () => new Date(),
+): Promise<number> {
+  const directory = requireExportDirectory();
+  const directoryInfo = await FileSystem.getInfoAsync(directory);
+  if (!directoryInfo.exists) return 0;
+
+  const cutoff = now().getTime() - STORY_EXPORT_RETENTION_MILLISECONDS;
+  const names = await FileSystem.readDirectoryAsync(directory);
+  let deleted = 0;
+  for (const name of names) {
+    const uri = `${directory}${name}`;
+    const info = await FileSystem.getInfoAsync(uri);
+    if (!info.exists || info.isDirectory) continue;
+    const modifiedAt =
+      'modificationTime' in info && typeof info.modificationTime === 'number'
+        ? info.modificationTime * 1000
+        : null;
+    if (modifiedAt === null || modifiedAt > cutoff) continue;
+    await FileSystem.deleteAsync(uri, { idempotent: true });
+    deleted += 1;
+  }
+  return deleted;
+}
+
 async function renderStoryPng(input: StoryExportInput): Promise<StoryExportArtifact> {
   const data = await Skia.Data.fromURI(input.sourceImage.uri);
   const sourceImage = Skia.Image.MakeImageFromEncoded(data);

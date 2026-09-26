@@ -29,6 +29,33 @@ export function storyWorkingCopyUri(imageVersionId: string): string {
   return `${storyWorkingDirectory()}${imageVersionId}.jpg`;
 }
 
+const STORY_FILE_RETENTION_MILLISECONDS = 30 * 24 * 60 * 60 * 1000;
+
+export async function pruneExpiredStoryWorkingFiles(
+  now: () => Date = () => new Date(),
+): Promise<number> {
+  const directory = storyWorkingDirectory();
+  const directoryInfo = await FileSystem.getInfoAsync(directory);
+  if (!directoryInfo.exists) return 0;
+
+  const cutoff = now().getTime() - STORY_FILE_RETENTION_MILLISECONDS;
+  const names = await FileSystem.readDirectoryAsync(directory);
+  let deleted = 0;
+  for (const name of names) {
+    const uri = `${directory}${name}`;
+    const info = await FileSystem.getInfoAsync(uri);
+    if (!info.exists || info.isDirectory) continue;
+    const modifiedAt =
+      'modificationTime' in info && typeof info.modificationTime === 'number'
+        ? info.modificationTime * 1000
+        : null;
+    if (modifiedAt === null || modifiedAt > cutoff) continue;
+    await FileSystem.deleteAsync(uri, { idempotent: true });
+    deleted += 1;
+  }
+  return deleted;
+}
+
 export async function loadExpoStoryWorkingCopy(
   imageVersionId: string,
 ): Promise<Readonly<{ id: string; uri: string; width: number; height: number }>> {

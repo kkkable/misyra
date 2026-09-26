@@ -72,6 +72,14 @@ type EvidenceSyncRunner = (
   }>,
 ) => Promise<Readonly<{ processed: number; remaining: number }>>;
 
+type StoryRetentionRunner = (
+  input: Readonly<{
+    database: SyncDatabase;
+    accountId: string;
+    session: AuthSession;
+  }>,
+) => Promise<Readonly<{ deletedDrafts: number }>>;
+
 type AppleProviderLink = Readonly<{
   connectionId: string;
   provider: 'apple';
@@ -102,6 +110,7 @@ export type AuthenticatedSyncRuntimeOptions = Readonly<{
   installationStore: InstallationStore;
   openDatabase: () => Promise<SyncDatabase>;
   apiFactory: ApiFactory;
+  runStoryRetention?: StoryRetentionRunner;
   runEvidenceSync?: EvidenceSyncRunner;
   runServerSync?: ServerSyncRunner;
   generateInstallationId: () => string;
@@ -587,12 +596,89 @@ async function hasPendingStoryMutation(
   return row !== null;
 }
 
+function storyRetentionDeleteFromChange(
+  change: ServerAccountChange,
+): Readonly<{ expiredDraftId: string }> | null {
+  if (change.entityType !== 'story' || change.operation !== 'delete') return null;
+  if (
+    !isRecord(change.payload) ||
+    Object.keys(change.payload).length !== 1 ||
+    typeof change.payload.expiredDraftId !== 'string' ||
+    change.payload.expiredDraftId.trim().length === 0
+  ) {
+    throw new Error('Story retention delete change payload is invalid.');
+  }
+  return { expiredDraftId: change.payload.expiredDraftId };
+}
+
 function storyDraftFromChange(change: ServerAccountChange) {
-  if (change.entityType !== 'story') return null;
+  if (change.entityType !== 'story' || change.operation === 'delete') return null;
   if (change.operation !== 'upsert') {
     throw new Error('Unsupported Story draft change operation.');
   }
   return storyDraftSyncPayloadSchema.parse(change.payload);
+}
+
+async function applyStoryRetentionDeleteProjection(
+  transaction: ServerSyncDatabase,
+  accountId: string,
+  occurrenceId: string,
+  expiredDraftId: string,
+  expiredAt: string,
+): Promise<void> {
+  const current = await transaction.getFirstAsync<{ draft_id: string }>(
+    `SELECT draft_id
+       FROM story_drafts
+      WHERE account_id = ? AND occurrence_id = ?`,
+    accountId,
+    occurrenceId,
+  );
+
+  await transaction.runAsync(
+    `INSERT INTO story_retention_tombstones
+       (account_id, occurrence_id, draft_id, expired_at)
+     VALUES (?, ?, ?, ?)
+     ON CONFLICT(account_id, occurrence_id) DO UPDATE SET
+       draft_id = excluded.draft_id,
+       expired_at = excluded.expired_at`,
+    accountId,
+    occurrenceId,
+    expiredDraftId,
+    expiredAt,
+  );
+  await transaction.runAsync(
+    `DELETE FROM mutation_queue
+      WHERE account_id = ?
+        AND json_extract(command_json, '$.mutation.entityType') = 'story'
+        AND json_extract(command_json, '$.mutation.entityId') = ?
+        AND json_extract(command_json, '$.mutation.payload.draftId') = ?
+        AND COALESCE(json_extract(command_json, '$.inFlight'), 0) <> 1`,
+    accountId,
+    occurrenceId,
+    expiredDraftId,
+  );
+
+  if (current !== null && current.draft_id !== expiredDraftId) return;
+
+  await transaction.runAsync(
+    `DELETE FROM story_drafts
+      WHERE account_id = ?
+        AND occurrence_id = ?
+        AND draft_id = ?`,
+    accountId,
+    occurrenceId,
+    expiredDraftId,
+  );
+  await transaction.runAsync(
+    `UPDATE cached_mission_occurrences
+        SET payload_json = json_set(payload_json, '$.storyState', 'ready'),
+            updated_at = ?
+      WHERE account_id = ?
+        AND occurrence_id = ?`,
+    expiredAt,
+    accountId,
+    occurrenceId,
+  );
 }
 
 async function applyStoryDraftProjection(
@@ -602,19 +688,48 @@ async function applyStoryDraftProjection(
   payload: ReturnType<typeof storyDraftSyncPayloadSchema.parse>,
   updatedAt: string,
 ): Promise<void> {
+  const retentionTombstone = await transaction.getFirstAsync<{ draft_id: string }>(
+    `SELECT draft_id
+       FROM story_retention_tombstones
+      WHERE account_id = ? AND occurrence_id = ?`,
+    accountId,
+    occurrenceId,
+  );
+  if (retentionTombstone?.draft_id === payload.draftId) return;
+  if (retentionTombstone !== null) {
+    await transaction.runAsync(
+      'DELETE FROM story_retention_tombstones WHERE account_id = ? AND occurrence_id = ?',
+      accountId,
+      occurrenceId,
+    );
+  }
+
+  const createdAt = payload.createdAt ?? updatedAt;
   await transaction.runAsync(
     `INSERT INTO story_drafts
-       (account_id, occurrence_id, draft_id, composition_json, updated_at)
-     VALUES (?, ?, ?, ?, ?)
+       (account_id, occurrence_id, draft_id, composition_json, updated_at, created_at)
+     VALUES (?, ?, ?, ?, ?, ?)
      ON CONFLICT(account_id, occurrence_id) DO UPDATE SET
        draft_id = excluded.draft_id,
        composition_json = excluded.composition_json,
-       updated_at = excluded.updated_at`,
+       updated_at = excluded.updated_at,
+       created_at = excluded.created_at`,
     accountId,
     occurrenceId,
     payload.draftId,
     JSON.stringify(payload),
     updatedAt,
+    createdAt,
+  );
+  await transaction.runAsync(
+    `UPDATE cached_mission_occurrences
+        SET payload_json = json_set(payload_json, '$.storyState', 'draft'),
+            updated_at = ?
+      WHERE account_id = ?
+        AND occurrence_id = ?`,
+    updatedAt,
+    accountId,
+    occurrenceId,
   );
 }
 
@@ -634,6 +749,18 @@ async function applyAuthoritativeChanges(
           WHERE account_id = ?
             AND json_extract(command_json, '$.mutation.entityType') = 'planner'`,
         accountId,
+      );
+      continue;
+    }
+
+    const storyRetentionDelete = storyRetentionDeleteFromChange(change);
+    if (storyRetentionDelete !== null) {
+      await applyStoryRetentionDeleteProjection(
+        transaction,
+        accountId,
+        change.entityId,
+        storyRetentionDelete.expiredDraftId,
+        new Date().toISOString(),
       );
       continue;
     }
@@ -950,6 +1077,7 @@ export function createAuthenticatedSyncRuntime({
   installationStore,
   openDatabase,
   apiFactory,
+  runStoryRetention = () => Promise.resolve({ deletedDrafts: 0 }),
   runEvidenceSync = () => Promise.resolve({ processed: 0, remaining: 0 }),
   runServerSync = runAuthenticatedServerSync,
   generateInstallationId,
@@ -962,6 +1090,13 @@ export function createAuthenticatedSyncRuntime({
     const session = await sessionProvider();
     if (session === null) return null;
 
+    const database = await openDatabase();
+    await runStoryRetention({
+      database,
+      accountId: session.accountId,
+      session,
+    });
+
     const installationId = await readOrCreateInstallationId(
       installationStore,
       generateInstallationId,
@@ -972,7 +1107,7 @@ export function createAuthenticatedSyncRuntime({
     const registration = await api.registerDevice({ installationId, ...metadata });
     await rememberDeviceId(installationStore, session.accountId, registration.deviceId);
 
-    const [database, settings] = await Promise.all([openDatabase(), api.getAccountSettings()]);
+    const settings = await api.getAccountSettings();
     await applyAccountSettings(database, session.accountId, settings, now().toISOString());
     await runEvidenceSync({
       database,

@@ -397,3 +397,49 @@ describe('MTS-095 generated Story version lifecycle', () => {
     expect(put).not.toHaveBeenCalled();
   });
 });
+
+describe('MTS-099 generated Story media retention registration', () => {
+  it('registers every generated Story version for deletion exactly 30 days after creation', async () => {
+    const fixture = await createStoryFixture();
+    const createdAt = new Date('2026-08-27T02:30:00.000Z');
+    const storageKey = 'story/generated/mts099-retained';
+    const service = createStoryImageGenerationService({
+      pool,
+      gateway: {
+        generateStoryImage: vi.fn(() => Promise.resolve({ storageKey })),
+      },
+      now: () => createdAt,
+    });
+
+    const generated = await service.generate(fixture.accountId, {
+      draftId: fixture.draftId,
+      sourceVersionId: fixture.sourceVersionId,
+    });
+
+    const media = await pool.query<{
+      purpose: string;
+      storageKey: string;
+      deletionDueAt: Date;
+      deletionState: string;
+      createdAt: Date;
+    }>(
+      `SELECT purpose,
+              storage_key AS "storageKey",
+              deletion_due_at AS "deletionDueAt",
+              deletion_state AS "deletionState",
+              created_at AS "createdAt"
+         FROM media_assets
+        WHERE id = $1
+          AND account_id = $2`,
+      [generated.version.id, fixture.accountId],
+    );
+
+    expect(media.rows[0]).toEqual({
+      purpose: 'story-working',
+      storageKey,
+      deletionDueAt: new Date('2026-09-26T02:30:00.000Z'),
+      deletionState: 'active',
+      createdAt,
+    });
+  });
+});

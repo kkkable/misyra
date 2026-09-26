@@ -7,6 +7,10 @@ const routePath = fileURLToPath(new URL('../../app/story.tsx', import.meta.url))
 const editorPath = fileURLToPath(new URL('./story-editor-screen.tsx', import.meta.url));
 const offlineStorePath = fileURLToPath(new URL('./story-offline-draft.ts', import.meta.url));
 const sourceRuntimePath = fileURLToPath(new URL('./story-source-runtime.ts', import.meta.url));
+const sourceFilesPath = fileURLToPath(new URL('./expo-story-source-files.ts', import.meta.url));
+const exportPlatformPath = fileURLToPath(
+  new URL('./expo-story-export-platform.ts', import.meta.url),
+);
 
 describe('MTS-091 production Story route contract', () => {
   it('restores local drafts and queues autosaves without requiring online Story generation', () => {
@@ -112,5 +116,29 @@ describe('MTS-098 Instagram handoff route contract', () => {
     expect(combined).not.toMatch(/did you post/i);
     expect(combined).not.toMatch(/post(?:ing|ed)?Status|post_status|posting_status/i);
     expect(combined).not.toMatch(/nativeSticker|musicSticker|pollSticker|locationSticker/i);
+  });
+});
+
+describe('MTS-099 Story retention route contract', () => {
+  it('prunes an expired local draft before deciding whether Create Story should start fresh', () => {
+    const route = readFileSync(routePath, 'utf8');
+    const pruneIndex = route.indexOf('pruneExpired');
+    const loadIndex = route.indexOf('store.load(occurrenceId)');
+
+    expect(pruneIndex).toBeGreaterThanOrEqual(0);
+    expect(loadIndex).toBeGreaterThan(pruneIndex);
+    expect(route).not.toMatch(/Story (?:was )?automatically deleted|deleted after 30 days/i);
+  });
+
+  it('defines bounded cleanup for Story working copies and export-cache orphans only', () => {
+    const sourceFiles = readFileSync(sourceFilesPath, 'utf8');
+    const exportPlatform = readFileSync(exportPlatformPath, 'utf8');
+
+    expect(sourceFiles).toMatch(/pruneExpiredStoryWorkingFiles/);
+    expect(exportPlatform).toMatch(/pruneExpiredStoryExportFiles/);
+    expect(sourceFiles).toMatch(/story-working/);
+    expect(exportPlatform).toMatch(/story-exports/);
+    expect(sourceFiles).not.toMatch(/MediaLibrary\.delete|deleteAssetsAsync/);
+    expect(exportPlatform).not.toMatch(/MediaLibrary\.delete|deleteAssetsAsync/);
   });
 });

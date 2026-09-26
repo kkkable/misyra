@@ -1,6 +1,10 @@
 import { createHmac, randomUUID } from 'node:crypto';
 
-import { applyMigrations } from '@misyra/database';
+import {
+  applyMigrations,
+  createPostgresDeviceSettingsStore,
+  createPostgresSyncStore,
+} from '@misyra/database';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
@@ -365,5 +369,225 @@ describe('MTS-085 product-media cleanup and reconciliation', () => {
       [feedbackAssetId],
     );
     expect(feedbackRow.rows[0]?.storageKey).toBe(feedbackKey);
+  });
+});
+
+async function seedMts099StoryDraft(createdAt: string) {
+  const devices = createPostgresDeviceSettingsStore(pool);
+  const deviceId = await devices.registerDevice({
+    accountId,
+    installationId: `mts099-${randomUUID()}`,
+    platform: 'ios',
+    appVersion: '1.0.0',
+    notificationCapability: 'denied',
+  });
+  const occurrenceId = randomUUID();
+  const seriesId = randomUUID();
+  const store = createPostgresSyncStore(pool, () => new Date(createdAt));
+
+  await store.push(accountId, [
+    {
+      mutationId: randomUUID(),
+      accountId,
+      deviceId,
+      entityType: 'mission',
+      entityId: occurrenceId,
+      operation: 'create',
+      baseVersion: null,
+      clientOccurredAt: createdAt,
+      payload: {
+        series: { id: seriesId, title: 'MTS-099 retained Story', recurrence: null },
+        occurrence: {
+          id: occurrenceId,
+          seriesId,
+          schedule: {
+            localStart: '2026-08-22T13:00:00',
+            localFinish: '2026-08-22T13:30:00',
+            startInstant: '2026-08-22T13:00:00.000Z',
+            finishInstant: '2026-08-22T13:30:00.000Z',
+            timeZone: 'UTC',
+            timeBehavior: 'local_time',
+            allDay: false,
+            estimatedEffortMinutes: null,
+          },
+          scheduleState: 'scheduled',
+          completionState: 'incomplete',
+          evidenceState: 'not_required',
+          rewardEligibility: 'eligible',
+          rewardIssuance: 'not_issued',
+          calendarSource: 'internal',
+          fieldOwnership: 'app_owned',
+          synchronizationState: 'synced',
+          storyState: 'none',
+          deletionState: 'active',
+        },
+        location: null,
+        notes: null,
+      },
+    },
+  ]);
+
+  await pool.query(
+    `UPDATE mission_occurrences
+        SET completion_state = 'completed',
+            story_state = 'draft'
+      WHERE id = $1 AND account_id = $2`,
+    [occurrenceId, accountId],
+  );
+  await pool.query(
+    `INSERT INTO mission_completions
+       (id, account_id, occurrence_id, completion_type, action_time)
+     VALUES ($1, $2, $3, 'trust_mode', $4)`,
+    [randomUUID(), accountId, occurrenceId, new Date(createdAt)],
+  );
+
+  const draftId = randomUUID();
+  const sourceVersionId = randomUUID();
+  const storyMutationId = randomUUID();
+  await expect(
+    store.push(accountId, [
+      {
+        mutationId: storyMutationId,
+        accountId,
+        deviceId,
+        entityType: 'story',
+        entityId: occurrenceId,
+        operation: 'create',
+        baseVersion: null,
+        clientOccurredAt: createdAt,
+        payload: {
+          draftId,
+          notes: {
+            musicMood: 'retained mood',
+            mention: '@misyra',
+            location: 'Hong Kong',
+            poll: null,
+          },
+          imageVersions: [
+            {
+              id: sourceVersionId,
+              kind: 'source',
+              storageKey: `story/source/${sourceVersionId}`,
+              composition: {
+                canvas: { width: 1080, height: 1920 },
+                background: { scale: 1, translateX: 0, translateY: 0, rotation: 0 },
+                headline: null,
+                supportingText: null,
+                effects: [],
+                revision: 0,
+                savedAt: createdAt,
+              },
+            },
+          ],
+        },
+      },
+    ]),
+  ).resolves.toEqual({ acceptedMutationIds: [storyMutationId] });
+
+  await pool.query(
+    `INSERT INTO story_style_profiles (account_id, profile, updated_at)
+     VALUES ($1, $2::jsonb, $3)
+     ON CONFLICT (account_id) DO UPDATE
+       SET profile = EXCLUDED.profile,
+           updated_at = EXCLUDED.updated_at`,
+    [accountId, JSON.stringify({ mode: 'custom', palette: ['#ffffff'] }), new Date(createdAt)],
+  );
+
+  return { draftId, occurrenceId, storyMutationId };
+}
+
+describe('MTS-099 Story and style retention integration', () => {
+  it('time-travels the exact 30-day deadline, deletes Story draft/media, and retains the abstract style profile', async () => {
+    const createdAt = '2026-08-22T12:00:00.000Z';
+    const dueAt = '2026-09-21T12:00:00.000Z';
+    const { draftId, occurrenceId, storyMutationId } = await seedMts099StoryDraft(createdAt);
+    const storyKeys = [
+      `${accountId}/mts099/story/cache`,
+      `${accountId}/mts099/story/original`,
+      `${accountId}/mts099/story/thumbnail`,
+      `${accountId}/mts099/story/derivative`,
+      `${accountId}/mts099/story/temporary`,
+    ] as const;
+    const styleKeys = [
+      `${accountId}/mts099/style/cache`,
+      `${accountId}/mts099/style/original`,
+      `${accountId}/mts099/style/thumbnail`,
+      `${accountId}/mts099/style/derivative`,
+      `${accountId}/mts099/style/temporary`,
+    ] as const;
+    await seedAsset({
+      purpose: 'story-working',
+      createdAt,
+      deletionDueAt: dueAt,
+      keys: storyKeys,
+    });
+    await seedAsset({
+      purpose: 'style-references',
+      createdAt,
+      deletionDueAt: dueAt,
+      keys: styleKeys,
+    });
+    const service = createProductMediaCleanupService({
+      pool,
+      blobStore: azuriteBlobStore,
+      now: () => now,
+    });
+
+    now = new Date('2026-09-21T11:59:59.999Z');
+    await expect(service.runOnce()).resolves.toEqual({ scanned: 0, deleted: 0, retryPending: 0 });
+    const draftBefore = await pool.query('SELECT 1 FROM story_drafts WHERE id = $1', [draftId]);
+    expect(draftBefore.rowCount).toBe(1);
+
+    now = new Date(dueAt);
+    await expect(service.runOnce()).resolves.toEqual({ scanned: 2, deleted: 2, retryPending: 0 });
+
+    for (const key of storyKeys) expect(await blobExists('story-working', key)).toBe(false);
+    for (const key of styleKeys) expect(await blobExists('style-references', key)).toBe(false);
+    const draftAfter = await pool.query('SELECT 1 FROM story_drafts WHERE id = $1', [draftId]);
+    expect(draftAfter.rowCount).toBe(0);
+
+    const profile = await pool.query<{ profile: unknown }>(
+      'SELECT profile FROM story_style_profiles WHERE account_id = $1',
+      [accountId],
+    );
+    expect(profile.rows[0]?.profile).toEqual({ mode: 'custom', palette: ['#ffffff'] });
+
+    const storyChanges = await pool.query<{
+      entityType: string;
+      entityId: string;
+      operation: string;
+      payload: unknown;
+    }>(
+      `SELECT entity_type AS "entityType",
+              entity_id AS "entityId",
+              operation,
+              payload
+         FROM account_change_log
+        WHERE account_id = $1
+          AND entity_type = 'story'
+          AND entity_id = $2
+        ORDER BY sequence`,
+      [accountId, occurrenceId],
+    );
+    expect(storyChanges.rows).toEqual([
+      {
+        entityType: 'story',
+        entityId: occurrenceId,
+        operation: 'delete',
+        payload: { expiredDraftId: draftId },
+      },
+    ]);
+
+    const storedMutation = await pool.query<{ payload: unknown }>(
+      `SELECT payload
+         FROM device_sync_mutations
+        WHERE id = $1`,
+      [storyMutationId],
+    );
+    expect(storedMutation.rows).toEqual([
+      {
+        payload: { retentionDeleted: true, draftId },
+      },
+    ]);
   });
 });

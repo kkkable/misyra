@@ -14,12 +14,78 @@ type StoryOfflineDraftStoreOptions = Readonly<{
   now?: () => Date;
 }>;
 
-type StoryDraftRow = Readonly<{ draft_id: string }>;
+type StoryDraftRow = Readonly<{ draft_id: string; created_at: string | null }>;
 type StoryDraftPayloadRow = Readonly<{ composition_json: string }>;
 type StoryMissionRow = Readonly<{
   completion_state: string | null;
   deletion_state: string | null;
 }>;
+
+const STORY_RETENTION_MILLISECONDS = 30 * 24 * 60 * 60 * 1000;
+
+export async function pruneExpiredStoryDrafts(
+  input: Readonly<{
+    database: MutationQueueDatabase;
+    accountId: string;
+    now?: () => Date;
+  }>,
+): Promise<number> {
+  const now = input.now?.() ?? new Date();
+  const cutoff = new Date(now.getTime() - STORY_RETENTION_MILLISECONDS).toISOString();
+  const expired = await input.database.getAllAsync<{ occurrence_id: string; draft_id: string }>(
+    `SELECT occurrence_id, draft_id
+       FROM story_drafts
+      WHERE account_id = ?
+        AND created_at IS NOT NULL
+        AND created_at <= ?
+      ORDER BY occurrence_id`,
+    input.accountId,
+    cutoff,
+  );
+  if (expired.length === 0) return 0;
+
+  await input.database.withExclusiveTransactionAsync(async (transaction) => {
+    for (const row of expired) {
+      await transaction.runAsync(
+        `INSERT INTO story_retention_tombstones
+           (account_id, occurrence_id, draft_id, expired_at)
+         VALUES (?, ?, ?, ?)
+         ON CONFLICT(account_id, occurrence_id) DO UPDATE SET
+           draft_id = excluded.draft_id,
+           expired_at = excluded.expired_at`,
+        input.accountId,
+        row.occurrence_id,
+        row.draft_id,
+        now.toISOString(),
+      );
+      await transaction.runAsync(
+        `DELETE FROM mutation_queue
+          WHERE account_id = ?
+            AND json_extract(command_json, '$.mutation.entityType') = 'story'
+            AND json_extract(command_json, '$.mutation.entityId') = ?`,
+        input.accountId,
+        row.occurrence_id,
+      );
+      await transaction.runAsync(
+        'DELETE FROM story_drafts WHERE account_id = ? AND occurrence_id = ?',
+        input.accountId,
+        row.occurrence_id,
+      );
+      await transaction.runAsync(
+        `UPDATE cached_mission_occurrences
+            SET payload_json = json_set(payload_json, '$.storyState', 'ready'),
+                updated_at = ?
+          WHERE account_id = ?
+            AND occurrence_id = ?`,
+        now.toISOString(),
+        input.accountId,
+        row.occurrence_id,
+      );
+    }
+  });
+
+  return expired.length;
+}
 
 function newestCompositionSaveTime(
   imageVersions: ReturnType<typeof storyDraftSyncPayloadSchema.parse>['imageVersions'],
@@ -47,6 +113,10 @@ export function createStoryOfflineDraftStore({
   const queue = createMutationQueue(database, accountId);
 
   return Object.freeze({
+    pruneExpired() {
+      return pruneExpiredStoryDrafts({ database, accountId, now });
+    },
+
     async load(occurrenceId: string) {
       const row = await database.getFirstAsync<StoryDraftPayloadRow>(
         `SELECT composition_json
@@ -63,6 +133,17 @@ export function createStoryOfflineDraftStore({
       const payload = storyDraftSyncPayloadSchema.parse(value);
       if (payload.imageVersions.length === 0) {
         throw new TypeError('Story draft must contain at least one image version.');
+      }
+
+      const retentionTombstone = await database.getFirstAsync<{ draft_id: string }>(
+        `SELECT draft_id
+           FROM story_retention_tombstones
+          WHERE account_id = ? AND occurrence_id = ?`,
+        accountId,
+        occurrenceId,
+      );
+      if (retentionTombstone?.draft_id === payload.draftId) {
+        throw new Error('Story draft retention expired.');
       }
 
       const mission = await database.getFirstAsync<StoryMissionRow>(
@@ -82,7 +163,7 @@ export function createStoryOfflineDraftStore({
       }
 
       const existing = await database.getFirstAsync<StoryDraftRow>(
-        `SELECT draft_id
+        `SELECT draft_id, created_at
            FROM story_drafts
           WHERE account_id = ? AND occurrence_id = ?`,
         accountId,
@@ -94,6 +175,7 @@ export function createStoryOfflineDraftStore({
 
       const operation: SyncMutationOperation = existing === null ? 'create' : 'update';
       const localSavedAt = newestCompositionSaveTime(payload.imageVersions, now());
+      const createdAt = existing?.created_at ?? payload.createdAt ?? localSavedAt;
 
       await queue.enqueue({
         mutation: {
@@ -111,17 +193,38 @@ export function createStoryOfflineDraftStore({
         applyLocal: async (transaction) => {
           await transaction.runAsync(
             `INSERT INTO story_drafts
-               (account_id, occurrence_id, draft_id, composition_json, updated_at)
-             VALUES (?, ?, ?, ?, ?)
+               (account_id, occurrence_id, draft_id, composition_json, updated_at, created_at)
+             VALUES (?, ?, ?, ?, ?, ?)
              ON CONFLICT(account_id, occurrence_id) DO UPDATE SET
                draft_id = excluded.draft_id,
                composition_json = excluded.composition_json,
-               updated_at = excluded.updated_at`,
+               updated_at = excluded.updated_at,
+               created_at = COALESCE(story_drafts.created_at, excluded.created_at)`,
             accountId,
             occurrenceId,
             payload.draftId,
             JSON.stringify(payload),
             localSavedAt,
+            createdAt,
+          );
+          await transaction.runAsync(
+            `DELETE FROM story_retention_tombstones
+              WHERE account_id = ?
+                AND occurrence_id = ?
+                AND draft_id <> ?`,
+            accountId,
+            occurrenceId,
+            payload.draftId,
+          );
+          await transaction.runAsync(
+            `UPDATE cached_mission_occurrences
+                SET payload_json = json_set(payload_json, '$.storyState', 'draft'),
+                    updated_at = ?
+              WHERE account_id = ?
+                AND occurrence_id = ?`,
+            localSavedAt,
+            accountId,
+            occurrenceId,
           );
         },
       });

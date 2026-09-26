@@ -8,6 +8,9 @@ import { getAuthApiBaseUrl, rootAuthController } from '../auth/auth-runtime.js';
 import { createEvidenceApi } from '../evidence/evidence-api.js';
 import { createEvidenceOfflineQueue } from '../evidence/evidence-offline-queue.js';
 import { rootNotificationRebuildLifecycle } from '../notifications/root-notification-rebuild-runtime.js';
+import { pruneExpiredStoryExportFiles } from '../story/expo-story-export-platform.js';
+import { pruneExpiredStoryWorkingFiles } from '../story/expo-story-source-files.js';
+import { pruneExpiredStoryDrafts } from '../story/story-offline-draft.js';
 import { openMobileDatabase } from '../storage/database.js';
 import { createAppleCalendarCommandApi } from './apple-calendar-command-api.js';
 import { createAuthenticatedSyncApi } from './authenticated-sync-api.js';
@@ -89,6 +92,14 @@ const authenticatedRootSyncRuntime = createAuthenticatedSyncRuntime({
         completionSettlementChannel.publish(settlement);
       },
     }),
+  runStoryRetention: async ({ database, accountId }) => {
+    const deletedDrafts = await pruneExpiredStoryDrafts({ database, accountId });
+    await Promise.all([
+      pruneExpiredStoryWorkingFiles().catch(() => 0),
+      pruneExpiredStoryExportFiles().catch(() => 0),
+    ]);
+    return { deletedDrafts };
+  },
   runEvidenceSync: ({ database, accountId, deviceId, session }) =>
     createEvidenceOfflineQueue({
       database,

@@ -433,3 +433,204 @@ describe('MTS-090 Story authenticated sync projection', () => {
     expect(await queue.listPending()).toHaveLength(1);
   });
 });
+
+describe('MTS-099 Story retention synchronization', () => {
+  it('stores authoritative Story creation time for exact offline retention on another device', async () => {
+    const database = new NodeSqliteAdapter();
+    databases.push(database);
+    await applyMobileMigrations(database);
+    await seedCompletedMission(database);
+
+    const createdAt = '2026-08-27T07:20:00.000Z';
+    const authoritative = {
+      draftId,
+      createdAt,
+      notes: { musicMood: 'synced', mention: null, location: null, poll: null },
+      imageVersions: [
+        {
+          id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+          kind: 'source',
+          storageKey: 'story/source/cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+          composition: composition('authoritative retention clock', 1),
+        },
+      ],
+    };
+    const api = {
+      push: vi.fn(() => Promise.resolve({ acceptedMutationIds: [], conflicts: [] })),
+      pull: vi.fn(() =>
+        Promise.resolve({
+          kind: 'incremental',
+          changes: [
+            {
+              sequence: 1,
+              entityType: 'story',
+              entityId: occurrenceId,
+              operation: 'upsert',
+              payload: authoritative,
+            },
+          ],
+          nextCursor: 1,
+          hasMore: false,
+        }),
+      ),
+      snapshot: vi.fn(() => Promise.resolve({ entries: [], nextCursor: 1 })),
+    };
+
+    await runAuthenticatedServerSync({ database, accountId, api });
+
+    const row = await database.getFirstAsync(
+      `SELECT created_at, composition_json
+         FROM story_drafts
+        WHERE account_id = ? AND occurrence_id = ?`,
+      accountId,
+      occurrenceId,
+    );
+    expect(row.created_at).toBe(createdAt);
+    expect(JSON.parse(row.composition_json)).toMatchObject({ draftId, createdAt });
+  });
+
+  it('does not resurrect the same expired draft from an older authoritative Story upsert', async () => {
+    const database = new NodeSqliteAdapter();
+    databases.push(database);
+    await applyMobileMigrations(database);
+    await seedCompletedMission(database);
+
+    const expiredPayload = {
+      draftId,
+      notes: { musicMood: 'expired', mention: null, location: null, poll: null },
+      imageVersions: [
+        {
+          id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+          kind: 'source',
+          storageKey: 'story/source/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+          composition: composition('expired authoritative copy', 1),
+        },
+      ],
+    };
+    await database.runAsync(
+      `INSERT INTO story_retention_tombstones
+         (account_id, occurrence_id, draft_id, expired_at)
+       VALUES (?, ?, ?, ?)`,
+      accountId,
+      occurrenceId,
+      draftId,
+      '2026-09-26T07:20:00.000Z',
+    );
+
+    const api = {
+      push: vi.fn(() => Promise.resolve({ acceptedMutationIds: [], conflicts: [] })),
+      pull: vi.fn(() =>
+        Promise.resolve({
+          kind: 'incremental',
+          changes: [
+            {
+              sequence: 1,
+              entityType: 'story',
+              entityId: occurrenceId,
+              operation: 'upsert',
+              payload: expiredPayload,
+            },
+          ],
+          nextCursor: 1,
+          hasMore: false,
+        }),
+      ),
+      snapshot: vi.fn(() => Promise.resolve({ entries: [], nextCursor: 1 })),
+    };
+
+    await expect(runAuthenticatedServerSync({ database, accountId, api })).resolves.toEqual({
+      settledMutations: 0,
+      cursor: 1,
+    });
+
+    expect(
+      await database.getFirstAsync(
+        'SELECT draft_id FROM story_drafts WHERE account_id = ? AND occurrence_id = ?',
+        accountId,
+        occurrenceId,
+      ),
+    ).toBeNull();
+    expect(
+      await database.getFirstAsync(
+        `SELECT draft_id
+           FROM story_retention_tombstones
+          WHERE account_id = ? AND occurrence_id = ?`,
+        accountId,
+        occurrenceId,
+      ),
+    ).toEqual({ draft_id: draftId });
+  });
+});
+
+describe('MTS-099 authoritative Story retention delete', () => {
+  it('removes retained local Story content and returns the mission to ready without a user-facing deletion state', async () => {
+    const database = new NodeSqliteAdapter();
+    databases.push(database);
+    await applyMobileMigrations(database);
+    await seedCompletedMission(database);
+
+    const localPayload = {
+      draftId,
+      notes: { musicMood: 'retained', mention: null, location: null, poll: null },
+      imageVersions: [
+        {
+          id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+          kind: 'source',
+          storageKey: 'story/source/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+          composition: composition('retained local copy', 1),
+        },
+      ],
+    };
+    await database.runAsync(
+      `INSERT INTO story_drafts
+         (account_id, occurrence_id, draft_id, composition_json, updated_at, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      accountId,
+      occurrenceId,
+      draftId,
+      JSON.stringify(localPayload),
+      '2026-08-27T07:20:00.000Z',
+      '2026-08-27T07:20:00.000Z',
+    );
+
+    const api = {
+      push: vi.fn(() => Promise.resolve({ acceptedMutationIds: [], conflicts: [] })),
+      pull: vi.fn(() =>
+        Promise.resolve({
+          kind: 'incremental',
+          changes: [
+            {
+              sequence: 1,
+              entityType: 'story',
+              entityId: occurrenceId,
+              operation: 'delete',
+              payload: { expiredDraftId: draftId },
+            },
+          ],
+          nextCursor: 1,
+          hasMore: false,
+        }),
+      ),
+      snapshot: vi.fn(() => Promise.resolve({ entries: [], nextCursor: 1 })),
+    };
+
+    await runAuthenticatedServerSync({ database, accountId, api });
+
+    expect(
+      await database.getFirstAsync(
+        'SELECT draft_id FROM story_drafts WHERE account_id = ? AND occurrence_id = ?',
+        accountId,
+        occurrenceId,
+      ),
+    ).toBeNull();
+    expect(
+      await database.getFirstAsync(
+        `SELECT json_extract(payload_json, '$.storyState') AS story_state
+           FROM cached_mission_occurrences
+          WHERE account_id = ? AND occurrence_id = ?`,
+        accountId,
+        occurrenceId,
+      ),
+    ).toEqual({ story_state: 'ready' });
+  });
+});
