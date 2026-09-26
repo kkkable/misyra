@@ -1,0 +1,49 @@
+{
+  "sections": [
+    {
+      "id": "account-preferences",
+      "rows": [
+        "trust-mode",
+        "connected-calendar",
+        "language"
+      ]
+    },
+    {
+      "id": "privacy",
+      "rows": [
+        "diagnostics",
+        "media-retention",
+        "privacy-policy",
+        "terms-of-service"
+      ],
+      "destructive": [
+        "delete-account"
+      ]
+    },
+    {
+      "id": "calendar-missions",
+      "rows": [
+        "hidden-calendar-events",
+        "notification-status"
+      ]
+    },
+    {
+      "id": "story",
+      "rows": [
+        "story-style-profile"
+      ]
+    },
+    {
+      "id": "help",
+      "rows": [
+        "faq",
+        "send-feedback",
+        "report-problem",
+        "about"
+      ],
+      "destructive": [
+        "sign-out"
+      ]
+    }
+  ]
+}
