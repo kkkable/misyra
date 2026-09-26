@@ -1089,6 +1089,13 @@ export function createAuthenticatedSyncRuntime({
     const session = await sessionProvider();
     if (session === null) return null;
 
+    const database = await openDatabase();
+    await runStoryRetention({
+      database,
+      accountId: session.accountId,
+      session,
+    });
+
     const installationId = await readOrCreateInstallationId(
       installationStore,
       generateInstallationId,
@@ -1099,13 +1106,8 @@ export function createAuthenticatedSyncRuntime({
     const registration = await api.registerDevice({ installationId, ...metadata });
     await rememberDeviceId(installationStore, session.accountId, registration.deviceId);
 
-    const [database, settings] = await Promise.all([openDatabase(), api.getAccountSettings()]);
+    const settings = await api.getAccountSettings();
     await applyAccountSettings(database, session.accountId, settings, now().toISOString());
-    await runStoryRetention({
-      database,
-      accountId: session.accountId,
-      session,
-    });
     await runEvidenceSync({
       database,
       accountId: session.accountId,
