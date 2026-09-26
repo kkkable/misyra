@@ -14,10 +14,10 @@ type DateFormatter = (value: Date, language: 'en' | 'zh-HK') => string;
 type NumberFormatter = (value: number, regionalLocale: string) => string;
 type RegionalDateFormatter = (value: Date, regionalLocale: string) => string;
 
-function requiredExport<T extends (...args: never[]) => unknown>(name: string): T {
+function requiredExport(name: string): (...args: never[]) => unknown {
   const value = (localization as Record<string, unknown>)[name];
   expect(typeof value, `missing localization export ${name}`).toBe('function');
-  return value as T;
+  return value as (...args: never[]) => unknown;
 }
 
 describe('MTS-101 localization catalogs', () => {
@@ -33,7 +33,7 @@ describe('MTS-101 localization catalogs', () => {
 
 describe('MTS-101 locale resolution', () => {
   it('maps supported Traditional Chinese to zh-HK and unsupported languages to English', () => {
-    const resolve = requiredExport<LocaleResolver>('resolveLocalizationLocale');
+    const resolve = requiredExport('resolveLocalizationLocale') as LocaleResolver;
 
     expect(
       resolve({
@@ -58,8 +58,8 @@ describe('MTS-101 regional formatting', () => {
   const date = new Date('2026-09-01T12:00:00.000Z');
 
   it('formats month and weekday names from app language', () => {
-    const formatMonth = requiredExport<DateFormatter>('formatAppMonth');
-    const formatWeekday = requiredExport<DateFormatter>('formatAppWeekday');
+    const formatMonth = requiredExport('formatAppMonth') as DateFormatter;
+    const formatWeekday = requiredExport('formatAppWeekday') as DateFormatter;
 
     expect(formatMonth(date, 'en')).toMatch(/September/i);
     expect(formatMonth(date, 'zh-HK')).toContain('9月');
@@ -68,14 +68,14 @@ describe('MTS-101 regional formatting', () => {
   });
 
   it('formats numeric values from the phone regional locale rather than app language', () => {
-    const formatNumber = requiredExport<NumberFormatter>('formatRegionalNumber');
+    const formatNumber = requiredExport('formatRegionalNumber') as NumberFormatter;
 
     expect(formatNumber(12345.6, 'en-US')).toBe('12,345.6');
     expect(formatNumber(12345.6, 'de-DE')).toBe('12.345,6');
   });
 
   it('formats numeric date order from the phone regional locale', () => {
-    const formatDate = requiredExport<RegionalDateFormatter>('formatRegionalNumericDate');
+    const formatDate = requiredExport('formatRegionalNumericDate') as RegionalDateFormatter;
 
     expect(formatDate(date, 'en-US')).toBe('9/1/2026');
     expect(formatDate(date, 'en-GB')).toBe('01/09/2026');
