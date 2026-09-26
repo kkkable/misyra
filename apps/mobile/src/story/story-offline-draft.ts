@@ -23,11 +23,13 @@ type StoryMissionRow = Readonly<{
 
 const STORY_RETENTION_MILLISECONDS = 30 * 24 * 60 * 60 * 1000;
 
-export async function pruneExpiredStoryDrafts(input: Readonly<{
-  database: MutationQueueDatabase;
-  accountId: string;
-  now?: () => Date;
-}>): Promise<number> {
+export async function pruneExpiredStoryDrafts(
+  input: Readonly<{
+    database: MutationQueueDatabase;
+    accountId: string;
+    now?: () => Date;
+  }>,
+): Promise<number> {
   const now = input.now?.() ?? new Date();
   const cutoff = new Date(now.getTime() - STORY_RETENTION_MILLISECONDS).toISOString();
   const expired = await input.database.getAllAsync<{ occurrence_id: string }>(
