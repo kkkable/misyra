@@ -9,8 +9,7 @@ import {
   useColorScheme,
 } from 'react-native';
 
-import type { CalendarConnection } from '@misyra/contracts';
-import type { AccountSettings } from '@misyra/contracts/v1/device-settings';
+import type { AccountSettings, CalendarConnection } from '@misyra/contracts';
 import { space, typography } from '@misyra/design-tokens';
 import type { RecurringSeriesScope } from '@misyra/domain';
 import { notificationSettingsCatalogs } from '@misyra/localization';
