@@ -10,6 +10,7 @@ import {
   type StoryImageGenerationResult,
   type StoryStyleProfile,
 } from '@misyra/contracts';
+import { calculateMediaDeletionDeadline } from '@misyra/domain';
 import type { Pool, PoolClient } from 'pg';
 
 import type { AiGateway } from './ai-gateway.js';
@@ -245,6 +246,9 @@ export function createStoryImageGenerationService(input: {
         );
         if (!generated.success) throw new StoryImageGenerationInvalidOutputError();
 
+        const createdAt = now();
+        const savedAt = createdAt.toISOString();
+        const deletionDueAt = calculateMediaDeletionDeadline(savedAt, 'story-working');
         const version = {
           id: randomUUID(),
           kind: 'generated' as const,
@@ -255,7 +259,19 @@ export function createStoryImageGenerationService(input: {
            VALUES ($1, $2, 'generated', $3)`,
           [version.id, request.draftId, version.storageKey],
         );
-        const savedAt = now().toISOString();
+        await client.query(
+          `INSERT INTO media_assets (
+             id, account_id, purpose, storage_key, deletion_due_at,
+             deletion_state, retry_state, created_at
+           ) VALUES ($1, $2, 'story-working', $3, $4, 'active', 'ready', $5)`,
+          [
+            version.id,
+            accountId,
+            version.storageKey,
+            deletionDueAt === null ? null : new Date(deletionDueAt),
+            createdAt,
+          ],
+        );
         await client.query(
           `INSERT INTO story_compositions
              (id, draft_id, image_version_id, composition, revision, saved_at)
