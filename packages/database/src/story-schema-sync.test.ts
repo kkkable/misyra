@@ -615,7 +615,9 @@ describe('MTS-090/MTS-096 Story schema and synchronization contracts', () => {
 });
 
 describe('MTS-099 Story retention replacement', () => {
-  it('allows a fresh Create Story to replace an active draft at the exact 30-day deadline', async () => {
+  it(
+    'allows a fresh Create Story to replace an active draft at the exact 30-day deadline',
+    async () => {
     const fixture = await createMissionFixture(true);
     const firstDraftId = randomUUID();
     const firstSourceId = randomUUID();
@@ -690,6 +692,7 @@ describe('MTS-099 Story retention replacement', () => {
           AND draft.state = 'active'`,
       [fixture.account.id, fixture.occurrenceId],
     );
-    expect(current.rows).toEqual([{ id: replacementDraftId, storyState: 'draft' }]);
-  });
+      expect(current.rows).toEqual([{ id: replacementDraftId, storyState: 'draft' }]);
+    },
+  );
 });
