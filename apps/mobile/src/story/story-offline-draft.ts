@@ -32,8 +32,8 @@ export async function pruneExpiredStoryDrafts(
 ): Promise<number> {
   const now = input.now?.() ?? new Date();
   const cutoff = new Date(now.getTime() - STORY_RETENTION_MILLISECONDS).toISOString();
-  const expired = await input.database.getAllAsync<{ occurrence_id: string }>(
-    `SELECT occurrence_id
+  const expired = await input.database.getAllAsync<{ occurrence_id: string; draft_id: string }>(
+    `SELECT occurrence_id, draft_id
        FROM story_drafts
       WHERE account_id = ?
         AND created_at IS NOT NULL
@@ -46,6 +46,18 @@ export async function pruneExpiredStoryDrafts(
 
   await input.database.withExclusiveTransactionAsync(async (transaction) => {
     for (const row of expired) {
+      await transaction.runAsync(
+        `INSERT INTO story_retention_tombstones
+           (account_id, occurrence_id, draft_id, expired_at)
+         VALUES (?, ?, ?, ?)
+         ON CONFLICT(account_id, occurrence_id) DO UPDATE SET
+           draft_id = excluded.draft_id,
+           expired_at = excluded.expired_at`,
+        input.accountId,
+        row.occurrence_id,
+        row.draft_id,
+        now.toISOString(),
+      );
       await transaction.runAsync(
         `DELETE FROM mutation_queue
           WHERE account_id = ?
@@ -123,6 +135,17 @@ export function createStoryOfflineDraftStore({
         throw new TypeError('Story draft must contain at least one image version.');
       }
 
+      const retentionTombstone = await database.getFirstAsync<{ draft_id: string }>(
+        `SELECT draft_id
+           FROM story_retention_tombstones
+          WHERE account_id = ? AND occurrence_id = ?`,
+        accountId,
+        occurrenceId,
+      );
+      if (retentionTombstone?.draft_id === payload.draftId) {
+        throw new Error('Story draft retention expired.');
+      }
+
       const mission = await database.getFirstAsync<StoryMissionRow>(
         `SELECT json_extract(payload_json, '$.completionState') AS completion_state,
                 json_extract(payload_json, '$.deletionState') AS deletion_state
@@ -183,6 +206,15 @@ export function createStoryOfflineDraftStore({
             JSON.stringify(payload),
             localSavedAt,
             createdAt,
+          );
+          await transaction.runAsync(
+            `DELETE FROM story_retention_tombstones
+              WHERE account_id = ?
+                AND occurrence_id = ?
+                AND draft_id <> ?`,
+            accountId,
+            occurrenceId,
+            payload.draftId,
           );
           await transaction.runAsync(
             `UPDATE cached_mission_occurrences
