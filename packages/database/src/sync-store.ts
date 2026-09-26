@@ -1500,15 +1500,6 @@ async function applyStoryMutation(
           AND state = 'active'`,
       [expiredDraftId, mutation.accountId, mutation.entityId],
     );
-    await client.query(
-      `UPDATE mission_occurrences
-          SET story_state = 'ready'
-        WHERE id = $1
-          AND account_id = $2
-          AND completion_state = 'completed'
-          AND deletion_state = 'active'`,
-      [mutation.entityId, mutation.accountId],
-    );
     await appendStoryRetentionDelete(client, mutation.accountId, mutation.entityId, expiredDraftId);
     current = undefined;
 
@@ -1532,15 +1523,6 @@ async function applyStoryMutation(
       timing.clientOccurredAt.getTime() + STORY_RETENTION_MILLISECONDS <=
       timing.serverReceiptTime.getTime()
     ) {
-      await client.query(
-        `UPDATE mission_occurrences
-            SET story_state = 'ready'
-          WHERE id = $1
-            AND account_id = $2
-            AND completion_state = 'completed'
-            AND deletion_state = 'active'`,
-        [mutation.entityId, mutation.accountId],
-      );
       await appendStoryRetentionDelete(
         client,
         mutation.accountId,
@@ -1669,15 +1651,6 @@ async function applyStoryMutation(
         AND kind <> 'generated'
         AND NOT (id = ANY($2::uuid[]))`,
     [payload.draftId, retainedIds],
-  );
-  await client.query(
-    `UPDATE mission_occurrences
-        SET story_state = 'draft'
-      WHERE id = $1
-        AND account_id = $2
-        AND completion_state = 'completed'
-        AND deletion_state = 'active'`,
-    [mutation.entityId, mutation.accountId],
   );
   return {
     payload: await loadStoryDraftPayload(client, mutation.accountId, mutation.entityId),
