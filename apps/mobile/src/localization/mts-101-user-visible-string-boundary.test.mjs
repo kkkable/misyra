@@ -55,4 +55,12 @@ describe('MTS-101 user-visible localization boundary', () => {
       expect(source).toContain("['common.xpUnit']");
     }
   });
+
+  it('formats Mission Details XP with the phone regional locale', async () => {
+    const source = await readFile(missionDetailsRoutePath, 'utf8');
+
+    expect(source).toContain('getLocales');
+    expect(source).toContain('formatRegionalNumber');
+    expect(source).not.toContain('String(completion?.awarded_xp');
+  });
 });
