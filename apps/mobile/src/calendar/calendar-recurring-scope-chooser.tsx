@@ -81,9 +81,7 @@ export function CalendarRecurringScopeChooser({
   const dismiss = () => {
     onCancel();
     if (returnFocusTarget === null || returnFocusTarget === undefined) return;
-    const handle = findNodeHandle(
-      returnFocusTarget as Parameters<typeof findNodeHandle>[0],
-    );
+    const handle = findNodeHandle(returnFocusTarget as Parameters<typeof findNodeHandle>[0]);
     if (handle === null) return;
     void Promise.resolve().then(() => {
       AccessibilityInfo.setAccessibilityFocus(handle);
