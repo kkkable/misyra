@@ -14,25 +14,18 @@ const routerState = vi.hoisted(() => ({
 }));
 
 function flattenStyle(style) {
-  if (style === undefined || style === null || style === false) return {};
-  if (Array.isArray(style)) {
-    return style.reduce((result, value) => ({ ...result, ...flattenStyle(value) }), {});
-  }
-  return typeof style === 'object' ? style : {};
+  if (!Array.isArray(style)) return style ?? {};
+  return Object.assign({}, ...style.filter(Boolean).map(flattenStyle));
+}
+
+function scaledTextStyle(style, allowFontScaling) {
+  const flattened = flattenStyle(style);
+  if (allowFontScaling === false || typeof flattened.fontSize !== 'number') return flattened;
+  return { ...flattened, fontSize: flattened.fontSize * visualState.fontScale };
 }
 
 vi.mock('react-native', async () => {
   const { createElement: createReactElement } = await import('react');
-
-  const Text = ({ children, style, allowFontScaling, ...props }) => {
-    const flattened = flattenStyle(style);
-    const scaled =
-      allowFontScaling !== false && typeof flattened.fontSize === 'number'
-        ? { ...flattened, fontSize: flattened.fontSize * visualState.fontScale }
-        : flattened;
-    return createReactElement('Text', { ...props, allowFontScaling, style: scaled }, children);
-  };
-
   const Pressable = ({ children, style, ...props }) => {
     const state = { pressed: false };
     return createReactElement(
@@ -44,17 +37,22 @@ vi.mock('react-native', async () => {
       typeof children === 'function' ? children(state) : children,
     );
   };
-
   const ScrollView = ({ children, ...props }) =>
     createReactElement('ScrollView', props, children);
+  const Text = ({ children, style, allowFontScaling, ...props }) =>
+    createReactElement(
+      'Text',
+      {
+        ...props,
+        allowFontScaling,
+        style: scaledTextStyle(style, allowFontScaling),
+      },
+      children,
+    );
 
   return {
-    AccessibilityInfo: {
-      setAccessibilityFocus: vi.fn(),
-    },
-    AppState: {
-      addEventListener: () => ({ remove: vi.fn() }),
-    },
+    AccessibilityInfo: { setAccessibilityFocus: vi.fn() },
+    AppState: { addEventListener: () => ({ remove: vi.fn() }) },
     Modal: ({ children, ...props }) => createReactElement('Modal', props, children),
     Pressable,
     ScrollView,
@@ -165,11 +163,11 @@ vi.mock('../ai-planner/ai-planner-calendar-preview.js', async () => {
 
 import { darkColors, lightColors } from '@misyra/design-tokens';
 
-import { BoldTextPreferenceProvider } from './bold-text-preference.js';
 import { AiPlannerRouteScreen } from '../ai-planner/ai-planner-route-screen.js';
 import { CalendarDayScreen } from '../calendar/calendar-day-screen.js';
 import { ProgressScreen } from '../progress/progress-screen.js';
 import { SettingsRouteScreen } from '../settings/settings-route.js';
+import { BoldTextPreferenceProvider } from './bold-text-preference.js';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -273,7 +271,6 @@ describe('MTS-102 rendered primary-surface theme and large-text evidence', () =>
     (surface) => {
       const normal = renderSurface(surface, { theme: 'light', fontScale: 1 });
       const large = renderSurface(surface, { theme: 'light', fontScale: 2 });
-
       const normalSizes = textMetrics(normal).map((style) => style.fontSize);
       const largeSizes = textMetrics(large).map((style) => style.fontSize);
 
@@ -293,7 +290,6 @@ describe('MTS-102 rendered primary-surface theme and large-text evidence', () =>
     (surface) => {
       const normal = renderSurface(surface, { theme: 'light', bold: false });
       const bold = renderSurface(surface, { theme: 'light', bold: true });
-
       const normalWeights = textMetrics(normal).map((style) => style.fontWeight).filter(Boolean);
       const boldWeights = textMetrics(bold).map((style) => style.fontWeight).filter(Boolean);
 
