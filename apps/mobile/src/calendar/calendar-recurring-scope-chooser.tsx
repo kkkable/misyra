@@ -1,4 +1,5 @@
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, View } from 'react-native';
+import { SystemText as Text } from '../accessibility/bold-text-preference.js';
 
 import { layout, radius, space, typography } from '@misyra/design-tokens';
 import type { RecurringSeriesScope } from '@misyra/domain';
