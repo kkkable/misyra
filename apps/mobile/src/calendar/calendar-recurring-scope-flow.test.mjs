@@ -17,6 +17,7 @@ vi.mock('react-native', async () => {
 
   return {
     AccessibilityInfo: { setAccessibilityFocus: accessibilityState.setAccessibilityFocus },
+    findNodeHandle: (target) => target,
     Modal: 'Modal',
     Pressable,
     ScrollView,
