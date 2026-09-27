@@ -60,9 +60,9 @@ describe('MTS-092 Story text suggestion panel', () => {
       );
     });
 
-    expect(hostTextByTestId(renderer, 'story-suggestion-headline')?.props.children).toBe(
-      'Done before dinner',
-    );
+    expect(
+      hostTextByTestId(renderer, 'story-suggestion-headline')?.props.children,
+    ).toBe('Done before dinner');
     expect(
       hostTextByTestId(renderer, 'story-suggestion-supporting')?.props.children,
     ).toBe('A steady 5K after work.');
@@ -72,9 +72,9 @@ describe('MTS-092 Story text suggestion panel', () => {
     expect(
       hostTextByTestId(renderer, 'story-suggestion-location')?.props.children,
     ).toContain('Hong Kong');
-    expect(hostTextByTestId(renderer, 'story-suggestion-poll')?.props.children).toContain(
-      'Run again tomorrow?',
-    );
+    expect(
+      hostTextByTestId(renderer, 'story-suggestion-poll')?.props.children,
+    ).toContain('Run again tomorrow?');
     expect(onChoose).not.toHaveBeenCalled();
 
     act(() => renderer.root.findByProps({ testID: 'story-suggestion-use-both' }).props.onPress());
