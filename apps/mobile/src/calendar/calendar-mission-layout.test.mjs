@@ -254,7 +254,9 @@ describe('MTS-043 status and accessibility', () => {
     });
 
     const card = renderer.root.findByProps({ testID: 'calendar-mission-card-a' });
-    expect(card.props.accessibilityLabel).toBe('Mission a, Accepted evidence, on time');
+    expect(card.props.accessibilityLabel).toBe(
+      'Mission a, 09:00 to 10:00, Accepted evidence, on time',
+    );
     expect(renderer.root.findAllByType('Text').map((node) => node.children.join(''))).toEqual([
       'Mission a',
     ]);
