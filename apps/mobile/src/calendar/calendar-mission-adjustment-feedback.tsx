@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, View } from 'react-native';
-import { SystemText as Text } from '../accessibility/bold-text-preference.js';
+import { SystemText as Text } from '../accessibility/system-text.js';
 
 import { layout, radius, space, typography } from '@misyra/design-tokens';
 import { localizationCatalogs, type LocalizationLocale } from '@misyra/localization';
