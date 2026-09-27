@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { AccessibilityInfo, Pressable, StyleSheet, View, findNodeHandle } from 'react-native';
 import { SystemText as Text } from '../accessibility/system-text.js';
 
 import { radius, space, typography } from '@misyra/design-tokens';
@@ -65,6 +65,7 @@ export function EvidenceResultPanel({
   onClose,
 }: EvidenceResultPanelProps) {
   const colors = themeColors(colorScheme);
+  const headingRef = useRef<View | null>(null);
   const [confirming, setConfirming] = useState(false);
   const title =
     flow.state === 'accepted'
@@ -76,11 +77,32 @@ export function EvidenceResultPanel({
           : messages.rejected;
   const reason = reasonCopy(flow.reasonMessageKey, messages);
 
+  useEffect(() => {
+    const handle = findNodeHandle(headingRef.current);
+    if (handle !== null) AccessibilityInfo.setAccessibilityFocus(handle);
+  }, [title]);
+
   return (
-    <View style={[styles.container, { backgroundColor: colors.canvas }]} testID="evidence-result">
-      <Text allowFontScaling style={[styles.title, { color: colors.textPrimary }]}>
-        {title}
-      </Text>
+    <View
+      accessibilityLiveRegion="polite"
+      style={[styles.container, { backgroundColor: colors.canvas }]}
+      testID="evidence-result"
+    >
+      <View
+        accessibilityLabel={title}
+        accessibilityRole="header"
+        accessible
+        ref={headingRef}
+        testID="evidence-result-heading"
+      >
+        <Text
+          accessible={false}
+          allowFontScaling
+          style={[styles.title, { color: colors.textPrimary }]}
+        >
+          {title}
+        </Text>
+      </View>
       {reason === null ? null : (
         <Text allowFontScaling style={[styles.body, { color: colors.textSecondary }]}>
           {reason}
