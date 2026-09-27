@@ -321,6 +321,7 @@ interface TimedMissionLayerProps {
   readonly getNow?: (() => Date) | undefined;
   readonly selectedDate: string;
   readonly selectedMissionId?: string;
+  readonly uses24HourClock?: boolean;
   readonly isMissionAdjustable?: ((mission: TimedMissionSummary) => boolean) | undefined;
   readonly onMissionAdjustment?:
     ((adjustment: MissionAdjustmentResult) => void | Promise<void>) | undefined;
@@ -337,6 +338,7 @@ function groupList(
   highlightedMissionIds: ReadonlySet<string>,
   language: LocalizationLocale,
   selectedMissionId: string | undefined,
+  uses24HourClock: boolean,
   onMissionPress: ((mission: TimedMissionSummary) => void) | undefined,
 ): ReactNode {
   const colors = themeColors(colorScheme);
@@ -360,6 +362,7 @@ function groupList(
           mission={mission}
           onPress={onMissionPress}
           selected={selectedMissionId === mission.id || highlightedMissionIds.has(mission.id)}
+          uses24HourClock={uses24HourClock}
           style={styles.overflowListCard}
           testID={`calendar-overlap-list-mission-${mission.id}`}
         />
@@ -605,6 +608,7 @@ export function TimedMissionLayer({
                 onMissionPress={onMissionPress}
                 selected={selectedMissionId === card.mission.id}
                 selectedDate={selectedDate}
+                uses24HourClock={uses24HourClock}
               />
             ) : (
               <MissionCard
@@ -617,6 +621,7 @@ export function TimedMissionLayer({
                   selectedMissionId === card.mission.id ||
                   highlightedMissionIdSet.has(card.mission.id)
                 }
+                uses24HourClock={uses24HourClock}
                 style={missionPositionStyle(card)}
               />
             ),
@@ -650,6 +655,7 @@ export function TimedMissionLayer({
                 highlightedMissionIdSet,
                 language,
                 selectedMissionId,
+                uses24HourClock,
                 onMissionPress,
               )
             : null}
