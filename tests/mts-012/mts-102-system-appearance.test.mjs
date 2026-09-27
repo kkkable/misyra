@@ -55,13 +55,17 @@ test('MTS-102 critical design-system text uses semantic Dynamic Type ramps witho
   assert.match(buttonStyle, /paddingVertical\s*:/u, 'buttons need vertical padding for large text');
 });
 
-test('MTS-102 observes the native Bold Text preference and updates when the setting changes', async () => {
-  const boldTextRuntime = await source('apps/mobile/src/accessibility/system-bold-text.ts');
-
-  assert.match(boldTextRuntime, /AccessibilityInfo\.isBoldTextEnabled\(\)/u);
-  assert.match(boldTextRuntime, /AccessibilityInfo\.addEventListener\(['"]boldTextChanged['"]/u);
-  assert.match(boldTextRuntime, /subscription\.remove\(\)/u);
-  assert.match(boldTextRuntime, /Platform\.OS\s*!==\s*['"]ios['"]/u);
+test('MTS-102 primary routes continue to derive appearance from the native system scheme', async () => {
+  for (const path of [
+    'apps/mobile/src/calendar/calendar-route-screen.tsx',
+    'apps/mobile/src/ai-planner/ai-planner-route-screen.tsx',
+    'apps/mobile/src/progress/progress-route-screen.tsx',
+    'apps/mobile/src/settings/settings-route.tsx',
+  ]) {
+    const route = await source(path);
+    assert.match(route, /useColorScheme\(\)/u, `${path} must read the native system color scheme`);
+    assert.doesNotMatch(route, /appearanceSetting|themePreference|setColorScheme/u);
+  }
 });
 
 test('MTS-102 keeps Story canvas typography independent from system text-size and Bold Text state', async () => {
