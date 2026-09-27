@@ -10,9 +10,17 @@ vi.mock('@misyra/localization', () => ({
   localizationCatalogs: {
     en: {
       'calendar.allDay.more': 'Remaining {count}',
+      'calendar.mission.status.unfinished': 'Unfinished',
+      'calendar.mission.status.verified': 'Accepted evidence, on time',
+      'calendar.mission.status.late': 'Accepted late or self-confirmed',
+      'calendar.mission.status.private': 'Private or Trust Mode completion',
     },
     'zh-HK': {
       'calendar.allDay.more': '其餘 {count} 項',
+      'calendar.mission.status.unfinished': '未完成',
+      'calendar.mission.status.verified': '證據已接納，準時完成',
+      'calendar.mission.status.late': '逾時完成或自行確認',
+      'calendar.mission.status.private': '私人或信任模式完成',
     },
   },
 }));
@@ -136,6 +144,7 @@ describe('MTS-042 all-day expansion and accessibility', () => {
         node.props.testID === 'calendar-all-day-mission-first-imported',
     );
     expect(first.props.accessibilityRole).toBe('button');
+    expect(first.props.accessibilityLabel).toBe('First imported, Unfinished');
     expect(first.props.style).toEqual(
       expect.arrayContaining([expect.objectContaining({ minHeight: 44 })]),
     );
