@@ -192,7 +192,10 @@ export function missionCardPalette(status: MissionCardStatus, colorScheme: Color
   }
 }
 
-export function missionStatusLabel(status: MissionCardStatus, language: LocalizationLocale): string {
+export function missionStatusLabel(
+  status: MissionCardStatus,
+  language: LocalizationLocale,
+): string {
   const catalog = localizationCatalogs[language];
   switch (status) {
     case 'verified':
