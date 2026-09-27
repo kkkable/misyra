@@ -7,11 +7,11 @@ type OptionalStyleSheetFlatten = Readonly<{
   flatten?: (style: TextProps['style']) => TextStyle | undefined;
 }>;
 
-function flattenTextStyle(style: TextProps['style']): TextStyle | undefined {
+function flattenTextStyle(style: unknown): TextStyle | undefined {
   if (style === undefined || style === null || style === false) return undefined;
 
   const flatten = (StyleSheet as unknown as OptionalStyleSheetFlatten).flatten;
-  if (typeof flatten === 'function') return flatten(style);
+  if (typeof flatten === 'function') return flatten(style as TextProps['style']);
 
   if (Array.isArray(style)) {
     return style.reduce<TextStyle>((result, value) => {
@@ -20,7 +20,7 @@ function flattenTextStyle(style: TextProps['style']): TextStyle | undefined {
     }, {});
   }
 
-  return typeof style === 'object' ? style : undefined;
+  return typeof style === 'object' ? (style as TextStyle) : undefined;
 }
 
 export function SystemText(props: TextProps) {
