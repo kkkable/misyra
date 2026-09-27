@@ -1,11 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { getCalendars } from 'expo-localization';
+import { getCalendars, getLocales } from 'expo-localization';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
 
 import { layout, space, typography } from '@misyra/design-tokens';
 import type { RecurringSeriesScope } from '@misyra/domain';
-import { localizationCatalogs } from '@misyra/localization';
+import {
+  formatRegionalNumber,
+  formatRegionalNumericDate,
+  localizationCatalogs,
+} from '@misyra/localization';
 
 import { rootAuthController } from '../auth/auth-runtime.js';
 import { themeColors, type ColorScheme } from '../design-system/index.js';
@@ -81,10 +85,45 @@ function providerDescription(mission: MissionDetails, fallback: string | null): 
   return fallback;
 }
 
-function scheduleText(mission: MissionDetails): string {
+function localScheduleDateTime(value: string): Date {
+  const match =
+    /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?/u.exec(value);
+  if (match === null) throw new RangeError('Invalid local mission schedule.');
+  return new Date(
+    Date.UTC(
+      Number(match[1]),
+      Number(match[2]) - 1,
+      Number(match[3]),
+      Number(match[4]),
+      Number(match[5]),
+      Number(match[6] ?? 0),
+    ),
+  );
+}
+
+function scheduleText(
+  mission: MissionDetails,
+  regionalLocale: string,
+  uses24HourClock: boolean,
+): string {
   const schedule = mission.occurrence.schedule;
-  if (schedule.allDay) return schedule.localStart.slice(0, 10);
-  return `${schedule.localStart.replace('T', ' ')} – ${schedule.localFinish.replace('T', ' ')}`;
+  const start = localScheduleDateTime(schedule.localStart);
+  const startDate = formatRegionalNumericDate(start, regionalLocale);
+  if (schedule.allDay) return startDate;
+
+  const finish = localScheduleDateTime(schedule.localFinish);
+  const finishDate = formatRegionalNumericDate(finish, regionalLocale);
+  const timeFormatter = new Intl.DateTimeFormat(regionalLocale, {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: !uses24HourClock,
+    timeZone: 'UTC',
+  });
+  const startTime = timeFormatter.format(start);
+  const finishTime = timeFormatter.format(finish);
+  return schedule.localStart.slice(0, 10) === schedule.localFinish.slice(0, 10)
+    ? `${startDate} · ${startTime}–${finishTime}`
+    : `${startDate} ${startTime} – ${finishDate} ${finishTime}`;
 }
 
 function clockFromLocalDateTime(value: string): string {
@@ -129,6 +168,8 @@ function projectDetails(
   completion: CompletionRow | null,
   now: Date,
   xpUnit: string,
+  regionalLocale: string,
+  uses24HourClock: boolean,
 ): MissionDetailsProjection {
   const occurrence = mission.occurrence;
   const organizerControlled = occurrence.fieldOwnership === 'organizer_controlled';
@@ -136,7 +177,7 @@ function projectDetails(
   return {
     id: occurrence.id,
     title: mission.series.title,
-    scheduleText: scheduleText(mission),
+    scheduleText: scheduleText(mission, regionalLocale, uses24HourClock),
     structuredSchedule: {
       date: localDateFromLocalDateTime(occurrence.schedule.localStart),
       start: occurrence.schedule.allDay
@@ -159,7 +200,7 @@ function projectDetails(
     completionState: occurrence.completionState,
     evidenceState: occurrence.evidenceState,
     rewardEligibility: occurrence.rewardEligibility,
-    xpSummary: `${String(completion?.awarded_xp ?? 0)} ${xpUnit}`,
+    xpSummary: `${formatRegionalNumber(completion?.awarded_xp ?? 0, regionalLocale)} ${xpUnit}`,
     zeroXpReason: null,
     cancellationAttribution:
       lifecycle === 'cancelled' && organizerControlled
@@ -177,6 +218,7 @@ export function CalendarMissionDetailsRouteScreen() {
   const language = useAppLanguage();
   const catalog = localizationCatalogs[language];
   const xpUnit = catalog['common.xpUnit'];
+  const regionalLocale = getLocales().at(0)?.languageTag ?? language;
   const nativeColorScheme = useColorScheme();
   const colorScheme: ColorScheme = nativeColorScheme === 'dark' ? 'dark' : 'light';
   const colors = themeColors(colorScheme);
@@ -230,9 +272,19 @@ export function CalendarMissionDetailsRouteScreen() {
       authState.session.accountId,
       missionId,
     );
-    setDetails(projectDetails(mission, search, completion, new Date(), xpUnit));
+    setDetails(
+      projectDetails(
+        mission,
+        search,
+        completion,
+        new Date(),
+        xpUnit,
+        regionalLocale,
+        uses24HourClock,
+      ),
+    );
     setLoaded(true);
-  }, [missionId, xpUnit]);
+  }, [missionId, regionalLocale, uses24HourClock, xpUnit]);
 
   useEffect(() => {
     let active = true;
