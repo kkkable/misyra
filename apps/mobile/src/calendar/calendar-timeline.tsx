@@ -1,9 +1,10 @@
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { space, typography } from '@misyra/design-tokens';
 import { localizationCatalogs, type LocalizationLocale } from '@misyra/localization';
 
+import { SystemText as Text } from '../accessibility/bold-text-preference.js';
 import { themeColors, type ColorScheme } from '../design-system/index.js';
 
 const MINUTES_PER_DAY = 24 * 60;
