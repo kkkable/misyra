@@ -238,9 +238,7 @@ function textMetrics(renderer) {
 }
 
 function rootBackground(renderer, testID) {
-  const host = renderer.root
-    .findAllByProps({ testID })
-    .find((node) => node.type === 'View');
+  const host = renderer.root.findAllByProps({ testID }).find((node) => node.type === 'View');
   return flattenStyle(host?.props.style).backgroundColor;
 }
 
