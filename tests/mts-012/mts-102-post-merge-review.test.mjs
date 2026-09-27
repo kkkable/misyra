@@ -20,48 +20,42 @@ const primaryUiTextModules = [
   'apps/mobile/src/calendar/calendar-mission-layout.tsx',
 ];
 
-test(
-  'MTS-102 review correction applies Bold Text to direct primary-screen interface text',
-  async () => {
-    const preference = await source('apps/mobile/src/accessibility/bold-text-preference.ts');
-    assert.match(preference, /export function SystemText/u);
-    assert.match(preference, /systemBoldFontWeight/u);
+test('MTS-102 review correction applies Bold Text to direct primary-screen interface text', async () => {
+  const preference = await source('apps/mobile/src/accessibility/bold-text-preference.ts');
+  assert.match(preference, /export function SystemText/u);
+  assert.match(preference, /systemBoldFontWeight/u);
 
-    for (const path of primaryUiTextModules) {
-      const moduleSource = await source(path);
-      assert.match(
-        moduleSource,
-        /SystemText as Text/u,
-        `${path} must render direct interface text through SystemText`,
-      );
-      assert.doesNotMatch(
-        moduleSource,
-        /\bText\b[\s\S]{0,80}from ['"]react-native['"]/u,
-        `${path} must not bypass Bold Text through react-native Text`,
-      );
-    }
-  },
-);
-
-test(
-  'MTS-102 review correction does not claim fixture-color PNGs as rendered primary-screen screenshots',
-  async () => {
-    const screenshotEvidence = await source(
-      'tests/mts-012/mts-102-theme-large-text-screenshot.test.mjs',
-    );
-
-    assert.doesNotMatch(
-      screenshotEvidence,
-      /createDeterministicScreenshotDriver/u,
-      'fixture-key color PNGs are not rendered UI evidence',
-    );
+  for (const path of primaryUiTextModules) {
+    const moduleSource = await source(path);
     assert.match(
-      screenshotEvidence,
-      /mts-102-rendered-primary-surfaces\.test\.mjs/u,
-      'closure evidence must point at rendered primary-surface verification',
+      moduleSource,
+      /SystemText as Text/u,
+      `${path} must render direct interface text through SystemText`,
     );
-  },
-);
+    assert.doesNotMatch(
+      moduleSource,
+      /\bText\b[\s\S]{0,80}from ['"]react-native['"]/u,
+      `${path} must not bypass Bold Text through react-native Text`,
+    );
+  }
+});
+
+test('MTS-102 review correction does not claim fixture-color PNGs as rendered primary-screen screenshots', async () => {
+  const screenshotEvidence = await source(
+    'tests/mts-012/mts-102-theme-large-text-screenshot.test.mjs',
+  );
+
+  assert.doesNotMatch(
+    screenshotEvidence,
+    /createDeterministicScreenshotDriver/u,
+    'fixture-key color PNGs are not rendered UI evidence',
+  );
+  assert.match(
+    screenshotEvidence,
+    /mts-102-rendered-primary-surfaces\.test\.mjs/u,
+    'closure evidence must point at rendered primary-surface verification',
+  );
+});
 
 async function sourceFilesUnder(relativeDirectory) {
   const directory = new URL(relativeDirectory, repositoryUrl);
@@ -76,31 +70,28 @@ async function sourceFilesUnder(relativeDirectory) {
   return nested.flat();
 }
 
-test(
-  'MTS-102 review correction leaves no production interface Text bypass outside adaptive foundations',
-  async () => {
-    const paths = [
-      ...(await sourceFilesUnder('apps/mobile/app/')),
-      ...(await sourceFilesUnder('apps/mobile/src/')),
-    ];
-    const allowedNativeText = new Set([
-      'apps/mobile/src/accessibility/bold-text-preference.ts',
-      'apps/mobile/src/design-system/primitives.tsx',
-    ]);
+test('MTS-102 review correction leaves no production interface Text bypass outside adaptive foundations', async () => {
+  const paths = [
+    ...(await sourceFilesUnder('apps/mobile/app/')),
+    ...(await sourceFilesUnder('apps/mobile/src/')),
+  ];
+  const allowedNativeText = new Set([
+    'apps/mobile/src/accessibility/bold-text-preference.ts',
+    'apps/mobile/src/design-system/primitives.tsx',
+  ]);
 
-    const bypasses = [];
-    for (const path of paths) {
-      if (allowedNativeText.has(path)) continue;
-      const moduleSource = await source(path);
-      if (/import\s*\{[^}]*\bText\b[^}]*\}\s*from\s*['"]react-native['"]/su.test(moduleSource)) {
-        bypasses.push(path);
-      }
+  const bypasses = [];
+  for (const path of paths) {
+    if (allowedNativeText.has(path)) continue;
+    const moduleSource = await source(path);
+    if (/import\s*\{[^}]*\bText\b[^}]*\}\s*from\s*['"]react-native['"]/su.test(moduleSource)) {
+      bypasses.push(path);
     }
+  }
 
-    assert.deepEqual(
-      bypasses,
-      [],
-      `production interface text must use the Bold Text-aware path: ${bypasses.join(', ')}`,
-    );
-  },
-);
+  assert.deepEqual(
+    bypasses,
+    [],
+    `production interface text must use the Bold Text-aware path: ${bypasses.join(', ')}`,
+  );
+});
