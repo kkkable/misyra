@@ -292,7 +292,7 @@ describe('MTS-103 Story accessibility order', () => {
       'story-remove-text',
     ];
     const renderedOrder = renderer.root
-      .findAll((node) => typeof node.props.testID === 'string')
+      .findAll((node) => typeof node.type === 'string' && typeof node.props.testID === 'string')
       .map((node) => node.props.testID)
       .filter((testID) => requiredOrder.includes(testID));
     expect(renderedOrder).toEqual(requiredOrder);
