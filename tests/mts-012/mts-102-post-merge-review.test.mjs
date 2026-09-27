@@ -57,7 +57,6 @@ test('MTS-102 review correction does not claim fixture-color PNGs as rendered pr
   );
 });
 
-
 async function sourceFilesUnder(relativeDirectory) {
   const directory = new URL(relativeDirectory, repositoryUrl);
   const entries = await readdir(directory, { withFileTypes: true });
@@ -65,13 +64,17 @@ async function sourceFilesUnder(relativeDirectory) {
     entries.map(async (entry) => {
       const relativePath = `${relativeDirectory}${entry.name}`;
       if (entry.isDirectory()) return sourceFilesUnder(`${relativePath}/`);
-      return /\.tsx?$/u.test(entry.name) && !/\.test\./u.test(entry.name) ? [relativePath] : [];
+      return /\.tsx?$/u.test(entry.name) && !/\.test\./u.test(entry.name)
+        ? [relativePath]
+        : [];
     }),
   );
   return nested.flat();
 }
 
-test('MTS-102 review correction leaves no production interface Text bypass outside adaptive foundations', async () => {
+test(
+  'MTS-102 review correction leaves no production interface Text bypass outside adaptive foundations',
+  async () => {
   const paths = [
     ...(await sourceFilesUnder('apps/mobile/app/')),
     ...(await sourceFilesUnder('apps/mobile/src/')),
@@ -85,14 +88,17 @@ test('MTS-102 review correction leaves no production interface Text bypass outsi
   for (const path of paths) {
     if (allowedNativeText.has(path)) continue;
     const moduleSource = await source(path);
-    if (/import\s*\{[^}]*\bText\b[^}]*\}\s*from\s*['"]react-native['"]/su.test(moduleSource)) {
+    if (
+      /import\s*\{[^}]*\bText\b[^}]*\}\s*from\s*['"]react-native['"]/su.test(moduleSource)
+    ) {
       bypasses.push(path);
     }
   }
 
-  assert.deepEqual(
-    bypasses,
-    [],
-    `production interface text must use the Bold Text-aware path: ${bypasses.join(', ')}`,
-  );
-});
+    assert.deepEqual(
+      bypasses,
+      [],
+      `production interface text must use the Bold Text-aware path: ${bypasses.join(', ')}`,
+    );
+  },
+);
