@@ -128,9 +128,7 @@ export function AllDayMissionList({
         const catalog = localizationCatalogs[language];
         const accessibilityLabel = [
           mission.title,
-          mission.previewKind === 'planner_draft'
-            ? catalog['calendar.accessibility.draft']
-            : null,
+          mission.previewKind === 'planner_draft' ? catalog['calendar.accessibility.draft'] : null,
           mission.recurring === true ? catalog['calendar.accessibility.repeating'] : null,
           missionStatusLabel(status, language),
           mission.organizerControlled === true
