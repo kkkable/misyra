@@ -1,10 +1,5 @@
 import { createContext, createElement, useContext, type PropsWithChildren } from 'react';
-import {
-  StyleSheet,
-  Text as NativeText,
-  type TextProps,
-  type TextStyle,
-} from 'react-native';
+import { StyleSheet, Text as NativeText, type TextProps, type TextStyle } from 'react-native';
 
 type FontWeight = NonNullable<TextStyle['fontWeight']>;
 
