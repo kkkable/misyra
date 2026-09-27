@@ -52,12 +52,16 @@ function renderFeedback(props = {}) {
   return renderer;
 }
 
+function hostTextByTestId(renderer, testID) {
+  return renderer.root.findAllByProps({ testID }).find((node) => node.type === 'Text');
+}
+
 describe('MTS-047 adjustment feedback', () => {
   it('shows a visible brief Undo affordance after a normal immediate save', () => {
     const renderer = renderFeedback();
     expect(renderer.root.findByProps({ testID: 'calendar-adjustment-feedback' })).toBeDefined();
     expect(
-      renderer.root.findByProps({ testID: 'calendar-adjustment-feedback-message' }).children,
+      hostTextByTestId(renderer, 'calendar-adjustment-feedback-message')?.children,
     ).toContain('Mission updated.');
     expect(
       renderer.root.findByProps({ testID: 'calendar-adjustment-undo' }).children,
@@ -72,7 +76,7 @@ describe('MTS-047 adjustment feedback', () => {
     });
 
     expect(
-      renderer.root.findByProps({ testID: 'calendar-adjustment-feedback-message' }).children,
+      hostTextByTestId(renderer, 'calendar-adjustment-feedback-message')?.children,
     ).toContain('Editing after the start time will remove XP for this mission.');
 
     await act(async () => {
@@ -84,7 +88,7 @@ describe('MTS-047 adjustment feedback', () => {
   it('states permanent XP loss when a mission is moved into the past', () => {
     const renderer = renderFeedback({ adjustment: adjustment('past_zero_xp') });
     expect(
-      renderer.root.findByProps({ testID: 'calendar-adjustment-feedback-message' }).children,
+      hostTextByTestId(renderer, 'calendar-adjustment-feedback-message')?.children,
     ).toContain('Saving this mission in the past will permanently remove XP eligibility.');
   });
 });
