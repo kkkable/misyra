@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { AppState, Pressable, ScrollView, StyleSheet, View, useColorScheme } from 'react-native';
+import {
+  AppState,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+  findNodeHandle,
+  useColorScheme,
+} from 'react-native';
 
 import type { AccountSettings, CalendarConnection } from '@misyra/contracts';
 import { space, typography } from '@misyra/design-tokens';
