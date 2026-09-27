@@ -9,7 +9,7 @@
   },
   "scripts": {
     "format": "turbo run format",
-    "format:ci": "prettier --check .github/workflows/ci.yml scripts/ci-gates.mjs scripts/visual-regression.mjs tests/mts-007/*.test.mjs tests/mts-008/*.test.mjs tests/mts-012/*.test.mjs package.json --config packages/config/prettier.config.mjs",
+    "format:ci": "prettier --write .github/workflows/ci.yml scripts/ci-gates.mjs scripts/visual-regression.mjs tests/mts-007/*.test.mjs tests/mts-008/*.test.mjs tests/mts-012/*.test.mjs package.json --config packages/config/prettier.config.mjs && git diff -- tests/mts-012/mts-102-post-merge-review.test.mjs && git diff --exit-code",
     "lint": "turbo run lint",
     "lint:ci": "eslint scripts/ci-gates.mjs scripts/visual-regression.mjs tests/mts-007/*.test.mjs tests/mts-008/*.test.mjs tests/mts-012/*.test.mjs --config packages/config/eslint.config.mjs",
     "typecheck": "turbo run typecheck",
