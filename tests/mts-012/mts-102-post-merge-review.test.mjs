@@ -70,9 +70,7 @@ async function sourceFilesUnder(relativeDirectory) {
     entries.map(async (entry) => {
       const relativePath = `${relativeDirectory}${entry.name}`;
       if (entry.isDirectory()) return sourceFilesUnder(`${relativePath}/`);
-      return /\.tsx?$/u.test(entry.name) && !/\.test\./u.test(entry.name)
-        ? [relativePath]
-        : [];
+      return /\.tsx?$/u.test(entry.name) && !/\.test\./u.test(entry.name) ? [relativePath] : [];
     }),
   );
   return nested.flat();
