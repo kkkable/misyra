@@ -47,10 +47,6 @@ vi.mock('react-native-worklets', () => ({
   scheduleOnRN: (fn, ...args) => fn(...args),
 }));
 
-vi.mock('../experience/native-haptics.js', () => ({
-  haptics: { triggerNonBlocking: hapticRuntime.triggerNonBlocking },
-}));
-
 vi.mock('react-native-gesture-handler', async () => {
   const { createElement: createReactElement } = await import('react');
   return {
@@ -97,6 +93,7 @@ function renderLayer({
         now,
         getNow,
         onMissionAdjustment,
+        onSnapHaptic: () => hapticRuntime.triggerNonBlocking('snap'),
         selectedDate,
         selectedMissionId: 'runtime',
       }),
