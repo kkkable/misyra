@@ -50,11 +50,15 @@ export function formatRegionalNumber(value: number, regionalLocale: string): str
   return new Intl.NumberFormat(regionalLocale).format(value);
 }
 
-export function formatRegionalNumericDate(value: Date, regionalLocale: string): string {
+export function formatRegionalNumericDate(
+  value: Date,
+  regionalLocale: string,
+  timeZone = 'UTC',
+): string {
   return new Intl.DateTimeFormat(regionalLocale, {
     day: 'numeric',
     month: 'numeric',
     year: 'numeric',
-    timeZone: 'UTC',
+    timeZone,
   }).format(utcDate(value));
 }
