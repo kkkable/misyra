@@ -82,6 +82,7 @@ export function CalendarRecurringScopeChooser({
         <View
           accessibilityLabel={title}
           accessibilityRole="menu"
+          accessibilityViewIsModal
           style={[styles.sheet, { backgroundColor: colors.canvas, borderColor: colors.border }]}
           testID="recurring-scope-chooser"
         >
