@@ -1,6 +1,8 @@
 import { Stack } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
+import { BoldTextPreferenceProvider } from '../src/accessibility/bold-text-preference.js';
+import { useSystemBoldText } from '../src/accessibility/system-bold-text.js';
 import { AuthGate } from '../src/auth/auth-gate.js';
 import { rootAuthController, rootAuthMessages } from '../src/auth/auth-runtime.js';
 import { SystemMotionPreferenceProvider } from '../src/experience/system-reduce-motion.js';
@@ -34,49 +36,53 @@ export const unstable_settings = {
 } as const;
 
 export default function RootLayout() {
+  const boldTextEnabled = useSystemBoldText();
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <SystemMotionPreferenceProvider>
-        <AuthGate controller={rootAuthController} messages={rootAuthMessages}>
-          <SyncRuntimeGate>
-            <OnboardingGate
-              calendarConnectionController={rootCalendarConnectionController}
-              calendarConnectionMessages={rootCalendarConnectionMessages}
-              controller={rootOnboardingController}
-              messages={rootOnboardingMessages}
-            >
-              <NotificationRebuildBridge />
-              <MissionNotificationResponseBridge />
-              <Stack screenOptions={{ headerShown: false }}>
-                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                <Stack.Screen
-                  name="mission/[id]"
-                  options={{
-                    gestureEnabled: true,
-                    headerShown: false,
-                  }}
-                />
-                <Stack.Screen
-                  name="evidence"
-                  options={{
-                    gestureEnabled: true,
-                    headerShown: false,
-                    presentation: 'fullScreenModal',
-                  }}
-                />
-                <Stack.Screen
-                  name="story"
-                  options={{
-                    gestureEnabled: true,
-                    headerShown: false,
-                    presentation: 'fullScreenModal',
-                  }}
-                />
-              </Stack>
-            </OnboardingGate>
-          </SyncRuntimeGate>
-        </AuthGate>
-      </SystemMotionPreferenceProvider>
+      <BoldTextPreferenceProvider enabled={boldTextEnabled}>
+        <SystemMotionPreferenceProvider>
+          <AuthGate controller={rootAuthController} messages={rootAuthMessages}>
+            <SyncRuntimeGate>
+              <OnboardingGate
+                calendarConnectionController={rootCalendarConnectionController}
+                calendarConnectionMessages={rootCalendarConnectionMessages}
+                controller={rootOnboardingController}
+                messages={rootOnboardingMessages}
+              >
+                <NotificationRebuildBridge />
+                <MissionNotificationResponseBridge />
+                <Stack screenOptions={{ headerShown: false }}>
+                  <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                  <Stack.Screen
+                    name="mission/[id]"
+                    options={{
+                      gestureEnabled: true,
+                      headerShown: false,
+                    }}
+                  />
+                  <Stack.Screen
+                    name="evidence"
+                    options={{
+                      gestureEnabled: true,
+                      headerShown: false,
+                      presentation: 'fullScreenModal',
+                    }}
+                  />
+                  <Stack.Screen
+                    name="story"
+                    options={{
+                      gestureEnabled: true,
+                      headerShown: false,
+                      presentation: 'fullScreenModal',
+                    }}
+                  />
+                </Stack>
+              </OnboardingGate>
+            </SyncRuntimeGate>
+          </AuthGate>
+        </SystemMotionPreferenceProvider>
+      </BoldTextPreferenceProvider>
     </GestureHandlerRootView>
   );
 }

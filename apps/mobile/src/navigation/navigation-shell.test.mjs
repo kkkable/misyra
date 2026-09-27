@@ -25,6 +25,10 @@ vi.mock('react-native-reanimated', () => ({
   useReducedMotion: () => false,
 }));
 
+vi.mock('../accessibility/system-bold-text.js', () => ({
+  useSystemBoldText: () => false,
+}));
+
 vi.mock('../auth/auth-gate.js', async () => {
   const { createElement: createReactElement } = await import('react');
   return {
