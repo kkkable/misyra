@@ -1,5 +1,6 @@
 import { useEffect, useState, type ComponentType } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, View } from 'react-native';
+import { SystemText as Text } from '../accessibility/bold-text-preference.js';
 
 import { themeColors, type ColorScheme } from '../design-system/index.js';
 
