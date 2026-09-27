@@ -1,6 +1,7 @@
 import { Stack } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
+import { useSystemBoldText } from '../src/accessibility/system-bold-text.js';
 import { AuthGate } from '../src/auth/auth-gate.js';
 import { rootAuthController, rootAuthMessages } from '../src/auth/auth-runtime.js';
 import { SystemMotionPreferenceProvider } from '../src/experience/system-reduce-motion.js';
@@ -34,6 +35,8 @@ export const unstable_settings = {
 } as const;
 
 export default function RootLayout() {
+  useSystemBoldText();
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SystemMotionPreferenceProvider>
