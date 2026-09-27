@@ -16,6 +16,10 @@ vi.mock('react-native', async () => {
 
 import { StoryTextSuggestionsPanel } from './story-text-suggestions-panel.tsx';
 
+function hostTextByTestId(renderer, testID) {
+  return renderer.root.findAllByProps({ testID }).find((node) => node.type === 'Text');
+}
+
 const suggestions = {
   headline: 'Done before dinner',
   supportingText: 'A steady 5K after work.',
@@ -56,19 +60,19 @@ describe('MTS-092 Story text suggestion panel', () => {
       );
     });
 
-    expect(renderer.root.findByProps({ testID: 'story-suggestion-headline' }).props.children).toBe(
+    expect(hostTextByTestId(renderer, 'story-suggestion-headline')?.props.children).toBe(
       'Done before dinner',
     );
-    expect(
-      renderer.root.findByProps({ testID: 'story-suggestion-supporting' }).props.children,
-    ).toBe('A steady 5K after work.');
-    expect(
-      renderer.root.findByProps({ testID: 'story-suggestion-music-mood' }).props.children,
-    ).toContain('upbeat running track');
-    expect(
-      renderer.root.findByProps({ testID: 'story-suggestion-location' }).props.children,
-    ).toContain('Hong Kong');
-    expect(renderer.root.findByProps({ testID: 'story-suggestion-poll' }).props.children).toContain(
+    expect(hostTextByTestId(renderer, 'story-suggestion-supporting')?.props.children).toBe(
+      'A steady 5K after work.',
+    );
+    expect(hostTextByTestId(renderer, 'story-suggestion-music-mood')?.props.children).toContain(
+      'upbeat running track',
+    );
+    expect(hostTextByTestId(renderer, 'story-suggestion-location')?.props.children).toContain(
+      'Hong Kong',
+    );
+    expect(hostTextByTestId(renderer, 'story-suggestion-poll')?.props.children).toContain(
       'Run again tomorrow?',
     );
     expect(onChoose).not.toHaveBeenCalled();

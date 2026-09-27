@@ -128,6 +128,10 @@ const composition = {
   savedAt: '2026-09-23T07:00:00.000Z',
 };
 
+function hostTextByTestId(renderer, testID) {
+  return renderer.root.findAllByProps({ testID }).find((node) => node.type === 'Text');
+}
+
 function renderScreen(overrides = {}) {
   const props = {
     colorScheme: 'light',
@@ -272,7 +276,7 @@ describe('MTS-091 Story editor interactions', () => {
 describe('MTS-094 Story generation budget surface', () => {
   it('shows the remaining AI generation count in the editor', () => {
     const { renderer } = renderScreen({ remainingGenerations: 2 });
-    const remaining = renderer.root.findByProps({ testID: 'story-generation-remaining' });
+    const remaining = hostTextByTestId(renderer, 'story-generation-remaining');
     expect(remaining.props.children).toBe('2 AI generations remaining');
   });
 });
@@ -420,18 +424,18 @@ describe('MTS-098 Instagram Sharing Notes flow', () => {
 
     expect(onOpenInstagram).not.toHaveBeenCalled();
     expect(renderer.root.findByProps({ testID: 'story-sharing-notes' })).toBeDefined();
-    expect(
-      renderer.root.findByProps({ testID: 'story-sharing-note-musicMood' }).props.children,
-    ).toContain('upbeat running track');
-    expect(
-      renderer.root.findByProps({ testID: 'story-sharing-note-mention' }).props.children,
-    ).toContain('@misyra');
-    expect(
-      renderer.root.findByProps({ testID: 'story-sharing-note-location' }).props.children,
-    ).toContain('Hong Kong');
-    expect(
-      renderer.root.findByProps({ testID: 'story-sharing-note-poll' }).props.children,
-    ).toContain('Run again tomorrow?');
+    expect(hostTextByTestId(renderer, 'story-sharing-note-musicMood')?.props.children).toContain(
+      'upbeat running track',
+    );
+    expect(hostTextByTestId(renderer, 'story-sharing-note-mention')?.props.children).toContain(
+      '@misyra',
+    );
+    expect(hostTextByTestId(renderer, 'story-sharing-note-location')?.props.children).toContain(
+      'Hong Kong',
+    );
+    expect(hostTextByTestId(renderer, 'story-sharing-note-poll')?.props.children).toContain(
+      'Run again tomorrow?',
+    );
 
     pressByTestId(renderer, 'story-copy-musicMood');
     pressByTestId(renderer, 'story-copy-mention');
