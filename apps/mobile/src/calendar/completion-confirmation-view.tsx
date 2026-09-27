@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react';
-import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, StyleSheet, View } from 'react-native';
+import { SystemText as Text } from '../accessibility/bold-text-preference.js';
 
 import { easing, layout, radius, space, typography } from '@misyra/design-tokens';
 import { completionConfirmationCatalogs, type LocalizationLocale } from '@misyra/localization';
