@@ -7,7 +7,7 @@ import { scheduleOnRN } from 'react-native-worklets';
 import { layout, radius, space, typography } from '@misyra/design-tokens';
 import { localizationCatalogs, type LocalizationLocale } from '@misyra/localization';
 
-import { SystemText as Text } from '../accessibility/bold-text-preference.js';
+import { SystemText as Text } from '../accessibility/system-text.js';
 import { themeColors, type ColorScheme } from '../design-system/index.js';
 import {
   commitMissionAdjustment,
