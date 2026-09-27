@@ -47,8 +47,8 @@ test('MTS-102 review correction does not claim fixture-color PNGs as rendered pr
 
   assert.doesNotMatch(
     screenshotEvidence,
-    /createDeterministicScreenshotDriver/u,
-    'fixture-key color PNGs are not rendered UI evidence',
+    /scripts\/visual-regression\.mjs/u,
+    'fixture-key visual-regression drivers are not rendered UI evidence',
   );
   assert.match(
     screenshotEvidence,
