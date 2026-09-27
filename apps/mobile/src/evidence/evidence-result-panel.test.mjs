@@ -76,10 +76,9 @@ describe('MTS-103 evidence result accessibility', () => {
     const surface = renderer.root.findByProps({ testID: 'evidence-result' });
     expect(surface.props.accessibilityLiveRegion).toBe('polite');
 
-    const heading = renderer.root
-      .findAllByType('Text')
-      .find((node) => node.children.join('') === 'Evidence not accepted');
-    expect(heading?.props.accessibilityRole).toBe('header');
+    const heading = renderer.root.findByProps({ testID: 'evidence-result-heading' });
+    expect(heading.props.accessibilityRole).toBe('header');
+    expect(heading.props.accessibilityLabel).toBe('Evidence not accepted');
     expect(accessibilityState.setAccessibilityFocus).toHaveBeenCalledWith(4242);
   });
 });
