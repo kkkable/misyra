@@ -273,6 +273,53 @@ describe('MTS-091 Story editor interactions', () => {
   });
 });
 
+describe('MTS-103 Story accessibility order', () => {
+  it('keeps primary Story controls labeled, stateful, and in deterministic reading order', () => {
+    const { renderer } = renderScreen();
+
+    const requiredOrder = [
+      'story-close',
+      'story-save',
+      'story-source-attempt-1',
+      'story-source-attempt-2',
+      'story-undo',
+      'story-redo',
+      'story-zoom-out',
+      'story-zoom-in',
+      'story-contrast',
+      'story-headline-input',
+      'story-supporting-input',
+      'story-remove-text',
+    ];
+    const renderedOrder = renderer.root
+      .findAll((node) => typeof node.props.testID === 'string')
+      .map((node) => node.props.testID)
+      .filter((testID) => requiredOrder.includes(testID));
+    expect(renderedOrder).toEqual(requiredOrder);
+
+    const selectedSource = renderer.root.findByProps({ testID: 'story-source-attempt-1' });
+    expect(selectedSource.props.accessibilityRole).toBe('button');
+    expect(selectedSource.props.accessibilityLabel).toBe('Photo 1');
+    expect(selectedSource.props.accessibilityState).toEqual({ selected: true });
+
+    expect(renderer.root.findByProps({ testID: 'story-close' }).props.accessibilityLabel).toBe(
+      'Close',
+    );
+    expect(renderer.root.findByProps({ testID: 'story-save' }).props.accessibilityLabel).toBe(
+      'Save',
+    );
+    expect(renderer.root.findByProps({ testID: 'story-undo' }).props.accessibilityLabel).toBe(
+      'Undo',
+    );
+    expect(
+      renderer.root.findByProps({ testID: 'story-headline-input' }).props.accessibilityLabel,
+    ).toBe('Headline');
+    expect(
+      renderer.root.findByProps({ testID: 'story-supporting-input' }).props.accessibilityLabel,
+    ).toBe('Supporting text');
+  });
+});
+
 describe('MTS-094 Story generation budget surface', () => {
   it('shows the remaining AI generation count in the editor', () => {
     const { renderer } = renderScreen({ remainingGenerations: 2 });
