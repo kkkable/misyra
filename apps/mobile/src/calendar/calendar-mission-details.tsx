@@ -368,7 +368,7 @@ export function MissionDetailsScreen({
           accessibilityRole="button"
           onPress={(event) => {
             if (details.recurring === true) {
-              setScopeReturnFocusHandle(event?.currentTarget ?? null);
+              setScopeReturnFocusHandle(event.currentTarget);
               setScopeOperation('edit');
               return;
             }
@@ -503,7 +503,7 @@ export function MissionDetailsScreen({
               accessibilityRole="button"
               onPress={(event) => {
                 if (details.recurring === true) {
-                  setScopeReturnFocusHandle(event?.currentTarget ?? null);
+                  setScopeReturnFocusHandle(event.currentTarget);
                   setScopeOperation('delete');
                   return;
                 }
