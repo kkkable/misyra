@@ -88,6 +88,7 @@ describe('MTS-052 recurring scope chooser', () => {
     expect(find(renderer, 'recurring-scope-this-and-future')).toBeDefined();
     expect(find(renderer, 'recurring-scope-entire-series')).toBeDefined();
     expect(find(renderer, 'recurring-scope-chooser').props.accessibilityLabel).toContain('Delete');
+    expect(find(renderer, 'recurring-scope-chooser').props.accessibilityViewIsModal).toBe(true);
 
     act(() => {
       find(renderer, 'recurring-scope-this-and-future').props.onPress();
