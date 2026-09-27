@@ -14,6 +14,7 @@ import {
 
 import { rootAuthController } from '../auth/auth-runtime.js';
 import { themeColors, type ColorScheme } from '../design-system/index.js';
+import { haptics } from '../experience/native-haptics.js';
 import { useAppLanguage } from '../localization/app-language-runtime.js';
 import { openMobileDatabase } from '../storage/database.js';
 import { createLocalRepositories, type MissionDetails } from '../storage/local-repositories.js';
@@ -359,6 +360,7 @@ export function CalendarMissionDetailsRouteScreen() {
         generateId: generateUuid,
         generateSeriesId: generateUuid,
       });
+      haptics.triggerNonBlocking('save');
       setLoaded(false);
       await loadDetails();
     },
