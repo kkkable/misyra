@@ -5,7 +5,7 @@ import { Pressable, ScrollView, StyleSheet, View, useColorScheme } from 'react-n
 import { space, typography } from '@misyra/design-tokens';
 import { aiPlannerCatalogs } from '@misyra/localization';
 
-import { SystemText as Text } from '../accessibility/bold-text-preference.js';
+import { SystemText as Text } from '../accessibility/system-text.js';
 import { getAuthApiBaseUrl, rootAuthController } from '../auth/auth-runtime.js';
 import {
   ConfirmationDialog,
