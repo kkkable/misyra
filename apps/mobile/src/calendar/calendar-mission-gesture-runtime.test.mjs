@@ -5,6 +5,9 @@ import { describe, expect, it, vi } from 'vitest';
 const gestureRuntime = vi.hoisted(() => ({
   panConfigs: [],
 }));
+const hapticRuntime = vi.hoisted(() => ({
+  triggerNonBlocking: vi.fn(),
+}));
 
 vi.mock('react-native', async () => {
   const { createElement: createReactElement } = await import('react');
@@ -44,6 +47,10 @@ vi.mock('react-native-worklets', () => ({
   scheduleOnRN: (fn, ...args) => fn(...args),
 }));
 
+vi.mock('../experience/native-haptics.js', () => ({
+  haptics: { triggerNonBlocking: hapticRuntime.triggerNonBlocking },
+}));
+
 vi.mock('react-native-gesture-handler', async () => {
   const { createElement: createReactElement } = await import('react');
   return {
@@ -79,6 +86,7 @@ function renderLayer({
   selectedDate = '2026-09-07',
 } = {}) {
   gestureRuntime.panConfigs.length = 0;
+  hapticRuntime.triggerNonBlocking.mockClear();
   let renderer;
   act(() => {
     renderer = create(
@@ -126,6 +134,27 @@ describe('MTS-047 rendered adjustment runtime', () => {
     );
     expect(animatedStyle.top).toBe(555);
     expect(animatedStyle.height).toBe(60);
+  });
+
+  it('fires one snap haptic only after a successful committed drag adjustment', () => {
+    renderLayer();
+    const gesture = moveGesture();
+
+    act(() => {
+      gesture.onActivate();
+      gesture.onUpdate({ translationY: 4 });
+      gesture.onUpdate({ translationY: 9 });
+      gesture.onUpdate({ translationY: 17 });
+    });
+
+    expect(hapticRuntime.triggerNonBlocking).not.toHaveBeenCalled();
+
+    act(() => {
+      gesture.onDeactivate({ translationY: 17, canceled: false });
+    });
+
+    expect(hapticRuntime.triggerNonBlocking).toHaveBeenCalledTimes(1);
+    expect(hapticRuntime.triggerNonBlocking).toHaveBeenCalledWith('snap');
   });
 
   it('evaluates after-start XP loss using release-time now rather than a render-time snapshot', () => {
