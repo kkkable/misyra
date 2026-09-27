@@ -454,6 +454,7 @@ export function CalendarDayScreen({
                 onMissionAdjustment={onMissionAdjustment}
                 onMissionPress={selectTimedMission}
                 selectedDate={selectedDate}
+                uses24HourClock={uses24HourClock}
                 {...(focusedMissionId === undefined ? {} : { selectedMissionId: focusedMissionId })}
               />
             ) : undefined
