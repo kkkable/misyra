@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, TextInput, View, findNodeHandle } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { SystemText as Text } from '../accessibility/system-text.js';
 
 import { layout, radius, space, typography } from '@misyra/design-tokens';
@@ -211,7 +211,7 @@ export function MissionDetailsScreen({
   const [scopeOperation, setScopeOperation] = useState<CalendarRecurringScopeOperation | null>(
     null,
   );
-  const [scopeReturnFocusHandle, setScopeReturnFocusHandle] = useState<number | null>(null);
+  const [scopeReturnFocusTarget, setScopeReturnFocusTarget] = useState<unknown>(null);
   const historical = isHistorical(details.lifecycle) || details.completionState === 'completed';
   const appOwnedEditable = !historical && details.fieldOwnership === 'app_owned';
   const structuredEditable = appOwnedEditable && details.structuredSchedule !== undefined;
@@ -368,7 +368,7 @@ export function MissionDetailsScreen({
           accessibilityRole="button"
           onPress={(event) => {
             if (details.recurring === true) {
-              setScopeReturnFocusHandle(findNodeHandle(event.currentTarget));
+              setScopeReturnFocusTarget(event.currentTarget);
               setScopeOperation('edit');
               return;
             }
@@ -503,7 +503,7 @@ export function MissionDetailsScreen({
               accessibilityRole="button"
               onPress={(event) => {
                 if (details.recurring === true) {
-                  setScopeReturnFocusHandle(findNodeHandle(event.currentTarget));
+                  setScopeReturnFocusTarget(event.currentTarget);
                   setScopeOperation('delete');
                   return;
                 }
@@ -526,12 +526,12 @@ export function MissionDetailsScreen({
           language={language}
           onCancel={() => {
             setScopeOperation(null);
-            setScopeReturnFocusHandle(null);
+            setScopeReturnFocusTarget(null);
           }}
           onSelect={(scope) => {
             const operation = scopeOperation;
             setScopeOperation(null);
-            setScopeReturnFocusHandle(null);
+            setScopeReturnFocusTarget(null);
             if (operation === 'edit' && onSave !== undefined) {
               void Promise.resolve(onSave(scope)).catch(() => undefined);
             } else if (operation === 'delete' && onDelete !== undefined) {
@@ -539,7 +539,7 @@ export function MissionDetailsScreen({
             }
           }}
           operation={scopeOperation}
-          returnFocusHandle={scopeReturnFocusHandle}
+          returnFocusTarget={scopeReturnFocusTarget}
         />
       )}
     </ScrollView>
