@@ -3,7 +3,8 @@ import { useEffect, useState } from 'react';
 import { space, typography } from '@misyra/design-tokens';
 import { localizationCatalogs } from '@misyra/localization';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { StyleSheet, Text, View, useColorScheme } from 'react-native';
+import { StyleSheet, View, useColorScheme } from 'react-native';
+import { SystemText as Text } from '../src/accessibility/system-text.js';
 
 import { getAuthApiBaseUrl, rootAuthController } from '../src/auth/auth-runtime.js';
 import {

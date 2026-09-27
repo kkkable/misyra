@@ -1,4 +1,5 @@
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
+import { SystemText as Text } from '../accessibility/system-text.js';
 
 import { space, typography } from '@misyra/design-tokens';
 

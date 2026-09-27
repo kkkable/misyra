@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { SystemText as Text } from '../accessibility/system-text.js';
 
 import { radius, space, typography } from '@misyra/design-tokens';
 import type { CompletionState, EvidenceState } from '@misyra/domain';

@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 
 import type { StoryTextSuggestionsResult } from '@misyra/contracts';
 
-import type { EvidenceStorySourceAttempt } from '../evidence/evidence-api.js';
+import { SystemText as Text } from '../accessibility/system-text.js';
 import {
   PrimaryButton,
   Screen,
@@ -13,16 +14,15 @@ import {
   themeColors,
   type ColorScheme,
 } from '../design-system/index.js';
-import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
-
-import { createStoryEditorSession, type StorySourceImage } from './story-editor-state.js';
+import type { EvidenceStorySourceAttempt } from '../evidence/evidence-api.js';
 import type { StoryComposition, StoryTextLayer } from './story-composition.js';
+import { createStoryEditorSession, type StorySourceImage } from './story-editor-state.js';
+import { formatStorySharingPoll } from './story-instagram-sharing.js';
 import { StorySkiaPreviewView } from './story-skia-preview-view.js';
 import {
   StoryTextSuggestionsPanel,
   type StoryTextSuggestionsPanelMessages,
 } from './story-text-suggestions-panel.js';
-import { formatStorySharingPoll } from './story-instagram-sharing.js';
 import { applyStoryTextSuggestionSelection } from './story-text-suggestions.js';
 
 export type StoryEditorMessages = Readonly<{

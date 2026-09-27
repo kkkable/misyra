@@ -94,6 +94,7 @@ describe('MTS-041 bounded rendered timeline', () => {
     );
     const labels = renderer.root.findAll(
       (node) =>
+        node.type === 'Text' &&
         typeof node.props.testID === 'string' &&
         node.props.testID.startsWith('calendar-hour-label-'),
     );
@@ -105,7 +106,8 @@ describe('MTS-041 bounded rendered timeline', () => {
     expect(renderer.root.findByProps({ testID: 'calendar-timeline-content' }).props.style).toEqual(
       expect.arrayContaining([expect.objectContaining({ height: 1440 })]),
     );
-    expect(renderer.root.findAll(() => true).length).toBeLessThan(100);
+    const hostNodes = renderer.root.findAll((node) => typeof node.type === 'string');
+    expect(hostNodes.length).toBeLessThan(100);
   });
 
   it('keeps time anchors independent from scalable label typography', () => {

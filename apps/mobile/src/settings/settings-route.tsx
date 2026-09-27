@@ -1,13 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  AppState,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-  useColorScheme,
-} from 'react-native';
+import { AppState, Pressable, ScrollView, StyleSheet, View, useColorScheme } from 'react-native';
 
 import type { AccountSettings, CalendarConnection } from '@misyra/contracts';
 import { space, typography } from '@misyra/design-tokens';
@@ -22,6 +14,7 @@ import {
 import { getCalendars, getLocales } from 'expo-localization';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
+import { SystemText as Text } from '../accessibility/system-text.js';
 import { getAuthApiBaseUrl, rootAuthController } from '../auth/auth-runtime.js';
 import { CalendarRecurringScopeChooser } from '../calendar/calendar-recurring-scope-chooser.js';
 import {

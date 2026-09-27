@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { SystemText as Text } from '../accessibility/system-text.js';
 
 import type { ExternalCalendarInitialSyncDirection } from '@misyra/contracts';
 import { space, typography } from '@misyra/design-tokens';

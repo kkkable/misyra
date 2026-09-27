@@ -1,9 +1,10 @@
 import { useRef } from 'react';
-import { Pressable, StyleSheet, Text, View, type GestureResponderEvent } from 'react-native';
+import { Pressable, StyleSheet, View, type GestureResponderEvent } from 'react-native';
 
 import { layout, radius, space, typography } from '@misyra/design-tokens';
 import { localizationCatalogs, type LocalizationLocale } from '@misyra/localization';
 
+import { SystemText as Text } from '../accessibility/system-text.js';
 import { BottomSheet, themeColors, type ColorScheme } from '../design-system/index.js';
 
 const SWIPE_DISMISS_DISTANCE = 48;

@@ -101,9 +101,11 @@ describe('MTS-040 Calendar app-language audit correction', () => {
 describe('MTS-041 Calendar phone-time and accessibility audit correction', () => {
   it('honors the phone 12-hour setting instead of hardcoding 24-hour hour labels', () => {
     const renderer = renderScreen({ language: 'en' });
-    const midnight = renderer.root.findByProps({ testID: 'calendar-hour-label-0' });
+    const midnight = renderer.root
+      .findAllByProps({ testID: 'calendar-hour-label-0' })
+      .find((node) => node.type === 'Text');
 
-    expect(midnight.children.join('')).toMatch(/12.*AM/i);
+    expect(midnight?.children.join('')).toMatch(/12.*AM/i);
   });
 
   it('exposes localized human-readable current-time semantics and no diagnostic day-body label', () => {
