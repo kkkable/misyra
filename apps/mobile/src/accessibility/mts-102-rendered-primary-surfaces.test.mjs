@@ -16,7 +16,10 @@ const routerState = vi.hoisted(() => ({
 function flattenStyle(style) {
   if (style === undefined || style === null || style === false) return {};
   if (Array.isArray(style)) {
-    return style.reduce((result, value) => ({ ...result, ...flattenStyle(value) }), {});
+    return style.reduce(
+      (result, value) => ({ ...result, ...flattenStyle(value) }),
+      {},
+    );
   }
   return typeof style === 'object' ? style : {};
 }
@@ -30,11 +33,7 @@ vi.mock('react-native', async () => {
       allowFontScaling !== false && typeof flattened.fontSize === 'number'
         ? { ...flattened, fontSize: flattened.fontSize * visualState.fontScale }
         : flattened;
-    return createReactElement(
-      'Text',
-      { ...props, allowFontScaling, style: scaled },
-      children,
-    );
+    return createReactElement('Text', { ...props, allowFontScaling, style: scaled }, children);
   };
 
   const Pressable = ({ children, style, ...props }) => {
@@ -163,8 +162,7 @@ vi.mock('../ai-planner/planner-system-image-picker-runtime.js', () => ({
 vi.mock('../ai-planner/ai-planner-calendar-preview.js', async () => {
   const { createElement: createReactElement } = await import('react');
   return {
-    AiPlannerCalendarPreview: (props) =>
-      createReactElement('AiPlannerCalendarPreview', props),
+    AiPlannerCalendarPreview: (props) => createReactElement('AiPlannerCalendarPreview', props),
   };
 });
 
@@ -232,11 +230,7 @@ function renderSurface(surface, { theme, fontScale = 1, bold = false }) {
   let renderer;
   act(() => {
     renderer = create(
-      createElement(
-        BoldTextPreferenceProvider,
-        { enabled: bold },
-        surface.element(theme),
-      ),
+      createElement(BoldTextPreferenceProvider, { enabled: bold }, surface.element(theme)),
     );
   });
   return renderer;
@@ -262,46 +256,59 @@ beforeEach(() => {
 });
 
 describe('MTS-102 rendered primary-surface theme and large-text evidence', () => {
-  it.each(surfaces)('$name renders distinct light/dark trees using system theme colors', (surface) => {
-    const light = renderSurface(surface, { theme: 'light' });
-    const dark = renderSurface(surface, { theme: 'dark' });
+  it.each(surfaces)(
+    '$name renders distinct light/dark trees using system theme colors',
+    (surface) => {
+      const light = renderSurface(surface, { theme: 'light' });
+      const dark = renderSurface(surface, { theme: 'dark' });
 
-    expect(rootBackground(light, surface.testID)).toBe(lightColors.canvas);
-    expect(rootBackground(dark, surface.testID)).toBe(darkColors.canvas);
-    expect(light.toJSON()).not.toEqual(dark.toJSON());
+      expect(rootBackground(light, surface.testID)).toBe(lightColors.canvas);
+      expect(rootBackground(dark, surface.testID)).toBe(darkColors.canvas);
+      expect(light.toJSON()).not.toEqual(dark.toJSON());
 
-    light.unmount();
-    dark.unmount();
-  });
+      light.unmount();
+      dark.unmount();
+    },
+  );
 
-  it.each(surfaces)('$name renders larger scaled interface text without replacing the screen tree', (surface) => {
-    const normal = renderSurface(surface, { theme: 'light', fontScale: 1 });
-    const large = renderSurface(surface, { theme: 'light', fontScale: 2 });
+  it.each(surfaces)(
+    '$name renders larger scaled interface text without replacing the screen tree',
+    (surface) => {
+      const normal = renderSurface(surface, { theme: 'light', fontScale: 1 });
+      const large = renderSurface(surface, { theme: 'light', fontScale: 2 });
 
-    const normalSizes = textMetrics(normal).map((style) => style.fontSize);
-    const largeSizes = textMetrics(large).map((style) => style.fontSize);
+      const normalSizes = textMetrics(normal).map((style) => style.fontSize);
+      const largeSizes = textMetrics(large).map((style) => style.fontSize);
 
-    expect(normalSizes.length).toBeGreaterThan(0);
-    expect(largeSizes.length).toBe(normalSizes.length);
-    expect(Math.max(...largeSizes)).toBeGreaterThan(Math.max(...normalSizes));
-    expect(normal.toJSON()).not.toEqual(large.toJSON());
-    expect(large.root.findByProps({ testID: surface.testID })).toBeDefined();
+      expect(normalSizes.length).toBeGreaterThan(0);
+      expect(largeSizes.length).toBe(normalSizes.length);
+      expect(Math.max(...largeSizes)).toBeGreaterThan(Math.max(...normalSizes));
+      expect(normal.toJSON()).not.toEqual(large.toJSON());
+      expect(large.root.findByProps({ testID: surface.testID })).toBeDefined();
 
-    normal.unmount();
-    large.unmount();
-  });
+      normal.unmount();
+      large.unmount();
+    },
+  );
 
-  it.each(surfaces)('$name renders heavier interface text when Bold Text is enabled', (surface) => {
-    const normal = renderSurface(surface, { theme: 'light', bold: false });
-    const bold = renderSurface(surface, { theme: 'light', bold: true });
+  it.each(surfaces)(
+    '$name renders heavier interface text when Bold Text is enabled',
+    (surface) => {
+      const normal = renderSurface(surface, { theme: 'light', bold: false });
+      const bold = renderSurface(surface, { theme: 'light', bold: true });
 
-    const normalWeights = textMetrics(normal).map((style) => style.fontWeight).filter(Boolean);
-    const boldWeights = textMetrics(bold).map((style) => style.fontWeight).filter(Boolean);
+      const normalWeights = textMetrics(normal)
+        .map((style) => style.fontWeight)
+        .filter(Boolean);
+      const boldWeights = textMetrics(bold)
+        .map((style) => style.fontWeight)
+        .filter(Boolean);
 
-    expect(normalWeights.length).toBeGreaterThan(0);
-    expect(boldWeights).not.toEqual(normalWeights);
+      expect(normalWeights.length).toBeGreaterThan(0);
+      expect(boldWeights).not.toEqual(normalWeights);
 
-    normal.unmount();
-    bold.unmount();
-  });
+      normal.unmount();
+      bold.unmount();
+    },
+  );
 });
