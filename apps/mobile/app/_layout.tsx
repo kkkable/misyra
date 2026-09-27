@@ -1,6 +1,7 @@
 import { Stack } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
+import { BoldTextPreferenceProvider } from '../src/accessibility/bold-text-preference.js';
 import { useSystemBoldText } from '../src/accessibility/system-bold-text.js';
 import { AuthGate } from '../src/auth/auth-gate.js';
 import { rootAuthController, rootAuthMessages } from '../src/auth/auth-runtime.js';
@@ -35,11 +36,12 @@ export const unstable_settings = {
 } as const;
 
 export default function RootLayout() {
-  useSystemBoldText();
+  const boldTextEnabled = useSystemBoldText();
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <SystemMotionPreferenceProvider>
+      <BoldTextPreferenceProvider enabled={boldTextEnabled}>
+        <SystemMotionPreferenceProvider>
         <AuthGate controller={rootAuthController} messages={rootAuthMessages}>
           <SyncRuntimeGate>
             <OnboardingGate
@@ -79,7 +81,8 @@ export default function RootLayout() {
             </OnboardingGate>
           </SyncRuntimeGate>
         </AuthGate>
-      </SystemMotionPreferenceProvider>
+        </SystemMotionPreferenceProvider>
+      </BoldTextPreferenceProvider>
     </GestureHandlerRootView>
   );
 }
