@@ -56,7 +56,6 @@ test('MTS-102 critical design-system text uses semantic Dynamic Type ramps witho
   assert.match(buttonStyle, /paddingVertical\s*:/u, 'buttons need vertical padding for large text');
 });
 
-
 test('MTS-102 observes native Bold Text and wires the observer into the app root', async () => {
   const runtime = await source('apps/mobile/src/accessibility/system-bold-text.ts');
   const rootLayout = await source('apps/mobile/app/_layout.tsx');
