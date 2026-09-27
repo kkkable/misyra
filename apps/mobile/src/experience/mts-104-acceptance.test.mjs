@@ -7,9 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { createMotionPreference } from './reduce-motion.js';
 
 const mobileRoot = fileURLToPath(new URL('../../', import.meta.url));
-const storyEditorPath = fileURLToPath(
-  new URL('../story/story-editor-screen.tsx', import.meta.url),
-);
+const storyEditorPath = fileURLToPath(new URL('../story/story-editor-screen.tsx', import.meta.url));
 
 async function sourceFiles(directory) {
   const entries = await readdir(directory, { withFileTypes: true });
