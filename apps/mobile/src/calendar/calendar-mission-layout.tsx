@@ -9,6 +9,7 @@ import { localizationCatalogs, type LocalizationLocale } from '@misyra/localizat
 
 import { SystemText as Text } from '../accessibility/system-text.js';
 import { themeColors, type ColorScheme } from '../design-system/index.js';
+import { haptics } from '../experience/native-haptics.js';
 import { formatTimelineTime } from './calendar-timeline.js';
 import {
   commitMissionAdjustment,
@@ -471,11 +472,13 @@ function AdjustableMissionCard({
 
   const finishAdjustment = (kind: MissionAdjustmentKind, translationY: number) => {
     try {
+      const previousStartMinute = committedStartMinute.value;
+      const previousEndMinute = committedEndMinute.value;
       const result = commitMissionAdjustment({
         mission: {
           ...adjustableMission(mission),
-          startMinute: committedStartMinute.value,
-          endMinute: committedEndMinute.value,
+          startMinute: previousStartMinute,
+          endMinute: previousEndMinute,
           rewardEligibility: committedRewardEligibility.value,
         },
         kind,
@@ -487,6 +490,12 @@ function AdjustableMissionCard({
         committedStartMinute.value = result.startMinute;
         committedEndMinute.value = result.endMinute;
         committedRewardEligibility.value = result.rewardEligibility;
+        if (
+          result.startMinute !== previousStartMinute ||
+          result.endMinute !== previousEndMinute
+        ) {
+          haptics.triggerNonBlocking('snap');
+        }
       }
       void onMissionAdjustment?.(result);
     } finally {
