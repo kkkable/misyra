@@ -8,6 +8,9 @@ import { createMotionPreference } from './reduce-motion.js';
 
 const mobileRoot = fileURLToPath(new URL('../../', import.meta.url));
 const storyEditorPath = fileURLToPath(new URL('../story/story-editor-screen.tsx', import.meta.url));
+const missionDetailsRoutePath = fileURLToPath(
+  new URL('../calendar/calendar-mission-details-route.tsx', import.meta.url),
+);
 
 async function sourceFiles(directory) {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -61,6 +64,15 @@ describe('MTS-104 Reduce Motion acceptance', () => {
     expect(source).toContain('useMotionPreference');
     expect(source).toContain('story-preview-transition');
     expect(source).toContain('directionalMovement');
+  });
+
+  it('emits the shared save haptic after a successful Mission Details edit save', async () => {
+    const source = await readFile(missionDetailsRoutePath, 'utf8');
+
+    expect(source).toContain("haptics.triggerNonBlocking('save')");
+    expect(source.indexOf("haptics.triggerNonBlocking('save')")).toBeGreaterThan(
+      source.indexOf('await saveCalendarMissionDetails'),
+    );
   });
 
   it('keeps interface-sound APIs out of the mobile application', async () => {
