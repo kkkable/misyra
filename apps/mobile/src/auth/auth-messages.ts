@@ -1,24 +1,12 @@
-import { localizationCatalogs, type LocalizationLocale } from '@misyra/localization';
+import {
+  localizationCatalogs,
+  resolveLocalizationLocale,
+  type DeviceLanguageLocale,
+  type LocalizationLocale,
+} from '@misyra/localization';
 
-type DeviceLocale = {
-  readonly languageCode: string | null;
-  readonly languageScriptCode: string | null;
-  readonly regionCode?: string | null;
-};
-
-export function resolveAuthLocale(locale: DeviceLocale | undefined): LocalizationLocale {
-  if (locale?.languageCode !== 'zh') return 'en';
-
-  if (
-    locale.languageScriptCode === 'Hant' ||
-    locale.regionCode === 'HK' ||
-    locale.regionCode === 'MO' ||
-    locale.regionCode === 'TW'
-  ) {
-    return 'zh-HK';
-  }
-
-  return 'en';
+export function resolveAuthLocale(locale: DeviceLanguageLocale | undefined): LocalizationLocale {
+  return resolveLocalizationLocale(locale);
 }
 
 export function authMessagesForLocale(locale: LocalizationLocale) {

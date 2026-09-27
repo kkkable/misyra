@@ -2,7 +2,11 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { layout, radius, space, typography } from '@misyra/design-tokens';
 import { calculateLevelProgress } from '@misyra/domain';
-import { progressLocalizationCatalogs, type LocalizationLocale } from '@misyra/localization';
+import {
+  localizationCatalogs,
+  progressLocalizationCatalogs,
+  type LocalizationLocale,
+} from '@misyra/localization';
 
 import { themeColors, type ColorScheme } from '../design-system/contracts.js';
 import type { ProgressSnapshot } from '../storage/local-repositories.js';
@@ -43,6 +47,7 @@ export function ProgressScreen({
 }: ProgressScreenProps) {
   const colors = themeColors(colorScheme);
   const catalog = progressLocalizationCatalogs[language];
+  const xpUnit = localizationCatalogs[language]['common.xpUnit'];
   const formatter = numberFormatter(numberLocale, language);
   const formatNumber = (value: number): string => formatter.format(value);
   const level = calculateLevelProgress(snapshot.totalXp);
@@ -113,7 +118,7 @@ export function ProgressScreen({
               },
             ]}
           >
-            {formatNumber(level.xpIntoLevel)} / {formatNumber(level.xpToNextLevel)} XP
+            {formatNumber(level.xpIntoLevel)} / {formatNumber(level.xpToNextLevel)} {xpUnit}
           </Text>
 
           <View style={styles.metrics}>
@@ -191,7 +196,7 @@ export function ProgressScreen({
                     fontWeight: typography.bodySmall.mediumFontWeight,
                   }}
                 >
-                  +{formatNumber(item.awardedXp)} XP
+                  +{formatNumber(item.awardedXp)} {xpUnit}
                 </Text>
               </View>
             ))}

@@ -112,9 +112,14 @@ test('mobile route inventory exposes exactly the approved four root tabs', () =>
   assert.equal(existsSync(layoutPath), true, 'root tab layout must exist');
   const layoutSource = readFileSync(layoutPath, 'utf8');
 
-  for (const title of ['Calendar', 'AI Planner', 'Progress', 'Settings']) {
-    assert.match(layoutSource, new RegExp(`title:\\s*['\\"]${title}['\\"]`));
+  for (const routeName of ['index', 'ai-planner', 'progress', 'settings']) {
+    assert.match(layoutSource, new RegExp(`name=['\\"]${routeName}['\\"]`));
   }
+  assert.equal(
+    [...layoutSource.matchAll(/options=\{\{\s*title:/g)].length,
+    4,
+    'each approved root tab must expose a visible title',
+  );
 });
 
 test('node service entry guards convert filesystem paths with pathToFileURL', () => {

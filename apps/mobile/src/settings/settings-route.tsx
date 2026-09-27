@@ -12,7 +12,14 @@ import {
 import type { AccountSettings, CalendarConnection } from '@misyra/contracts';
 import { space, typography } from '@misyra/design-tokens';
 import type { RecurringSeriesScope } from '@misyra/domain';
-import { localizationCatalogs, notificationSettingsCatalogs } from '@misyra/localization';
+import {
+  formatRegionalNumber,
+  formatRegionalNumericDate,
+  localizationCatalogs,
+  notificationSettingsCatalogs,
+  type LocalizationLocale,
+} from '@misyra/localization';
+import { getCalendars, getLocales } from 'expo-localization';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { getAuthApiBaseUrl, rootAuthController } from '../auth/auth-runtime.js';
@@ -27,6 +34,7 @@ import {
   themeColors,
   type ColorScheme,
 } from '../design-system/index.js';
+import { publishAppLanguage } from '../localization/app-language-runtime.js';
 import { useAppLanguage } from '../localization/use-app-language.js';
 import { createExpoNotificationPermissionService } from '../notifications/expo-notification-permission.js';
 import type { NotificationPermissionStatus } from '../notifications/notification-permission.js';
@@ -38,13 +46,33 @@ import {
 import { rootSyncRuntime } from '../sync/root-sync-runtime.js';
 import { createNotificationSettingsModel } from './notification-settings-model.js';
 
-function hiddenEventDateLabel(event: HiddenCalendarEvent, language: 'en' | 'zh-HK'): string {
-  if (event.schedule.type === 'all_day') return event.schedule.startLocalDate;
-  return new Intl.DateTimeFormat(language === 'zh-HK' ? 'zh-HK' : 'en', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
+function localDateForFormatting(value: string): Date {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/u.exec(value);
+  if (match === null) throw new RangeError('Invalid hidden-event local date.');
+  return new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 12));
+}
+
+function hiddenEventDateLabel(
+  event: HiddenCalendarEvent,
+  regionalLocale: string,
+  uses24HourClock: boolean,
+): string {
+  if (event.schedule.type === 'all_day') {
+    return formatRegionalNumericDate(
+      localDateForFormatting(event.schedule.startLocalDate),
+      regionalLocale,
+    );
+  }
+
+  const start = new Date(event.schedule.startInstant);
+  const date = formatRegionalNumericDate(start, regionalLocale, event.schedule.timeZone);
+  const time = new Intl.DateTimeFormat(regionalLocale, {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: !uses24HourClock,
     timeZone: event.schedule.timeZone,
-  }).format(new Date(event.schedule.startInstant));
+  }).format(start);
+  return `${date} ${time}`;
 }
 
 function selectedParam(value: string | string[] | undefined): string | null {
@@ -57,6 +85,8 @@ export function SettingsRouteScreen() {
   const params = useLocalSearchParams<{ section?: string | string[] }>();
   const selectedEntry = selectedParam(params.section);
   const language = useAppLanguage();
+  const regionalLocale = getLocales().at(0)?.languageTag ?? language;
+  const uses24HourClock = getCalendars().at(0)?.uses24hourClock !== false;
   const nativeColorScheme = useColorScheme();
   const colorScheme: ColorScheme = nativeColorScheme === 'dark' ? 'dark' : 'light';
   const colors = themeColors(colorScheme);
@@ -76,6 +106,7 @@ export function SettingsRouteScreen() {
   const [selectedHiddenEvent, setSelectedHiddenEvent] = useState<HiddenCalendarEvent | null>(null);
   const [restoringHiddenEventId, setRestoringHiddenEventId] = useState<string | null>(null);
   const [updatingTrustMode, setUpdatingTrustMode] = useState(false);
+  const [updatingLanguage, setUpdatingLanguage] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
 
   const authenticatedApi = useCallback(async () => {
@@ -197,6 +228,28 @@ export function SettingsRouteScreen() {
     [authenticatedApi, updatingTrustMode],
   );
 
+  const updateLanguage = useCallback(
+    async (nextLanguage: LocalizationLocale) => {
+      if (updatingLanguage) return;
+      if (accountSettings?.language === nextLanguage) {
+        publishAppLanguage(nextLanguage);
+        return;
+      }
+      setUpdatingLanguage(true);
+      try {
+        const api = await authenticatedApi();
+        if (api === null) return;
+        const updated = await api.updateAccountSettings({ language: nextLanguage });
+        setAccountSettings(updated);
+        publishAppLanguage(updated.language);
+        await rootSyncRuntime.run().catch(() => undefined);
+      } finally {
+        setUpdatingLanguage(false);
+      }
+    },
+    [accountSettings?.language, authenticatedApi, updatingLanguage],
+  );
+
   const signOut = useCallback(async () => {
     if (signingOut) return;
     setSigningOut(true);
@@ -280,6 +333,30 @@ export function SettingsRouteScreen() {
             testID="settings-row-language"
             value={languageLabel}
           />
+          {selectedEntry === 'language' ? (
+            <View testID="settings-language-options">
+              <SettingsRow
+                accessibilityLabel={catalog.englishLanguage}
+                colorScheme={colorScheme}
+                label={catalog.englishLanguage}
+                onPress={() => {
+                  void updateLanguage('en');
+                }}
+                selected={language === 'en'}
+                testID="settings-language-option-en"
+              />
+              <SettingsRow
+                accessibilityLabel={catalog.traditionalChineseHongKongLanguage}
+                colorScheme={colorScheme}
+                label={catalog.traditionalChineseHongKongLanguage}
+                onPress={() => {
+                  void updateLanguage('zh-HK');
+                }}
+                selected={language === 'zh-HK'}
+                testID="settings-language-option-zh-HK"
+              />
+            </View>
+          ) : null}
         </View>
 
         <View style={[styles.section, { borderColor: colors.border }]}>
@@ -354,7 +431,9 @@ export function SettingsRouteScreen() {
             }}
             selected={selectedEntry === 'hidden-calendar-events'}
             testID="settings-row-hidden-calendar-events"
-            {...(hiddenEvents.length === 0 ? {} : { value: String(hiddenEvents.length) })}
+            {...(hiddenEvents.length === 0
+              ? {}
+              : { value: formatRegionalNumber(hiddenEvents.length, regionalLocale) })}
           />
           {selectedEntry === 'hidden-calendar-events' ? (
             hiddenEvents.length === 0 ? (
@@ -372,7 +451,7 @@ export function SettingsRouteScreen() {
                       {event.title ?? '—'}
                     </Text>
                     <Text allowFontScaling style={[styles.status, { color: colors.textSecondary }]}>
-                      {hiddenEventDateLabel(event, language)}
+                      {hiddenEventDateLabel(event, regionalLocale, uses24HourClock)}
                     </Text>
                   </View>
                   <Pressable

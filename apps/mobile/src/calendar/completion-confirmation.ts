@@ -1,6 +1,10 @@
 import { duration } from '@misyra/design-tokens';
 import { calculateLevelProgress } from '@misyra/domain';
-import { completionConfirmationCatalogs, type LocalizationLocale } from '@misyra/localization';
+import {
+  completionConfirmationCatalogs,
+  localizationCatalogs,
+  type LocalizationLocale,
+} from '@misyra/localization';
 
 export const COMPLETION_CONFIRMATION_MOTION_MS = duration.celebrationMin;
 
@@ -54,13 +58,14 @@ export function createCompletionConfirmationModel(
   }
 
   const catalog = completionConfirmationCatalogs[input.language];
+  const xpUnit = localizationCatalogs[input.language]['common.xpUnit'];
   const locale = input.numberLocale ?? input.language;
   const previousTotalXp = totalXp - awardedXp;
   const previousLevel = calculateLevelProgress(previousTotalXp).level;
   const currentLevel = calculateLevelProgress(totalXp).level;
   const levelUp = awardedXp > 0 && currentLevel > previousLevel;
   const formattedXp = formatNumber(awardedXp, locale);
-  const xpSegment = awardedXp === 0 ? '0 XP' : `+${formattedXp} XP`;
+  const xpSegment = awardedXp === 0 ? `0 ${xpUnit}` : `+${formattedXp} ${xpUnit}`;
   const segments = [catalog.missionComplete, xpSegment];
 
   if (levelUp) {
