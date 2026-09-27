@@ -15,7 +15,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { layout, radius, space, typography } from '@misyra/design-tokens';
 import { localizationCatalogs, type LocalizationLocale } from '@misyra/localization';
 
-import { SystemText as Text } from '../accessibility/bold-text-preference.js';
+import { SystemText as Text } from '../accessibility/system-text.js';
 import { Screen, themeColors, type ColorScheme } from '../design-system/index.js';
 import { AllDayMissionList, type AllDayMissionSummary } from './calendar-all-day.js';
 import {
