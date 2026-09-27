@@ -1,4 +1,11 @@
-import { AccessibilityInfo, Modal, Pressable, StyleSheet, View } from 'react-native';
+import {
+  AccessibilityInfo,
+  Modal,
+  Pressable,
+  StyleSheet,
+  View,
+  findNodeHandle,
+} from 'react-native';
 import { SystemText as Text } from '../accessibility/system-text.js';
 
 import { layout, radius, space, typography } from '@misyra/design-tokens';
@@ -15,7 +22,7 @@ export interface CalendarRecurringScopeChooserProps {
   readonly operation: CalendarRecurringScopeOperation;
   readonly onCancel: () => void;
   readonly onSelect: (scope: RecurringSeriesScope) => void;
-  readonly returnFocusHandle?: number | null;
+  readonly returnFocusTarget?: unknown;
 }
 
 const choices: readonly Readonly<{
@@ -65,7 +72,7 @@ export function CalendarRecurringScopeChooser({
   operation,
   onCancel,
   onSelect,
-  returnFocusHandle = null,
+  returnFocusTarget = null,
 }: CalendarRecurringScopeChooserProps) {
   const catalog = localizationCatalogs[language];
   const colors = themeColors(colorScheme);
@@ -73,9 +80,13 @@ export function CalendarRecurringScopeChooser({
 
   const dismiss = () => {
     onCancel();
-    if (returnFocusHandle === null) return;
+    if (returnFocusTarget === null || returnFocusTarget === undefined) return;
+    const handle = findNodeHandle(
+      returnFocusTarget as Parameters<typeof findNodeHandle>[0],
+    );
+    if (handle === null) return;
     void Promise.resolve().then(() => {
-      AccessibilityInfo.setAccessibilityFocus(returnFocusHandle);
+      AccessibilityInfo.setAccessibilityFocus(handle);
     });
   };
 
