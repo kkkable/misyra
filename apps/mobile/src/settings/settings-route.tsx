@@ -97,6 +97,9 @@ export function SettingsRouteScreen() {
   const [connectedCalendar, setConnectedCalendar] = useState<CalendarConnection | null>(null);
   const [hiddenEvents, setHiddenEvents] = useState<readonly HiddenCalendarEvent[]>([]);
   const [selectedHiddenEvent, setSelectedHiddenEvent] = useState<HiddenCalendarEvent | null>(null);
+  const [restoreScopeReturnFocusHandle, setRestoreScopeReturnFocusHandle] = useState<number | null>(
+    null,
+  );
   const [restoringHiddenEventId, setRestoringHiddenEventId] = useState<string | null>(null);
   const [updatingTrustMode, setUpdatingTrustMode] = useState(false);
   const [updatingLanguage, setUpdatingLanguage] = useState(false);
@@ -451,8 +454,9 @@ export function SettingsRouteScreen() {
                     accessibilityLabel={catalog.restoreHiddenCalendarEvent}
                     accessibilityRole="button"
                     disabled={restoringHiddenEventId !== null}
-                    onPress={() => {
+                    onPress={(pressEvent) => {
                       if (event.isRecurring) {
+                        setRestoreScopeReturnFocusHandle(pressEvent?.currentTarget ?? null);
                         setSelectedHiddenEvent(event);
                       } else {
                         void restoreHiddenEvent(event, 'this_occurrence');
@@ -564,11 +568,14 @@ export function SettingsRouteScreen() {
           language={language}
           onCancel={() => {
             setSelectedHiddenEvent(null);
+            setRestoreScopeReturnFocusHandle(null);
           }}
           onSelect={(scope) => {
+            setRestoreScopeReturnFocusHandle(null);
             void restoreHiddenEvent(selectedHiddenEvent, scope);
           }}
           operation="restore"
+          returnFocusHandle={restoreScopeReturnFocusHandle}
         />
       )}
     </Screen>
