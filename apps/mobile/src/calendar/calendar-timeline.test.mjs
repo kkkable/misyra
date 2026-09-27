@@ -94,6 +94,7 @@ describe('MTS-041 bounded rendered timeline', () => {
     );
     const labels = renderer.root.findAll(
       (node) =>
+        node.type === 'Text' &&
         typeof node.props.testID === 'string' &&
         node.props.testID.startsWith('calendar-hour-label-'),
     );
