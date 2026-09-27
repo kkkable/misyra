@@ -37,8 +37,7 @@ vi.mock('react-native', async () => {
       typeof children === 'function' ? children(state) : children,
     );
   };
-  const ScrollView = ({ children, ...props }) =>
-    createReactElement('ScrollView', props, children);
+  const ScrollView = ({ children, ...props }) => createReactElement('ScrollView', props, children);
   const Text = ({ children, style, allowFontScaling, ...props }) =>
     createReactElement(
       'Text',
@@ -285,19 +284,20 @@ describe('MTS-102 rendered primary-surface theme and large-text evidence', () =>
     },
   );
 
-  it.each(surfaces)(
-    '$name renders heavier interface text when Bold Text is enabled',
-    (surface) => {
-      const normal = renderSurface(surface, { theme: 'light', bold: false });
-      const bold = renderSurface(surface, { theme: 'light', bold: true });
-      const normalWeights = textMetrics(normal).map((style) => style.fontWeight).filter(Boolean);
-      const boldWeights = textMetrics(bold).map((style) => style.fontWeight).filter(Boolean);
+  it.each(surfaces)('$name renders heavier interface text when Bold Text is enabled', (surface) => {
+    const normal = renderSurface(surface, { theme: 'light', bold: false });
+    const bold = renderSurface(surface, { theme: 'light', bold: true });
+    const normalWeights = textMetrics(normal)
+      .map((style) => style.fontWeight)
+      .filter(Boolean);
+    const boldWeights = textMetrics(bold)
+      .map((style) => style.fontWeight)
+      .filter(Boolean);
 
-      expect(normalWeights.length).toBeGreaterThan(0);
-      expect(boldWeights).not.toEqual(normalWeights);
+    expect(normalWeights.length).toBeGreaterThan(0);
+    expect(boldWeights).not.toEqual(normalWeights);
 
-      normal.unmount();
-      bold.unmount();
-    },
-  );
+    normal.unmount();
+    bold.unmount();
+  });
 });
