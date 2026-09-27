@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { URL } from 'node:url';
 
@@ -54,5 +54,45 @@ test('MTS-102 review correction does not claim fixture-color PNGs as rendered pr
     screenshotEvidence,
     /mts-102-rendered-primary-surfaces\.test\.mjs/u,
     'closure evidence must point at rendered primary-surface verification',
+  );
+});
+
+
+async function sourceFilesUnder(relativeDirectory) {
+  const directory = new URL(relativeDirectory, repositoryUrl);
+  const entries = await readdir(directory, { withFileTypes: true });
+  const nested = await Promise.all(
+    entries.map(async (entry) => {
+      const relativePath = `${relativeDirectory}${entry.name}`;
+      if (entry.isDirectory()) return sourceFilesUnder(`${relativePath}/`);
+      return /\.tsx?$/u.test(entry.name) && !/\.test\./u.test(entry.name) ? [relativePath] : [];
+    }),
+  );
+  return nested.flat();
+}
+
+test('MTS-102 review correction leaves no production interface Text bypass outside adaptive foundations', async () => {
+  const paths = [
+    ...(await sourceFilesUnder('apps/mobile/app/')),
+    ...(await sourceFilesUnder('apps/mobile/src/')),
+  ];
+  const allowedNativeText = new Set([
+    'apps/mobile/src/accessibility/bold-text-preference.ts',
+    'apps/mobile/src/design-system/primitives.tsx',
+  ]);
+
+  const bypasses = [];
+  for (const path of paths) {
+    if (allowedNativeText.has(path)) continue;
+    const moduleSource = await source(path);
+    if (/import\s*\{[^}]*\bText\b[^}]*\}\s*from\s*['"]react-native['"]/su.test(moduleSource)) {
+      bypasses.push(path);
+    }
+  }
+
+  assert.deepEqual(
+    bypasses,
+    [],
+    `production interface text must use the Bold Text-aware path: ${bypasses.join(', ')}`,
   );
 });
