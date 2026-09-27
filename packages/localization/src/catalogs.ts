@@ -44,6 +44,10 @@ export const localizationCatalogs = {
     'calendar.help.completionTiming':
       'Completion opens at the scheduled start and stays available until 30 days after the scheduled finish. Submit evidence before expiry; evidence already submitted before expiry may finish verification afterward.',
     'calendar.help.faq': 'View full FAQ',
+    'calendar.accessibility.draft': 'Draft',
+    'calendar.accessibility.repeating': 'Repeating',
+    'calendar.accessibility.timeRange': '{start} to {end}',
+    'calendar.accessibility.editInDetails': 'Open Mission Details to edit the mission time.',
     'calendar.timeline.currentTime': 'Current time, {time}',
     'calendar.create.selectSlot': 'Select {time}',
     'calendar.create.title': 'New mission',
@@ -279,6 +283,10 @@ export const localizationCatalogs = {
     'calendar.help.completionTiming':
       '任務到預定開始時間即可完成，並於預定結束時間後 30 日到期。證據須在到期前提交；已在到期前提交的證據可在到期後完成驗證。',
     'calendar.help.faq': '查看完整常見問題',
+    'calendar.accessibility.draft': '草稿',
+    'calendar.accessibility.repeating': '重複任務',
+    'calendar.accessibility.timeRange': '{start} 至 {end}',
+    'calendar.accessibility.editInDetails': '開啟任務詳情以編輯任務時間。',
     'calendar.timeline.currentTime': '目前時間，{time}',
     'calendar.create.selectSlot': '選擇 {time}',
     'calendar.create.title': '新增任務',
