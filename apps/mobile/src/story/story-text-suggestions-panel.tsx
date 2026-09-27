@@ -1,5 +1,6 @@
 import type { StoryTextSuggestionsResult } from '@misyra/contracts';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { SystemText as Text } from '../accessibility/bold-text-preference.js';
 
 import type { StoryTextSuggestionSelection } from './story-text-suggestions.js';
 
