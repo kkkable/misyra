@@ -67,6 +67,24 @@ test('MTS-102 observes native Bold Text and wires the observer into the app root
   assert.match(rootLayout, /useSystemBoldText\(\)/u);
 });
 
+test('MTS-102 applies the Bold Text preference to shared custom-weighted interface text', async () => {
+  const rootLayout = await source('apps/mobile/app/_layout.tsx');
+  const primitives = await source('apps/mobile/src/design-system/primitives.tsx');
+
+  assert.match(
+    rootLayout,
+    /const boldTextEnabled = useSystemBoldText\(\)/u,
+    'the root must retain the current Bold Text preference instead of discarding it',
+  );
+  assert.match(rootLayout, /BoldTextPreferenceProvider/u);
+  assert.match(primitives, /useBoldTextPreference\(\)/u);
+  assert.match(primitives, /systemBoldFontWeight\(/u);
+
+  const preference = await source('apps/mobile/src/accessibility/bold-text-preference.ts');
+  assert.match(preference, /['"]400['"].*['"]600['"]/su);
+  assert.match(preference, /['"]500['"].*['"]700['"]/su);
+});
+
 test('MTS-102 primary routes continue to derive appearance from the native system scheme', async () => {
   for (const path of [
     'apps/mobile/src/calendar/calendar-route-screen.tsx',
