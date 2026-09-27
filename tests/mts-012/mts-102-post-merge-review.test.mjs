@@ -88,9 +88,7 @@ test(
     for (const path of paths) {
       if (allowedNativeText.has(path)) continue;
       const moduleSource = await source(path);
-      if (
-        /import\s*\{[^}]*\bText\b[^}]*\}\s*from\s*['"]react-native['"]/su.test(moduleSource)
-      ) {
+      if (/import\s*\{[^}]*\bText\b[^}]*\}\s*from\s*['"]react-native['"]/su.test(moduleSource)) {
         bypasses.push(path);
       }
     }
