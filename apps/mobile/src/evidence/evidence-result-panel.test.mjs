@@ -1,11 +1,17 @@
 import { createElement } from 'react';
 import { act, create } from 'react-test-renderer';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const accessibilityState = vi.hoisted(() => ({
+  setAccessibilityFocus: vi.fn(),
+}));
 
 vi.mock('react-native', async () => {
   const { createElement: h } = await import('react');
   return {
+    AccessibilityInfo: { setAccessibilityFocus: accessibilityState.setAccessibilityFocus },
     Pressable: ({ children, ...props }) => h('Pressable', props, children),
+    findNodeHandle: () => 4242,
     StyleSheet: { create: (styles) => styles },
     Text: ({ children, ...props }) => h('Text', props, children),
     View: ({ children, ...props }) => h('View', props, children),
@@ -16,6 +22,10 @@ import { resolveEvidenceResultFlow } from './evidence-result-flow.js';
 import { EvidenceResultPanel } from './evidence-result-panel.js';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+
+beforeEach(() => {
+  accessibilityState.setAccessibilityFocus.mockClear();
+});
 
 const messages = {
   waiting: 'Waiting for verification',
@@ -58,6 +68,21 @@ function renderRejected(attemptNumber = 1, expired = false) {
   });
   return { renderer, onRetry, onSelfConfirm };
 }
+
+describe('MTS-103 evidence result accessibility', () => {
+  it('announces and focuses the result heading when the result surface appears', () => {
+    const { renderer } = renderRejected();
+
+    const surface = renderer.root.findByProps({ testID: 'evidence-result' });
+    expect(surface.props.accessibilityLiveRegion).toBe('polite');
+
+    const heading = renderer.root
+      .findAllByType('Text')
+      .find((node) => node.children.join('') === 'Evidence not accepted');
+    expect(heading?.props.accessibilityRole).toBe('header');
+    expect(accessibilityState.setAccessibilityFocus).toHaveBeenCalledWith(4242);
+  });
+});
 
 describe('MTS-084 retained evidence actions', () => {
   it('shows explicit Save to Photos and delete actions only while retained app media exists', async () => {
