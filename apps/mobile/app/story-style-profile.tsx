@@ -4,7 +4,7 @@ import { space, typography } from '@misyra/design-tokens';
 import { localizationCatalogs } from '@misyra/localization';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StyleSheet, View, useColorScheme } from 'react-native';
-import { SystemText as Text } from '../src/accessibility/bold-text-preference.js';
+import { SystemText as Text } from '../src/accessibility/system-text.js';
 
 import { getAuthApiBaseUrl, rootAuthController } from '../src/auth/auth-runtime.js';
 import {
