@@ -34,6 +34,10 @@ vi.mock('react-native', async () => {
 
 import { SignInScreen } from './sign-in-screen.js';
 
+function hostTextByChildren(renderer, children) {
+  return renderer.root.findAllByProps({ children }).find((node) => node.type === 'Text');
+}
+
 const messages = {
   title: 'Sign in to Misyra',
   apple: 'Continue with Apple',
@@ -94,9 +98,9 @@ describe('MTS-035 sign-in screen', () => {
       );
     });
 
-    const title = renderer.root.findByProps({ children: messages.title });
-    const error = renderer.root.findByProps({ children: 'Sign-in failed. Please try again.' });
-    expect(title.props.style.color).toBe(darkColors.textPrimary);
-    expect(error.props.style.color).toBe(darkColors.textPrimary);
+    const title = hostTextByChildren(renderer, messages.title);
+    const error = hostTextByChildren(renderer, 'Sign-in failed. Please try again.');
+    expect(title?.props.style.color).toBe(darkColors.textPrimary);
+    expect(error?.props.style.color).toBe(darkColors.textPrimary);
   });
 });
