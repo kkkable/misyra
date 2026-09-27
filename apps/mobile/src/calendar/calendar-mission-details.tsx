@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, TextInput, View, findNodeHandle } from 'react-native';
 import { SystemText as Text } from '../accessibility/system-text.js';
 
 import { layout, radius, space, typography } from '@misyra/design-tokens';
@@ -368,7 +368,7 @@ export function MissionDetailsScreen({
           accessibilityRole="button"
           onPress={(event) => {
             if (details.recurring === true) {
-              setScopeReturnFocusHandle(event.currentTarget);
+              setScopeReturnFocusHandle(findNodeHandle(event.currentTarget));
               setScopeOperation('edit');
               return;
             }
@@ -503,7 +503,7 @@ export function MissionDetailsScreen({
               accessibilityRole="button"
               onPress={(event) => {
                 if (details.recurring === true) {
-                  setScopeReturnFocusHandle(event.currentTarget);
+                  setScopeReturnFocusHandle(findNodeHandle(event.currentTarget));
                   setScopeOperation('delete');
                   return;
                 }
