@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View, useColorScheme } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View, useColorScheme } from 'react-native';
 
 import { space, typography } from '@misyra/design-tokens';
 import { aiPlannerCatalogs } from '@misyra/localization';
 
+import { SystemText as Text } from '../accessibility/bold-text-preference.js';
 import { getAuthApiBaseUrl, rootAuthController } from '../auth/auth-runtime.js';
 import {
   ConfirmationDialog,
