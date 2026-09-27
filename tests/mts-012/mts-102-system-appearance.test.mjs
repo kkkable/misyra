@@ -21,7 +21,7 @@ test('MTS-102 visual matrix carries paired light/dark and large-text fixtures fo
           fixture.surface === surface &&
           fixture.theme === theme &&
           fixture.platform === 'ios' &&
-          fixture.viewport.width === 393 &&
+          fixture.viewport.width === 360 &&
           fixture.locale === 'en',
       );
 
@@ -54,6 +54,18 @@ test('MTS-102 critical design-system text uses semantic Dynamic Type ramps witho
   const buttonStyle = /button:\s*\{(?<body>[\s\S]*?)\n\s*\},/u.exec(primitives)?.groups?.body ?? '';
   assert.doesNotMatch(buttonStyle, /(^|\s)height\s*:/u, 'buttons must grow instead of clipping');
   assert.match(buttonStyle, /paddingVertical\s*:/u, 'buttons need vertical padding for large text');
+});
+
+
+test('MTS-102 observes native Bold Text and wires the observer into the app root', async () => {
+  const runtime = await source('apps/mobile/src/accessibility/system-bold-text.ts');
+  const rootLayout = await source('apps/mobile/app/_layout.tsx');
+
+  assert.match(runtime, /AccessibilityInfo\.isBoldTextEnabled\(\)/u);
+  assert.match(runtime, /AccessibilityInfo\.addEventListener\(['"]boldTextChanged['"]/u);
+  assert.match(runtime, /subscription\.remove\(\)/u);
+  assert.match(runtime, /Platform\.OS\s*!==\s*['"]ios['"]/u);
+  assert.match(rootLayout, /useSystemBoldText\(\)/u);
 });
 
 test('MTS-102 primary routes continue to derive appearance from the native system scheme', async () => {
