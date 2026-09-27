@@ -16,10 +16,7 @@ const routerState = vi.hoisted(() => ({
 function flattenStyle(style) {
   if (style === undefined || style === null || style === false) return {};
   if (Array.isArray(style)) {
-    return style.reduce(
-      (result, value) => ({ ...result, ...flattenStyle(value) }),
-      {},
-    );
+    return style.reduce((result, value) => ({ ...result, ...flattenStyle(value) }), {});
   }
   return typeof style === 'object' ? style : {};
 }
@@ -297,12 +294,8 @@ describe('MTS-102 rendered primary-surface theme and large-text evidence', () =>
       const normal = renderSurface(surface, { theme: 'light', bold: false });
       const bold = renderSurface(surface, { theme: 'light', bold: true });
 
-      const normalWeights = textMetrics(normal)
-        .map((style) => style.fontWeight)
-        .filter(Boolean);
-      const boldWeights = textMetrics(bold)
-        .map((style) => style.fontWeight)
-        .filter(Boolean);
+      const normalWeights = textMetrics(normal).map((style) => style.fontWeight).filter(Boolean);
+      const boldWeights = textMetrics(bold).map((style) => style.fontWeight).filter(Boolean);
 
       expect(normalWeights.length).toBeGreaterThan(0);
       expect(boldWeights).not.toEqual(normalWeights);
