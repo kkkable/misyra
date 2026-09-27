@@ -105,6 +105,11 @@ function renderLayer({
   return { renderer, onMissionAdjustment };
 }
 
+function resizeGesture() {
+  expect(gestureRuntime.panConfigs).toHaveLength(2);
+  return gestureRuntime.panConfigs[0];
+}
+
 function moveGesture() {
   expect(gestureRuntime.panConfigs).toHaveLength(2);
   return gestureRuntime.panConfigs[1];
@@ -155,6 +160,29 @@ describe('MTS-047 rendered adjustment runtime', () => {
 
     expect(hapticRuntime.triggerNonBlocking).toHaveBeenCalledTimes(1);
     expect(hapticRuntime.triggerNonBlocking).toHaveBeenCalledWith('snap');
+  });
+
+  it('fires one snap haptic for a committed resize and none for a no-op release', () => {
+    renderLayer();
+    const resize = resizeGesture();
+
+    act(() => {
+      resize.onActivate();
+      resize.onUpdate({ translationY: 17 });
+      resize.onDeactivate({ translationY: 17, canceled: false });
+    });
+
+    expect(hapticRuntime.triggerNonBlocking).toHaveBeenCalledTimes(1);
+    expect(hapticRuntime.triggerNonBlocking).toHaveBeenCalledWith('snap');
+
+    renderLayer();
+    const move = moveGesture();
+    act(() => {
+      move.onActivate();
+      move.onDeactivate({ translationY: 0, canceled: false });
+    });
+
+    expect(hapticRuntime.triggerNonBlocking).not.toHaveBeenCalled();
   });
 
   it('evaluates after-start XP loss using release-time now rather than a render-time snapshot', () => {
