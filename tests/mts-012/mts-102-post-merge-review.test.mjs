@@ -75,25 +75,25 @@ async function sourceFilesUnder(relativeDirectory) {
 test(
   'MTS-102 review correction leaves no production interface Text bypass outside adaptive foundations',
   async () => {
-  const paths = [
-    ...(await sourceFilesUnder('apps/mobile/app/')),
-    ...(await sourceFilesUnder('apps/mobile/src/')),
-  ];
-  const allowedNativeText = new Set([
-    'apps/mobile/src/accessibility/bold-text-preference.ts',
-    'apps/mobile/src/design-system/primitives.tsx',
-  ]);
+    const paths = [
+      ...(await sourceFilesUnder('apps/mobile/app/')),
+      ...(await sourceFilesUnder('apps/mobile/src/')),
+    ];
+    const allowedNativeText = new Set([
+      'apps/mobile/src/accessibility/bold-text-preference.ts',
+      'apps/mobile/src/design-system/primitives.tsx',
+    ]);
 
-  const bypasses = [];
-  for (const path of paths) {
-    if (allowedNativeText.has(path)) continue;
-    const moduleSource = await source(path);
-    if (
-      /import\s*\{[^}]*\bText\b[^}]*\}\s*from\s*['"]react-native['"]/su.test(moduleSource)
-    ) {
-      bypasses.push(path);
+    const bypasses = [];
+    for (const path of paths) {
+      if (allowedNativeText.has(path)) continue;
+      const moduleSource = await source(path);
+      if (
+        /import\s*\{[^}]*\bText\b[^}]*\}\s*from\s*['"]react-native['"]/su.test(moduleSource)
+      ) {
+        bypasses.push(path);
+      }
     }
-  }
 
     assert.deepEqual(
       bypasses,
