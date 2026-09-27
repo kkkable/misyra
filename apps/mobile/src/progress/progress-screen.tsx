@@ -8,7 +8,7 @@ import {
   type LocalizationLocale,
 } from '@misyra/localization';
 
-import { SystemText as Text } from '../accessibility/bold-text-preference.js';
+import { SystemText as Text } from '../accessibility/system-text.js';
 import { themeColors, type ColorScheme } from '../design-system/contracts.js';
 import type { ProgressSnapshot } from '../storage/local-repositories.js';
 
