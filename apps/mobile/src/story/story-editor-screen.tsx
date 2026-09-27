@@ -4,16 +4,9 @@ import type { StoryTextSuggestionsResult } from '@misyra/contracts';
 
 import type { EvidenceStorySourceAttempt } from '../evidence/evidence-api.js';
 import {
-  PrimaryButton,
-  Screen,
-  SecondaryButton,
-  TextField,
-  Toast,
-  TopBar,
-  themeColors,
-  type ColorScheme,
-} from '../design-system/index.js';
-import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+  PrimaryButton, Screen, SecondaryButton, TextField, Toast, TopBar, themeColors, type ColorScheme, } from '../design-system/index.js';
+import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { SystemText as Text } from '../accessibility/bold-text-preference.js';
 
 import { createStoryEditorSession, type StorySourceImage } from './story-editor-state.js';
 import type { StoryComposition, StoryTextLayer } from './story-composition.js';
