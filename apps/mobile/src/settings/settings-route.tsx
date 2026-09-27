@@ -456,7 +456,7 @@ export function SettingsRouteScreen() {
                     disabled={restoringHiddenEventId !== null}
                     onPress={(pressEvent) => {
                       if (event.isRecurring) {
-                        setRestoreScopeReturnFocusHandle(pressEvent.currentTarget);
+                        setRestoreScopeReturnFocusHandle(findNodeHandle(pressEvent.currentTarget));
                         setSelectedHiddenEvent(event);
                       } else {
                         void restoreHiddenEvent(event, 'this_occurrence');
