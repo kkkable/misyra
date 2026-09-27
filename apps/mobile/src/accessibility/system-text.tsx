@@ -22,10 +22,9 @@ function flattenTextStyle(style: unknown): TextStyle | undefined {
 export function SystemText(props: TextProps) {
   const boldTextEnabled = useBoldTextPreference();
   const fontWeight = flattenTextStyle(props.style)?.fontWeight;
-  const style =
-    fontWeight === undefined
-      ? props.style
-      : [props.style, { fontWeight: systemBoldFontWeight(fontWeight, boldTextEnabled) }];
+  const style = boldTextEnabled
+    ? [props.style, { fontWeight: systemBoldFontWeight(fontWeight ?? 'normal', true) }]
+    : props.style;
 
   return createElement(NativeText, { ...props, style });
 }
