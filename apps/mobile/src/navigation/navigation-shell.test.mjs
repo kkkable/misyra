@@ -3,9 +3,15 @@ import { fileURLToPath, URL } from 'node:url';
 
 import { createElement } from 'react';
 import { act, create } from 'react-test-renderer';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+
+const motionState = vi.hoisted(() => ({ reduced: false }));
+
+beforeEach(() => {
+  motionState.reduced = false;
+});
 
 vi.mock('expo-router', async () => {
   const { createElement: createReactElement } = await import('react');
@@ -22,7 +28,7 @@ vi.mock('expo-router', async () => {
 });
 
 vi.mock('react-native-reanimated', () => ({
-  useReducedMotion: () => false,
+  useReducedMotion: () => motionState.reduced,
 }));
 
 vi.mock('../accessibility/system-bold-text.js', () => ({
@@ -174,6 +180,22 @@ describe('MTS-010 tab-navigation shell', () => {
 
   it('anchors cold-started modal routes to the tab navigator so Back returns to Calendar', () => {
     expect(RootLayoutModule.unstable_settings).toEqual({ anchor: '(tabs)' });
+  });
+
+  it('uses fade navigation instead of directional movement when Reduce Motion is enabled', () => {
+    motionState.reduced = true;
+    const reduced = render(createElement(RootLayout));
+    expect(reduced.root.findByType('Stack').props.screenOptions).toMatchObject({
+      animation: 'fade',
+      headerShown: false,
+    });
+
+    motionState.reduced = false;
+    const standard = render(createElement(RootLayout));
+    expect(standard.root.findByType('Stack').props.screenOptions).toMatchObject({
+      animation: 'slide_from_right',
+      headerShown: false,
+    });
   });
 });
 
