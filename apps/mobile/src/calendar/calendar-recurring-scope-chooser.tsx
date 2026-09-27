@@ -1,4 +1,11 @@
-import { Modal, Pressable, StyleSheet, View } from 'react-native';
+import {
+  AccessibilityInfo,
+  Modal,
+  Pressable,
+  StyleSheet,
+  View,
+  findNodeHandle,
+} from 'react-native';
 import { SystemText as Text } from '../accessibility/system-text.js';
 
 import { layout, radius, space, typography } from '@misyra/design-tokens';
@@ -15,6 +22,7 @@ export interface CalendarRecurringScopeChooserProps {
   readonly operation: CalendarRecurringScopeOperation;
   readonly onCancel: () => void;
   readonly onSelect: (scope: RecurringSeriesScope) => void;
+  readonly returnFocusTarget?: unknown;
 }
 
 const choices: readonly Readonly<{
@@ -64,24 +72,36 @@ export function CalendarRecurringScopeChooser({
   operation,
   onCancel,
   onSelect,
+  returnFocusTarget = null,
 }: CalendarRecurringScopeChooserProps) {
   const catalog = localizationCatalogs[language];
   const colors = themeColors(colorScheme);
   const title = catalog[operationTitleKey(operation)];
 
+  const dismiss = () => {
+    onCancel();
+    if (returnFocusTarget === null || returnFocusTarget === undefined) return;
+    const handle = findNodeHandle(returnFocusTarget as Parameters<typeof findNodeHandle>[0]);
+    if (handle === null) return;
+    void Promise.resolve().then(() => {
+      AccessibilityInfo.setAccessibilityFocus(handle);
+    });
+  };
+
   return (
-    <Modal animationType="fade" onRequestClose={onCancel} transparent visible>
+    <Modal animationType="fade" onRequestClose={dismiss} transparent visible>
       <View style={styles.overlay}>
         <Pressable
           accessibilityLabel={catalog['calendar.recurringScope.cancel']}
           accessibilityRole="button"
-          onPress={onCancel}
+          onPress={dismiss}
           style={styles.backdrop}
           testID="recurring-scope-backdrop"
         />
         <View
           accessibilityLabel={title}
           accessibilityRole="menu"
+          accessibilityViewIsModal
           style={[styles.sheet, { backgroundColor: colors.canvas, borderColor: colors.border }]}
           testID="recurring-scope-chooser"
         >
@@ -107,7 +127,7 @@ export function CalendarRecurringScopeChooser({
           <Pressable
             accessibilityLabel={catalog['calendar.recurringScope.cancel']}
             accessibilityRole="button"
-            onPress={onCancel}
+            onPress={dismiss}
             style={styles.cancel}
             testID="recurring-scope-cancel"
           >

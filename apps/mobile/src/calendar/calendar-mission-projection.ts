@@ -63,6 +63,10 @@ export function calendarMissionMaps(missions: readonly LocalMission[]): Readonly
         orderKey,
         completed: occurrence.completionState === 'completed',
         status: missionStatus(mission),
+        recurring: mission.series.recurrence !== null,
+        organizerControlled:
+          occurrence.calendarSource === 'external' &&
+          occurrence.fieldOwnership === 'organizer_controlled',
       });
       allDay[localDate] = bucket;
       continue;
@@ -84,6 +88,10 @@ export function calendarMissionMaps(missions: readonly LocalMission[]): Readonly
       status: missionStatus(mission),
       rewardEligibility: occurrence.rewardEligibility,
       timeZone: schedule.timeZone,
+      recurring: mission.series.recurrence !== null,
+      organizerControlled:
+        occurrence.calendarSource === 'external' &&
+        occurrence.fieldOwnership === 'organizer_controlled',
     });
     timed[localDate] = bucket;
   }

@@ -254,10 +254,39 @@ describe('MTS-043 status and accessibility', () => {
     });
 
     const card = renderer.root.findByProps({ testID: 'calendar-mission-card-a' });
-    expect(card.props.accessibilityLabel).toBe('Mission a, Accepted evidence, on time');
+    expect(card.props.accessibilityLabel).toBe(
+      'Mission a, 09:00 to 10:00, Accepted evidence, on time',
+    );
     expect(renderer.root.findAllByType('Text').map((node) => node.children.join(''))).toEqual([
       'Mission a',
     ]);
+  });
+
+  it('announces time, recurrence, written status, and organizer-controlled external state', () => {
+    let renderer;
+    act(() => {
+      renderer = create(
+        createElement(MissionCard, {
+          colorScheme: 'light',
+          language: 'en',
+          mission: {
+            ...mission('spoken', 540, 600, 'verified'),
+            recurring: true,
+            organizerControlled: true,
+          },
+          selected: false,
+          uses24HourClock: false,
+        }),
+      );
+    });
+
+    const card = renderer.root.findByProps({ testID: 'calendar-mission-card-spoken' });
+    expect(card.props.accessibilityLabel).toContain('Mission spoken');
+    expect(card.props.accessibilityLabel).toContain('9:00 AM');
+    expect(card.props.accessibilityLabel).toContain('10:00 AM');
+    expect(card.props.accessibilityLabel).toContain('Repeating');
+    expect(card.props.accessibilityLabel).toContain('Accepted evidence, on time');
+    expect(card.props.accessibilityLabel).toContain('Organizer-controlled');
   });
 
   it('uses the focus ring as a selection outline without changing the status fill', () => {

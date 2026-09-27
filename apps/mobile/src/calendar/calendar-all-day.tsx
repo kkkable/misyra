@@ -6,7 +6,11 @@ import { localizationCatalogs, type LocalizationLocale } from '@misyra/localizat
 
 import { SystemText as Text } from '../accessibility/system-text.js';
 import { themeColors, type ColorScheme } from '../design-system/index.js';
-import { missionCardPalette, type MissionCardStatus } from './calendar-mission-layout.js';
+import {
+  missionCardPalette,
+  missionStatusLabel,
+  type MissionCardStatus,
+} from './calendar-mission-layout.js';
 
 const COLLAPSED_CARD_LIMIT = 3;
 
@@ -16,6 +20,8 @@ export interface AllDayMissionSummary {
   readonly orderKey: string;
   readonly completed: boolean;
   readonly status?: MissionCardStatus;
+  readonly recurring?: boolean;
+  readonly organizerControlled?: boolean;
   readonly previewKind?: 'planner_draft';
 }
 
@@ -119,10 +125,18 @@ export function AllDayMissionList({
           mission.previewKind === 'planner_draft'
             ? ({ backgroundColor: 'transparent', borderStyle: 'dashed', borderWidth: 2 } as const)
             : null;
-        const accessibilityLabel =
-          mission.previewKind === 'planner_draft'
-            ? `${mission.title}, ${language === 'zh-HK' ? '草稿' : 'Draft'}`
-            : mission.title;
+        const catalog = localizationCatalogs[language];
+        const accessibilityLabel = [
+          mission.title,
+          mission.previewKind === 'planner_draft' ? catalog['calendar.accessibility.draft'] : null,
+          mission.recurring === true ? catalog['calendar.accessibility.repeating'] : null,
+          missionStatusLabel(status, language),
+          mission.organizerControlled === true
+            ? catalog['calendar.details.organizerControlled']
+            : null,
+        ]
+          .filter((part): part is string => part !== null)
+          .join(', ');
         return (
           <Pressable
             accessibilityLabel={accessibilityLabel}

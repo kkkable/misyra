@@ -9,6 +9,7 @@ import { localizationCatalogs, type LocalizationLocale } from '@misyra/localizat
 
 import { SystemText as Text } from '../accessibility/system-text.js';
 import { themeColors, type ColorScheme } from '../design-system/index.js';
+import { formatTimelineTime } from './calendar-timeline.js';
 import {
   commitMissionAdjustment,
   type AdjustableTimedMission,
@@ -31,6 +32,8 @@ export interface TimedMissionSummary {
   readonly status: MissionCardStatus;
   readonly rewardEligibility: AdjustableTimedMission['rewardEligibility'];
   readonly timeZone: string;
+  readonly recurring?: boolean;
+  readonly organizerControlled?: boolean;
   readonly previewKind?: 'planner_draft';
 }
 
@@ -189,7 +192,10 @@ export function missionCardPalette(status: MissionCardStatus, colorScheme: Color
   }
 }
 
-function statusLabel(status: MissionCardStatus, language: LocalizationLocale): string {
+export function missionStatusLabel(
+  status: MissionCardStatus,
+  language: LocalizationLocale,
+): string {
   const catalog = localizationCatalogs[language];
   switch (status) {
     case 'verified':
@@ -203,10 +209,31 @@ function statusLabel(status: MissionCardStatus, language: LocalizationLocale): s
   }
 }
 
-function accessibilityLabel(mission: TimedMissionSummary, language: LocalizationLocale): string {
+function accessibilityLabel(
+  mission: TimedMissionSummary,
+  language: LocalizationLocale,
+  uses24HourClock: boolean,
+): string {
+  const catalog = localizationCatalogs[language];
+  const start = formatTimelineTime(mission.startMinute, language, uses24HourClock);
+  const end = formatTimelineTime(mission.endMinute, language, uses24HourClock);
+  const timeRange = catalog['calendar.accessibility.timeRange']
+    .replace('{start}', start)
+    .replace('{end}', end);
   const draftLabel =
-    mission.previewKind === 'planner_draft' ? (language === 'zh-HK' ? '草稿' : 'Draft') : null;
-  return [mission.title, draftLabel, statusLabel(mission.status, language)]
+    mission.previewKind === 'planner_draft' ? catalog['calendar.accessibility.draft'] : null;
+  const recurrenceLabel =
+    mission.recurring === true ? catalog['calendar.accessibility.repeating'] : null;
+  const organizerLabel =
+    mission.organizerControlled === true ? catalog['calendar.details.organizerControlled'] : null;
+  return [
+    mission.title,
+    timeRange,
+    draftLabel,
+    recurrenceLabel,
+    missionStatusLabel(mission.status, language),
+    organizerLabel,
+  ]
     .filter((part): part is string => part !== null)
     .join(', ');
 }
@@ -231,6 +258,8 @@ interface MissionCardProps {
   readonly language: LocalizationLocale;
   readonly mission: TimedMissionSummary;
   readonly selected: boolean;
+  readonly uses24HourClock?: boolean;
+  readonly accessibilityHint?: string | undefined;
   readonly onPress?: ((mission: TimedMissionSummary) => void) | undefined;
   readonly style?: StyleProp<ViewStyle>;
   readonly testID?: string;
@@ -241,6 +270,8 @@ export function MissionCard({
   language,
   mission,
   selected,
+  uses24HourClock = true,
+  accessibilityHint,
   onPress,
   style,
   testID = `calendar-mission-card-${mission.id}`,
@@ -254,7 +285,8 @@ export function MissionCard({
 
   return (
     <Pressable
-      accessibilityLabel={accessibilityLabel(mission, language)}
+      accessibilityHint={accessibilityHint}
+      accessibilityLabel={accessibilityLabel(mission, language, uses24HourClock)}
       accessibilityRole="button"
       hitSlop={missionHitSlop(mission)}
       onPress={() => {
@@ -292,6 +324,7 @@ interface TimedMissionLayerProps {
   readonly getNow?: (() => Date) | undefined;
   readonly selectedDate: string;
   readonly selectedMissionId?: string;
+  readonly uses24HourClock?: boolean;
   readonly isMissionAdjustable?: ((mission: TimedMissionSummary) => boolean) | undefined;
   readonly onMissionAdjustment?:
     ((adjustment: MissionAdjustmentResult) => void | Promise<void>) | undefined;
@@ -308,6 +341,7 @@ function groupList(
   highlightedMissionIds: ReadonlySet<string>,
   language: LocalizationLocale,
   selectedMissionId: string | undefined,
+  uses24HourClock: boolean,
   onMissionPress: ((mission: TimedMissionSummary) => void) | undefined,
 ): ReactNode {
   const colors = themeColors(colorScheme);
@@ -331,6 +365,7 @@ function groupList(
           mission={mission}
           onPress={onMissionPress}
           selected={selectedMissionId === mission.id || highlightedMissionIds.has(mission.id)}
+          uses24HourClock={uses24HourClock}
           style={styles.overflowListCard}
           testID={`calendar-overlap-list-mission-${mission.id}`}
         />
@@ -371,6 +406,7 @@ interface AdjustableMissionCardProps {
   readonly language: LocalizationLocale;
   readonly selected: boolean;
   readonly selectedDate: string;
+  readonly uses24HourClock?: boolean;
   readonly onMissionAdjustment?:
     ((adjustment: MissionAdjustmentResult) => void | Promise<void>) | undefined;
   readonly onMissionPress?: ((mission: TimedMissionSummary) => void) | undefined;
@@ -384,6 +420,7 @@ function AdjustableMissionCard({
   language,
   selected,
   selectedDate,
+  uses24HourClock = true,
   onMissionAdjustment,
   onMissionPress,
 }: AdjustableMissionCardProps) {
@@ -510,16 +547,18 @@ function AdjustableMissionCard({
         <MissionCard
           colorScheme={colorScheme}
           language={language}
+          accessibilityHint={localizationCatalogs[language]['calendar.accessibility.editInDetails']}
           mission={mission}
           onPress={onMissionPress}
           selected={selected || highlighted}
+          uses24HourClock={uses24HourClock}
           style={styles.gestureCard}
         />
         {selected ? (
           <GestureDetector gesture={resizeGesture}>
             <View
-              accessibilityLabel={`${mission.title}, resize`}
-              accessibilityRole="adjustable"
+              accessible={false}
+              importantForAccessibility="no-hide-descendants"
               style={styles.resizeTouchTarget}
               testID={`calendar-mission-resize-handle-${mission.id}`}
             >
@@ -541,6 +580,7 @@ export function TimedMissionLayer({
   missions,
   selectedDate,
   selectedMissionId,
+  uses24HourClock = true,
   onMissionAdjustment,
   onMissionPress,
 }: TimedMissionLayerProps) {
@@ -571,6 +611,7 @@ export function TimedMissionLayer({
                 onMissionPress={onMissionPress}
                 selected={selectedMissionId === card.mission.id}
                 selectedDate={selectedDate}
+                uses24HourClock={uses24HourClock}
               />
             ) : (
               <MissionCard
@@ -583,6 +624,7 @@ export function TimedMissionLayer({
                   selectedMissionId === card.mission.id ||
                   highlightedMissionIdSet.has(card.mission.id)
                 }
+                uses24HourClock={uses24HourClock}
                 style={missionPositionStyle(card)}
               />
             ),
@@ -616,6 +658,7 @@ export function TimedMissionLayer({
                 highlightedMissionIdSet,
                 language,
                 selectedMissionId,
+                uses24HourClock,
                 onMissionPress,
               )
             : null}
