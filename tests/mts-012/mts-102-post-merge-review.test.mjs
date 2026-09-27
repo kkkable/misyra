@@ -22,7 +22,8 @@ const primaryUiTextModules = [
 
 test('MTS-102 review correction applies Bold Text to direct primary-screen interface text', async () => {
   const preference = await source('apps/mobile/src/accessibility/bold-text-preference.ts');
-  assert.match(preference, /export function SystemText/u);
+  const systemText = await source('apps/mobile/src/accessibility/system-text.tsx');
+  assert.match(systemText, /export function SystemText/u);
   assert.match(preference, /systemBoldFontWeight/u);
 
   for (const path of primaryUiTextModules) {
@@ -77,6 +78,7 @@ test('MTS-102 review correction leaves no production interface Text bypass outsi
   ];
   const allowedNativeText = new Set([
     'apps/mobile/src/accessibility/bold-text-preference.ts',
+    'apps/mobile/src/accessibility/system-text.tsx',
     'apps/mobile/src/design-system/primitives.tsx',
   ]);
 
