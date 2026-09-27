@@ -1,6 +1,8 @@
 import { createElement } from 'react';
 import { act, create } from 'react-test-renderer';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const accessibilityState = vi.hoisted(() => ({ setAccessibilityFocus: vi.fn() }));
 
 vi.mock('react-native', async () => {
   const { createElement: createReactElement } = await import('react');
@@ -14,6 +16,7 @@ vi.mock('react-native', async () => {
   const TextInput = (props) => createReactElement('TextInput', props);
 
   return {
+    AccessibilityInfo: { setAccessibilityFocus: accessibilityState.setAccessibilityFocus },
     Modal: 'Modal',
     Pressable,
     ScrollView,
@@ -27,6 +30,10 @@ vi.mock('react-native', async () => {
 import * as detailsModule from './calendar-mission-details.js';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+
+beforeEach(() => {
+  accessibilityState.setAccessibilityFocus.mockClear();
+});
 
 const recurringDetails = {
   id: '44444444-4444-4444-8444-444444444444',
@@ -96,6 +103,21 @@ describe('MTS-052 recurring scope chooser', () => {
 
     expect(onDelete).toHaveBeenCalledTimes(1);
     expect(onDelete).toHaveBeenCalledWith(recurringDetails.id, 'this_and_future');
+  });
+
+  it('returns accessibility focus to the trigger when the recurring scope sheet is cancelled', async () => {
+    const renderer = renderDetails({ onDelete: vi.fn() });
+
+    act(() => {
+      find(renderer, 'mission-details-delete').props.onPress({ currentTarget: 4242 });
+    });
+
+    await act(async () => {
+      find(renderer, 'recurring-scope-cancel').props.onPress();
+      await Promise.resolve();
+    });
+
+    expect(accessibilityState.setAccessibilityFocus).toHaveBeenCalledWith(4242);
   });
 
   it('keeps recurring fields editable but requires an explicit scope before saving', () => {
