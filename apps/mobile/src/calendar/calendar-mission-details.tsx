@@ -211,6 +211,7 @@ export function MissionDetailsScreen({
   const [scopeOperation, setScopeOperation] = useState<CalendarRecurringScopeOperation | null>(
     null,
   );
+  const [scopeReturnFocusHandle, setScopeReturnFocusHandle] = useState<number | null>(null);
   const historical = isHistorical(details.lifecycle) || details.completionState === 'completed';
   const appOwnedEditable = !historical && details.fieldOwnership === 'app_owned';
   const structuredEditable = appOwnedEditable && details.structuredSchedule !== undefined;
@@ -365,8 +366,9 @@ export function MissionDetailsScreen({
         <Pressable
           accessibilityLabel={catalog['calendar.create.save']}
           accessibilityRole="button"
-          onPress={() => {
+          onPress={(event) => {
             if (details.recurring === true) {
+              setScopeReturnFocusHandle(event?.currentTarget ?? null);
               setScopeOperation('edit');
               return;
             }
@@ -499,8 +501,9 @@ export function MissionDetailsScreen({
             <Pressable
               accessibilityLabel={catalog['calendar.details.delete']}
               accessibilityRole="button"
-              onPress={() => {
+              onPress={(event) => {
                 if (details.recurring === true) {
+                  setScopeReturnFocusHandle(event?.currentTarget ?? null);
                   setScopeOperation('delete');
                   return;
                 }
@@ -523,10 +526,12 @@ export function MissionDetailsScreen({
           language={language}
           onCancel={() => {
             setScopeOperation(null);
+            setScopeReturnFocusHandle(null);
           }}
           onSelect={(scope) => {
             const operation = scopeOperation;
             setScopeOperation(null);
+            setScopeReturnFocusHandle(null);
             if (operation === 'edit' && onSave !== undefined) {
               void Promise.resolve(onSave(scope)).catch(() => undefined);
             } else if (operation === 'delete' && onDelete !== undefined) {
@@ -534,6 +539,7 @@ export function MissionDetailsScreen({
             }
           }}
           operation={scopeOperation}
+          returnFocusHandle={scopeReturnFocusHandle}
         />
       )}
     </ScrollView>
