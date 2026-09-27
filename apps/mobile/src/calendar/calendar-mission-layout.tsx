@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { GestureDetector, usePanGesture } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
@@ -7,6 +7,7 @@ import { scheduleOnRN } from 'react-native-worklets';
 import { layout, radius, space, typography } from '@misyra/design-tokens';
 import { localizationCatalogs, type LocalizationLocale } from '@misyra/localization';
 
+import { SystemText as Text } from '../accessibility/bold-text-preference.js';
 import { themeColors, type ColorScheme } from '../design-system/index.js';
 import {
   commitMissionAdjustment,
