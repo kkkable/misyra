@@ -42,45 +42,45 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <BoldTextPreferenceProvider enabled={boldTextEnabled}>
         <SystemMotionPreferenceProvider>
-        <AuthGate controller={rootAuthController} messages={rootAuthMessages}>
-          <SyncRuntimeGate>
-            <OnboardingGate
-              calendarConnectionController={rootCalendarConnectionController}
-              calendarConnectionMessages={rootCalendarConnectionMessages}
-              controller={rootOnboardingController}
-              messages={rootOnboardingMessages}
-            >
-              <NotificationRebuildBridge />
-              <MissionNotificationResponseBridge />
-              <Stack screenOptions={{ headerShown: false }}>
-                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                <Stack.Screen
-                  name="mission/[id]"
-                  options={{
-                    gestureEnabled: true,
-                    headerShown: false,
-                  }}
-                />
-                <Stack.Screen
-                  name="evidence"
-                  options={{
-                    gestureEnabled: true,
-                    headerShown: false,
-                    presentation: 'fullScreenModal',
-                  }}
-                />
-                <Stack.Screen
-                  name="story"
-                  options={{
-                    gestureEnabled: true,
-                    headerShown: false,
-                    presentation: 'fullScreenModal',
-                  }}
-                />
-              </Stack>
-            </OnboardingGate>
-          </SyncRuntimeGate>
-        </AuthGate>
+          <AuthGate controller={rootAuthController} messages={rootAuthMessages}>
+            <SyncRuntimeGate>
+              <OnboardingGate
+                calendarConnectionController={rootCalendarConnectionController}
+                calendarConnectionMessages={rootCalendarConnectionMessages}
+                controller={rootOnboardingController}
+                messages={rootOnboardingMessages}
+              >
+                <NotificationRebuildBridge />
+                <MissionNotificationResponseBridge />
+                <Stack screenOptions={{ headerShown: false }}>
+                  <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                  <Stack.Screen
+                    name="mission/[id]"
+                    options={{
+                      gestureEnabled: true,
+                      headerShown: false,
+                    }}
+                  />
+                  <Stack.Screen
+                    name="evidence"
+                    options={{
+                      gestureEnabled: true,
+                      headerShown: false,
+                      presentation: 'fullScreenModal',
+                    }}
+                  />
+                  <Stack.Screen
+                    name="story"
+                    options={{
+                      gestureEnabled: true,
+                      headerShown: false,
+                      presentation: 'fullScreenModal',
+                    }}
+                  />
+                </Stack>
+              </OnboardingGate>
+            </SyncRuntimeGate>
+          </AuthGate>
         </SystemMotionPreferenceProvider>
       </BoldTextPreferenceProvider>
     </GestureHandlerRootView>
