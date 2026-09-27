@@ -4,7 +4,6 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
   View,
   useColorScheme,
 } from 'react-native';
@@ -22,6 +21,7 @@ import {
 import { getCalendars, getLocales } from 'expo-localization';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
+import { SystemText as Text } from '../accessibility/bold-text-preference.js';
 import { getAuthApiBaseUrl, rootAuthController } from '../auth/auth-runtime.js';
 import { CalendarRecurringScopeChooser } from '../calendar/calendar-recurring-scope-chooser.js';
 import {
