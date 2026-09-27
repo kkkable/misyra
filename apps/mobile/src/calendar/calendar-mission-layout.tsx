@@ -9,7 +9,6 @@ import { localizationCatalogs, type LocalizationLocale } from '@misyra/localizat
 
 import { SystemText as Text } from '../accessibility/system-text.js';
 import { themeColors, type ColorScheme } from '../design-system/index.js';
-import { haptics } from '../experience/native-haptics.js';
 import { formatTimelineTime } from './calendar-timeline.js';
 import {
   commitMissionAdjustment,
@@ -330,6 +329,7 @@ interface TimedMissionLayerProps {
   readonly onMissionAdjustment?:
     ((adjustment: MissionAdjustmentResult) => void | Promise<void>) | undefined;
   readonly onMissionPress?: ((mission: TimedMissionSummary) => void) | undefined;
+  readonly onSnapHaptic?: (() => void) | undefined;
 }
 
 function formatMore(language: LocalizationLocale, count: number): string {
@@ -411,6 +411,7 @@ interface AdjustableMissionCardProps {
   readonly onMissionAdjustment?:
     ((adjustment: MissionAdjustmentResult) => void | Promise<void>) | undefined;
   readonly onMissionPress?: ((mission: TimedMissionSummary) => void) | undefined;
+  readonly onSnapHaptic?: (() => void) | undefined;
 }
 
 function AdjustableMissionCard({
@@ -424,6 +425,7 @@ function AdjustableMissionCard({
   uses24HourClock = true,
   onMissionAdjustment,
   onMissionPress,
+  onSnapHaptic,
 }: AdjustableMissionCardProps) {
   const mission = card.mission;
   const colors = themeColors(colorScheme);
@@ -491,7 +493,7 @@ function AdjustableMissionCard({
         committedEndMinute.value = result.endMinute;
         committedRewardEligibility.value = result.rewardEligibility;
         if (result.startMinute !== previousStartMinute || result.endMinute !== previousEndMinute) {
-          haptics.triggerNonBlocking('snap');
+          onSnapHaptic?.();
         }
       }
       void onMissionAdjustment?.(result);
@@ -589,6 +591,7 @@ export function TimedMissionLayer({
   uses24HourClock = true,
   onMissionAdjustment,
   onMissionPress,
+  onSnapHaptic,
 }: TimedMissionLayerProps) {
   const colors = themeColors(colorScheme);
   const groups = buildMissionOverlapGroups(missions);
@@ -615,6 +618,7 @@ export function TimedMissionLayer({
                 language={language}
                 onMissionAdjustment={onMissionAdjustment}
                 onMissionPress={onMissionPress}
+                onSnapHaptic={onSnapHaptic}
                 selected={selectedMissionId === card.mission.id}
                 selectedDate={selectedDate}
                 uses24HourClock={uses24HourClock}
