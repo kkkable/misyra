@@ -15,6 +15,10 @@ import {
 import { layout, radius, space, typography } from '@misyra/design-tokens';
 
 import {
+  systemBoldFontWeight,
+  useBoldTextPreference,
+} from '../accessibility/bold-text-preference.js';
+import {
   buttonContract,
   fieldContract,
   overlayContract,
@@ -27,6 +31,12 @@ import {
 
 interface ThemedProps {
   readonly colorScheme: ColorScheme;
+}
+
+function useSystemFontWeight() {
+  const boldTextEnabled = useBoldTextPreference();
+  return (weight: Parameters<typeof systemBoldFontWeight>[0]) =>
+    systemBoldFontWeight(weight, boldTextEnabled);
 }
 
 interface ContainerProps extends ThemedProps, Pick<ViewProps, 'testID'> {
@@ -109,6 +119,7 @@ export function TopBar({
   testID,
 }: TopBarProps) {
   const colors = themeColors(colorScheme);
+  const systemFontWeight = useSystemFontWeight();
   return (
     <View
       accessibilityLabel={accessibilityLabel}
@@ -125,7 +136,7 @@ export function TopBar({
           {
             color: colors.textPrimary,
             fontSize: typography.title3.fontSize,
-            fontWeight: typography.title3.fontWeight,
+            fontWeight: systemFontWeight(typography.title3.fontWeight),
           },
         ]}
       >
@@ -160,6 +171,7 @@ function ButtonBase({
   testID,
 }: ButtonBaseProps) {
   const unavailable = disabled || loading;
+  const systemFontWeight = useSystemFontWeight();
   return (
     <Pressable
       accessibilityLabel={accessibilityLabel}
@@ -200,7 +212,7 @@ function ButtonBase({
               {
                 color: contract.foregroundColor,
                 fontSize: typography.body.fontSize,
-                fontWeight: typography.body.mediumFontWeight,
+                fontWeight: systemFontWeight(typography.body.mediumFontWeight),
               },
             ]}
           >
@@ -292,6 +304,7 @@ function FieldBase({
   onBlur,
   ...inputProps
 }: FieldBaseProps) {
+  const systemFontWeight = useSystemFontWeight();
   const [focused, setFocused] = useState(false);
   const contract = fieldContract(colorScheme, {
     focused,
@@ -310,7 +323,7 @@ function FieldBase({
           {
             color: contract.foregroundColor,
             fontSize: typography.bodySmall.fontSize,
-            fontWeight: typography.bodySmall.mediumFontWeight,
+            fontWeight: systemFontWeight(typography.bodySmall.mediumFontWeight),
           },
         ]}
       >
@@ -359,7 +372,7 @@ function FieldBase({
             {
               color: themeColors(colorScheme).destructive,
               fontSize: typography.caption1.fontSize,
-              fontWeight: typography.caption1.fontWeight,
+              fontWeight: systemFontWeight(typography.caption1.fontWeight),
             },
           ]}
         >
@@ -390,6 +403,7 @@ interface RowTextProps extends ThemedProps {
 
 function RowText({ label, detail, colorScheme, disabled = false }: RowTextProps) {
   const contract = rowContract(colorScheme, { disabled });
+  const systemFontWeight = useSystemFontWeight();
   return (
     <View style={styles.rowText}>
       <Text
@@ -398,7 +412,7 @@ function RowText({ label, detail, colorScheme, disabled = false }: RowTextProps)
         style={{
           color: contract.foregroundColor,
           fontSize: typography.body.fontSize,
-          fontWeight: typography.body.fontWeight,
+          fontWeight: systemFontWeight(typography.body.fontWeight),
         }}
       >
         {label}
@@ -410,7 +424,7 @@ function RowText({ label, detail, colorScheme, disabled = false }: RowTextProps)
           style={{
             color: contract.secondaryColor,
             fontSize: typography.bodySmall.fontSize,
-            fontWeight: typography.bodySmall.fontWeight,
+            fontWeight: systemFontWeight(typography.bodySmall.fontWeight),
           }}
         >
           {detail}
@@ -498,6 +512,7 @@ export function SettingsRow({
   testID,
 }: SettingsRowProps) {
   const contract = rowContract(colorScheme, { selected, disabled });
+  const systemFontWeight = useSystemFontWeight();
   return (
     <Pressable
       accessibilityLabel={accessibilityLabel}
@@ -525,7 +540,7 @@ export function SettingsRow({
             {
               color: contract.secondaryColor,
               fontSize: typography.bodySmall.fontSize,
-              fontWeight: typography.bodySmall.fontWeight,
+              fontWeight: systemFontWeight(typography.bodySmall.fontWeight),
             },
           ]}
         >
@@ -543,6 +558,7 @@ export interface SectionHeaderProps extends ThemedProps {
 
 export function SectionHeader({ title, colorScheme, testID }: SectionHeaderProps) {
   const colors = themeColors(colorScheme);
+  const systemFontWeight = useSystemFontWeight();
   return (
     <Text
       accessibilityRole="header"
@@ -553,7 +569,7 @@ export function SectionHeader({ title, colorScheme, testID }: SectionHeaderProps
         {
           color: colors.textPrimary,
           fontSize: typography.headline.fontSize,
-          fontWeight: typography.headline.fontWeight,
+          fontWeight: systemFontWeight(typography.headline.fontWeight),
         },
       ]}
       testID={testID}
@@ -671,6 +687,7 @@ export function ConfirmationDialog({
   testID,
 }: ConfirmationDialogProps) {
   const colors = themeColors(colorScheme);
+  const systemFontWeight = useSystemFontWeight();
   const overlay = overlayContract(colorScheme);
   const surface = surfaceContract('dialog', colorScheme);
   return (
@@ -701,7 +718,7 @@ export function ConfirmationDialog({
               style={{
                 color: colors.textPrimary,
                 fontSize: typography.headline.fontSize,
-                fontWeight: typography.headline.fontWeight,
+                fontWeight: systemFontWeight(typography.headline.fontWeight),
               }}
             >
               {title}
@@ -711,7 +728,7 @@ export function ConfirmationDialog({
               style={{
                 color: colors.textSecondary,
                 fontSize: typography.body.fontSize,
-                fontWeight: typography.body.fontWeight,
+                fontWeight: systemFontWeight(typography.body.fontWeight),
               }}
             >
               {message}
@@ -732,6 +749,7 @@ export interface ToastProps extends ThemedProps {
 }
 
 export function Toast({ visible, message, accessibilityLabel, colorScheme, testID }: ToastProps) {
+  const systemFontWeight = useSystemFontWeight();
   if (!visible) {
     return null;
   }
@@ -757,7 +775,7 @@ export function Toast({ visible, message, accessibilityLabel, colorScheme, testI
         style={{
           color: colors.textPrimary,
           fontSize: typography.bodySmall.fontSize,
-          fontWeight: typography.bodySmall.mediumFontWeight,
+          fontWeight: systemFontWeight(typography.bodySmall.mediumFontWeight),
         }}
       >
         {message}
@@ -781,6 +799,7 @@ export function InlineMessage({
   testID,
 }: InlineMessageProps) {
   const colors = themeColors(colorScheme);
+  const systemFontWeight = useSystemFontWeight();
   const isError = tone === 'error';
   return (
     <View
@@ -801,7 +820,7 @@ export function InlineMessage({
         style={{
           color: isError ? colors.destructive : colors.textSecondary,
           fontSize: typography.bodySmall.fontSize,
-          fontWeight: typography.bodySmall.fontWeight,
+          fontWeight: systemFontWeight(typography.bodySmall.fontWeight),
         }}
       >
         {message}
@@ -827,6 +846,7 @@ export function EmptyState({
   testID,
 }: EmptyStateProps) {
   const colors = themeColors(colorScheme);
+  const systemFontWeight = useSystemFontWeight();
   return (
     <View accessibilityLabel={accessibilityLabel} style={styles.emptyState} testID={testID}>
       <Text
@@ -835,7 +855,7 @@ export function EmptyState({
         style={{
           color: colors.textPrimary,
           fontSize: typography.headline.fontSize,
-          fontWeight: typography.headline.fontWeight,
+          fontWeight: systemFontWeight(typography.headline.fontWeight),
         }}
       >
         {title}
@@ -846,7 +866,7 @@ export function EmptyState({
           style={{
             color: colors.textSecondary,
             fontSize: typography.body.fontSize,
-            fontWeight: typography.body.fontWeight,
+            fontWeight: systemFontWeight(typography.body.fontWeight),
           }}
         >
           {message}
