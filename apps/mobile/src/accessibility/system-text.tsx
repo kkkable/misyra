@@ -3,12 +3,15 @@ import { StyleSheet, Text as NativeText, type TextProps, type TextStyle } from '
 
 import { systemBoldFontWeight, useBoldTextPreference } from './bold-text-preference.js';
 
+type OptionalStyleSheetFlatten = Readonly<{
+  flatten?: (style: TextProps['style']) => TextStyle | undefined;
+}>;
+
 function flattenTextStyle(style: TextProps['style']): TextStyle | undefined {
   if (style === undefined || style === null || style === false) return undefined;
 
-  if (typeof StyleSheet?.flatten === 'function') {
-    return StyleSheet.flatten(style) ?? undefined;
-  }
+  const flatten = (StyleSheet as unknown as OptionalStyleSheetFlatten).flatten;
+  if (typeof flatten === 'function') return flatten(style);
 
   if (Array.isArray(style)) {
     return style.reduce<TextStyle>((result, value) => {
@@ -17,7 +20,7 @@ function flattenTextStyle(style: TextProps['style']): TextStyle | undefined {
     }, {});
   }
 
-  return typeof style === 'object' ? (style as TextStyle) : undefined;
+  return typeof style === 'object' ? style : undefined;
 }
 
 export function SystemText(props: TextProps) {
