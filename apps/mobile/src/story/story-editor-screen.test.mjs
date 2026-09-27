@@ -8,7 +8,28 @@ vi.mock('react-native', async () => {
   const { createElement: h } = await import('react');
   const Pressable = ({ children, ...props }) =>
     h('Pressable', props, typeof children === 'function' ? children({ pressed: false }) : children);
+  class AnimatedValue {
+    constructor(value) {
+      this.value = value;
+    }
+
+    setValue(value) {
+      this.value = value;
+    }
+
+    interpolate() {
+      return 0;
+    }
+  }
   return {
+    Animated: {
+      Value: AnimatedValue,
+      View: ({ children, ...props }) => h('AnimatedView', props, children),
+      timing: (value, config) => ({
+        start: () => value.setValue(config.toValue),
+        stop: () => undefined,
+      }),
+    },
     Pressable,
     ScrollView: ({ children, ...props }) => h('ScrollView', props, children),
     StyleSheet: { create: (value) => value },

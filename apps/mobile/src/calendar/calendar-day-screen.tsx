@@ -17,6 +17,7 @@ import { localizationCatalogs, type LocalizationLocale } from '@misyra/localizat
 
 import { SystemText as Text } from '../accessibility/system-text.js';
 import { Screen, themeColors, type ColorScheme } from '../design-system/index.js';
+import { haptics } from '../experience/native-haptics.js';
 import { AllDayMissionList, type AllDayMissionSummary } from './calendar-all-day.js';
 import {
   buildMonthGrid,
@@ -453,6 +454,9 @@ export function CalendarDayScreen({
                 now={now}
                 onMissionAdjustment={onMissionAdjustment}
                 onMissionPress={selectTimedMission}
+                onSnapHaptic={() => {
+                  haptics.triggerNonBlocking('snap');
+                }}
                 selectedDate={selectedDate}
                 uses24HourClock={uses24HourClock}
                 {...(focusedMissionId === undefined ? {} : { selectedMissionId: focusedMissionId })}

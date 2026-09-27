@@ -1,7 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import {
+  Animated,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 
 import type { StoryTextSuggestionsResult } from '@misyra/contracts';
+import { duration, space } from '@misyra/design-tokens';
 
 import { SystemText as Text } from '../accessibility/system-text.js';
 import {
@@ -15,6 +23,7 @@ import {
   type ColorScheme,
 } from '../design-system/index.js';
 import type { EvidenceStorySourceAttempt } from '../evidence/evidence-api.js';
+import { useMotionPreference } from '../experience/reduce-motion.js';
 import type { StoryComposition, StoryTextLayer } from './story-composition.js';
 import { createStoryEditorSession, type StorySourceImage } from './story-editor-state.js';
 import { formatStorySharingPoll } from './story-instagram-sharing.js';
@@ -161,6 +170,8 @@ export function StoryEditorScreen({
 }>) {
   const window = useWindowDimensions();
   const colors = themeColors(colorScheme);
+  const motionPreference = useMotionPreference();
+  const previewTransition = useRef(new Animated.Value(1)).current;
   const sessionRef = useRef<{
     sourceImageId: string;
     epoch: number;
@@ -238,6 +249,31 @@ export function StoryEditorScreen({
   const activeImageVersionId = selectedImageVersionId ?? sourceImage.id;
   const sharingPollText =
     sharingNotes.poll === null ? null : formatStorySharingPoll(sharingNotes.poll);
+
+  useEffect(() => {
+    previewTransition.setValue(0);
+    const animation = Animated.timing(previewTransition, {
+      toValue: 1,
+      duration: motionPreference.directionalMovement ? duration.standard : duration.fast,
+      useNativeDriver: true,
+    });
+    animation.start();
+    return () => {
+      animation.stop();
+    };
+  }, [
+    activeImageVersionId,
+    motionPreference.directionalMovement,
+    previewTransition,
+    selectedAttemptId,
+  ]);
+
+  const previewTranslateX = motionPreference.directionalMovement
+    ? previewTransition.interpolate({
+        inputRange: [0, 1],
+        outputRange: [space[2], 0],
+      })
+    : 0;
 
   return (
     <Screen colorScheme={colorScheme} testID="story-editor">
@@ -520,13 +556,22 @@ export function StoryEditorScreen({
           </Text>
         )}
 
-        <View style={styles.previewWrap}>
+        <Animated.View
+          style={[
+            styles.previewWrap,
+            {
+              opacity: previewTransition,
+              transform: [{ translateX: previewTranslateX }],
+            },
+          ]}
+          testID="story-preview-transition"
+        >
           <StorySkiaPreviewView
             availableWidth={previewWidth}
             composition={composition}
             sourceImage={sourceImage}
           />
-        </View>
+        </Animated.View>
 
         <View style={styles.toolRow}>
           <SecondaryButton

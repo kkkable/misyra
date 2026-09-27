@@ -329,6 +329,7 @@ interface TimedMissionLayerProps {
   readonly onMissionAdjustment?:
     ((adjustment: MissionAdjustmentResult) => void | Promise<void>) | undefined;
   readonly onMissionPress?: ((mission: TimedMissionSummary) => void) | undefined;
+  readonly onSnapHaptic?: (() => void) | undefined;
 }
 
 function formatMore(language: LocalizationLocale, count: number): string {
@@ -410,6 +411,7 @@ interface AdjustableMissionCardProps {
   readonly onMissionAdjustment?:
     ((adjustment: MissionAdjustmentResult) => void | Promise<void>) | undefined;
   readonly onMissionPress?: ((mission: TimedMissionSummary) => void) | undefined;
+  readonly onSnapHaptic?: (() => void) | undefined;
 }
 
 function AdjustableMissionCard({
@@ -423,6 +425,7 @@ function AdjustableMissionCard({
   uses24HourClock = true,
   onMissionAdjustment,
   onMissionPress,
+  onSnapHaptic,
 }: AdjustableMissionCardProps) {
   const mission = card.mission;
   const colors = themeColors(colorScheme);
@@ -471,11 +474,13 @@ function AdjustableMissionCard({
 
   const finishAdjustment = (kind: MissionAdjustmentKind, translationY: number) => {
     try {
+      const previousStartMinute = committedStartMinute.value;
+      const previousEndMinute = committedEndMinute.value;
       const result = commitMissionAdjustment({
         mission: {
           ...adjustableMission(mission),
-          startMinute: committedStartMinute.value,
-          endMinute: committedEndMinute.value,
+          startMinute: previousStartMinute,
+          endMinute: previousEndMinute,
           rewardEligibility: committedRewardEligibility.value,
         },
         kind,
@@ -487,6 +492,9 @@ function AdjustableMissionCard({
         committedStartMinute.value = result.startMinute;
         committedEndMinute.value = result.endMinute;
         committedRewardEligibility.value = result.rewardEligibility;
+        if (result.startMinute !== previousStartMinute || result.endMinute !== previousEndMinute) {
+          onSnapHaptic?.();
+        }
       }
       void onMissionAdjustment?.(result);
     } finally {
@@ -583,6 +591,7 @@ export function TimedMissionLayer({
   uses24HourClock = true,
   onMissionAdjustment,
   onMissionPress,
+  onSnapHaptic,
 }: TimedMissionLayerProps) {
   const colors = themeColors(colorScheme);
   const groups = buildMissionOverlapGroups(missions);
@@ -609,6 +618,7 @@ export function TimedMissionLayer({
                 language={language}
                 onMissionAdjustment={onMissionAdjustment}
                 onMissionPress={onMissionPress}
+                onSnapHaptic={onSnapHaptic}
                 selected={selectedMissionId === card.mission.id}
                 selectedDate={selectedDate}
                 uses24HourClock={uses24HourClock}
