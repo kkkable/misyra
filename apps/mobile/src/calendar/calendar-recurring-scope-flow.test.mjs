@@ -87,7 +87,7 @@ describe('MTS-052 recurring scope chooser', () => {
     const renderer = renderDetails({ onDelete });
 
     act(() => {
-      find(renderer, 'mission-details-delete').props.onPress();
+      find(renderer, 'mission-details-delete').props.onPress({ currentTarget: 4101 });
     });
 
     expect(onDelete).not.toHaveBeenCalled();
@@ -128,7 +128,7 @@ describe('MTS-052 recurring scope chooser', () => {
     expect(find(renderer, 'mission-details-start').props.editable).toBe(true);
 
     act(() => {
-      find(renderer, 'mission-details-save').props.onPress();
+      find(renderer, 'mission-details-save').props.onPress({ currentTarget: 4102 });
     });
 
     expect(onSave).not.toHaveBeenCalled();
