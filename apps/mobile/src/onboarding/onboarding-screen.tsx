@@ -1,5 +1,5 @@
 import { StyleSheet, View } from 'react-native';
-import { SystemText as Text } from '../accessibility/bold-text-preference.js';
+import { SystemText as Text } from '../accessibility/system-text.js';
 
 import { space, typography } from '@misyra/design-tokens';
 
