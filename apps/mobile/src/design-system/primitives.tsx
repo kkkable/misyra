@@ -119,6 +119,7 @@ export function TopBar({
       <Text
         accessibilityRole="header"
         allowFontScaling
+        dynamicTypeRamp="title3"
         style={[
           styles.topBarTitle,
           {
@@ -193,6 +194,7 @@ function ButtonBase({
         return (
           <Text
             allowFontScaling
+            dynamicTypeRamp="body"
             style={[
               styles.buttonLabel,
               {
@@ -302,6 +304,7 @@ function FieldBase({
     <View style={styles.fieldGroup}>
       <Text
         allowFontScaling
+        dynamicTypeRamp="subheadline"
         style={[
           styles.fieldLabel,
           {
@@ -350,6 +353,7 @@ function FieldBase({
           accessibilityLiveRegion="polite"
           accessibilityRole="alert"
           allowFontScaling
+          dynamicTypeRamp="caption1"
           style={[
             styles.fieldError,
             {
@@ -390,6 +394,7 @@ function RowText({ label, detail, colorScheme, disabled = false }: RowTextProps)
     <View style={styles.rowText}>
       <Text
         allowFontScaling
+        dynamicTypeRamp="body"
         style={{
           color: contract.foregroundColor,
           fontSize: typography.body.fontSize,
@@ -401,6 +406,7 @@ function RowText({ label, detail, colorScheme, disabled = false }: RowTextProps)
       {detail === undefined ? null : (
         <Text
           allowFontScaling
+          dynamicTypeRamp="subheadline"
           style={{
             color: contract.secondaryColor,
             fontSize: typography.bodySmall.fontSize,
@@ -513,6 +519,7 @@ export function SettingsRow({
       {value === undefined ? null : (
         <Text
           allowFontScaling
+          dynamicTypeRamp="subheadline"
           style={[
             styles.rowValue,
             {
@@ -540,6 +547,7 @@ export function SectionHeader({ title, colorScheme, testID }: SectionHeaderProps
     <Text
       accessibilityRole="header"
       allowFontScaling
+      dynamicTypeRamp="headline"
       style={[
         styles.sectionHeader,
         {
