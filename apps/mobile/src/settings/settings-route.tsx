@@ -5,7 +5,6 @@ import {
   ScrollView,
   StyleSheet,
   View,
-  findNodeHandle,
   useColorScheme,
 } from 'react-native';
 
@@ -105,9 +104,7 @@ export function SettingsRouteScreen() {
   const [connectedCalendar, setConnectedCalendar] = useState<CalendarConnection | null>(null);
   const [hiddenEvents, setHiddenEvents] = useState<readonly HiddenCalendarEvent[]>([]);
   const [selectedHiddenEvent, setSelectedHiddenEvent] = useState<HiddenCalendarEvent | null>(null);
-  const [restoreScopeReturnFocusHandle, setRestoreScopeReturnFocusHandle] = useState<number | null>(
-    null,
-  );
+  const [restoreScopeReturnFocusTarget, setRestoreScopeReturnFocusTarget] = useState<unknown>(null);
   const [restoringHiddenEventId, setRestoringHiddenEventId] = useState<string | null>(null);
   const [updatingTrustMode, setUpdatingTrustMode] = useState(false);
   const [updatingLanguage, setUpdatingLanguage] = useState(false);
@@ -464,7 +461,7 @@ export function SettingsRouteScreen() {
                     disabled={restoringHiddenEventId !== null}
                     onPress={(pressEvent) => {
                       if (event.isRecurring) {
-                        setRestoreScopeReturnFocusHandle(findNodeHandle(pressEvent.currentTarget));
+                        setRestoreScopeReturnFocusTarget(pressEvent.currentTarget);
                         setSelectedHiddenEvent(event);
                       } else {
                         void restoreHiddenEvent(event, 'this_occurrence');
@@ -576,14 +573,14 @@ export function SettingsRouteScreen() {
           language={language}
           onCancel={() => {
             setSelectedHiddenEvent(null);
-            setRestoreScopeReturnFocusHandle(null);
+            setRestoreScopeReturnFocusTarget(null);
           }}
           onSelect={(scope) => {
-            setRestoreScopeReturnFocusHandle(null);
+            setRestoreScopeReturnFocusTarget(null);
             void restoreHiddenEvent(selectedHiddenEvent, scope);
           }}
           operation="restore"
-          returnFocusHandle={restoreScopeReturnFocusHandle}
+          returnFocusTarget={restoreScopeReturnFocusTarget}
         />
       )}
     </Screen>
