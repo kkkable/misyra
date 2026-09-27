@@ -24,8 +24,8 @@ test(
   'MTS-102 review correction applies Bold Text to direct primary-screen interface text',
   async () => {
     const preference = await source('apps/mobile/src/accessibility/bold-text-preference.ts');
-  assert.match(preference, /export function SystemText/u);
-  assert.match(preference, /systemBoldFontWeight/u);
+    assert.match(preference, /export function SystemText/u);
+    assert.match(preference, /systemBoldFontWeight/u);
 
     for (const path of primaryUiTextModules) {
       const moduleSource = await source(path);
