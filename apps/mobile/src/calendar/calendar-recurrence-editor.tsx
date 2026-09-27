@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { SystemText as Text } from '../accessibility/bold-text-preference.js';
 
 import { layout, radius, space, typography } from '@misyra/design-tokens';
 import type { MissionRecurrence, RecurrenceEnd, RecurrencePattern } from '@misyra/domain';
