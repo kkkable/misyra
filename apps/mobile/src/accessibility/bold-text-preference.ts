@@ -1,5 +1,5 @@
 import { createContext, createElement, useContext, type PropsWithChildren } from 'react';
-import { StyleSheet, Text as NativeText, type TextProps, type TextStyle } from 'react-native';
+import type { TextStyle } from 'react-native';
 
 type FontWeight = NonNullable<TextStyle['fontWeight']>;
 
@@ -21,20 +21,4 @@ export function systemBoldFontWeight(weight: FontWeight, enabled: boolean): Font
   if (weight === '400' || weight === 'normal') return '600';
   if (weight === '500' || weight === '600') return '700';
   return weight;
-}
-
-function flattenTextStyle(style: TextProps['style']): TextStyle | undefined {
-  if (style === undefined || style === null || style === false) return undefined;
-  return StyleSheet.flatten(style);
-}
-
-export function SystemText(props: TextProps) {
-  const boldTextEnabled = useBoldTextPreference();
-  const fontWeight = flattenTextStyle(props.style)?.fontWeight;
-  const style =
-    fontWeight === undefined
-      ? props.style
-      : [props.style, { fontWeight: systemBoldFontWeight(fontWeight, boldTextEnabled) }];
-
-  return createElement(NativeText, { ...props, style });
 }
