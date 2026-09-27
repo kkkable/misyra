@@ -27,7 +27,7 @@ function flattenTextStyle(style: TextProps['style']): TextStyle | undefined {
   if (style === undefined || style === null || style === false) return undefined;
 
   if (typeof StyleSheet.flatten === 'function') {
-    return StyleSheet.flatten(style) ?? undefined;
+    return StyleSheet.flatten(style);
   }
 
   if (Array.isArray(style)) {
@@ -37,7 +37,7 @@ function flattenTextStyle(style: TextProps['style']): TextStyle | undefined {
     }, {});
   }
 
-  return typeof style === 'object' ? (style as TextStyle) : undefined;
+  return typeof style === 'object' ? style : undefined;
 }
 
 export function SystemText(props: TextProps) {
