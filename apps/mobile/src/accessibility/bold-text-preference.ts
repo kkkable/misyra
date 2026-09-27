@@ -25,19 +25,7 @@ export function systemBoldFontWeight(weight: FontWeight, enabled: boolean): Font
 
 function flattenTextStyle(style: TextProps['style']): TextStyle | undefined {
   if (style === undefined || style === null || style === false) return undefined;
-
-  if (typeof StyleSheet.flatten === 'function') {
-    return StyleSheet.flatten(style);
-  }
-
-  if (Array.isArray(style)) {
-    return style.reduce<TextStyle>((result, value) => {
-      const flattened = flattenTextStyle(value);
-      return flattened === undefined ? result : { ...result, ...flattened };
-    }, {});
-  }
-
-  return typeof style === 'object' ? style : undefined;
+  return StyleSheet.flatten(style);
 }
 
 export function SystemText(props: TextProps) {
