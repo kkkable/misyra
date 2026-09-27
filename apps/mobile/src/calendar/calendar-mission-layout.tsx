@@ -490,10 +490,7 @@ function AdjustableMissionCard({
         committedStartMinute.value = result.startMinute;
         committedEndMinute.value = result.endMinute;
         committedRewardEligibility.value = result.rewardEligibility;
-        if (
-          result.startMinute !== previousStartMinute ||
-          result.endMinute !== previousEndMinute
-        ) {
+        if (result.startMinute !== previousStartMinute || result.endMinute !== previousEndMinute) {
           haptics.triggerNonBlocking('snap');
         }
       }
