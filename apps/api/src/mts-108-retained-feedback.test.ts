@@ -5,6 +5,8 @@ import { Pool } from 'pg';
 
 import { deleteAccountTransaction } from '@misyra/database';
 
+import { createApiServer } from './index.js';
+
 const postgresUser = process.env.POSTGRES_USER ?? 'misyra';
 const postgresPassword = process.env.POSTGRES_PASSWORD ?? 'misyra-local-only';
 const postgresPort = process.env.POSTGRES_PORT ?? '5432';
@@ -12,6 +14,7 @@ const databaseName = `misyra_mts108_${randomUUID().replaceAll('-', '')}`;
 const databaseUrl = `postgresql://${postgresUser}:${postgresPassword}@127.0.0.1:${postgresPort}/${databaseName}`;
 const adminUrl = `postgresql://${postgresUser}:${postgresPassword}@127.0.0.1:${postgresPort}/postgres`;
 const retainedFeedbackModule = './retained-feedback.js';
+const retainedFeedbackRoutesModule = './retained-feedback-routes.js';
 
 describe('MTS-108 retained feedback storage and unlinking', () => {
   let pool: Pool;
@@ -166,4 +169,65 @@ describe('MTS-108 retained feedback storage and unlinking', () => {
 
     await pool.query('DELETE FROM feedback_reports WHERE id = $1', [result.feedbackId]);
   });
+  it('accepts the existing authenticated multipart feedback protocol without exposing a user history endpoint', async () => {
+    const accountId = randomUUID();
+    const feedbackId = randomUUID();
+    const screenshotBytes = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
+    const boundary = 'misyra-mts108-boundary';
+    const payload = JSON.stringify({
+      category: 'feedback',
+      description: 'Calendar feedback',
+      email: null,
+      technicalDetails: { appVersion: '1.2.3', screenName: 'feedback' },
+      screenshot: { mimeType: 'image/png', sizeBytes: screenshotBytes.length },
+    });
+    const multipartBody = Buffer.concat([
+      Buffer.from(
+        `--${boundary}\r\nContent-Disposition: form-data; name="payload"\r\n\r\n${payload}\r\n`,
+      ),
+      Buffer.from(
+        `--${boundary}\r\nContent-Disposition: form-data; name="screenshot"; filename="feedback.png"\r\nContent-Type: image/png\r\n\r\n`,
+      ),
+      screenshotBytes,
+      Buffer.from(`\r\n--${boundary}--\r\n`),
+    ]);
+    const submit = vi.fn(() => Promise.resolve({ feedbackId }));
+    const routesModule = (await import(retainedFeedbackRoutesModule)) as {
+      createRetainedFeedbackRoutes(service: unknown): unknown[];
+    };
+    const server = createApiServer({
+      authenticate: () => ({ accountId }),
+      routes: routesModule.createRetainedFeedbackRoutes({ submit }) as never[],
+    });
+
+    const response = await server.inject({
+      method: 'POST',
+      url: '/v1/feedback',
+      headers: { 'content-type': `multipart/form-data; boundary=${boundary}` },
+      payload: multipartBody,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ ok: true, payload: { feedbackId } });
+    expect(submit).toHaveBeenCalledWith(accountId, {
+      category: 'feedback',
+      description: 'Calendar feedback',
+      email: null,
+      technicalDetails: { appVersion: '1.2.3', screenName: 'feedback' },
+      screenshot: {
+        bytes: screenshotBytes,
+        mimeType: 'image/png',
+        sizeBytes: screenshotBytes.length,
+      },
+    });
+
+    const historyResponse = await server.inject({
+      method: 'GET',
+      url: '/v1/feedback',
+      headers: { authorization: 'Bearer unused-by-test-authenticator' },
+    });
+    expect(historyResponse.statusCode).toBe(404);
+    await server.close();
+  });
+
 });
