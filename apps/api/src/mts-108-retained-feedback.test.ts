@@ -199,7 +199,10 @@ describe('MTS-108 retained feedback storage and unlinking', () => {
       category: 'problem',
       description: 'Retry-safe feedback',
       email: 'followup@example.test',
-      technicalDetails: { screenName: 'feedback' },
+      technicalDetails: {
+        screenName: 'feedback',
+        submissionTimestamp: '2026-09-28T12:30:00.000Z',
+      },
       screenshot: {
         bytes: screenshotBytes,
         mimeType: 'image/png',
@@ -208,7 +211,13 @@ describe('MTS-108 retained feedback storage and unlinking', () => {
     };
 
     const first = await service.submit(accountId, submission);
-    const replay = await service.submit(accountId, submission);
+    const replay = await service.submit(accountId, {
+      ...submission,
+      technicalDetails: {
+        ...submission.technicalDetails,
+        submissionTimestamp: '2026-09-28T12:31:00.000Z',
+      },
+    });
 
     expect(replay).toEqual(first);
     expect(put).toHaveBeenCalledTimes(1);
