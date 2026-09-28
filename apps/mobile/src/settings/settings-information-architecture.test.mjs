@@ -88,7 +88,6 @@ describe('MTS-100 Settings information architecture', () => {
     for (const testId of [
       'settings-row-connected-calendar',
       'settings-row-language',
-      'settings-row-diagnostics',
       'settings-row-media-retention',
       'settings-row-privacy-policy',
       'settings-row-terms-of-service',
@@ -105,10 +104,12 @@ describe('MTS-100 Settings information architecture', () => {
       expect(element).toContain('onPress=');
     }
 
-    const trustMode = elementContaining(source, 'settings-row-trust-mode');
-    expect(trustMode).not.toBeNull();
-    expect(trustMode).toContain('<ToggleRow');
-    expect(trustMode).toContain('onValueChange=');
+    for (const testId of ['settings-row-trust-mode', 'settings-row-diagnostics']) {
+      const toggle = elementContaining(source, testId);
+      expect(toggle, testId).not.toBeNull();
+      expect(toggle).toContain('<ToggleRow');
+      expect(toggle).toContain('onValueChange=');
+    }
 
     for (const testId of ['settings-action-delete-account', 'settings-action-sign-out']) {
       const element = elementContaining(source, testId);
