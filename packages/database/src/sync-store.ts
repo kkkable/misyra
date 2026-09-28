@@ -774,8 +774,7 @@ function parseSettingsPatch(payload: unknown): SettingsPatch {
   if (
     keys.length === 0 ||
     keys.some(
-      (key) =>
-        key !== 'language' && key !== 'trustMode' && key !== 'diagnosticsEnabled',
+      (key) => key !== 'language' && key !== 'trustMode' && key !== 'diagnosticsEnabled',
     )
   ) {
     throw new SyncMutationValidationError('Settings mutation contains unsupported fields');
@@ -1704,12 +1703,7 @@ async function applySettingsMutation(
      RETURNING language,
                trust_mode AS "trustMode",
                diagnostics_enabled AS "diagnosticsEnabled"`,
-    [
-      accountId,
-      patch.language ?? null,
-      patch.trustMode ?? null,
-      patch.diagnosticsEnabled ?? null,
-    ],
+    [accountId, patch.language ?? null, patch.trustMode ?? null, patch.diagnosticsEnabled ?? null],
   );
   const row = result.rows[0];
   if (row === undefined) throw new Error('Settings sync update returned no row');
