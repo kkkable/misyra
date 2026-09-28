@@ -64,6 +64,7 @@ describe('MTS-108 retained feedback storage and unlinking', () => {
     });
 
     const result = await service.submit(accountId, {
+      idempotencyKey: randomUUID(),
       category: 'problem',
       description: 'The Calendar stopped refreshing.',
       email: 'deliberate@example.test',
@@ -226,7 +227,9 @@ describe('MTS-108 retained feedback storage and unlinking', () => {
     const feedbackId = randomUUID();
     const screenshotBytes = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
     const boundary = 'misyra-mts108-boundary';
+    const idempotencyKey = randomUUID();
     const payload = JSON.stringify({
+      idempotencyKey,
       category: 'feedback',
       description: 'Calendar feedback',
       email: null,
@@ -259,6 +262,7 @@ describe('MTS-108 retained feedback storage and unlinking', () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({ ok: true, payload: { feedbackId } });
     expect(submit).toHaveBeenCalledWith(accountId, {
+      idempotencyKey,
       category: 'feedback',
       description: 'Calendar feedback',
       email: null,
