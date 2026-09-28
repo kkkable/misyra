@@ -25,6 +25,12 @@ export type FeedbackCatalog = Readonly<{
   success: string;
   done: string;
   submitFailed: string;
+  offlineSubmitFailed: string;
+  discardDraft: string;
+  discardDraftTitle: string;
+  discardDraftBody: string;
+  keepDraft: string;
+  confirmDiscard: string;
 }>;
 
 export const feedbackCatalogs: Readonly<Record<LocalizationLocale, FeedbackCatalog>> =
@@ -56,6 +62,12 @@ export const feedbackCatalogs: Readonly<Record<LocalizationLocale, FeedbackCatal
       success: 'Feedback sent. Thank you.',
       done: 'Done',
       submitFailed: 'Couldn’t send. Please try again.',
+      offlineSubmitFailed: 'Couldn’t send. Try again when you’re online.',
+      discardDraft: 'Discard draft',
+      discardDraftTitle: 'Discard this feedback draft?',
+      discardDraftBody: 'This removes the unsent description and screenshot from this device.',
+      keepDraft: 'Cancel',
+      confirmDiscard: 'Discard',
     }),
     'zh-HK': Object.freeze({
       sendTitle: '傳送意見',
@@ -84,5 +96,11 @@ export const feedbackCatalogs: Readonly<Record<LocalizationLocale, FeedbackCatal
       success: '意見已傳送。多謝你。',
       done: '完成',
       submitFailed: '未能傳送，請再試一次。',
+      offlineSubmitFailed: '未能傳送。請在恢復網絡連線後再試。',
+      discardDraft: '捨棄草稿',
+      discardDraftTitle: '捨棄這份意見草稿？',
+      discardDraftBody: '這會從此裝置移除尚未傳送的描述及螢幕截圖。',
+      keepDraft: '取消',
+      confirmDiscard: '捨棄',
     }),
   });

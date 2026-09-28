@@ -40,5 +40,5 @@ export async function transcodeFeedbackScreenshotToPng(
 }
 
 export async function removeFeedbackScreenshotFile(uri: string): Promise<void> {
-  await FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => undefined);
+  await FileSystem.deleteAsync(uri, { idempotent: true });
 }

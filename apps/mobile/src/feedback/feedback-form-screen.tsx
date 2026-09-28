@@ -43,7 +43,10 @@ import {
 export type FeedbackFormScreenProps = Readonly<{
   language: LocalizationLocale;
   initialCategory: FeedbackCategory;
+  initialDraft?: FeedbackFormDraft;
   technicalDetails: FeedbackTechnicalDetails;
+  onDraftChange?: (draft: FeedbackFormDraft) => Promise<void> | void;
+  onDiscardDraft?: () => Promise<void> | void;
   onPickScreenshot: () => Promise<FeedbackScreenshot | null>;
   onRemoveScreenshot?: (screenshot: FeedbackScreenshot) => Promise<void> | void;
   onSubmit: (payload: FeedbackSubmissionPayload) => Promise<void>;
@@ -58,7 +61,10 @@ function categoryLabel(catalog: FeedbackCatalog, category: FeedbackCategory): st
 export function FeedbackFormScreen({
   language,
   initialCategory,
+  initialDraft,
   technicalDetails,
+  onDraftChange,
+  onDiscardDraft,
   onPickScreenshot,
   onRemoveScreenshot,
   onSubmit,
@@ -69,18 +75,31 @@ export function FeedbackFormScreen({
   const colorScheme: ColorScheme = nativeColorScheme === 'dark' ? 'dark' : 'light';
   const colors = themeColors(colorScheme);
   const catalog = feedbackCatalogs[language];
-  const [draft, setDraft] = useState<FeedbackFormDraft>(() =>
-    createFeedbackFormDraft(initialCategory),
+  const [draft, setDraft] = useState<FeedbackFormDraft>(
+    () => initialDraft ?? createFeedbackFormDraft(initialCategory),
   );
   const [previewing, setPreviewing] = useState(false);
   const [selectingScreenshot, setSelectingScreenshot] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [discardConfirming, setDiscardConfirming] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const sanitizedTechnicalDetails = useMemo(
     () => sanitizeFeedbackTechnicalDetails(technicalDetails as Readonly<Record<string, unknown>>),
     [technicalDetails],
   );
+
+  const persistDraft = (nextDraft: FeedbackFormDraft) => {
+    setDraft(nextDraft);
+    void Promise.resolve(onDraftChange?.(nextDraft)).catch(() => {
+      setError(catalog.submitFailed);
+    });
+  };
+
+  const hasDraftContent =
+    draft.description.trim().length > 0 ||
+    draft.email.trim().length > 0 ||
+    draft.screenshot !== null;
 
   const chooseScreenshot = async () => {
     if (selectingScreenshot) return;
@@ -90,7 +109,9 @@ export function FeedbackFormScreen({
       const screenshot = await onPickScreenshot();
       if (screenshot === null) return;
       const previous = draft.screenshot;
-      setDraft((current) => updateFeedbackFormDraft(current, { screenshot }));
+      const nextDraft = updateFeedbackFormDraft(draft, { screenshot });
+      setDraft(nextDraft);
+      await onDraftChange?.(nextDraft);
       if (previous !== null && previous.uri !== screenshot.uri) {
         await onRemoveScreenshot?.(previous);
       }
@@ -107,7 +128,7 @@ export function FeedbackFormScreen({
     setError(null);
     try {
       await onRemoveScreenshot?.(screenshot);
-      setDraft((current) => updateFeedbackFormDraft(current, { screenshot: null }));
+      persistDraft(updateFeedbackFormDraft(draft, { screenshot: null }));
     } catch {
       setError(catalog.submitFailed);
     }
@@ -131,9 +152,25 @@ export function FeedbackFormScreen({
       }
       setSuccess(true);
     } catch {
-      setError(catalog.submitFailed);
+      setError(catalog.offlineSubmitFailed);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const discardDraft = async () => {
+    setError(null);
+    try {
+      if (onDiscardDraft !== undefined) {
+        await onDiscardDraft();
+      } else if (draft.screenshot !== null) {
+        await onRemoveScreenshot?.(draft.screenshot);
+      }
+      setDraft(createFeedbackFormDraft(initialCategory));
+      setPreviewing(false);
+      setDiscardConfirming(false);
+    } catch {
+      setError(catalog.submitFailed);
     }
   };
 
@@ -263,7 +300,7 @@ export function FeedbackFormScreen({
                       accessibilityState={{ selected }}
                       key={category}
                       onPress={() => {
-                        setDraft((current) => updateFeedbackFormDraft(current, { category }));
+                        persistDraft(updateFeedbackFormDraft(draft, { category }));
                       }}
                       style={[
                         styles.categoryButton,
@@ -292,7 +329,7 @@ export function FeedbackFormScreen({
                 allowFontScaling
                 multiline
                 onChangeText={(description) => {
-                  setDraft((current) => updateFeedbackFormDraft(current, { description }));
+                  persistDraft(updateFeedbackFormDraft(draft, { description }));
                 }}
                 placeholder={catalog.descriptionPlaceholder}
                 placeholderTextColor={colors.textTertiary}
@@ -320,7 +357,7 @@ export function FeedbackFormScreen({
                 autoCorrect={false}
                 keyboardType="email-address"
                 onChangeText={(email) => {
-                  setDraft((current) => updateFeedbackFormDraft(current, { email }));
+                  persistDraft(updateFeedbackFormDraft(draft, { email }));
                 }}
                 placeholder={catalog.emailPlaceholder}
                 placeholderTextColor={colors.textTertiary}
@@ -398,6 +435,52 @@ export function FeedbackFormScreen({
             />
           </>
         )}
+
+        {hasDraftContent ? (
+          <SecondaryButton
+            accessibilityLabel={catalog.discardDraft}
+            colorScheme={colorScheme}
+            disabled={submitting}
+            label={catalog.discardDraft}
+            onPress={() => {
+              setDiscardConfirming(true);
+            }}
+            testID="feedback-discard-draft"
+          />
+        ) : null}
+
+        {discardConfirming ? (
+          <View style={styles.disclosure} testID="feedback-discard-confirmation">
+            <Text
+              accessibilityRole="header"
+              allowFontScaling
+              style={[styles.heading, { color: colors.textPrimary }]}
+            >
+              {catalog.discardDraftTitle}
+            </Text>
+            <Text allowFontScaling style={[styles.value, { color: colors.textSecondary }]}>
+              {catalog.discardDraftBody}
+            </Text>
+            <SecondaryButton
+              accessibilityLabel={catalog.keepDraft}
+              colorScheme={colorScheme}
+              label={catalog.keepDraft}
+              onPress={() => {
+                setDiscardConfirming(false);
+              }}
+              testID="feedback-discard-cancel"
+            />
+            <PrimaryButton
+              accessibilityLabel={catalog.confirmDiscard}
+              colorScheme={colorScheme}
+              label={catalog.confirmDiscard}
+              onPress={() => {
+                void discardDraft();
+              }}
+              testID="feedback-discard"
+            />
+          </View>
+        ) : null}
 
         {error === null ? null : (
           <Text

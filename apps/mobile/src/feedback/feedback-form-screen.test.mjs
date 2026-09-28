@@ -112,4 +112,65 @@ describe('MTS-106 feedback form interaction', () => {
     );
     expect(renderer.root.findByProps({ testID: 'feedback-success' })).toBeDefined();
   });
+
+  it('persists a replacement screenshot before removing the previous working file', async () => {
+    let releaseDraftSave;
+    const draftSave = new Promise((resolve) => {
+      releaseDraftSave = resolve;
+    });
+    const onDraftChange = vi.fn(() => draftSave);
+    const onRemoveScreenshot = vi.fn(async () => undefined);
+    const oldScreenshot = {
+      uri: 'file:///old.png',
+      mimeType: 'image/png',
+      sizeBytes: 10,
+    };
+    const newScreenshot = {
+      uri: 'file:///new.png',
+      mimeType: 'image/png',
+      sizeBytes: 20,
+    };
+
+    let renderer;
+    act(() => {
+      renderer = create(
+        createElement(FeedbackFormScreen, {
+          initialCategory: 'feedback',
+          initialDraft: {
+            category: 'feedback',
+            description: 'Saved draft',
+            email: '',
+            screenshot: oldScreenshot,
+          },
+          language: 'en',
+          onDone: vi.fn(),
+          onDraftChange,
+          onPickScreenshot: vi.fn(async () => newScreenshot),
+          onRemoveScreenshot,
+          onSubmit: vi.fn(async () => undefined),
+          technicalDetails: { screenName: 'feedback' },
+        }),
+      );
+    });
+
+    const replace = renderer.root.findByProps({ testID: 'feedback-screenshot-replace' });
+    let replacement;
+    await act(async () => {
+      replacement = replace.props.onPress();
+      await Promise.resolve();
+    });
+
+    expect(onDraftChange).toHaveBeenCalledWith(
+      expect.objectContaining({ screenshot: newScreenshot }),
+    );
+    expect(onRemoveScreenshot).not.toHaveBeenCalled();
+
+    releaseDraftSave();
+    await act(async () => {
+      await replacement;
+      await Promise.resolve();
+    });
+
+    expect(onRemoveScreenshot).toHaveBeenCalledWith(oldScreenshot);
+  });
 });

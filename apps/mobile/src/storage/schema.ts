@@ -27,6 +27,7 @@ export const accountDataTables = [
   'hidden_event_summaries',
   'planner_drafts',
   'story_drafts',
+  'feedback_drafts',
   'story_retention_tombstones',
   'search_documents',
   'sync_cursors',
@@ -299,6 +300,35 @@ export const mobileMigrations: readonly MobileMigration[] = [
       `ALTER TABLE local_accounts
         ADD COLUMN diagnostics_enabled INTEGER NOT NULL DEFAULT 1
         CHECK (diagnostics_enabled IN (0, 1))`,
+    ],
+  },
+  {
+    version: 10,
+    name: 'offline-feedback-draft',
+    statements: [
+      `CREATE TABLE feedback_drafts (
+        account_id TEXT PRIMARY KEY NOT NULL,
+        category TEXT NOT NULL CHECK (category IN ('feedback', 'problem')),
+        description TEXT NOT NULL,
+        email TEXT NOT NULL,
+        technical_details_json TEXT NOT NULL DEFAULT '{}',
+        screenshot_uri TEXT,
+        screenshot_mime_type TEXT,
+        screenshot_size_bytes INTEGER CHECK (
+          screenshot_size_bytes IS NULL OR screenshot_size_bytes >= 0
+        ),
+        updated_at TEXT NOT NULL,
+        CHECK (
+          (screenshot_uri IS NULL AND screenshot_mime_type IS NULL AND screenshot_size_bytes IS NULL)
+          OR
+          (
+            screenshot_uri IS NOT NULL
+            AND screenshot_mime_type = 'image/png'
+            AND screenshot_size_bytes IS NOT NULL
+          )
+        ),
+        FOREIGN KEY (account_id) REFERENCES local_accounts (account_id) ON DELETE CASCADE
+      )`,
     ],
   },
 ];

@@ -10,6 +10,7 @@ import {
 } from './auth-session.js';
 import { createSecureSessionStorage } from './secure-session-storage.js';
 import { createSignOutCleanup } from './sign-out-cleanup.js';
+import { clearFeedbackDraftForAccount } from '../feedback/feedback-draft-platform.js';
 import { rootMissionNotificationScheduler } from '../notifications/expo-mission-notifications.js';
 import { openMobileDatabase } from '../storage/database.js';
 import { rootAppleCalendarConnectionCache } from '../sync/apple-calendar-connection-cache-runtime.js';
@@ -65,6 +66,7 @@ export const rootAuthController = createAuthSessionController({
       cancelNotifications: async () => {
         await rootMissionNotificationScheduler.cancelAll();
       },
+      clearFeedbackDraft: clearFeedbackDraftForAccount,
       clearAppKeys: (accountId) => rootAppleCalendarConnectionCache.clear(accountId),
     },
   }),
