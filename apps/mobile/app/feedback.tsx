@@ -73,12 +73,12 @@ export default function FeedbackRoute() {
   const [draftRuntime, setDraftRuntime] = useState<FeedbackDraftRuntime | null>(null);
 
   useEffect(() => {
-    let active = true;
+    const lifecycle = { active: true };
 
     void (async () => {
       const authState = await rootAuthController.restore();
       if (authState.status !== 'signed_in') {
-        if (active) router.back();
+        if (lifecycle.active) router.back();
         return;
       }
       const database = await openMobileDatabase();
@@ -88,7 +88,7 @@ export default function FeedbackRoute() {
         removeScreenshot: removeFeedbackScreenshotFile,
       });
       const persisted = await store.load();
-      if (!active) return;
+      if (!lifecycle.active) return;
       setDraftRuntime(
         Object.freeze({
           store,
@@ -98,11 +98,11 @@ export default function FeedbackRoute() {
         }),
       );
     })().catch(() => {
-      if (active) router.back();
+      if (lifecycle.active) router.back();
     });
 
     return () => {
-      active = false;
+      lifecycle.active = false;
     };
   }, [router]);
 
