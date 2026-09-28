@@ -6,6 +6,7 @@ import { Pool } from 'pg';
 import { deleteAccountTransaction } from '@misyra/database';
 
 import { createApiServer } from './index.js';
+import { createRetainedFeedbackRoutes } from './retained-feedback-routes.js';
 
 const postgresUser = process.env.POSTGRES_USER ?? 'misyra';
 const postgresPassword = process.env.POSTGRES_PASSWORD ?? 'misyra-local-only';
@@ -14,7 +15,6 @@ const databaseName = `misyra_mts108_${randomUUID().replaceAll('-', '')}`;
 const databaseUrl = `postgresql://${postgresUser}:${postgresPassword}@127.0.0.1:${postgresPort}/${databaseName}`;
 const adminUrl = `postgresql://${postgresUser}:${postgresPassword}@127.0.0.1:${postgresPort}/postgres`;
 const retainedFeedbackModule = './retained-feedback.js';
-const retainedFeedbackRoutesModule = './retained-feedback-routes.js';
 
 describe('MTS-108 retained feedback storage and unlinking', () => {
   let pool: Pool;
