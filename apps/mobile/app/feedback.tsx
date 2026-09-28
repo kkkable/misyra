@@ -35,13 +35,8 @@ export default function FeedbackRoute() {
       {
         uri: selected.uri,
         mimeType:
-          typeof selected.type === 'string' && selected.type.length > 0
-            ? selected.type
-            : null,
-        name:
-          typeof selected.name === 'string' && selected.name.length > 0
-            ? selected.name
-            : null,
+          typeof selected.type === 'string' && selected.type.length > 0 ? selected.type : null,
+        name: typeof selected.name === 'string' && selected.name.length > 0 ? selected.name : null,
       },
       transcodeFeedbackScreenshotToPng,
     );
