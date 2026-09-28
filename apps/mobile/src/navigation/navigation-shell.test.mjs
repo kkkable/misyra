@@ -119,6 +119,7 @@ describe('MTS-010 route inventory', () => {
         '+not-found.tsx',
         '_layout.tsx',
         'evidence.tsx',
+        'feedback.tsx',
         'mission',
         'story.tsx',
       ]),
@@ -150,7 +151,7 @@ describe('MTS-010 tab-navigation shell', () => {
     expect(tabs.props.screenOptions.tabBarStyle.minHeight).toBeGreaterThanOrEqual(44);
   });
 
-  it('keeps Mission Details above tabs while Evidence and Story remain full-screen modal routes', () => {
+  it('keeps utility routes above tabs while Evidence and Story remain full-screen modal routes', () => {
     const renderer = render(createElement(RootLayout));
     const screens = renderer.root.findAllByType('StackScreen');
 
@@ -159,6 +160,7 @@ describe('MTS-010 tab-navigation shell', () => {
       'mission/[id]',
       'evidence',
       'story',
+      'feedback',
     ]);
     expect(screens[0].props.options).toMatchObject({ headerShown: false });
     expect(screens[1].props.options).toMatchObject({
@@ -176,6 +178,11 @@ describe('MTS-010 tab-navigation shell', () => {
       headerShown: false,
       presentation: 'fullScreenModal',
     });
+    expect(screens[4].props.options).toMatchObject({
+      gestureEnabled: true,
+      headerShown: false,
+    });
+    expect(screens[4].props.options.presentation).toBeUndefined();
   });
 
   it('anchors cold-started modal routes to the tab navigator so Back returns to Calendar', () => {
