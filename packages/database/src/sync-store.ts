@@ -107,6 +107,8 @@ type SettingsPatch = Readonly<{
   diagnosticsEnabled?: boolean;
 }>;
 
+const SETTINGS_PATCH_KEYS = new Set(['language', 'trustMode', 'diagnosticsEnabled']);
+
 type MissionPersonalNotePayload = Readonly<{
   note: string;
 }>;
@@ -771,12 +773,7 @@ function parseMissionDeletePayload(payload: unknown): MissionDeletePayload | nul
 function parseSettingsPatch(payload: unknown): SettingsPatch {
   const source = asRecord(payload, 'Settings mutation payload');
   const keys = Object.keys(source);
-  if (
-    keys.length === 0 ||
-    keys.some(
-      (key) => key !== 'language' && key !== 'trustMode' && key !== 'diagnosticsEnabled',
-    )
-  ) {
+  if (keys.length === 0 || keys.some((key) => !SETTINGS_PATCH_KEYS.has(key))) {
     throw new SyncMutationValidationError('Settings mutation contains unsupported fields');
   }
   const patch: {
