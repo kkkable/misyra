@@ -7,9 +7,7 @@ export type PickedFeedbackScreenshot = Readonly<{
   metadata?: unknown;
 }>;
 
-export type FeedbackScreenshotTranscoder = (
-  sourceUri: string,
-) => Promise<FeedbackScreenshot>;
+export type FeedbackScreenshotTranscoder = (sourceUri: string) => Promise<FeedbackScreenshot>;
 
 export async function sanitizeFeedbackScreenshot(
   picked: PickedFeedbackScreenshot,
