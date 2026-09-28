@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { accountSettingsSchema, accountSettingsUpdateSchema } from './device-settings.js';
+import { accountSettingsSchema, accountSettingsUpdateSchema } from './v1/device-settings.js';
 
 describe('MTS-105 diagnostics account setting', () => {
   it('defaults diagnostics to enabled in the full settings contract', () => {
