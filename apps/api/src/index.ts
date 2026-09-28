@@ -29,6 +29,9 @@ export type ApiAuditEntry = {
   method: string;
   route: string;
   statusCode: number;
+  durationMs: number;
+  outcome: 'success' | 'client_error' | 'server_error';
+  errorCode?: ApiErrorCode;
 };
 
 export type ApiAuditLog = (entry: ApiAuditEntry) => void;
@@ -177,6 +180,8 @@ export function createApiServer(options: ApiServerOptions = {}) {
   const readiness = options.readiness ?? createLocalReadinessCheck();
   const routes = options.routes ?? [];
   const authenticate = options.authenticate ?? (() => null);
+  const requestStartedAt = new Map<string, number>();
+  const requestErrorCodes = new Map<string, ApiErrorCode>();
   const server = Fastify({
     logger: false,
     routerOptions: {
@@ -197,18 +202,32 @@ export function createApiServer(options: ApiServerOptions = {}) {
   );
 
   server.addHook('onRequest', (request, reply, done) => {
+    requestStartedAt.set(request.id, Date.now());
     reply.header('x-request-id', request.id);
     done();
   });
 
   if (options.auditLog) {
     server.addHook('onResponse', (request, reply, done) => {
+      const startedAt = requestStartedAt.get(request.id) ?? Date.now();
+      const errorCode = requestErrorCodes.get(request.id);
+      const outcome =
+        reply.statusCode >= 500
+          ? 'server_error'
+          : reply.statusCode >= 400
+            ? 'client_error'
+            : 'success';
       options.auditLog?.({
         requestId: request.id,
         method: request.method,
         route: routeLabel(request),
         statusCode: reply.statusCode,
+        durationMs: Math.max(0, Date.now() - startedAt),
+        outcome,
+        ...(errorCode === undefined ? {} : { errorCode }),
       });
+      requestStartedAt.delete(request.id);
+      requestErrorCodes.delete(request.id);
       done();
     });
   }
@@ -221,6 +240,7 @@ export function createApiServer(options: ApiServerOptions = {}) {
         ? error.code
         : 'temporarily_unavailable';
     const statusCode = validationError ? 400 : errorStatus[code];
+    requestErrorCodes.set(request.id, code);
 
     return reply.code(statusCode).send(errorEnvelope(request.id, code));
   });
