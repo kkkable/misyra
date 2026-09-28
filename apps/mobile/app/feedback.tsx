@@ -146,7 +146,7 @@ export default function FeedbackRoute() {
         });
         try {
           await api.submit(payload);
-          await draftRuntime.store.discard();
+          await draftRuntime.store.completeSubmission();
         } catch (error) {
           await draftRuntime.store.save({
             draft: draftFromPayload(payload),
