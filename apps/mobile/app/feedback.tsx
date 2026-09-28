@@ -121,9 +121,7 @@ export default function FeedbackRoute() {
   return (
     <FeedbackFormScreen
       initialCategory={category}
-      {...(draftRuntime.initialDraft === null
-        ? {}
-        : { initialDraft: draftRuntime.initialDraft })}
+      {...(draftRuntime.initialDraft === null ? {} : { initialDraft: draftRuntime.initialDraft })}
       language={language}
       onDiscardDraft={() => draftRuntime.store.discard()}
       onDone={() => {
