@@ -95,7 +95,7 @@ describe('MTS-050 Calendar help integration', () => {
     expect(renderer.root.findAllByProps({ testID: 'calendar-help-sheet' })).toHaveLength(0);
   });
 
-  it('routes the default full FAQ action toward Settings help', () => {
+  it('routes the default full FAQ action toward Settings FAQ', () => {
     state.routerPush.mockReset();
     let renderer;
     act(() => {
@@ -107,7 +107,7 @@ describe('MTS-050 Calendar help integration', () => {
 
     expect(state.routerPush).toHaveBeenCalledWith({
       pathname: '/settings',
-      params: { section: 'help' },
+      params: { section: 'faq' },
     });
     expect(renderer.root.findAllByProps({ testID: 'calendar-help-sheet' })).toHaveLength(0);
   });
