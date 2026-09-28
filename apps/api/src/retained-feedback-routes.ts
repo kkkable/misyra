@@ -1,7 +1,4 @@
-import {
-  IdempotencyConflictError,
-  IncompleteIdempotencyRecordError,
-} from '@misyra/database';
+import { IdempotencyConflictError, IncompleteIdempotencyRecordError } from '@misyra/database';
 import type { FastifyRequest } from 'fastify';
 
 import { ApiError, type ApiRouteDefinition } from './index.js';
@@ -115,7 +112,9 @@ export function parseRetainedFeedbackRequest(request: FastifyRequest): unknown {
   };
 }
 
-export function createRetainedFeedbackRoutes(service: RetainedFeedbackService): ApiRouteDefinition[] {
+export function createRetainedFeedbackRoutes(
+  service: RetainedFeedbackService,
+): ApiRouteDefinition[] {
   return [
     {
       method: 'POST',
