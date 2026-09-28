@@ -6,17 +6,19 @@ import type { Pool } from 'pg';
 export type MediaUploadPurpose =
   'evidence-working' | 'story-working' | 'planner-working' | 'style-references';
 
+export type PrivateBlobContainer = MediaUploadPurpose | 'feedback-retained';
+
 export type MediaUploadVariant = 'original' | 'thumbnail' | 'derivative' | 'temporary';
 
 export type ProtectedMediaBlobStore = Readonly<{
   put(
-    container: MediaUploadPurpose,
+    container: PrivateBlobContainer,
     storageKey: string,
     bytes: Buffer,
     contentType: string,
   ): Promise<void>;
-  get(container: MediaUploadPurpose, storageKey: string): Promise<Buffer>;
-  delete(container: MediaUploadPurpose, storageKey: string): Promise<void>;
+  get(container: PrivateBlobContainer, storageKey: string): Promise<Buffer>;
+  delete(container: PrivateBlobContainer, storageKey: string): Promise<void>;
 }>;
 
 export type ProtectedMediaUploadCommitted = Readonly<{
@@ -148,7 +150,7 @@ function encodeBlobKey(key: string) {
     .join('/');
 }
 
-function isImmutableEvidenceOriginal(container: MediaUploadPurpose, key: string) {
+function isImmutableEvidenceOriginal(container: PrivateBlobContainer, key: string) {
   return container === 'evidence-working' && key.endsWith('/original');
 }
 
@@ -222,7 +224,7 @@ function createAzuriteBlobStore(env: NodeJS.ProcessEnv): ProtectedMediaBlobStore
   const port = env.AZURITE_BLOB_PORT ?? '10000';
   const endpoint = `http://127.0.0.1:${port}/${AZURITE_ACCOUNT}`;
 
-  async function ensureContainer(container: MediaUploadPurpose) {
+  async function ensureContainer(container: PrivateBlobContainer) {
     const url = new URL(`${endpoint}/${container}?restype=container`);
     const response = await fetch(url, {
       method: 'PUT',
