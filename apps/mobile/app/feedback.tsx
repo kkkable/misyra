@@ -93,7 +93,8 @@ export default function FeedbackRoute() {
         Object.freeze({
           store,
           initialDraft: persisted?.draft ?? null,
-          technicalDetails: persisted?.technicalDetails ?? Object.freeze({ screenName: 'feedback' }),
+          technicalDetails:
+            persisted?.technicalDetails ?? Object.freeze({ screenName: 'feedback' }),
         }),
       );
     })().catch(() => {
@@ -120,7 +121,9 @@ export default function FeedbackRoute() {
   return (
     <FeedbackFormScreen
       initialCategory={category}
-      {...(draftRuntime.initialDraft === null ? {} : { initialDraft: draftRuntime.initialDraft })}
+      {...(draftRuntime.initialDraft === null
+        ? {}
+        : { initialDraft: draftRuntime.initialDraft })}
       language={language}
       onDiscardDraft={() => draftRuntime.store.discard()}
       onDone={() => {
