@@ -28,7 +28,9 @@ describe('MTS-031 authenticated sync transport correction', () => {
       requests.push({ url, init });
       if (url.endsWith('/v1/devices/register')) return Promise.resolve(envelope({ deviceId }));
       if (url.endsWith('/v1/account/settings')) {
-        return Promise.resolve(envelope({ language: 'zh-HK', trustMode: true, diagnosticsEnabled: true }));
+        return Promise.resolve(
+          envelope({ language: 'zh-HK', trustMode: true, diagnosticsEnabled: true }),
+        );
       }
       if (url.endsWith('/v1/sync/push')) {
         return Promise.resolve(envelope({ acceptedMutationIds: [], conflicts: [] }));
@@ -89,7 +91,9 @@ describe('MTS-039 signed-in runtime correction', () => {
     };
     const api = {
       registerDevice: vi.fn(() => Promise.resolve({ deviceId })),
-      getAccountSettings: vi.fn(() => Promise.resolve({ language: 'zh-HK', trustMode: true, diagnosticsEnabled: true })),
+      getAccountSettings: vi.fn(() =>
+        Promise.resolve({ language: 'zh-HK', trustMode: true, diagnosticsEnabled: true }),
+      ),
       push: vi.fn(() => Promise.resolve({ acceptedMutationIds: [], conflicts: [] })),
       pull: vi.fn(() =>
         Promise.resolve({ kind: 'incremental', changes: [], nextCursor: 0, hasMore: false }),
@@ -167,7 +171,9 @@ describe('MTS-039 signed-in runtime correction', () => {
         }),
       apiFactory: vi.fn(() => ({
         registerDevice: vi.fn(() => Promise.resolve({ deviceId })),
-        getAccountSettings: vi.fn(() => Promise.resolve({ language: 'en', trustMode: false, diagnosticsEnabled: true })),
+        getAccountSettings: vi.fn(() =>
+          Promise.resolve({ language: 'en', trustMode: false, diagnosticsEnabled: true }),
+        ),
       })),
       runEvidenceSync: vi.fn(() => {
         calls.push('evidence');
@@ -215,7 +221,9 @@ describe('MTS-099 retention-before-sync ordering', () => {
         }),
       apiFactory: vi.fn(() => ({
         registerDevice: vi.fn(() => Promise.resolve({ deviceId })),
-        getAccountSettings: vi.fn(() => Promise.resolve({ language: 'en', trustMode: false, diagnosticsEnabled: true })),
+        getAccountSettings: vi.fn(() =>
+          Promise.resolve({ language: 'en', trustMode: false, diagnosticsEnabled: true }),
+        ),
       })),
       runStoryRetention: vi.fn(() => {
         calls.push('retention');
@@ -251,7 +259,9 @@ describe('MTS-099 retention-before-sync ordering', () => {
         calls.push('register');
         return Promise.reject(networkError);
       }),
-      getAccountSettings: vi.fn(() => Promise.resolve({ language: 'en', trustMode: false, diagnosticsEnabled: true })),
+      getAccountSettings: vi.fn(() =>
+        Promise.resolve({ language: 'en', trustMode: false, diagnosticsEnabled: true }),
+      ),
     };
     const runtime = createAuthenticatedSyncRuntime({
       sessionProvider: () => Promise.resolve(session),
