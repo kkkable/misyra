@@ -15,6 +15,7 @@ import {
 } from '@misyra/domain';
 
 import type { AuthSession, AuthSessionController } from '../auth/auth-session.js';
+import { rootDiagnosticsRuntime } from '../diagnostics/mobile-diagnostics.js';
 import {
   createMutationQueue,
   type MutationQueue,
