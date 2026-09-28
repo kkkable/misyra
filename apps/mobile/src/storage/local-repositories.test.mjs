@@ -224,6 +224,7 @@ describe('MTS-029 local repository integration', () => {
     expect(await repositories.settings.get()).toEqual({
       language: 'zh-HK',
       trustMode: true,
+      diagnosticsEnabled: true,
       appTimeZone: 'Asia/Hong_Kong',
       updatedAt: '2026-09-04T00:00:00.000Z',
     });

@@ -60,6 +60,7 @@ export interface ProgressSnapshot {
 export interface LocalSettings {
   readonly language: 'en' | 'zh-HK';
   readonly trustMode: boolean;
+  readonly diagnosticsEnabled: boolean;
   readonly appTimeZone: string;
   readonly updatedAt: string | null;
 }
@@ -156,6 +157,7 @@ interface ProgressSnapshotRow {
 interface SettingsRow {
   readonly language: string;
   readonly trust_mode: number;
+  readonly diagnostics_enabled: number;
   readonly app_time_zone: string;
   readonly settings_updated_at: string | null;
 }
@@ -409,7 +411,7 @@ export function createLocalRepositories(database: LocalRepositoryDatabase, accou
 
   const getSettings = async (): Promise<LocalSettings | null> => {
     const row = await database.getFirstAsync<SettingsRow>(
-      `SELECT language, trust_mode, app_time_zone, settings_updated_at
+      `SELECT language, trust_mode, diagnostics_enabled, app_time_zone, settings_updated_at
          FROM local_accounts
         WHERE account_id = ?`,
       accountId,
@@ -421,6 +423,7 @@ export function createLocalRepositories(database: LocalRepositoryDatabase, accou
     return {
       language: row.language,
       trustMode: row.trust_mode === 1,
+      diagnosticsEnabled: row.diagnostics_enabled === 1,
       appTimeZone: row.app_time_zone,
       updatedAt: row.settings_updated_at,
     };

@@ -71,6 +71,7 @@ interface MutationMatchRow extends QueryResultRow {
 interface SettingsRow extends QueryResultRow {
   language: 'en' | 'zh-HK';
   trustMode: boolean;
+  diagnosticsEnabled: boolean;
 }
 
 interface MissionUpdateRow extends QueryResultRow {
@@ -103,7 +104,10 @@ interface MissionDeleteRow extends QueryResultRow {
 type SettingsPatch = Readonly<{
   language?: 'en' | 'zh-HK';
   trustMode?: boolean;
+  diagnosticsEnabled?: boolean;
 }>;
+
+const SETTINGS_PATCH_KEYS = new Set(['language', 'trustMode', 'diagnosticsEnabled']);
 
 type MissionPersonalNotePayload = Readonly<{
   note: string;
@@ -769,10 +773,14 @@ function parseMissionDeletePayload(payload: unknown): MissionDeletePayload | nul
 function parseSettingsPatch(payload: unknown): SettingsPatch {
   const source = asRecord(payload, 'Settings mutation payload');
   const keys = Object.keys(source);
-  if (keys.length === 0 || keys.some((key) => key !== 'language' && key !== 'trustMode')) {
+  if (keys.length === 0 || keys.some((key) => !SETTINGS_PATCH_KEYS.has(key))) {
     throw new SyncMutationValidationError('Settings mutation contains unsupported fields');
   }
-  const patch: { language?: 'en' | 'zh-HK'; trustMode?: boolean } = {};
+  const patch: {
+    language?: 'en' | 'zh-HK';
+    trustMode?: boolean;
+    diagnosticsEnabled?: boolean;
+  } = {};
   if (Object.hasOwn(source, 'language')) {
     if (source.language !== 'en' && source.language !== 'zh-HK') {
       throw new SyncMutationValidationError('Settings language must be en or zh-HK');
@@ -784,6 +792,12 @@ function parseSettingsPatch(payload: unknown): SettingsPatch {
       throw new SyncMutationValidationError('Trust Mode must be boolean');
     }
     patch.trustMode = source.trustMode;
+  }
+  if (Object.hasOwn(source, 'diagnosticsEnabled')) {
+    if (typeof source.diagnosticsEnabled !== 'boolean') {
+      throw new SyncMutationValidationError('Diagnostics setting must be boolean');
+    }
+    patch.diagnosticsEnabled = source.diagnosticsEnabled;
   }
   return patch;
 }
@@ -1670,15 +1684,23 @@ async function applySettingsMutation(
   }
   const patch = parseSettingsPatch(payload);
   const result = await client.query<SettingsRow>(
-    `INSERT INTO user_settings (account_id, language, trust_mode)
-     VALUES ($1, COALESCE($2::text, 'en'), COALESCE($3::boolean, false))
+    `INSERT INTO user_settings (account_id, language, trust_mode, diagnostics_enabled)
+     VALUES (
+       $1,
+       COALESCE($2::text, 'en'),
+       COALESCE($3::boolean, false),
+       COALESCE($4::boolean, true)
+     )
      ON CONFLICT (account_id)
      DO UPDATE SET
        language = COALESCE($2::text, user_settings.language),
        trust_mode = COALESCE($3::boolean, user_settings.trust_mode),
+       diagnostics_enabled = COALESCE($4::boolean, user_settings.diagnostics_enabled),
        updated_at = now()
-     RETURNING language, trust_mode AS "trustMode"`,
-    [accountId, patch.language ?? null, patch.trustMode ?? null],
+     RETURNING language,
+               trust_mode AS "trustMode",
+               diagnostics_enabled AS "diagnosticsEnabled"`,
+    [accountId, patch.language ?? null, patch.trustMode ?? null, patch.diagnosticsEnabled ?? null],
   );
   const row = result.rows[0];
   if (row === undefined) throw new Error('Settings sync update returned no row');

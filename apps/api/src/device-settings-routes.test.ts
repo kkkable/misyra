@@ -10,17 +10,23 @@ const deviceId = '223e4567-e89b-42d3-a456-426614174000';
 type TestSettingsUpdate = {
   language?: 'en' | 'zh-HK' | undefined;
   trustMode?: boolean | undefined;
+  diagnosticsEnabled?: boolean | undefined;
 };
 
 function fixture() {
   const registerDevice = vi.fn(() => Promise.resolve(deviceId));
   const getAccountSettings = vi.fn(() =>
-    Promise.resolve({ language: 'en' as const, trustMode: false }),
+    Promise.resolve({
+      language: 'en' as const,
+      trustMode: false,
+      diagnosticsEnabled: true,
+    }),
   );
   const updateAccountSettings = vi.fn((_accountId: string, settings: TestSettingsUpdate) =>
     Promise.resolve({
       language: settings.language ?? 'en',
       trustMode: settings.trustMode ?? false,
+      diagnosticsEnabled: settings.diagnosticsEnabled ?? true,
     }),
   );
   const store: DeviceRegistrationStore = {

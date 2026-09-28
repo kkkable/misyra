@@ -4,10 +4,11 @@ import { createDeviceSettingsService, type DeviceRegistrationStore } from './dev
 
 const ACCOUNT_ID = '11111111-1111-4111-8111-111111111111';
 
-type TestSettings = { language: 'en' | 'zh-HK'; trustMode: boolean };
+type TestSettings = { language: 'en' | 'zh-HK'; trustMode: boolean; diagnosticsEnabled: boolean };
 type TestSettingsUpdate = {
   language?: 'en' | 'zh-HK' | undefined;
   trustMode?: boolean | undefined;
+  diagnosticsEnabled?: boolean | undefined;
 };
 
 function createStore(): DeviceRegistrationStore & {
@@ -15,7 +16,7 @@ function createStore(): DeviceRegistrationStore & {
   settings: TestSettings;
 } {
   const registrations: unknown[] = [];
-  let settings: TestSettings = { language: 'en', trustMode: false };
+  let settings: TestSettings = { language: 'en', trustMode: false, diagnosticsEnabled: true };
   const state = {
     registrations,
     get settings() {
@@ -32,6 +33,7 @@ function createStore(): DeviceRegistrationStore & {
       settings = {
         language: nextSettings.language ?? settings.language,
         trustMode: nextSettings.trustMode ?? settings.trustMode,
+        diagnosticsEnabled: nextSettings.diagnosticsEnabled ?? settings.diagnosticsEnabled,
       };
       return Promise.resolve(settings);
     },
@@ -84,16 +86,18 @@ describe('MTS-039 device registration and account settings sync', () => {
     const service = createDeviceSettingsService(store);
 
     await expect(service.updateAccountSettings(ACCOUNT_ID, { language: 'zh-HK' })).resolves.toEqual(
-      { language: 'zh-HK', trustMode: false },
+      { language: 'zh-HK', trustMode: false, diagnosticsEnabled: true },
     );
     await expect(service.updateAccountSettings(ACCOUNT_ID, { trustMode: true })).resolves.toEqual({
       language: 'zh-HK',
       trustMode: true,
+      diagnosticsEnabled: true,
     });
 
     await expect(service.getAccountSettings(ACCOUNT_ID)).resolves.toEqual({
       language: 'zh-HK',
       trustMode: true,
+      diagnosticsEnabled: true,
     });
 
     expect(() => service.parseAccountSettingsUpdate({})).toThrow();

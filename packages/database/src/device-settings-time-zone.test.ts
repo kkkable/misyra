@@ -32,12 +32,14 @@ type TimeZoneRegistrationResult = Readonly<{
 type TimeZoneSettings = Readonly<{
   language: 'en' | 'zh-HK';
   trustMode: boolean;
+  diagnosticsEnabled: boolean;
   appTimeZone: string;
 }>;
 
 type TimeZoneSettingsUpdate = Readonly<{
   language?: 'en' | 'zh-HK' | undefined;
   trustMode?: boolean | undefined;
+  diagnosticsEnabled?: boolean | undefined;
   appTimeZone?: string | undefined;
 }>;
 
@@ -89,6 +91,7 @@ describe('MTS-053 device-zone and account-zone ownership', () => {
     await expect(store.getAccountSettingsWithTimeZone(account.id)).resolves.toEqual({
       language: 'en',
       trustMode: false,
+      diagnosticsEnabled: true,
       appTimeZone: 'Asia/Tokyo',
     });
 
@@ -97,6 +100,7 @@ describe('MTS-053 device-zone and account-zone ownership', () => {
     ).resolves.toEqual({
       language: 'en',
       trustMode: false,
+      diagnosticsEnabled: true,
       appTimeZone: 'America/New_York',
     });
 
@@ -112,6 +116,7 @@ describe('MTS-053 device-zone and account-zone ownership', () => {
     await expect(store.getAccountSettingsWithTimeZone(account.id)).resolves.toEqual({
       language: 'en',
       trustMode: false,
+      diagnosticsEnabled: true,
       appTimeZone: 'America/New_York',
     });
 
@@ -144,6 +149,7 @@ describe('MTS-053 device-zone and account-zone ownership', () => {
     await expect(store.getAccountSettingsWithTimeZone(account.id)).resolves.toEqual({
       language: 'en',
       trustMode: false,
+      diagnosticsEnabled: true,
       appTimeZone: 'Europe/London',
     });
 
@@ -191,6 +197,7 @@ describe('MTS-053 device-zone and account-zone ownership', () => {
     await expect(store.getAccountSettingsWithTimeZone(account.id)).resolves.toEqual({
       language: 'zh-HK',
       trustMode: true,
+      diagnosticsEnabled: true,
       appTimeZone: 'Asia/Hong_Kong',
     });
   });

@@ -17,6 +17,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SystemText as Text } from '../accessibility/system-text.js';
 import { getAuthApiBaseUrl, rootAuthController } from '../auth/auth-runtime.js';
 import { CalendarRecurringScopeChooser } from '../calendar/calendar-recurring-scope-chooser.js';
+import { rootDiagnosticsRuntime } from '../diagnostics/mobile-diagnostics.js';
 import {
   DestructiveButton,
   Screen,
@@ -100,6 +101,7 @@ export function SettingsRouteScreen() {
   const [restoreScopeReturnFocusTarget, setRestoreScopeReturnFocusTarget] = useState<unknown>(null);
   const [restoringHiddenEventId, setRestoringHiddenEventId] = useState<string | null>(null);
   const [updatingTrustMode, setUpdatingTrustMode] = useState(false);
+  const [updatingDiagnostics, setUpdatingDiagnostics] = useState(false);
   const [updatingLanguage, setUpdatingLanguage] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
 
@@ -118,7 +120,9 @@ export function SettingsRouteScreen() {
       setAccountSettings(null);
       return;
     }
-    setAccountSettings(await api.getAccountSettings());
+    const settings = await api.getAccountSettings();
+    rootDiagnosticsRuntime.setEnabled(settings.diagnosticsEnabled);
+    setAccountSettings(settings);
   }, [authenticatedApi]);
 
   const loadConnectedCalendar = useCallback(async () => {
@@ -220,6 +224,27 @@ export function SettingsRouteScreen() {
       }
     },
     [authenticatedApi, updatingTrustMode],
+  );
+
+  const updateDiagnostics = useCallback(
+    async (enabled: boolean) => {
+      if (updatingDiagnostics) return;
+      rootDiagnosticsRuntime.setEnabled(enabled);
+      setAccountSettings((current) =>
+        current === null ? current : { ...current, diagnosticsEnabled: enabled },
+      );
+      setUpdatingDiagnostics(true);
+      try {
+        const api = await authenticatedApi();
+        if (api === null) return;
+        const updated = await api.updateAccountSettings({ diagnosticsEnabled: enabled });
+        setAccountSettings(updated);
+        await rootSyncRuntime.run().catch(() => undefined);
+      } finally {
+        setUpdatingDiagnostics(false);
+      }
+    },
+    [authenticatedApi, updatingDiagnostics],
   );
 
   const updateLanguage = useCallback(
@@ -359,15 +384,16 @@ export function SettingsRouteScreen() {
             title={catalog.privacy}
             testID="settings-section-privacy"
           />
-          <SettingsRow
+          <ToggleRow
             accessibilityLabel={catalog.diagnostics}
             colorScheme={colorScheme}
+            disabled={accountSettings === null || updatingDiagnostics}
             label={catalog.diagnostics}
-            onPress={() => {
-              focusEntry('diagnostics');
+            onValueChange={(enabled) => {
+              void updateDiagnostics(enabled);
             }}
-            selected={selectedEntry === 'diagnostics'}
             testID="settings-row-diagnostics"
+            value={accountSettings?.diagnosticsEnabled ?? true}
           />
           <SettingsRow
             accessibilityLabel={catalog.mediaRetention}

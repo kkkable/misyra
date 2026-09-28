@@ -41,6 +41,7 @@ describe('MTS-053 authenticated device-zone runtime', () => {
         Promise.resolve({
           language: 'en',
           trustMode: false,
+          diagnosticsEnabled: true,
           appTimeZone: deviceTimeZone,
         }),
       ),
@@ -86,6 +87,7 @@ describe('MTS-053 authenticated device-zone runtime', () => {
       accountId,
       'en',
       0,
+      1,
       'Asia/Tokyo',
       '2026-09-10T11:00:00.000Z',
     );
@@ -109,6 +111,7 @@ describe('MTS-053 authenticated device-zone runtime', () => {
       accountId,
       'en',
       0,
+      1,
       'Europe/London',
       '2026-09-10T11:00:00.000Z',
     );
