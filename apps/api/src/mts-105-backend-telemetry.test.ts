@@ -34,7 +34,7 @@ describe('MTS-105 backend telemetry fields', () => {
     const entry = auditLog.mock.calls[0]?.[0] as ObservedAuditEntry | undefined;
     expect(entry).toMatchObject({
       method: 'POST',
-      route: '/feedback',
+      route: '/v1/feedback',
       statusCode: 200,
       outcome: 'success',
     });
@@ -70,7 +70,7 @@ describe('MTS-105 backend telemetry fields', () => {
     expect(auditLog).toHaveBeenCalledOnce();
     const entry = auditLog.mock.calls[0]?.[0] as ObservedAuditEntry | undefined;
     expect(entry).toMatchObject({
-      route: '/missions/:missionId/complete',
+      route: '/v1/missions/:missionId/complete',
       statusCode: 409,
       outcome: 'client_error',
       errorCode: 'already_completed',
