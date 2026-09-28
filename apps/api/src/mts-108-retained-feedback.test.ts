@@ -170,6 +170,57 @@ describe('MTS-108 retained feedback storage and unlinking', () => {
     await pool.query('DELETE FROM feedback_reports WHERE id = $1', [result.feedbackId]);
   });
 
+  it('replays the same submission key without duplicating retained content or media', async () => {
+    const accountId = randomUUID();
+    await pool.query(
+      `INSERT INTO accounts (id, provider, provider_subject)
+       VALUES ($1, 'google', $2)`,
+      [accountId, `subject-${accountId}`],
+    );
+
+    const screenshotBytes = Buffer.from('same retained screenshot');
+    const put = vi.fn(() => Promise.resolve());
+    const remove = vi.fn(() => Promise.resolve());
+    const module = (await import(retainedFeedbackModule)) as {
+      createRetainedFeedbackService(options: unknown): {
+        submit(accountId: string, input: unknown): Promise<{ feedbackId: string }>;
+      };
+    };
+    const service = module.createRetainedFeedbackService({
+      pool,
+      blobStore: { put, get: vi.fn(), delete: remove },
+      now: () => new Date('2026-09-28T12:30:00.000Z'),
+      generateId: randomUUID,
+    });
+    const idempotencyKey = randomUUID();
+    const submission = {
+      idempotencyKey,
+      category: 'problem',
+      description: 'Retry-safe feedback',
+      email: 'followup@example.test',
+      technicalDetails: { screenName: 'feedback' },
+      screenshot: {
+        bytes: screenshotBytes,
+        mimeType: 'image/png',
+        sizeBytes: screenshotBytes.length,
+      },
+    };
+
+    const first = await service.submit(accountId, submission);
+    const replay = await service.submit(accountId, submission);
+
+    expect(replay).toEqual(first);
+    expect(put).toHaveBeenCalledTimes(1);
+    const stored = await pool.query<{ count: string }>(
+      'SELECT count(*)::text AS count FROM feedback_reports WHERE account_id = $1',
+      [accountId],
+    );
+    expect(stored.rows[0]?.count).toBe('1');
+
+    await pool.query('DELETE FROM feedback_reports WHERE id = $1', [first.feedbackId]);
+    await pool.query('DELETE FROM accounts WHERE id = $1', [accountId]);
+  });
+
   it('accepts authenticated multipart feedback without a user history endpoint', async () => {
     const accountId = randomUUID();
     const feedbackId = randomUUID();
