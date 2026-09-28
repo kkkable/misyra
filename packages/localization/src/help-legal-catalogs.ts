@@ -75,11 +75,13 @@ export const helpLegalCatalogs: Readonly<
       faqEntries: Object.freeze([
         Object.freeze({
           question: '任務狀態如何顯示？',
-          answer: '日曆會以顏色簡潔顯示狀態；開啟「任務詳情」可查看完成及證據狀態的文字說明。',
+          answer:
+            '日曆會以顏色簡潔顯示狀態；開啟「任務詳情」可查看完成及證據狀態的文字說明。',
         }),
         Object.freeze({
           question: '何時可以完成任務？',
-          answer: '任務由預定開始時間起可以完成，並於預定結束時間後 30 日到期。證據須在到期前提交。',
+          answer:
+            '任務由預定開始時間起可以完成，並於預定結束時間後 30 日到期。證據須在到期前提交。',
         }),
         Object.freeze({
           question: '連接外部日曆後會怎樣？',
@@ -98,12 +100,14 @@ export const helpLegalCatalogs: Readonly<
         }),
       ]),
       privacyTitle: '私隱政策',
-      privacySummary: 'Misyra 會限制自動診斷資料，並按已批准的保留規則處理產品資料及媒體。',
+      privacySummary:
+        'Misyra 會限制自動診斷資料，並按已批准的保留規則處理產品資料及媒體。',
       privacyFeedbackRetention:
         '已提交的意見或問題回報不受 30 日產品媒體政策限制。回報、可選電郵、截圖及技術資料可無限期保留，直至管理人員移除。刪除帳戶時會移除內部帳戶連結，但會保留已提交的回報及你主動提供的電郵。這些資料不會用於市場推廣或 AI 訓練。',
       privacyOpenPolicy: '開啟私隱政策',
       termsTitle: '服務條款',
-      termsSummary: '請開啟已設定的服務條款，查看適用於 Misyra 的法律條款。',
+      termsSummary:
+        '請開啟已設定的服務條款，查看適用於 Misyra 的法律條款。',
       termsOpen: '開啟服務條款',
       aboutTitle: '關於',
       aboutBody:
