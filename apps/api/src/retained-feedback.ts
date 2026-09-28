@@ -1,5 +1,6 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 
+import { executeIdempotentCommand } from '@misyra/database';
 import type { Pool } from 'pg';
 
 import type { ProtectedMediaBlobStore } from './protected-media.js';
@@ -18,6 +19,7 @@ export type RetainedFeedbackScreenshot = Readonly<{
 }>;
 
 export type RetainedFeedbackSubmission = Readonly<{
+  idempotencyKey: string;
   category: RetainedFeedbackCategory;
   description: string;
   email: string | null;
@@ -46,9 +48,17 @@ const STRING_DETAIL_KEYS = [
   'submissionTimestamp',
 ] as const;
 const STRING_LIST_DETAIL_KEYS = ['errorCodes', 'crashIdentifiers'] as const;
+const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
 
 function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function requiredIdempotencyKey(value: unknown): string {
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    throw new RangeError('feedback_idempotency_key_required');
+  }
+  return value.trim();
 }
 
 function requiredCategory(value: unknown): RetainedFeedbackCategory {
@@ -116,12 +126,35 @@ function optionalScreenshot(value: unknown): RetainedFeedbackScreenshot | null {
 function parseSubmission(value: unknown): RetainedFeedbackSubmission {
   if (!isRecord(value)) throw new RangeError('feedback_payload_invalid');
   return Object.freeze({
+    idempotencyKey: requiredIdempotencyKey(value.idempotencyKey),
     category: requiredCategory(value.category),
     description: requiredDescription(value.description),
     email: optionalEmail(value.email),
     technicalDetails: sanitizedTechnicalDetails(value.technicalDetails),
     screenshot: optionalScreenshot(value.screenshot),
   });
+}
+
+function submissionRequestHash(input: RetainedFeedbackSubmission): string {
+  const screenshot =
+    input.screenshot === null
+      ? null
+      : {
+          mimeType: input.screenshot.mimeType,
+          sizeBytes: input.screenshot.sizeBytes,
+          sha256: createHash('sha256').update(input.screenshot.bytes).digest('hex'),
+        };
+  return createHash('sha256')
+    .update(
+      JSON.stringify({
+        category: input.category,
+        description: input.description,
+        email: input.email,
+        technicalDetails: input.technicalDetails,
+        screenshot,
+      }),
+    )
+    .digest('hex');
 }
 
 export function createRetainedFeedbackService(
@@ -137,52 +170,55 @@ export function createRetainedFeedbackService(
       const screenshotId = input.screenshot === null ? null : generateId();
       const storageKey = screenshotId === null ? null : `${feedbackId}/${screenshotId}.png`;
       const submittedAt = now();
-      const client = await options.pool.connect();
-      let storedBlob = false;
+      const expiresAt = new Date(submittedAt.getTime() + IDEMPOTENCY_TTL_MS);
+      let storedBlobKey: string | null = null;
 
       try {
-        await client.query('BEGIN');
-        await client.query(
-          `INSERT INTO feedback_reports
-             (id, account_id, category, email, description, technical_details,
-              marketing_use_allowed, ai_training_use_allowed, submitted_at)
-           VALUES ($1, $2, $3, $4, $5, $6::jsonb, false, false, $7)`,
-          [
-            feedbackId,
-            accountId,
-            input.category,
-            input.email,
-            input.description,
-            JSON.stringify(input.technicalDetails),
-            submittedAt,
-          ],
-        );
+        return await executeIdempotentCommand(options.pool, {
+          accountId,
+          key: input.idempotencyKey,
+          requestHash: submissionRequestHash(input),
+          expiresAt,
+          async work({ client }) {
+            await client.query(
+              `INSERT INTO feedback_reports
+                 (id, account_id, category, email, description, technical_details,
+                  marketing_use_allowed, ai_training_use_allowed, submitted_at)
+               VALUES ($1, $2, $3, $4, $5, $6::jsonb, false, false, $7)`,
+              [
+                feedbackId,
+                accountId,
+                input.category,
+                input.email,
+                input.description,
+                JSON.stringify(input.technicalDetails),
+                submittedAt,
+              ],
+            );
 
-        if (input.screenshot !== null && screenshotId !== null && storageKey !== null) {
-          await options.blobStore.put(
-            'feedback-retained',
-            storageKey,
-            input.screenshot.bytes,
-            input.screenshot.mimeType,
-          );
-          storedBlob = true;
-          await client.query(
-            `INSERT INTO feedback_media_assets (id, feedback_report_id, storage_key, created_at)
-             VALUES ($1, $2, $3, $4)`,
-            [screenshotId, feedbackId, storageKey, submittedAt],
-          );
-        }
+            if (input.screenshot !== null && screenshotId !== null && storageKey !== null) {
+              await options.blobStore.put(
+                'feedback-retained',
+                storageKey,
+                input.screenshot.bytes,
+                input.screenshot.mimeType,
+              );
+              storedBlobKey = storageKey;
+              await client.query(
+                `INSERT INTO feedback_media_assets (id, feedback_report_id, storage_key, created_at)
+                 VALUES ($1, $2, $3, $4)`,
+                [screenshotId, feedbackId, storageKey, submittedAt],
+              );
+            }
 
-        await client.query('COMMIT');
-        return { feedbackId };
+            return { feedbackId };
+          },
+        });
       } catch (error) {
-        await client.query('ROLLBACK').catch(() => undefined);
-        if (storedBlob && storageKey !== null) {
-          await options.blobStore.delete('feedback-retained', storageKey).catch(() => undefined);
+        if (storedBlobKey !== null) {
+          await options.blobStore.delete('feedback-retained', storedBlobKey).catch(() => undefined);
         }
         throw error;
-      } finally {
-        client.release();
       }
     },
   });
