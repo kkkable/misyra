@@ -17,6 +17,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SystemText as Text } from '../accessibility/system-text.js';
 import { getAuthApiBaseUrl, rootAuthController } from '../auth/auth-runtime.js';
 import { CalendarRecurringScopeChooser } from '../calendar/calendar-recurring-scope-chooser.js';
+import { rootDiagnosticsRuntime } from '../diagnostics/mobile-diagnostics.js';
 import {
   DestructiveButton,
   Screen,
