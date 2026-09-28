@@ -17,6 +17,29 @@ function routeCategory(value: string | string[] | undefined): FeedbackCategory {
   return candidate === 'problem' ? 'problem' : 'feedback';
 }
 
+function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function selectedFeedbackImage(value: unknown): Readonly<{
+  uri: string;
+  mimeType: string | null;
+  name: string | null;
+}> | null {
+  if (!isRecord(value) || value.canceled === true) return null;
+  const rawResult = value.result;
+  const candidate = Array.isArray(rawResult) ? rawResult[0] : rawResult;
+  if (!isRecord(candidate) || typeof candidate.uri !== 'string' || candidate.uri.length === 0) {
+    return null;
+  }
+  return {
+    uri: candidate.uri,
+    mimeType:
+      typeof candidate.type === 'string' && candidate.type.length > 0 ? candidate.type : null,
+    name: typeof candidate.name === 'string' && candidate.name.length > 0 ? candidate.name : null,
+  };
+}
+
 export default function FeedbackRoute() {
   const params = useLocalSearchParams<{ category?: string | string[] }>();
   const category = routeCategory(params.category);
@@ -24,22 +47,13 @@ export default function FeedbackRoute() {
   const language = useAppLanguage();
 
   const pickScreenshot = async () => {
-    const result = await File.pickFileAsync({
+    const pickerResult = (await File.pickFileAsync({
       multipleFiles: false,
       mimeTypes: ['image/*'],
-    });
-    if (result.canceled) return null;
-    const selected = Array.isArray(result.result) ? result.result[0] : result.result;
-    if (selected === undefined) return null;
-    return sanitizeFeedbackScreenshot(
-      {
-        uri: selected.uri,
-        mimeType:
-          typeof selected.type === 'string' && selected.type.length > 0 ? selected.type : null,
-        name: typeof selected.name === 'string' && selected.name.length > 0 ? selected.name : null,
-      },
-      transcodeFeedbackScreenshotToPng,
-    );
+    })) as unknown;
+    const selected = selectedFeedbackImage(pickerResult);
+    if (selected === null) return null;
+    return sanitizeFeedbackScreenshot(selected, transcodeFeedbackScreenshotToPng);
   };
 
   return (
