@@ -306,7 +306,6 @@ export function createPostgresDeviceSettingsStore(pool: Pool) {
         diagnosticsEnabled: row.diagnosticsEnabled,
         appTimeZone: row.appTimeZone,
       };
-
     },
   };
 }
