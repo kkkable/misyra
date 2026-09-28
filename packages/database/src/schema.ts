@@ -95,6 +95,7 @@ export const userSettings = pgTable('user_settings', {
     .references(() => accounts.id, { onDelete: 'cascade' }),
   language: text('language').notNull().default('en'),
   trustMode: boolean('trust_mode').notNull().default(false),
+  diagnosticsEnabled: boolean('diagnostics_enabled').notNull().default(true),
   appTimeZone: text('app_time_zone').notNull().default('UTC'),
   updatedAt: updatedAt(),
 });
