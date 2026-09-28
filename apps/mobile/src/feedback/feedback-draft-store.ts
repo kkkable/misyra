@@ -13,7 +13,7 @@ type FeedbackDraftRow = Readonly<{
   screenshot_uri: string | null;
   screenshot_mime_type: string | null;
   screenshot_size_bytes: number | null;
-  submission_key: string | null;
+  submission_nonce: string | null;
 }>;
 
 export type FeedbackPersistedDraft = Readonly<{
@@ -64,7 +64,7 @@ export function createFeedbackDraftStore({
               screenshot_uri,
               screenshot_mime_type,
               screenshot_size_bytes,
-              submission_key
+              submission_nonce
          FROM feedback_drafts
         WHERE account_id = ?`,
       accountId,
@@ -115,7 +115,7 @@ export function createFeedbackDraftStore({
                 screenshot_uri,
                 screenshot_mime_type,
                 screenshot_size_bytes,
-                submission_key
+                submission_nonce
            FROM feedback_drafts
           WHERE account_id = ?`,
         accountId,
@@ -129,12 +129,12 @@ export function createFeedbackDraftStore({
         existing.screenshot_uri === (screenshot?.uri ?? null) &&
         existing.screenshot_mime_type === (screenshot?.mimeType ?? null) &&
         existing.screenshot_size_bytes === (screenshot?.sizeBytes ?? null);
-      const submissionKey = sameSubmission ? existing.submission_key : null;
+      const submissionKey = sameSubmission ? existing.submission_nonce : null;
 
       await database.runAsync(
         `INSERT INTO feedback_drafts
           (account_id, category, description, email, technical_details_json, screenshot_uri,
-           screenshot_mime_type, screenshot_size_bytes, submission_key, updated_at)
+           screenshot_mime_type, screenshot_size_bytes, submission_nonce, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(account_id) DO UPDATE SET
            category = excluded.category,
@@ -144,7 +144,7 @@ export function createFeedbackDraftStore({
            screenshot_uri = excluded.screenshot_uri,
            screenshot_mime_type = excluded.screenshot_mime_type,
            screenshot_size_bytes = excluded.screenshot_size_bytes,
-           submission_key = excluded.submission_key,
+           submission_nonce = excluded.submission_nonce,
            updated_at = excluded.updated_at`,
         accountId,
         snapshot.draft.category,
@@ -164,30 +164,30 @@ export function createFeedbackDraftStore({
 
   const getOrCreateSubmissionKey = async (generateKey: () => string): Promise<string> => {
     await writeTail;
-    const current = await database.getFirstAsync<{ submission_key: string | null }>(
-      'SELECT submission_key FROM feedback_drafts WHERE account_id = ?',
+    const current = await database.getFirstAsync<{ submission_nonce: string | null }>(
+      'SELECT submission_nonce FROM feedback_drafts WHERE account_id = ?',
       accountId,
     );
     if (current === null) throw new Error('feedback_draft_missing');
-    if (current.submission_key !== null) return current.submission_key;
+    if (current.submission_nonce !== null) return current.submission_nonce;
 
     const candidate = generateKey().trim();
-    if (candidate.length === 0) throw new Error('feedback_submission_key_invalid');
+    if (candidate.length === 0) throw new Error('feedback_submission_nonce_invalid');
     await database.runAsync(
       `UPDATE feedback_drafts
-          SET submission_key = COALESCE(submission_key, ?)
+          SET submission_nonce = COALESCE(submission_nonce, ?)
         WHERE account_id = ?`,
       candidate,
       accountId,
     );
-    const stored = await database.getFirstAsync<{ submission_key: string | null }>(
-      'SELECT submission_key FROM feedback_drafts WHERE account_id = ?',
+    const stored = await database.getFirstAsync<{ submission_nonce: string | null }>(
+      'SELECT submission_nonce FROM feedback_drafts WHERE account_id = ?',
       accountId,
     );
-    if (stored?.submission_key === null || stored?.submission_key === undefined) {
-      throw new Error('feedback_submission_key_missing');
+    if (stored?.submission_nonce === null || stored?.submission_nonce === undefined) {
+      throw new Error('feedback_submission_nonce_missing');
     }
-    return stored.submission_key;
+    return stored.submission_nonce;
   };
 
   const discard = async (): Promise<void> => {
