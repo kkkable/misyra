@@ -774,7 +774,8 @@ function parseSettingsPatch(payload: unknown): SettingsPatch {
   if (
     keys.length === 0 ||
     keys.some(
-      (key) => key !== 'language' && key !== 'trustMode' && key !== 'diagnosticsEnabled',
+      (key) =>
+        key !== 'language' && key !== 'trustMode' && key !== 'diagnosticsEnabled',
     )
   ) {
     throw new SyncMutationValidationError('Settings mutation contains unsupported fields');
