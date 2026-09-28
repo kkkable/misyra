@@ -336,8 +336,8 @@ export const mobileMigrations: readonly MobileMigration[] = [
     name: 'feedback-submission-idempotency',
     statements: [
       `ALTER TABLE feedback_drafts
-        ADD COLUMN submission_key TEXT
-        CHECK (submission_key IS NULL OR length(trim(submission_key)) > 0)`,
+        ADD COLUMN submission_nonce TEXT
+        CHECK (submission_nonce IS NULL OR length(trim(submission_nonce)) > 0)`,
     ],
   },
 ];
