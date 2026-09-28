@@ -57,7 +57,7 @@ describe('MTS-031/MTS-039 PostgreSQL executable sync store', () => {
       operation: 'update',
       baseVersion: null,
       clientOccurredAt: '2026-09-06T09:00:00.000Z',
-      payload: { language: 'zh-HK', trustMode: true },
+      payload: { language: 'zh-HK', trustMode: true, diagnosticsEnabled: false },
     } as const;
     const store = createPostgresSyncStore(pool, () => new Date('2026-09-06T09:00:01.000Z'));
 
@@ -70,6 +70,7 @@ describe('MTS-031/MTS-039 PostgreSQL executable sync store', () => {
     await expect(devices.getAccountSettings(account.id)).resolves.toEqual({
       language: 'zh-HK',
       trustMode: true,
+      diagnosticsEnabled: false,
     });
 
     await expect(store.pull(account.id, { cursor: 0, limit: 25 })).resolves.toEqual({
@@ -81,7 +82,7 @@ describe('MTS-031/MTS-039 PostgreSQL executable sync store', () => {
           entityType: 'settings',
           entityId: account.id,
           operation: 'upsert',
-          payload: { language: 'zh-HK', trustMode: true },
+          payload: { language: 'zh-HK', trustMode: true, diagnosticsEnabled: false },
         },
       ],
       nextCursor: 1,
@@ -95,7 +96,7 @@ describe('MTS-031/MTS-039 PostgreSQL executable sync store', () => {
           entityType: 'settings',
           entityId: account.id,
           operation: 'upsert',
-          payload: { language: 'zh-HK', trustMode: true },
+          payload: { language: 'zh-HK', trustMode: true, diagnosticsEnabled: false },
         },
       ],
       nextCursor: 1,
@@ -220,6 +221,7 @@ describe('MTS-031/MTS-039 PostgreSQL executable sync store', () => {
     await expect(devices.getAccountSettings(first.id)).resolves.toEqual({
       language: 'en',
       trustMode: true,
+      diagnosticsEnabled: true,
     });
   });
 });
