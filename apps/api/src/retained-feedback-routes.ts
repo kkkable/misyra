@@ -1,3 +1,7 @@
+import {
+  IdempotencyConflictError,
+  IncompleteIdempotencyRecordError,
+} from '@misyra/database';
 import type { FastifyRequest } from 'fastify';
 
 import { ApiError, type ApiRouteDefinition } from './index.js';
@@ -124,6 +128,10 @@ export function createRetainedFeedbackRoutes(
           return await service.submit(auth.accountId, parseRetainedFeedbackRequest(request));
         } catch (error) {
           if (error instanceof RangeError) throw new ApiError('validation_failed');
+          if (error instanceof IdempotencyConflictError) throw new ApiError('conflict');
+          if (error instanceof IncompleteIdempotencyRecordError) {
+            throw new ApiError('temporarily_unavailable');
+          }
           throw error;
         }
       },
