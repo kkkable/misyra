@@ -1118,6 +1118,7 @@ export function createAuthenticatedSyncRuntime({
     await rememberDeviceId(installationStore, session.accountId, registration.deviceId);
 
     const settings = await api.getAccountSettings();
+    rootDiagnosticsRuntime.setEnabled(settings.diagnosticsEnabled);
     await applyAccountSettings(database, session.accountId, settings, now().toISOString());
     await runEvidenceSync({
       database,
