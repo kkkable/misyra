@@ -94,7 +94,9 @@ describe('MTS-107 offline feedback draft persistence', () => {
     expect(accountDataTables).toContain('feedback_drafts');
   });
 
-  it('restores description, screenshot, and technical details after a new store instance', async () => {
+  it(
+    'restores description, screenshot, and technical details after a new store instance',
+    async () => {
     const accountId = 'account-restart';
     const database = await createAccountDatabase(accountId);
     const removeScreenshot = vi.fn(async () => undefined);
@@ -113,8 +115,9 @@ describe('MTS-107 offline feedback draft persistence', () => {
       removeScreenshot,
     });
     await expect(restartedStore.load()).resolves.toEqual(persistedSnapshot());
-    expect(removeScreenshot).not.toHaveBeenCalled();
-  });
+      expect(removeScreenshot).not.toHaveBeenCalled();
+    },
+  );
 
   it('keeps feedback drafts out of the automatic mutation/evidence queues', async () => {
     const routePath = fileURLToPath(new URL('../../app/feedback.tsx', import.meta.url));
@@ -164,7 +167,9 @@ describe('MTS-107 manual resubmit and discard lifecycle', () => {
 });
 
 describe('MTS-107 sign-out cleanup', () => {
-  it('deletes the unsent draft and screenshot while the existing account wipe continues', async () => {
+  it(
+    'deletes the unsent draft and screenshot while the existing account wipe continues',
+    async () => {
     const accountId = 'account-signout';
     const database = await createAccountDatabase(accountId);
     const removeScreenshot = vi.fn(async () => undefined);
@@ -181,13 +186,20 @@ describe('MTS-107 sign-out cleanup', () => {
     await cleanup(accountId);
 
     expect(removeScreenshot).toHaveBeenCalledWith('file:///signout-draft.png');
-    await expect(
-      database.getFirstAsync('SELECT account_id FROM local_accounts WHERE account_id = ?', accountId),
-    ).resolves.toBeNull();
-    await expect(
-      database.getFirstAsync('SELECT account_id FROM feedback_drafts WHERE account_id = ?', accountId),
-    ).resolves.toBeNull();
-  });
+      await expect(
+        database.getFirstAsync(
+          'SELECT account_id FROM local_accounts WHERE account_id = ?',
+          accountId,
+        ),
+      ).resolves.toBeNull();
+      await expect(
+        database.getFirstAsync(
+          'SELECT account_id FROM feedback_drafts WHERE account_id = ?',
+          accountId,
+        ),
+      ).resolves.toBeNull();
+    },
+  );
 
   it('wires platform draft cleanup into the root authentication sign-out hook', async () => {
     const authRuntimePath = fileURLToPath(new URL('../auth/auth-runtime.ts', import.meta.url));
