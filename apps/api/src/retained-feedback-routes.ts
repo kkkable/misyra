@@ -112,7 +112,7 @@ export function parseRetainedFeedbackRequest(request: FastifyRequest): unknown {
 
 export function createRetainedFeedbackRoutes(
   service: RetainedFeedbackService,
-): readonly ApiRouteDefinition[] {
+): ApiRouteDefinition[] {
   return [
     {
       method: 'POST',
