@@ -31,9 +31,7 @@ export type FeedbackDraftStore = Readonly<{
 
 function technicalDetailsIdentity(source: FeedbackTechnicalDetails): string {
   return JSON.stringify(
-    Object.fromEntries(
-      Object.entries(source).filter(([key]) => key !== 'submissionTimestamp'),
-    ),
+    Object.fromEntries(Object.entries(source).filter(([key]) => key !== 'submissionTimestamp')),
   );
 }
 
