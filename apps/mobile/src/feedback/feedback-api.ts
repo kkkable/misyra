@@ -5,7 +5,10 @@ type FeedbackApiOptions = Readonly<{
   accessToken: string;
 }>;
 
-function feedbackMultipartBody(payload: FeedbackSubmissionPayload, idempotencyKey: string): FormData {
+function feedbackMultipartBody(
+  payload: FeedbackSubmissionPayload,
+  idempotencyKey: string,
+): FormData {
   const form = new FormData();
   const { screenshot, ...rest } = payload;
   form.append(
