@@ -1700,12 +1700,7 @@ async function applySettingsMutation(
      RETURNING language,
                trust_mode AS "trustMode",
                diagnostics_enabled AS "diagnosticsEnabled"`,
-    [
-      accountId,
-      patch.language ?? null,
-      patch.trustMode ?? null,
-      patch.diagnosticsEnabled ?? null,
-    ],
+    [accountId, patch.language ?? null, patch.trustMode ?? null, patch.diagnosticsEnabled ?? null],
   );
   const row = result.rows[0];
   if (row === undefined) throw new Error('Settings sync update returned no row');
