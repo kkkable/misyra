@@ -18,7 +18,7 @@ export async function sanitizeFeedbackScreenshot(
   }
 
   const sanitized = await transcode(picked.uri);
-  if (sanitized.mimeType !== 'image/png' || sanitized.uri.trim().length === 0) {
+  if (sanitized.uri.trim().length === 0) {
     throw new Error('feedback_screenshot_transcode_invalid');
   }
   if (!Number.isSafeInteger(sanitized.sizeBytes) || sanitized.sizeBytes < 0) {
