@@ -138,8 +138,9 @@ function parseSubmission(value: unknown): RetainedFeedbackSubmission {
 function technicalDetailsForIdentity(
   source: Readonly<Record<string, unknown>>,
 ): Readonly<Record<string, unknown>> {
-  const { submissionTimestamp: _submissionTimestamp, ...identity } = source;
-  return identity;
+  return Object.fromEntries(
+    Object.entries(source).filter(([key]) => key !== 'submissionTimestamp'),
+  );
 }
 
 function submissionRequestHash(input: RetainedFeedbackSubmission): string {
@@ -178,8 +179,6 @@ export function createRetainedFeedbackService(
       const storageKey = screenshotId === null ? null : `${feedbackId}/${screenshotId}.png`;
       const submittedAt = now();
       const expiresAt = new Date(submittedAt.getTime() + IDEMPOTENCY_TTL_MS);
-      let storedBlobKey: string | null = null;
-
       try {
         return await executeIdempotentCommand(options.pool, {
           accountId,
@@ -210,7 +209,6 @@ export function createRetainedFeedbackService(
                 input.screenshot.bytes,
                 input.screenshot.mimeType,
               );
-              storedBlobKey = storageKey;
               await client.query(
                 `INSERT INTO feedback_media_assets (id, feedback_report_id, storage_key, created_at)
                  VALUES ($1, $2, $3, $4)`,
@@ -222,8 +220,8 @@ export function createRetainedFeedbackService(
           },
         });
       } catch (error) {
-        if (storedBlobKey !== null) {
-          await options.blobStore.delete('feedback-retained', storedBlobKey).catch(() => undefined);
+        if (storageKey !== null) {
+          await options.blobStore.delete('feedback-retained', storageKey).catch(() => undefined);
         }
         throw error;
       }
