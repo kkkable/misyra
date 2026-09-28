@@ -71,6 +71,8 @@ import {
   type ProtectedMediaBlobStore,
 } from './protected-media.js';
 import { createProviderProofVerifier } from './provider-proof-verifier.js';
+import { createRetainedFeedbackRoutes } from './retained-feedback-routes.js';
+import { createRetainedFeedbackService } from './retained-feedback.js';
 import {
   createStoryImageGenerationRoutes,
   type StoryImageGenerationRouteService,
@@ -242,6 +244,11 @@ export function createApiApplication(options: AuthApplicationOptions) {
       await evidenceAttemptLifecycle.service?.handleMediaUploaded(input);
     },
   });
+  const retainedFeedbackService = createRetainedFeedbackService({
+    pool: options.pool,
+    blobStore: mediaBlobStore,
+    ...(options.now === undefined ? {} : { now: options.now }),
+  });
   const evidenceAttemptService = createEvidenceAttemptService({
     pool: options.pool,
     protectedMediaService,
@@ -325,6 +332,7 @@ export function createApiApplication(options: AuthApplicationOptions) {
       ...createSyncRoutes(syncService),
       ...createEvidenceAttemptRoutes(evidenceAttemptService),
       ...createProtectedMediaRoutes(protectedMediaService),
+      ...createRetainedFeedbackRoutes(retainedFeedbackService),
       ...createPlannerRoutes(options.pool, options.plannerExtractionService, options.now),
       ...createStoryTextSuggestionRoutes(options.storyTextSuggestionService),
       ...createStoryImageGenerationRoutes(storyImageGenerationService),
