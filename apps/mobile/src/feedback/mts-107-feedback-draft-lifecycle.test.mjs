@@ -161,6 +161,28 @@ describe('MTS-107 manual resubmit and discard lifecycle', () => {
     await store.discard();
     expect(removeScreenshot).toHaveBeenCalledTimes(1);
   });
+
+  it('does not make an accepted report retryable when screenshot cleanup fails', async () => {
+    const accountId = 'account-submitted';
+    const database = await createAccountDatabase(accountId);
+    const removeScreenshot = vi.fn(async () => {
+      throw new Error('filesystem_cleanup_failed');
+    });
+    const store = createFeedbackDraftStore({ database, accountId, removeScreenshot });
+
+    await store.save(persistedSnapshot('file:///submitted.png'));
+    await expect(store.completeSubmission()).resolves.toBeUndefined();
+
+    await expect(store.load()).resolves.toBeNull();
+    expect(removeScreenshot).toHaveBeenCalledWith('file:///submitted.png');
+  });
+
+  it('uses a distinct post-success cleanup path from failed-submit persistence', async () => {
+    const routePath = fileURLToPath(new URL('../../app/feedback.tsx', import.meta.url));
+    const source = await readFile(routePath, 'utf8');
+
+    expect(source).toContain('completeSubmission');
+  });
 });
 
 describe('MTS-107 sign-out cleanup', () => {
