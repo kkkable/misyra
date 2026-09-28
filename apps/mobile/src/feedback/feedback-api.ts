@@ -23,14 +23,11 @@ function feedbackMultipartBody(payload: FeedbackSubmissionPayload): FormData {
   );
 
   if (screenshot !== null) {
-    form.append(
-      'screenshot',
-      {
-        uri: screenshot.uri,
-        name: 'feedback.png',
-        type: screenshot.mimeType,
-      } as unknown as Blob,
-    );
+    form.append('screenshot', {
+      uri: screenshot.uri,
+      name: 'feedback.png',
+      type: screenshot.mimeType,
+    } as unknown as Blob);
   }
   return form;
 }
