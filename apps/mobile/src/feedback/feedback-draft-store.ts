@@ -29,6 +29,11 @@ export type FeedbackDraftStore = Readonly<{
   completeSubmission(): Promise<void>;
 }>;
 
+function technicalDetailsIdentity(source: FeedbackTechnicalDetails): string {
+  const { submissionTimestamp: _submissionTimestamp, ...identity } = source;
+  return JSON.stringify(identity);
+}
+
 function parseTechnicalDetails(source: string): FeedbackTechnicalDetails {
   let parsed: unknown;
   try {
@@ -107,6 +112,7 @@ export function createFeedbackDraftStore({
       const screenshot = snapshot.draft.screenshot;
       const technicalDetails = sanitizeFeedbackTechnicalDetails(snapshot.technicalDetails);
       const technicalDetailsJson = JSON.stringify(technicalDetails);
+      const technicalDetailsIdentityJson = technicalDetailsIdentity(technicalDetails);
       const existing = await database.getFirstAsync<FeedbackDraftRow>(
         `SELECT category,
                 description,
@@ -125,7 +131,8 @@ export function createFeedbackDraftStore({
         existing.category === snapshot.draft.category &&
         existing.description === snapshot.draft.description &&
         existing.email === snapshot.draft.email &&
-        existing.technical_details_json === technicalDetailsJson &&
+        technicalDetailsIdentity(parseTechnicalDetails(existing.technical_details_json)) ===
+          technicalDetailsIdentityJson &&
         existing.screenshot_uri === (screenshot?.uri ?? null) &&
         existing.screenshot_mime_type === (screenshot?.mimeType ?? null) &&
         existing.screenshot_size_bytes === (screenshot?.sizeBytes ?? null);
