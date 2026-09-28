@@ -109,7 +109,9 @@ export function FeedbackFormScreen({
       const screenshot = await onPickScreenshot();
       if (screenshot === null) return;
       const previous = draft.screenshot;
-      persistDraft(updateFeedbackFormDraft(draft, { screenshot }));
+      const nextDraft = updateFeedbackFormDraft(draft, { screenshot });
+      setDraft(nextDraft);
+      await onDraftChange?.(nextDraft);
       if (previous !== null && previous.uri !== screenshot.uri) {
         await onRemoveScreenshot?.(previous);
       }
