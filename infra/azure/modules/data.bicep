@@ -236,7 +236,7 @@ resource feedbackOperationsBlobDataReader 'Microsoft.Authorization/roleAssignmen
   scope: feedbackRetained
   properties: {
     roleDefinitionId: subscriptionResourceId(
-      'Microsoft.Authorization/roleDefinitions'
+      'Microsoft.Authorization/roleDefinitions',
       '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1'
     )
     principalId: feedbackOperationsPrincipalId
