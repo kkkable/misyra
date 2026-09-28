@@ -35,7 +35,7 @@ describe('MTS-085 cleanup job infrastructure', () => {
     for (const scope of ['evidenceWorking', 'storyWorking', 'plannerWorking', 'styleReferences']) {
       expect(data).toMatch(new RegExp(`scope:\\s*${scope}\\b`));
     }
-    expect(data).not.toMatch(/scope:\s*feedbackRetained\b/);
+    expect(data).not.toMatch(/guid\(feedbackRetained\.id,\s*cleanupJobPrincipalId\b/);
   });
 
   it('keeps recoverable deletion features off and limits day-31 defense-in-depth lifecycle to product media', async () => {

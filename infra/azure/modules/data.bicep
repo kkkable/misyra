@@ -17,6 +17,7 @@ param allowPublicDataPlaneAccess bool
 param privateEndpointSubnetId string
 param apiPrincipalId string
 param cleanupJobPrincipalId string
+param feedbackOperationsPrincipalId string
 param postgresqlAdministratorLogin string
 
 @secure()
@@ -217,6 +218,29 @@ resource apiStyleReferencesBlobDataContributor 'Microsoft.Authorization/roleAssi
     roleDefinitionId: storageBlobDataContributorRoleDefinitionId
     principalId: apiPrincipalId
     principalType: 'ServicePrincipal'
+  }
+}
+
+resource apiFeedbackRetainedBlobDataContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(feedbackRetained.id, apiPrincipalId, storageBlobDataContributorRoleDefinitionId)
+  scope: feedbackRetained
+  properties: {
+    roleDefinitionId: storageBlobDataContributorRoleDefinitionId
+    principalId: apiPrincipalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource feedbackOperationsBlobDataReader 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(feedbackOperationsPrincipalId)) {
+  name: guid(feedbackRetained.id, feedbackOperationsPrincipalId, '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1')
+  scope: feedbackRetained
+  properties: {
+    roleDefinitionId: subscriptionResourceId(
+      'Microsoft.Authorization/roleDefinitions',
+      '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1'
+    )
+    principalId: feedbackOperationsPrincipalId
+    principalType: 'Group'
   }
 }
 

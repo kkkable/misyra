@@ -22,6 +22,20 @@ import { sanitizeFeedbackScreenshot } from '../src/feedback/feedback-screenshot.
 import { useAppLanguage } from '../src/localization/use-app-language.js';
 import { openMobileDatabase } from '../src/storage/database.js';
 
+const UUID_HEX = '0123456789abcdef';
+const UUID_VARIANTS = '89ab';
+
+function randomHex(length: number): string {
+  return Array.from({ length }, () => UUID_HEX[Math.floor(Math.random() * UUID_HEX.length)]).join(
+    '',
+  );
+}
+
+function generateUuid(): string {
+  const variant = UUID_VARIANTS.charAt(Math.floor(Math.random() * UUID_VARIANTS.length));
+  return `${randomHex(8)}-${randomHex(4)}-4${randomHex(3)}-${variant}${randomHex(3)}-${randomHex(12)}`;
+}
+
 function routeCategory(value: string | string[] | undefined): FeedbackCategory {
   const candidate = Array.isArray(value) ? value[0] : value;
   return candidate === 'problem' ? 'problem' : 'feedback';
@@ -144,14 +158,17 @@ export default function FeedbackRoute() {
           baseUrl: getAuthApiBaseUrl(),
           accessToken: authState.session.accessToken,
         });
+        const snapshot = {
+          draft: draftFromPayload(payload),
+          technicalDetails: payload.technicalDetails,
+        } as const;
+        await draftRuntime.store.save(snapshot);
+        const idempotencyKey = await draftRuntime.store.getOrCreateSubmissionKey(generateUuid);
         try {
-          await api.submit(payload);
+          await api.submit(payload, idempotencyKey);
           await draftRuntime.store.completeSubmission();
         } catch (error) {
-          await draftRuntime.store.save({
-            draft: draftFromPayload(payload),
-            technicalDetails: payload.technicalDetails,
-          });
+          await draftRuntime.store.save(snapshot);
           throw error;
         }
       }}

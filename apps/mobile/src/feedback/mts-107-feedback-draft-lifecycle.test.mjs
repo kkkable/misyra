@@ -185,6 +185,51 @@ describe('MTS-107 manual resubmit and discard lifecycle', () => {
   });
 });
 
+describe('MTS-108 feedback submission idempotency', () => {
+  it('preserves a retry key across restart for unchanged content and rotates it after edits', async () => {
+    const accountId = 'account-idempotency';
+    const database = await createAccountDatabase(accountId);
+    const removeScreenshot = vi.fn(async () => undefined);
+    const firstStore = createFeedbackDraftStore({ database, accountId, removeScreenshot });
+
+    const firstSnapshot = persistedSnapshot();
+    await firstStore.save({
+      ...firstSnapshot,
+      technicalDetails: {
+        ...firstSnapshot.technicalDetails,
+        submissionTimestamp: '2026-09-28T12:30:00.000Z',
+      },
+    });
+    await expect(firstStore.getOrCreateSubmissionKey(() => 'retry-key-1')).resolves.toBe(
+      'retry-key-1',
+    );
+
+    const restartedStore = createFeedbackDraftStore({ database, accountId, removeScreenshot });
+    await restartedStore.save({
+      ...firstSnapshot,
+      technicalDetails: {
+        ...firstSnapshot.technicalDetails,
+        submissionTimestamp: '2026-09-28T12:31:00.000Z',
+      },
+    });
+    await expect(restartedStore.getOrCreateSubmissionKey(() => 'retry-key-2')).resolves.toBe(
+      'retry-key-1',
+    );
+
+    const edited = persistedSnapshot();
+    await restartedStore.save({
+      ...edited,
+      draft: {
+        ...edited.draft,
+        description: 'Edited after the failed attempt.',
+      },
+    });
+    await expect(restartedStore.getOrCreateSubmissionKey(() => 'retry-key-3')).resolves.toBe(
+      'retry-key-3',
+    );
+  });
+});
+
 describe('MTS-107 sign-out cleanup', () => {
   it('deletes the unsent draft and screenshot while the existing account wipe continues', async () => {
     const accountId = 'account-signout';

@@ -5,12 +5,16 @@ type FeedbackApiOptions = Readonly<{
   accessToken: string;
 }>;
 
-function feedbackMultipartBody(payload: FeedbackSubmissionPayload): FormData {
+function feedbackMultipartBody(
+  payload: FeedbackSubmissionPayload,
+  idempotencyKey: string,
+): FormData {
   const form = new FormData();
   const { screenshot, ...rest } = payload;
   form.append(
     'payload',
     JSON.stringify({
+      idempotencyKey,
       ...rest,
       screenshot:
         screenshot === null
@@ -37,11 +41,12 @@ export function createFeedbackApi({ baseUrl, accessToken }: FeedbackApiOptions) 
   const authorization = `Bearer ${accessToken}`;
 
   return Object.freeze({
-    async submit(payload: FeedbackSubmissionPayload): Promise<void> {
+    async submit(payload: FeedbackSubmissionPayload, idempotencyKey: string): Promise<void> {
+      if (idempotencyKey.trim().length === 0) throw new Error('feedback_idempotency_key_required');
       const response = await fetch(`${root}/v1/feedback`, {
         method: 'POST',
         headers: { authorization },
-        body: feedbackMultipartBody(payload),
+        body: feedbackMultipartBody(payload, idempotencyKey),
       });
       if (!response.ok) throw new Error('feedback_submit_failed');
     },

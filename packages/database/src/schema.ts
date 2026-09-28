@@ -669,12 +669,20 @@ export const feedbackReports = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     accountId: uuid('account_id').references(() => accounts.id, { onDelete: 'set null' }),
+    category: text('category').notNull().default('feedback'),
     email: text('email'),
     description: text('description').notNull(),
     technicalDetails: jsonb('technical_details'),
+    marketingUseAllowed: boolean('marketing_use_allowed').notNull().default(false),
+    aiTrainingUseAllowed: boolean('ai_training_use_allowed').notNull().default(false),
     submittedAt: timestamp('submitted_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [index('feedback_reports_account_idx').on(table.accountId)],
+  (table) => [
+    index('feedback_reports_account_idx').on(table.accountId),
+    check('feedback_reports_category_check', sql`${table.category} in ('feedback', 'problem')`),
+    check('feedback_reports_marketing_use_check', sql`${table.marketingUseAllowed} = false`),
+    check('feedback_reports_ai_training_use_check', sql`${table.aiTrainingUseAllowed} = false`),
+  ],
 );
 
 export const feedbackMediaAssets = pgTable(
