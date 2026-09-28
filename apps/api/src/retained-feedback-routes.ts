@@ -102,6 +102,7 @@ export function parseRetainedFeedbackRequest(request: FastifyRequest): unknown {
   }
 
   return {
+    idempotencyKey: payload.idempotencyKey,
     category: payload.category,
     description: payload.description,
     email: payload.email,
