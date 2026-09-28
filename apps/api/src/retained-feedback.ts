@@ -135,6 +135,13 @@ function parseSubmission(value: unknown): RetainedFeedbackSubmission {
   });
 }
 
+function technicalDetailsForIdentity(
+  source: Readonly<Record<string, unknown>>,
+): Readonly<Record<string, unknown>> {
+  const { submissionTimestamp: _submissionTimestamp, ...identity } = source;
+  return identity;
+}
+
 function submissionRequestHash(input: RetainedFeedbackSubmission): string {
   const screenshot =
     input.screenshot === null
@@ -150,7 +157,7 @@ function submissionRequestHash(input: RetainedFeedbackSubmission): string {
         category: input.category,
         description: input.description,
         email: input.email,
-        technicalDetails: input.technicalDetails,
+        technicalDetails: technicalDetailsForIdentity(input.technicalDetails),
         screenshot,
       }),
     )
