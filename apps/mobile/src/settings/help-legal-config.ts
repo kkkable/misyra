@@ -5,8 +5,9 @@ export type HelpLegalConfiguration = Readonly<{
 }>;
 
 export function resolveHelpLegalConfiguration(
-  _env: Readonly<Record<string, string | undefined>> = process.env,
+  env: Readonly<Record<string, string | undefined>> = process.env,
 ): HelpLegalConfiguration {
+  void env;
   return Object.freeze({
     privacyPolicyUrl: null,
     termsOfServiceUrl: null,
