@@ -269,24 +269,32 @@ export function createPostgresDeviceSettingsStore(pool: Pool) {
     ): Promise<StoredAccountSettingsWithTimeZone> {
       if (settings.appTimeZone !== undefined) assertIanaTimeZone(settings.appTimeZone);
       const result = await pool.query<SettingsTimeZoneRow>(
-        `INSERT INTO user_settings (account_id, language, trust_mode, app_time_zone)
+        `INSERT INTO user_settings (
+           account_id, language, trust_mode, diagnostics_enabled, app_time_zone
+         )
          VALUES (
            $1,
            COALESCE($2::text, 'en'),
            COALESCE($3::boolean, false),
-           COALESCE($4::text, 'UTC')
+           COALESCE($4::boolean, true),
+           COALESCE($5::text, 'UTC')
          )
          ON CONFLICT (account_id)
          DO UPDATE SET
            language = COALESCE($2::text, user_settings.language),
            trust_mode = COALESCE($3::boolean, user_settings.trust_mode),
-           app_time_zone = COALESCE($4::text, user_settings.app_time_zone),
+           diagnostics_enabled = COALESCE($4::boolean, user_settings.diagnostics_enabled),
+           app_time_zone = COALESCE($5::text, user_settings.app_time_zone),
            updated_at = now()
-         RETURNING language, trust_mode AS "trustMode", diagnostics_enabled AS "diagnosticsEnabled", app_time_zone AS "appTimeZone"`,
+         RETURNING language,
+                   trust_mode AS "trustMode",
+                   diagnostics_enabled AS "diagnosticsEnabled",
+                   app_time_zone AS "appTimeZone"`,
         [
           accountId,
           settings.language ?? null,
           settings.trustMode ?? null,
+          settings.diagnosticsEnabled ?? null,
           settings.appTimeZone ?? null,
         ],
       );
@@ -295,8 +303,10 @@ export function createPostgresDeviceSettingsStore(pool: Pool) {
       return {
         language: row.language,
         trustMode: row.trustMode,
+        diagnosticsEnabled: row.diagnosticsEnabled,
         appTimeZone: row.appTimeZone,
       };
+
     },
   };
 }
