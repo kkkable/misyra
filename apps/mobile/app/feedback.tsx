@@ -34,8 +34,10 @@ export default function FeedbackRoute() {
     return sanitizeFeedbackScreenshot(
       {
         uri: selected.uri,
-        mimeType: typeof selected.type === 'string' && selected.type.length > 0 ? selected.type : null,
-        name: typeof selected.name === 'string' && selected.name.length > 0 ? selected.name : null,
+        mimeType:
+          typeof selected.type === 'string' && selected.type.length > 0 ? selected.type : null,
+        name:
+          typeof selected.name === 'string' && selected.name.length > 0 ? selected.name : null,
       },
       transcodeFeedbackScreenshotToPng,
     );
@@ -52,7 +54,9 @@ export default function FeedbackRoute() {
       onRemoveScreenshot={(screenshot) => removeFeedbackScreenshotFile(screenshot.uri)}
       onSubmit={async (payload) => {
         const authState = await rootAuthController.restore();
-        if (authState.status !== 'signed_in') throw new Error('feedback_requires_sign_in');
+        if (authState.status !== 'signed_in') {
+          throw new Error('feedback_requires_sign_in');
+        }
         const api = createFeedbackApi({
           baseUrl: getAuthApiBaseUrl(),
           accessToken: authState.session.accessToken,
