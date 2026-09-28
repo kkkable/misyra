@@ -2,11 +2,12 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { ApiError, createApiServer, type ApiAuditEntry } from './index.js';
 
-type ObservedAuditEntry = ApiAuditEntry & Readonly<{
-  durationMs?: number;
-  outcome?: string;
-  errorCode?: string;
-}>;
+type ObservedAuditEntry = ApiAuditEntry &
+  Readonly<{
+    durationMs?: number;
+    outcome?: string;
+    errorCode?: string;
+  }>;
 
 describe('MTS-105 backend telemetry fields', () => {
   it('emits content-free duration and outcome fields for successful requests', async () => {
