@@ -814,10 +814,12 @@ async function applyAuthoritativeChanges(
           `UPDATE local_accounts
               SET language = ?,
                   trust_mode = ?,
+                  diagnostics_enabled = ?,
                   settings_updated_at = ?
             WHERE account_id = ?`,
           settings.language,
           settings.trustMode ? 1 : 0,
+          settings.diagnosticsEnabled ? 1 : 0,
           settingsUpdatedAt,
           accountId,
         );
@@ -826,11 +828,13 @@ async function applyAuthoritativeChanges(
           `UPDATE local_accounts
               SET language = ?,
                   trust_mode = ?,
+                  diagnostics_enabled = ?,
                   app_time_zone = ?,
                   settings_updated_at = ?
             WHERE account_id = ?`,
           settings.language,
           settings.trustMode ? 1 : 0,
+          settings.diagnosticsEnabled ? 1 : 0,
           settings.appTimeZone,
           settingsUpdatedAt,
           accountId,
