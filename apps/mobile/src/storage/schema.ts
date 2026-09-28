@@ -331,6 +331,15 @@ export const mobileMigrations: readonly MobileMigration[] = [
       )`,
     ],
   },
+  {
+    version: 11,
+    name: 'feedback-submission-idempotency',
+    statements: [
+      `ALTER TABLE feedback_drafts
+        ADD COLUMN submission_key TEXT
+        CHECK (submission_key IS NULL OR length(trim(submission_key)) > 0)`,
+    ],
+  },
 ];
 
 export const MOBILE_SCHEMA_VERSION = mobileMigrations.length;
