@@ -192,13 +192,26 @@ describe('MTS-108 feedback submission idempotency', () => {
     const removeScreenshot = vi.fn(async () => undefined);
     const firstStore = createFeedbackDraftStore({ database, accountId, removeScreenshot });
 
-    await firstStore.save(persistedSnapshot());
+    const firstSnapshot = persistedSnapshot();
+    await firstStore.save({
+      ...firstSnapshot,
+      technicalDetails: {
+        ...firstSnapshot.technicalDetails,
+        submissionTimestamp: '2026-09-28T12:30:00.000Z',
+      },
+    });
     await expect(firstStore.getOrCreateSubmissionKey(() => 'retry-key-1')).resolves.toBe(
       'retry-key-1',
     );
 
     const restartedStore = createFeedbackDraftStore({ database, accountId, removeScreenshot });
-    await restartedStore.save(persistedSnapshot());
+    await restartedStore.save({
+      ...firstSnapshot,
+      technicalDetails: {
+        ...firstSnapshot.technicalDetails,
+        submissionTimestamp: '2026-09-28T12:31:00.000Z',
+      },
+    });
     await expect(restartedStore.getOrCreateSubmissionKey(() => 'retry-key-2')).resolves.toBe(
       'retry-key-1',
     );
