@@ -292,6 +292,15 @@ export const mobileMigrations: readonly MobileMigration[] = [
       )`,
     ],
   },
+  {
+    version: 9,
+    name: 'diagnostics-setting',
+    statements: [
+      `ALTER TABLE local_accounts
+        ADD COLUMN diagnostics_enabled INTEGER NOT NULL DEFAULT 1
+        CHECK (diagnostics_enabled IN (0, 1))`,
+    ],
+  },
 ];
 
 export const MOBILE_SCHEMA_VERSION = mobileMigrations.length;
