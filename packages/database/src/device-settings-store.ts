@@ -25,6 +25,7 @@ export type RegisterDeviceWithTimeZoneResult = Readonly<{
 export type StoredAccountSettings = Readonly<{
   language: 'en' | 'zh-HK';
   trustMode: boolean;
+  diagnosticsEnabled: boolean;
 }>;
 
 export type StoredAccountSettingsWithTimeZone = StoredAccountSettings &
@@ -35,6 +36,7 @@ export type StoredAccountSettingsWithTimeZone = StoredAccountSettings &
 export type StoredAccountSettingsUpdate = Readonly<{
   language?: 'en' | 'zh-HK' | undefined;
   trustMode?: boolean | undefined;
+  diagnosticsEnabled?: boolean | undefined;
 }>;
 
 export type StoredAccountSettingsWithTimeZoneUpdate = StoredAccountSettingsUpdate &
@@ -53,6 +55,7 @@ interface DeviceTimeZoneRow extends DeviceRow {
 interface SettingsRow extends QueryResultRow {
   language: 'en' | 'zh-HK';
   trustMode: boolean;
+  diagnosticsEnabled: boolean;
 }
 
 interface SettingsTimeZoneRow extends SettingsRow {
@@ -193,12 +196,16 @@ export function createPostgresDeviceSettingsStore(pool: Pool) {
         `INSERT INTO user_settings (account_id)
          VALUES ($1)
          ON CONFLICT (account_id) DO UPDATE SET account_id = EXCLUDED.account_id
-         RETURNING language, trust_mode AS "trustMode"`,
+         RETURNING language, trust_mode AS "trustMode", diagnostics_enabled AS "diagnosticsEnabled"`,
         [accountId],
       );
       const row = result.rows[0];
       if (!row) throw new Error('account settings lookup returned no row');
-      return { language: row.language, trustMode: row.trustMode };
+      return {
+        language: row.language,
+        trustMode: row.trustMode,
+        diagnosticsEnabled: row.diagnosticsEnabled,
+      };
     },
 
     async getAccountSettingsWithTimeZone(
@@ -208,7 +215,7 @@ export function createPostgresDeviceSettingsStore(pool: Pool) {
         `INSERT INTO user_settings (account_id)
          VALUES ($1)
          ON CONFLICT (account_id) DO UPDATE SET account_id = EXCLUDED.account_id
-         RETURNING language, trust_mode AS "trustMode", app_time_zone AS "appTimeZone"`,
+         RETURNING language, trust_mode AS "trustMode", diagnostics_enabled AS "diagnosticsEnabled", app_time_zone AS "appTimeZone"`,
         [accountId],
       );
       const row = result.rows[0];
@@ -216,6 +223,7 @@ export function createPostgresDeviceSettingsStore(pool: Pool) {
       return {
         language: row.language,
         trustMode: row.trustMode,
+        diagnosticsEnabled: row.diagnosticsEnabled,
         appTimeZone: row.appTimeZone,
       };
     },
@@ -225,19 +233,34 @@ export function createPostgresDeviceSettingsStore(pool: Pool) {
       settings: StoredAccountSettingsUpdate,
     ): Promise<StoredAccountSettings> {
       const result = await pool.query<SettingsRow>(
-        `INSERT INTO user_settings (account_id, language, trust_mode)
-         VALUES ($1, COALESCE($2::text, 'en'), COALESCE($3::boolean, false))
+        `INSERT INTO user_settings (account_id, language, trust_mode, diagnostics_enabled)
+         VALUES (
+           $1,
+           COALESCE($2::text, 'en'),
+           COALESCE($3::boolean, false),
+           COALESCE($4::boolean, true)
+         )
          ON CONFLICT (account_id)
          DO UPDATE SET
            language = COALESCE($2::text, user_settings.language),
            trust_mode = COALESCE($3::boolean, user_settings.trust_mode),
+           diagnostics_enabled = COALESCE($4::boolean, user_settings.diagnostics_enabled),
            updated_at = now()
-         RETURNING language, trust_mode AS "trustMode"`,
-        [accountId, settings.language ?? null, settings.trustMode ?? null],
+         RETURNING language, trust_mode AS "trustMode", diagnostics_enabled AS "diagnosticsEnabled"`,
+        [
+          accountId,
+          settings.language ?? null,
+          settings.trustMode ?? null,
+          settings.diagnosticsEnabled ?? null,
+        ],
       );
       const row = result.rows[0];
       if (!row) throw new Error('account settings update returned no row');
-      return { language: row.language, trustMode: row.trustMode };
+      return {
+        language: row.language,
+        trustMode: row.trustMode,
+        diagnosticsEnabled: row.diagnosticsEnabled,
+      };
     },
 
     async updateAccountSettingsWithTimeZone(
@@ -259,7 +282,7 @@ export function createPostgresDeviceSettingsStore(pool: Pool) {
            trust_mode = COALESCE($3::boolean, user_settings.trust_mode),
            app_time_zone = COALESCE($4::text, user_settings.app_time_zone),
            updated_at = now()
-         RETURNING language, trust_mode AS "trustMode", app_time_zone AS "appTimeZone"`,
+         RETURNING language, trust_mode AS "trustMode", diagnostics_enabled AS "diagnosticsEnabled", app_time_zone AS "appTimeZone"`,
         [
           accountId,
           settings.language ?? null,
