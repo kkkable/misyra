@@ -27,7 +27,9 @@ export type FeedbackCatalog = Readonly<{
   submitFailed: string;
 }>;
 
-export const feedbackCatalogs: Readonly<Record<LocalizationLocale, FeedbackCatalog>> = Object.freeze({
+export const feedbackCatalogs: Readonly<
+  Record<LocalizationLocale, FeedbackCatalog>
+> = Object.freeze({
   en: Object.freeze({
     sendTitle: 'Send feedback',
     problemTitle: 'Report a problem',
