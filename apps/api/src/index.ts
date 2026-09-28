@@ -201,6 +201,14 @@ export function createApiServer(options: ApiServerOptions = {}) {
     },
   );
 
+  server.addContentTypeParser(
+    /^multipart\/form-data(?:;.*)?$/i,
+    { parseAs: 'buffer' },
+    (_request, body, done) => {
+      done(null, body);
+    },
+  );
+
   server.addHook('onRequest', (request, reply, done) => {
     if (options.auditLog !== undefined) requestStartedAt.set(request.id, Date.now());
     reply.header('x-request-id', request.id);
