@@ -64,7 +64,7 @@ function parsePayload(value: Buffer): Readonly<Record<string, unknown>> {
     return parsed as Readonly<Record<string, unknown>>;
   } catch (error) {
     if (error instanceof RangeError) throw error;
-    throw new RangeError('feedback_payload_invalid');
+    throw new RangeError('feedback_payload_invalid', { cause: error });
   }
 }
 
