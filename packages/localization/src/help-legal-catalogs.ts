@@ -59,8 +59,7 @@ export const helpLegalCatalogs = {
       'Submitted feedback is an exception to the 30-day product-media policy. Reports, optional email, screenshots, and technical details may be retained indefinitely unless administrators remove them. Account deletion removes the internal account link but keeps the submitted report and any deliberately supplied email. Feedback is not used for marketing or AI training.',
     privacyOpenPolicy: 'Open Privacy Policy',
     termsTitle: 'Terms of Service',
-    termsSummary:
-      'Read the configured Terms of Service for the legal terms that apply to Misyra.',
+    termsSummary: 'Read the configured Terms of Service for the legal terms that apply to Misyra.',
     termsOpen: 'Open Terms of Service',
     aboutTitle: 'About',
     aboutBody:
