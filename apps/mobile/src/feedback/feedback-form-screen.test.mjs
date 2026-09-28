@@ -27,8 +27,7 @@ vi.mock('../accessibility/system-text.js', () => ({ SystemText: 'Text' }));
 
 vi.mock('../design-system/index.js', async () => {
   const { createElement: createReactElement } = await import('react');
-  const button = (name) => ({ children, ...props }) =>
-    createReactElement(name, props, children);
+  const button = (name) => ({ children, ...props }) => createReactElement(name, props, children);
   return {
     PrimaryButton: button('PrimaryButton'),
     SecondaryButton: button('SecondaryButton'),
@@ -85,9 +84,7 @@ describe('MTS-106 feedback form interaction', () => {
 
     expect(renderer.root.findByProps({ testID: 'feedback-preview' })).toBeDefined();
     expect(renderer.root.findByProps({ testID: 'feedback-technical-summary' })).toBeDefined();
-    expect(
-      renderer.root.findByProps({ testID: 'feedback-retention-disclosure' }),
-    ).toBeDefined();
+    expect(renderer.root.findByProps({ testID: 'feedback-retention-disclosure' })).toBeDefined();
 
     const submit = renderer.root.findByProps({ testID: 'feedback-submit' });
     await act(async () => {
