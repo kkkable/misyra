@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import type { Pool } from 'pg';
 
 import type { ProtectedMediaBlobStore } from './protected-media.js';
@@ -126,7 +128,7 @@ export function createRetainedFeedbackService(
   options: RetainedFeedbackServiceOptions,
 ): RetainedFeedbackService {
   const now = options.now ?? (() => new Date());
-  const generateId = options.generateId ?? crypto.randomUUID;
+  const generateId = options.generateId ?? randomUUID;
 
   return Object.freeze({
     async submit(accountId: string, rawInput: unknown) {
