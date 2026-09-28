@@ -34,6 +34,9 @@ param workerImage string = 'example.invalid/misyra/worker:unconfigured'
 @description('PostgreSQL administrator login placeholder; deployment configuration must replace it.')
 param postgresqlAdministratorLogin string = 'replace_me'
 
+@description('Optional Microsoft Entra group object ID for authorized retained-feedback read-only operations access.')
+param feedbackOperationsPrincipalId string = ''
+
 @secure()
 @description('No credential is committed. A future approved deployment must supply this secure value.')
 param postgresqlAdministratorPassword string = ''
@@ -79,6 +82,7 @@ module data './modules/data.bicep' = {
     privateEndpointSubnetId: network.outputs.privateEndpointsSubnetId
     apiPrincipalId: compute.outputs.apiPrincipalId
     cleanupJobPrincipalId: compute.outputs.cleanupJobPrincipalId
+    feedbackOperationsPrincipalId: feedbackOperationsPrincipalId
     postgresqlAdministratorLogin: postgresqlAdministratorLogin
     postgresqlAdministratorPassword: postgresqlAdministratorPassword
   }
