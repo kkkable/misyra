@@ -60,7 +60,7 @@ describe('MTS-046 general mission note migration', () => {
 
     await applyMobileMigrations(database);
 
-    expect(MOBILE_SCHEMA_VERSION).toBe(9);
+    expect(MOBILE_SCHEMA_VERSION).toBe(10);
     expect(
       database.all('PRAGMA table_info(search_documents)').map((column) => column.name),
     ).toContain('general_note');
