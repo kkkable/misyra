@@ -185,7 +185,6 @@ describe('MTS-107 manual resubmit and discard lifecycle', () => {
   });
 });
 
-
 describe('MTS-108 feedback submission idempotency', () => {
   it('preserves a retry key across restart for unchanged content and rotates it after edits', async () => {
     const accountId = 'account-idempotency';
@@ -217,7 +216,6 @@ describe('MTS-108 feedback submission idempotency', () => {
     );
   });
 });
-
 
 describe('MTS-107 sign-out cleanup', () => {
   it('deletes the unsent draft and screenshot while the existing account wipe continues', async () => {
