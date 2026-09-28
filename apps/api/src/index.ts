@@ -202,7 +202,7 @@ export function createApiServer(options: ApiServerOptions = {}) {
   );
 
   server.addHook('onRequest', (request, reply, done) => {
-    requestStartedAt.set(request.id, Date.now());
+    if (options.auditLog !== undefined) requestStartedAt.set(request.id, Date.now());
     reply.header('x-request-id', request.id);
     done();
   });
@@ -240,7 +240,7 @@ export function createApiServer(options: ApiServerOptions = {}) {
         ? error.code
         : 'temporarily_unavailable';
     const statusCode = validationError ? 400 : errorStatus[code];
-    requestErrorCodes.set(request.id, code);
+    if (options.auditLog !== undefined) requestErrorCodes.set(request.id, code);
 
     return reply.code(statusCode).send(errorEnvelope(request.id, code));
   });
