@@ -23,14 +23,14 @@ describe('MTS-105 diagnostics Settings opt-out', () => {
     expect(functionStart).toBeGreaterThan(0);
 
     const functionSource = source.slice(functionStart, functionStart + 2200);
-    const immediateToggle = functionSource.indexOf('rootDiagnosticsRuntime.setEnabled(enabled)');
+    const immediateToggle = functionSource.indexOf(
+      'rootDiagnosticsRuntime.setEnabled(enabled)',
+    );
     const networkPersistence = functionSource.indexOf('await authenticatedApi()');
 
     expect(immediateToggle).toBeGreaterThan(0);
     expect(networkPersistence).toBeGreaterThan(0);
     expect(immediateToggle).toBeLessThan(networkPersistence);
-    expect(functionSource).toContain(
-      'updateAccountSettings({ diagnosticsEnabled: enabled })',
-    );
+    expect(functionSource).toContain('updateAccountSettings({ diagnosticsEnabled: enabled })');
   });
 });
