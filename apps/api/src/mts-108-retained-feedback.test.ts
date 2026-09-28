@@ -225,6 +225,6 @@ describe('MTS-108 retained feedback storage and unlinking', () => {
       headers: { authorization: 'Bearer unused-by-test-authenticator' },
     });
     expect(historyResponse.statusCode).toBe(404);
-  await server.close();
+    await server.close();
   });
 });
