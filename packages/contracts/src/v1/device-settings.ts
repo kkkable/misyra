@@ -50,6 +50,7 @@ export const accountSettingsSchema = z
   .object({
     language: z.enum(['en', 'zh-HK']),
     trustMode: z.boolean(),
+    diagnosticsEnabled: z.boolean(),
     appTimeZone: ianaTimeZoneSchema.optional(),
   })
   .strict();
@@ -60,6 +61,7 @@ export const accountSettingsUpdateSchema = accountSettingsSchema
     (value) =>
       value.language !== undefined ||
       value.trustMode !== undefined ||
+      value.diagnosticsEnabled !== undefined ||
       value.appTimeZone !== undefined,
     {
       message: 'At least one account setting is required.',
