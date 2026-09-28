@@ -548,7 +548,7 @@ export function SettingsRouteScreen() {
             colorScheme={colorScheme}
             label={catalog.sendFeedback}
             onPress={() => {
-              focusEntry('send-feedback');
+              router.push({ pathname: '/feedback', params: { category: 'feedback' } });
             }}
             selected={selectedEntry === 'send-feedback'}
             testID="settings-row-send-feedback"
@@ -558,7 +558,7 @@ export function SettingsRouteScreen() {
             colorScheme={colorScheme}
             label={catalog.reportProblem}
             onPress={() => {
-              focusEntry('report-problem');
+              router.push({ pathname: '/feedback', params: { category: 'problem' } });
             }}
             selected={selectedEntry === 'report-problem'}
             testID="settings-row-report-problem"

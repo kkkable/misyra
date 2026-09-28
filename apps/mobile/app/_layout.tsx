@@ -81,6 +81,13 @@ function RootApplication() {
                 presentation: 'fullScreenModal',
               }}
             />
+            <Stack.Screen
+              name="feedback"
+              options={{
+                gestureEnabled: true,
+                headerShown: false,
+              }}
+            />
           </Stack>
         </OnboardingGate>
       </SyncRuntimeGate>
