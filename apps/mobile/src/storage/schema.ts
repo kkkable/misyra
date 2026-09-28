@@ -311,6 +311,7 @@ export const mobileMigrations: readonly MobileMigration[] = [
         category TEXT NOT NULL CHECK (category IN ('feedback', 'problem')),
         description TEXT NOT NULL,
         email TEXT NOT NULL,
+        technical_details_json TEXT NOT NULL DEFAULT '{}',
         screenshot_uri TEXT,
         screenshot_mime_type TEXT,
         screenshot_size_bytes INTEGER CHECK (
