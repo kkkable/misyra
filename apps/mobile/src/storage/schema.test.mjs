@@ -187,6 +187,17 @@ async function seedAccount(database, accountId) {
     now,
   );
   await database.runAsync(
+    `INSERT INTO feedback_drafts
+      (account_id, category, description, email, technical_details_json, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    accountId,
+    'feedback',
+    `Feedback ${accountId}`,
+    '',
+    JSON.stringify({ screenName: 'feedback' }),
+    now,
+  );
+  await database.runAsync(
     `INSERT INTO search_documents
       (account_id, document_id, occurrence_id, title, location, provider_text, personal_note, updated_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -248,6 +259,7 @@ describe('MTS-028 mobile SQLite migrations', () => {
         'cached_mission_series',
         'completion_summaries',
         'external_links',
+        'feedback_drafts',
         'hidden_event_summaries',
         'local_accounts',
         'mission_occurrence_tombstones',
