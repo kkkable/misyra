@@ -24,6 +24,7 @@ export type FeedbackDraftStore = Readonly<{
   load(): Promise<FeedbackPersistedDraft | null>;
   save(snapshot: FeedbackPersistedDraft): Promise<void>;
   discard(): Promise<void>;
+  completeSubmission(): Promise<void>;
 }>;
 
 function parseTechnicalDetails(source: string): FeedbackTechnicalDetails {
@@ -140,5 +141,14 @@ export function createFeedbackDraftStore({
     await database.runAsync('DELETE FROM feedback_drafts WHERE account_id = ?', accountId);
   };
 
-  return Object.freeze({ load, save, discard });
+  const completeSubmission = async (): Promise<void> => {
+    await writeTail;
+    const snapshot = await load();
+    await database.runAsync('DELETE FROM feedback_drafts WHERE account_id = ?', accountId);
+    if (snapshot?.draft.screenshot !== null && snapshot?.draft.screenshot !== undefined) {
+      await removeScreenshot(snapshot.draft.screenshot.uri).catch(() => undefined);
+    }
+  };
+
+  return Object.freeze({ load, save, discard, completeSubmission });
 }
