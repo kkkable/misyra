@@ -195,21 +195,18 @@ describe('MTS-108 retained feedback storage and unlinking', () => {
         Buffer.from(`\r\n--${boundary}--\r\n`),
       ]);
       const submit = vi.fn(() => Promise.resolve({ feedbackId }));
-      const routesModule = (await import(retainedFeedbackRoutesModule)) as {
-        createRetainedFeedbackRoutes(service: unknown): unknown[];
-      };
       const server = createApiServer({
         authenticate: () => ({ accountId }),
-        routes: routesModule.createRetainedFeedbackRoutes({ submit }) as never[],
+        routes: createRetainedFeedbackRoutes({ submit }),
       });
-  
+
       const response = await server.inject({
         method: 'POST',
         url: '/v1/feedback',
         headers: { 'content-type': `multipart/form-data; boundary=${boundary}` },
         payload: multipartBody,
       });
-  
+
       expect(response.statusCode).toBe(200);
       expect(response.json()).toMatchObject({ ok: true, payload: { feedbackId } });
       expect(submit).toHaveBeenCalledWith(accountId, {
@@ -223,14 +220,14 @@ describe('MTS-108 retained feedback storage and unlinking', () => {
           sizeBytes: screenshotBytes.length,
         },
       });
-  
+
       const historyResponse = await server.inject({
         method: 'GET',
         url: '/v1/feedback',
         headers: { authorization: 'Bearer unused-by-test-authenticator' },
       });
       expect(historyResponse.statusCode).toBe(404);
-        await server.close();
-      },
+      await server.close();
+    },
   );
 });
