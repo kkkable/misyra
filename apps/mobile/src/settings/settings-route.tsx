@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AppState, Pressable, ScrollView, StyleSheet, View, useColorScheme } from 'react-native';
 
 import type { AccountSettings, CalendarConnection } from '@misyra/contracts';
-import { space, typography } from '@misyra/design-tokens';
+import { radius, space, typography } from '@misyra/design-tokens';
 import type { RecurringSeriesScope } from '@misyra/domain';
 import {
   formatRegionalNumber,
@@ -800,7 +800,7 @@ const styles = StyleSheet.create({
     fontWeight: typography.body.mediumFontWeight,
   },
   informationPanel: {
-    borderRadius: 12,
+    borderRadius: radius.md,
     borderWidth: StyleSheet.hairlineWidth,
     gap: space[2],
     marginHorizontal: space[2],
