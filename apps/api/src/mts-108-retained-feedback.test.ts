@@ -5,20 +5,31 @@ import { Pool } from 'pg';
 
 import { deleteAccountTransaction } from '@misyra/database';
 
-const databaseUrl = process.env.DATABASE_URL;
-const describeWithDatabase = databaseUrl ? describe : describe.skip;
+const postgresUser = process.env.POSTGRES_USER ?? 'misyra';
+const postgresPassword = process.env.POSTGRES_PASSWORD ?? 'misyra-local-only';
+const postgresPort = process.env.POSTGRES_PORT ?? '5432';
+const databaseName = `misyra_mts108_${randomUUID().replaceAll('-', '')}`;
+const databaseUrl = `postgresql://${postgresUser}:${postgresPassword}@127.0.0.1:${postgresPort}/${databaseName}`;
+const adminUrl = `postgresql://${postgresUser}:${postgresPassword}@127.0.0.1:${postgresPort}/postgres`;
 const retainedFeedbackModule = './retained-feedback.js';
 
-describeWithDatabase('MTS-108 retained feedback storage and unlinking', () => {
-  const pool = new Pool({ connectionString: databaseUrl });
+describe('MTS-108 retained feedback storage and unlinking', () => {
+  let pool: Pool;
 
   beforeAll(async () => {
     const { applyMigrations } = await import('@misyra/database');
-    if (databaseUrl !== undefined) await applyMigrations(databaseUrl);
+    const admin = new Pool({ connectionString: adminUrl });
+    await admin.query(`CREATE DATABASE "${databaseName}"`);
+    await admin.end();
+    await applyMigrations(databaseUrl);
+    pool = new Pool({ connectionString: databaseUrl });
   });
 
   afterAll(async () => {
     await pool.end();
+    const admin = new Pool({ connectionString: adminUrl });
+    await admin.query(`DROP DATABASE IF EXISTS "${databaseName}" WITH (FORCE)`);
+    await admin.end();
   });
 
   it('retains submitted content and screenshot without an expiry, then unlinks account deletion', async () => {
