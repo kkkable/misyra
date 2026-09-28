@@ -169,7 +169,10 @@ describe('MTS-108 retained feedback storage and unlinking', () => {
 
     await pool.query('DELETE FROM feedback_reports WHERE id = $1', [result.feedbackId]);
   });
-  it('accepts the existing authenticated multipart feedback protocol without exposing a user history endpoint', async () => {
+
+  it(
+    'accepts the existing authenticated multipart feedback protocol without exposing a user history endpoint',
+    async () => {
     const accountId = randomUUID();
     const feedbackId = randomUUID();
     const screenshotBytes = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
@@ -227,7 +230,7 @@ describe('MTS-108 retained feedback storage and unlinking', () => {
       headers: { authorization: 'Bearer unused-by-test-authenticator' },
     });
     expect(historyResponse.statusCode).toBe(404);
-    await server.close();
-  });
-
+      await server.close();
+    },
+  );
 });
