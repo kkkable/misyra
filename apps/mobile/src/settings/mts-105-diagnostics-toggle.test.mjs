@@ -31,6 +31,8 @@ describe('MTS-105 diagnostics Settings opt-out', () => {
     expect(immediateToggle).toBeGreaterThan(0);
     expect(networkPersistence).toBeGreaterThan(0);
     expect(immediateToggle).toBeLessThan(networkPersistence);
-    expect(functionSource).toContain('updateAccountSettings({ diagnosticsEnabled: enabled })');
+    expect(functionSource).toContain(
+      'updateAccountSettings({ diagnosticsEnabled: enabled })',
+    );
   });
 });
