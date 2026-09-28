@@ -97,24 +97,24 @@ describe('MTS-107 offline feedback draft persistence', () => {
   it(
     'restores description, screenshot, and technical details after a new store instance',
     async () => {
-    const accountId = 'account-restart';
-    const database = await createAccountDatabase(accountId);
-    const removeScreenshot = vi.fn(async () => undefined);
-    const firstStore = createFeedbackDraftStore({
-      database,
-      accountId,
-      removeScreenshot,
-      now: () => new Date('2026-09-28T10:00:00.000Z'),
-    });
+      const accountId = 'account-restart';
+      const database = await createAccountDatabase(accountId);
+      const removeScreenshot = vi.fn(async () => undefined);
+      const firstStore = createFeedbackDraftStore({
+        database,
+        accountId,
+        removeScreenshot,
+        now: () => new Date('2026-09-28T10:00:00.000Z'),
+      });
 
-    await firstStore.save(persistedSnapshot());
+      await firstStore.save(persistedSnapshot());
 
-    const restartedStore = createFeedbackDraftStore({
-      database,
-      accountId,
-      removeScreenshot,
-    });
-    await expect(restartedStore.load()).resolves.toEqual(persistedSnapshot());
+      const restartedStore = createFeedbackDraftStore({
+        database,
+        accountId,
+        removeScreenshot,
+      });
+      await expect(restartedStore.load()).resolves.toEqual(persistedSnapshot());
       expect(removeScreenshot).not.toHaveBeenCalled();
     },
   );
@@ -170,22 +170,22 @@ describe('MTS-107 sign-out cleanup', () => {
   it(
     'deletes the unsent draft and screenshot while the existing account wipe continues',
     async () => {
-    const accountId = 'account-signout';
-    const database = await createAccountDatabase(accountId);
-    const removeScreenshot = vi.fn(async () => undefined);
-    const store = createFeedbackDraftStore({ database, accountId, removeScreenshot });
-    await store.save(persistedSnapshot('file:///signout-draft.png'));
+      const accountId = 'account-signout';
+      const database = await createAccountDatabase(accountId);
+      const removeScreenshot = vi.fn(async () => undefined);
+      const store = createFeedbackDraftStore({ database, accountId, removeScreenshot });
+      await store.save(persistedSnapshot('file:///signout-draft.png'));
 
-    const cleanup = createSignOutCleanup({
-      openDatabase: async () => database,
-      hooks: {
-        clearFeedbackDraft: () => store.discard(),
-      },
-    });
+      const cleanup = createSignOutCleanup({
+        openDatabase: async () => database,
+        hooks: {
+          clearFeedbackDraft: () => store.discard(),
+        },
+      });
 
-    await cleanup(accountId);
+      await cleanup(accountId);
 
-    expect(removeScreenshot).toHaveBeenCalledWith('file:///signout-draft.png');
+      expect(removeScreenshot).toHaveBeenCalledWith('file:///signout-draft.png');
       await expect(
         database.getFirstAsync(
           'SELECT account_id FROM local_accounts WHERE account_id = ?',
