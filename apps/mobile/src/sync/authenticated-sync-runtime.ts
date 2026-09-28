@@ -174,15 +174,20 @@ async function applyAccountSettings(
   if (settings.appTimeZone === undefined) {
     await database.runAsync(
       `INSERT INTO local_accounts
-         (account_id, created_at, language, trust_mode, settings_updated_at)
-       VALUES (?, CURRENT_TIMESTAMP, ?, ?, ?)
+         (
+           account_id, created_at, language, trust_mode, diagnostics_enabled,
+           settings_updated_at
+         )
+       VALUES (?, CURRENT_TIMESTAMP, ?, ?, ?, ?)
        ON CONFLICT(account_id) DO UPDATE SET
          language = excluded.language,
          trust_mode = excluded.trust_mode,
+         diagnostics_enabled = excluded.diagnostics_enabled,
          settings_updated_at = excluded.settings_updated_at`,
       accountId,
       settings.language,
       settings.trustMode ? 1 : 0,
+      settings.diagnosticsEnabled ? 1 : 0,
       updatedAt,
     );
     return;
@@ -190,16 +195,21 @@ async function applyAccountSettings(
 
   await database.runAsync(
     `INSERT INTO local_accounts
-       (account_id, created_at, language, trust_mode, app_time_zone, settings_updated_at)
-     VALUES (?, CURRENT_TIMESTAMP, ?, ?, ?, ?)
+       (
+         account_id, created_at, language, trust_mode, diagnostics_enabled,
+         app_time_zone, settings_updated_at
+       )
+     VALUES (?, CURRENT_TIMESTAMP, ?, ?, ?, ?, ?)
      ON CONFLICT(account_id) DO UPDATE SET
        language = excluded.language,
        trust_mode = excluded.trust_mode,
+       diagnostics_enabled = excluded.diagnostics_enabled,
        app_time_zone = excluded.app_time_zone,
        settings_updated_at = excluded.settings_updated_at`,
     accountId,
     settings.language,
     settings.trustMode ? 1 : 0,
+    settings.diagnosticsEnabled ? 1 : 0,
     settings.appTimeZone,
     updatedAt,
   );
