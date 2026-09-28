@@ -101,9 +101,7 @@ export function createFeedbackDraftStore({
   const save = async (snapshot: FeedbackPersistedDraft): Promise<void> => {
     const operation = writeTail.then(async () => {
       const screenshot = snapshot.draft.screenshot;
-      const technicalDetails = sanitizeFeedbackTechnicalDetails(
-        snapshot.technicalDetails as Readonly<Record<string, unknown>>,
-      );
+      const technicalDetails = sanitizeFeedbackTechnicalDetails(snapshot.technicalDetails);
       await database.runAsync(
         `INSERT INTO feedback_drafts
           (account_id, category, description, email, technical_details_json, screenshot_uri,
