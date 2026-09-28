@@ -2,6 +2,12 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { ApiError, createApiServer, type ApiAuditEntry } from './index.js';
 
+type ObservedAuditEntry = ApiAuditEntry & Readonly<{
+  durationMs?: number;
+  outcome?: string;
+  errorCode?: string;
+}>;
+
 describe('MTS-105 backend telemetry fields', () => {
   it('emits content-free duration and outcome fields for successful requests', async () => {
     const auditLog = vi.fn<(entry: ApiAuditEntry) => void>();
@@ -24,7 +30,7 @@ describe('MTS-105 backend telemetry fields', () => {
     });
 
     expect(auditLog).toHaveBeenCalledOnce();
-    const entry = auditLog.mock.calls[0]?.[0];
+    const entry = auditLog.mock.calls[0]?.[0] as ObservedAuditEntry | undefined;
     expect(entry).toMatchObject({
       method: 'POST',
       route: '/feedback',
@@ -61,7 +67,7 @@ describe('MTS-105 backend telemetry fields', () => {
     });
 
     expect(auditLog).toHaveBeenCalledOnce();
-    const entry = auditLog.mock.calls[0]?.[0];
+    const entry = auditLog.mock.calls[0]?.[0] as ObservedAuditEntry | undefined;
     expect(entry).toMatchObject({
       route: '/missions/:missionId/complete',
       statusCode: 409,
