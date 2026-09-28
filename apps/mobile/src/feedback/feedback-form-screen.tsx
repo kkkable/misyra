@@ -78,10 +78,7 @@ export function FeedbackFormScreen({
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const sanitizedTechnicalDetails = useMemo(
-    () =>
-      sanitizeFeedbackTechnicalDetails(
-        technicalDetails as Readonly<Record<string, unknown>>,
-      ),
+    () => sanitizeFeedbackTechnicalDetails(technicalDetails as Readonly<Record<string, unknown>>),
     [technicalDetails],
   );
 
