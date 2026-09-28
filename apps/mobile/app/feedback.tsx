@@ -28,7 +28,7 @@ function selectedFeedbackImage(value: unknown): Readonly<{
 }> | null {
   if (!isRecord(value) || value.canceled === true) return null;
   const rawResult = value.result;
-  const candidate = Array.isArray(rawResult) ? rawResult[0] : rawResult;
+  const candidate: unknown = Array.isArray(rawResult) ? rawResult[0] : rawResult;
   if (!isRecord(candidate) || typeof candidate.uri !== 'string' || candidate.uri.length === 0) {
     return null;
   }
