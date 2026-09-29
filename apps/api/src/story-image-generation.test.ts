@@ -379,11 +379,7 @@ describe('MTS-109 cross-ticket Story generation corrections', () => {
     await pool.query(
       `INSERT INTO story_image_versions (id, draft_id, kind, storage_key)
        VALUES ($1, $2, 'source', $3)`,
-      [
-        replacementSourceId,
-        replacementDraftId,
-        `story/source/${replacementSourceId}`,
-      ],
+      [replacementSourceId, replacementDraftId, `story/source/${replacementSourceId}`],
     );
 
     await expect(service.getBudget(fixture.accountId, replacementDraftId)).resolves.toEqual({
