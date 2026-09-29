@@ -57,7 +57,10 @@ export function createStoryImageGenerationApi({
       }
     },
 
-    async generate(draftId: string, sourceVersionId: string): Promise<StoryImageGenerationResult> {
+    async generate(
+      draftId: string,
+      sourceVersionId?: string,
+    ): Promise<StoryImageGenerationResult> {
       const response = await fetch(
         `${root}/v1/stories/${encodeURIComponent(draftId)}/image-generations`,
         {
@@ -66,7 +69,9 @@ export function createStoryImageGenerationApi({
             authorization: `Bearer ${accessToken}`,
             'content-type': 'application/json',
           },
-          body: JSON.stringify({ sourceVersionId }),
+          body: JSON.stringify(
+            sourceVersionId === undefined ? {} : { sourceVersionId },
+          ),
         },
       );
       const responseBody: unknown = await response.json();
