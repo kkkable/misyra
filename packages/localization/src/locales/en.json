@@ -70,5 +70,12 @@
   "story.editor.versionSource": "Source",
   "story.editor.versionGenerated": "AI {number}",
   "story.editor.generateVersion": "Generate AI version",
-  "story.editor.deleteVersion": "Delete version"
+  "story.editor.deleteVersion": "Delete version",
+  "story.editor.startOver": "Start Over",
+  "story.editor.startOverTitle": "Start over?",
+  "story.editor.startOverBody": "Replace this unfinished Story and start again?",
+  "story.editor.confirmStartOver": "Start Over",
+  "story.editor.cancelStartOver": "Cancel",
+  "story.editor.initialImageNetworkRequired": "An internet connection is required to create a Story without an evidence photo. Check your connection and try again.",
+  "story.editor.retry": "Retry"
 }
