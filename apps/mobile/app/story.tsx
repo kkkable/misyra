@@ -44,6 +44,10 @@ import { createStoryExportController } from '../src/story/story-export.js';
 import { StoryEditorScreen, type StoryEditorMessages } from '../src/story/story-editor-screen.js';
 import type { StorySourceImage } from '../src/story/story-editor-state.js';
 import { createStoryImageGenerationApi } from '../src/story/story-image-generation-api.js';
+import {
+  initializeSourceFreeStory,
+  StoryGenerationBudgetExhaustedError,
+} from '../src/story/story-initialization.js';
 import { createStoryInstagramController } from '../src/story/story-instagram-sharing.js';
 import { createStoryOfflineDraftStore } from '../src/story/story-offline-draft.js';
 import { createStorySourceRuntime } from '../src/story/story-source-runtime.js';
