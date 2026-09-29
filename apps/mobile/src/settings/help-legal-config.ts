@@ -15,11 +15,7 @@ function httpsUrl(value: string | undefined): string | null {
 
   try {
     const url = new URL(candidate);
-    if (
-      url.protocol !== 'https:' ||
-      url.username.length > 0 ||
-      url.password.length > 0
-    ) {
+    if (url.protocol !== 'https:' || url.username.length > 0 || url.password.length > 0) {
       return null;
     }
     return candidate;
