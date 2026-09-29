@@ -1,12 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  AppState,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  View,
-  useColorScheme,
-} from 'react-native';
+import { AppState, Pressable, ScrollView, StyleSheet, View, useColorScheme } from 'react-native';
 
 import type { AccountSettings, CalendarConnection } from '@misyra/contracts';
 import { radius, space, typography } from '@misyra/design-tokens';
@@ -47,10 +40,7 @@ import {
   type HiddenCalendarEvent,
 } from '../sync/authenticated-sync-api.js';
 import { rootSyncRuntime } from '../sync/root-sync-runtime.js';
-import {
-  openHelpLegalUrl,
-  resolveHelpLegalConfiguration,
-} from './help-legal-config.js';
+import { openHelpLegalUrl, resolveHelpLegalConfiguration } from './help-legal-config.js';
 import { createNotificationSettingsModel } from './notification-settings-model.js';
 
 function localDateForFormatting(value: string): Date {
@@ -144,10 +134,7 @@ function SettingsInformationPanel({
           >
             {entry.question}
           </Text>
-          <Text
-            allowFontScaling
-            style={[styles.informationBody, { color: colors.textSecondary }]}
-          >
+          <Text allowFontScaling style={[styles.informationBody, { color: colors.textSecondary }]}>
             {entry.answer}
           </Text>
         </View>
@@ -730,10 +717,7 @@ export function SettingsRouteScreen() {
               colorScheme={colorScheme}
               paragraphs={[
                 helpLegalCatalog.aboutBody,
-                helpLegalCatalog.versionLabel.replace(
-                  '{version}',
-                  installedAppVersion,
-                ),
+                helpLegalCatalog.versionLabel.replace('{version}', installedAppVersion),
               ]}
               testID="help-legal-about-panel"
               title={helpLegalCatalog.aboutTitle}
