@@ -168,6 +168,8 @@ export function SettingsRouteScreen() {
   const catalog = notificationSettingsCatalogs[language];
   const generalCatalog = localizationCatalogs[language];
   const helpLegalCatalog = helpLegalCatalogs[language];
+  const privacyPolicyUrl = helpLegalConfiguration.privacyPolicyUrl;
+  const termsOfServiceUrl = helpLegalConfiguration.termsOfServiceUrl;
   const configuredPrivacyPolicyUrl: unknown = process.env.EXPO_PUBLIC_PRIVACY_POLICY_URL;
   const configuredTermsOfServiceUrl: unknown = process.env.EXPO_PUBLIC_TERMS_OF_SERVICE_URL;
   const helpLegalConfiguration = useMemo(
@@ -519,12 +521,12 @@ export function SettingsRouteScreen() {
               ]}
               testID="help-legal-privacy-panel"
               title={helpLegalCatalog.privacyTitle}
-              {...(helpLegalConfiguration.privacyPolicyUrl === null
+              {...(privacyPolicyUrl === null
                 ? {}
                 : {
                     actionLabel: helpLegalCatalog.privacyOpenPolicy,
                     onAction: () => {
-                      void openHelpLegalUrl(helpLegalConfiguration.privacyPolicyUrl).catch(
+                      void openHelpLegalUrl(privacyPolicyUrl).catch(
                         () => undefined,
                       );
                     },
@@ -547,12 +549,12 @@ export function SettingsRouteScreen() {
               paragraphs={[helpLegalCatalog.termsSummary]}
               testID="help-legal-terms-panel"
               title={helpLegalCatalog.termsTitle}
-              {...(helpLegalConfiguration.termsOfServiceUrl === null
+              {...(termsOfServiceUrl === null
                 ? {}
                 : {
                     actionLabel: helpLegalCatalog.termsOpen,
                     onAction: () => {
-                      void openHelpLegalUrl(helpLegalConfiguration.termsOfServiceUrl).catch(
+                      void openHelpLegalUrl(termsOfServiceUrl).catch(
                         () => undefined,
                       );
                     },
