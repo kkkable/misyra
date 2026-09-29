@@ -7,10 +7,17 @@ import {
 } from '@misyra/contracts';
 import { localizationCatalogs } from '@misyra/localization';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useColorScheme } from 'react-native';
+import { View, useColorScheme } from 'react-native';
 
 import { getAuthApiBaseUrl, rootAuthController } from '../src/auth/auth-runtime.js';
-import type { ColorScheme } from '../src/design-system/index.js';
+import { SystemText as Text } from '../src/accessibility/system-text.js';
+import {
+  PrimaryButton,
+  Screen,
+  SecondaryButton,
+  themeColors,
+  type ColorScheme,
+} from '../src/design-system/index.js';
 import {
   createEvidenceApi,
   type EvidenceStorySourceAttempt,
@@ -98,6 +105,10 @@ function sourceVersion(payload: StoryDraftPayload) {
   return payload.imageVersions.find((version) => version.kind === 'source') ?? null;
 }
 
+function initialVersion(payload: StoryDraftPayload) {
+  return sourceVersion(payload) ?? payload.imageVersions[0] ?? null;
+}
+
 function sharingNotesForEditor(
   payload: StoryDraftPayload,
 ): StoryTextSuggestionsResult['sharingNotes'] {
@@ -174,6 +185,13 @@ function editorMessages(
     versionGenerated: catalog['story.editor.versionGenerated'],
     generateVersion: catalog['story.editor.generateVersion'],
     deleteVersion: catalog['story.editor.deleteVersion'],
+    startOver: catalog['story.editor.startOver'],
+    startOverTitle: catalog['story.editor.startOverTitle'],
+    startOverBody: catalog['story.editor.startOverBody'],
+    confirmStartOver: catalog['story.editor.confirmStartOver'],
+    cancelStartOver: catalog['story.editor.cancelStartOver'],
+    initialImageNetworkRequired: catalog['story.editor.initialImageNetworkRequired'],
+    retry: catalog['story.editor.retry'],
     saveToPhotos: catalog['story.editor.saveToPhotos'],
     shareElsewhere: catalog['story.editor.shareElsewhere'],
     savedToPhotos: catalog['story.editor.savedToPhotos'],
@@ -198,7 +216,10 @@ export default function StoryRoute() {
   const textSuggestionMessages = suggestionMessages(catalog);
   const nativeColorScheme = useColorScheme();
   const colorScheme: ColorScheme = nativeColorScheme === 'dark' ? 'dark' : 'light';
+  const colors = themeColors(colorScheme);
   const [editorState, setEditorState] = useState<StoryRouteState | null>(null);
+  const [initializationError, setInitializationError] = useState<string | null>(null);
+  const [restoreEpoch, setRestoreEpoch] = useState(0);
   const editorStateRef = useRef<StoryRouteState | null>(null);
   const runtimeRef = useRef<StoryRouteRuntime | null>(null);
   const saveChainRef = useRef<Promise<void>>(Promise.resolve());
