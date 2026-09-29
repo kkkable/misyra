@@ -84,11 +84,14 @@ export function createStoryImageGenerationService(input: {
   return Object.freeze({
     async getBudget(accountId: string, draftId: string): Promise<StoryImageGenerationBudget> {
       const result = await input.pool.query<{ aiGenerationCount: number }>(
-        `SELECT ai_generation_count AS "aiGenerationCount"
-           FROM story_drafts
-          WHERE account_id = $1
-            AND id = $2
-            AND state = 'active'`,
+        `SELECT COALESCE(usage.ai_generation_count, 0)::int AS "aiGenerationCount"
+           FROM story_drafts draft
+      LEFT JOIN story_generation_usage usage
+             ON usage.account_id = draft.account_id
+            AND usage.occurrence_id = draft.occurrence_id
+          WHERE draft.account_id = $1
+            AND draft.id = $2
+            AND draft.state = 'active'`,
         [accountId, draftId],
       );
       const row = result.rows[0];
@@ -193,15 +196,23 @@ export function createStoryImageGenerationService(input: {
       try {
         await client.query('BEGIN');
         const context = await client.query<{
-          aiGenerationCount: number;
-          sourceStorageKey: string;
+          occurrenceId: string;
+          sourceStorageKey: string | null;
+          missionTitle: string;
           styleProfile: unknown;
         }>(
-          `SELECT d.ai_generation_count AS "aiGenerationCount",
+          `SELECT d.occurrence_id AS "occurrenceId",
                   source.storage_key AS "sourceStorageKey",
+                  series.title AS "missionTitle",
                   profile.profile AS "styleProfile"
              FROM story_drafts d
-             JOIN story_image_versions source
+             JOIN mission_occurrences occurrence
+               ON occurrence.id = d.occurrence_id
+              AND occurrence.account_id = d.account_id
+             JOIN mission_series series
+               ON series.id = occurrence.series_id
+              AND series.account_id = d.account_id
+        LEFT JOIN story_image_versions source
                ON source.draft_id = d.id
               AND source.id = $3
               AND source.kind = 'source'
@@ -211,29 +222,54 @@ export function createStoryImageGenerationService(input: {
               AND d.id = $2
               AND d.state = 'active'
             FOR UPDATE OF d`,
-          [accountId, request.draftId, request.sourceVersionId],
+          [accountId, request.draftId, request.sourceVersionId ?? null],
         );
         const row = context.rows[0];
         if (row === undefined) throw new StoryImageGenerationContextError();
-        if (row.aiGenerationCount >= MAX_GENERATIONS) {
+        if (request.sourceVersionId !== undefined && row.sourceStorageKey === null) {
+          throw new StoryImageGenerationContextError();
+        }
+
+        await client.query(
+          `INSERT INTO story_generation_usage
+             (account_id, occurrence_id, ai_generation_count)
+           VALUES ($1, $2, 0)
+           ON CONFLICT (account_id, occurrence_id) DO NOTHING`,
+          [accountId, row.occurrenceId],
+        );
+        const usage = await client.query<{ aiGenerationCount: number }>(
+          `SELECT ai_generation_count AS "aiGenerationCount"
+             FROM story_generation_usage
+            WHERE account_id = $1
+              AND occurrence_id = $2
+            FOR UPDATE`,
+          [accountId, row.occurrenceId],
+        );
+        const usageRow = usage.rows[0];
+        if (usageRow === undefined) throw new StoryImageGenerationContextError();
+        if (usageRow.aiGenerationCount >= MAX_GENERATIONS) {
           throw new StoryImageGenerationBudgetExceededError();
         }
 
-        const nextCount = row.aiGenerationCount + 1;
+        const nextCount = usageRow.aiGenerationCount + 1;
         await client.query(
-          `UPDATE story_drafts
+          `UPDATE story_generation_usage
               SET ai_generation_count = $3,
                   updated_at = now()
             WHERE account_id = $1
-              AND id = $2`,
-          [accountId, request.draftId, nextCount],
+              AND occurrence_id = $2`,
+          [accountId, row.occurrenceId, nextCount],
         );
 
         const gatewayRequest = storyImageGenerationGatewayRequestSchema.parse({
-          source: {
-            imageVersionId: request.sourceVersionId,
-            storageKey: row.sourceStorageKey,
-          },
+          source:
+            request.sourceVersionId === undefined || row.sourceStorageKey === null
+              ? null
+              : {
+                  imageVersionId: request.sourceVersionId,
+                  storageKey: row.sourceStorageKey,
+                },
+          missionTitle: row.missionTitle,
           styleProfile: customStyleProfile(row.styleProfile),
           output: {
             width: 1080,
