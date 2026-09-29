@@ -139,6 +139,7 @@ export const storyImageVersionSyncSchema = z
 export const storyDraftSyncPayloadSchema = z
   .object({
     draftId: uuidSchema,
+    replacesDraftId: uuidSchema.optional(),
     createdAt: instantSchema.optional(),
     notes: storySharingNotesSchema,
     imageVersions: z.array(storyImageVersionSyncSchema),
