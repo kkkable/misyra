@@ -130,9 +130,12 @@ async function createStoryFixture() {
 
 async function readGenerationState(draftId: string) {
   const budget = await pool.query<{ aiGenerationCount: number }>(
-    `SELECT ai_generation_count AS "aiGenerationCount"
-       FROM story_drafts
-      WHERE id = $1`,
+    `SELECT COALESCE(usage.ai_generation_count, 0)::int AS "aiGenerationCount"
+       FROM story_drafts draft
+  LEFT JOIN story_generation_usage usage
+         ON usage.account_id = draft.account_id
+        AND usage.occurrence_id = draft.occurrence_id
+      WHERE draft.id = $1`,
     [draftId],
   );
   const versions = await pool.query<{ kind: string; storageKey: string }>(
