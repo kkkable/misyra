@@ -70,5 +70,12 @@
   "story.editor.versionSource": "來源",
   "story.editor.versionGenerated": "AI {number}",
   "story.editor.generateVersion": "生成 AI 版本",
-  "story.editor.deleteVersion": "刪除版本"
+  "story.editor.deleteVersion": "刪除版本",
+  "story.editor.startOver": "重新開始",
+  "story.editor.startOverTitle": "重新開始？",
+  "story.editor.startOverBody": "取代目前尚未完成的 Story 並重新開始？",
+  "story.editor.confirmStartOver": "重新開始",
+  "story.editor.cancelStartOver": "取消",
+  "story.editor.initialImageNetworkRequired": "沒有證據相片時，需要網絡連線才能建立 Story。請檢查連線後再試。",
+  "story.editor.retry": "再試一次"
 }
