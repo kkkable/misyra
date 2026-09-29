@@ -211,6 +211,36 @@ describe('MTS-091/MTS-096 offline Story draft persistence', () => {
     });
   });
 
+  it('replaces an unfinished local draft only when the previous draft id is explicit', async () => {
+    const database = new NodeSqliteAdapter();
+    databases.push(database);
+    await applyMobileMigrations(database);
+    await seedCompletedMission(database);
+
+    let mutation = 0;
+    const store = createStoryOfflineDraftStore({
+      database,
+      accountId,
+      deviceId,
+      generateMutationId: () =>
+        mutation++ === 0
+          ? '77777777-7777-4777-8777-777777777777'
+          : '88888888-8888-4888-8888-888888888888',
+      now: () => new Date('2026-09-29T04:30:00.000Z'),
+    });
+    await store.save(occurrenceId, payload(1));
+
+    const replacement = {
+      draftId: '99999999-9999-4999-8999-999999999999',
+      replacesDraftId: draftId,
+      createdAt: '2026-09-29T04:30:00.000Z',
+      notes: { musicMood: null, mention: null, location: null, poll: null },
+      imageVersions: [],
+    };
+    await expect(store.save(occurrenceId, replacement)).resolves.toBeUndefined();
+    await expect(store.load(occurrenceId)).resolves.toEqual(replacement);
+  });
+
   it('saves manual edits locally and queues server sync without requiring a network call', async () => {
     const database = new NodeSqliteAdapter();
     databases.push(database);
