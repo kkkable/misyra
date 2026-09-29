@@ -211,6 +211,7 @@ export const localizationCatalogs = {
     'story.editor.cancelStartOver': 'Cancel',
     'story.editor.initialImageNetworkRequired':
       'An internet connection is required to create a Story without an evidence photo. Check your connection and try again.',
+    'story.editor.noGenerationsRemaining': 'No AI generations remain for this mission.',
     'story.editor.retry': 'Retry',
     'story.editor.saveToPhotos': 'Save to Photos',
     'story.editor.shareElsewhere': 'Share elsewhere',
@@ -454,6 +455,7 @@ export const localizationCatalogs = {
     'story.editor.cancelStartOver': '取消',
     'story.editor.initialImageNetworkRequired':
       '沒有證據相片時，需要網絡連線才能建立 Story。請檢查連線後再試。',
+    'story.editor.noGenerationsRemaining': '此任務已沒有剩餘 AI 生成次數。',
     'story.editor.retry': '再試一次',
     'story.editor.saveToPhotos': '儲存到相片',
     'story.editor.shareElsewhere': '分享到其他地方',
