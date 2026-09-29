@@ -793,6 +793,7 @@ export default function StoryRoute() {
         commitEditorState(next);
         void enqueueSave(next.payload).catch(() => undefined);
       }}
+      onStartOver={startOver}
       onSave={(composition) => {
         const next = withComposition(editorState, composition);
         commitEditorState(next);
