@@ -371,10 +371,7 @@ export const storyGenerationUsage = pgTable(
       foreignColumns: [missionOccurrences.id, missionOccurrences.accountId],
       name: 'story_generation_usage_occurrence_account_fk',
     }).onDelete('cascade'),
-    check(
-      'story_generation_usage_count_check',
-      sql`${table.aiGenerationCount} between 0 and 3`,
-    ),
+    check('story_generation_usage_count_check', sql`${table.aiGenerationCount} between 0 and 3`),
   ],
 );
 
