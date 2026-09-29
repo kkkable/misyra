@@ -1,7 +1,11 @@
 export type HelpLegalConfiguration = Readonly<{
   privacyPolicyUrl: string | null;
   termsOfServiceUrl: string | null;
-  appVersion: string;
+}>;
+
+export type HelpLegalConfigurationInput = Readonly<{
+  privacyPolicyUrl?: string | undefined;
+  termsOfServiceUrl?: string | undefined;
 }>;
 
 function httpsUrl(value: string | undefined): string | null {
@@ -11,26 +15,25 @@ function httpsUrl(value: string | undefined): string | null {
 
   try {
     const url = new URL(candidate);
-    if (url.protocol !== 'https:' || url.username.length > 0 || url.password.length > 0) return null;
+    if (
+      url.protocol !== 'https:' ||
+      url.username.length > 0 ||
+      url.password.length > 0
+    ) {
+      return null;
+    }
     return candidate;
   } catch {
     return null;
   }
 }
 
-function appVersion(value: string | undefined): string {
-  if (typeof value !== 'string') return '0.0.0';
-  const candidate = value.trim();
-  return candidate.length > 0 ? candidate : '0.0.0';
-}
-
 export function resolveHelpLegalConfiguration(
-  env: Readonly<Record<string, string | undefined>> = process.env,
+  input: HelpLegalConfigurationInput,
 ): HelpLegalConfiguration {
   return Object.freeze({
-    privacyPolicyUrl: httpsUrl(env.EXPO_PUBLIC_PRIVACY_POLICY_URL),
-    termsOfServiceUrl: httpsUrl(env.EXPO_PUBLIC_TERMS_OF_SERVICE_URL),
-    appVersion: appVersion(env.EXPO_PUBLIC_APP_VERSION),
+    privacyPolicyUrl: httpsUrl(input.privacyPolicyUrl),
+    termsOfServiceUrl: httpsUrl(input.termsOfServiceUrl),
   });
 }
 
