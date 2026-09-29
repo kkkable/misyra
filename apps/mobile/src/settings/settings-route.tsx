@@ -168,13 +168,19 @@ export function SettingsRouteScreen() {
   const catalog = notificationSettingsCatalogs[language];
   const generalCatalog = localizationCatalogs[language];
   const helpLegalCatalog = helpLegalCatalogs[language];
+  const configuredPrivacyPolicyUrl: unknown = process.env.EXPO_PUBLIC_PRIVACY_POLICY_URL;
+  const configuredTermsOfServiceUrl: unknown = process.env.EXPO_PUBLIC_TERMS_OF_SERVICE_URL;
   const helpLegalConfiguration = useMemo(
     () =>
       resolveHelpLegalConfiguration({
-        privacyPolicyUrl: process.env.EXPO_PUBLIC_PRIVACY_POLICY_URL,
-        termsOfServiceUrl: process.env.EXPO_PUBLIC_TERMS_OF_SERVICE_URL,
+        privacyPolicyUrl:
+          typeof configuredPrivacyPolicyUrl === 'string' ? configuredPrivacyPolicyUrl : undefined,
+        termsOfServiceUrl:
+          typeof configuredTermsOfServiceUrl === 'string'
+            ? configuredTermsOfServiceUrl
+            : undefined,
       }),
-    [],
+    [configuredPrivacyPolicyUrl, configuredTermsOfServiceUrl],
   );
   const installedAppVersion = Application.nativeApplicationVersion ?? '0.0.0';
   const permissionService = useMemo(
