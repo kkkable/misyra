@@ -518,47 +518,73 @@ export default function StoryRoute() {
 
         const attempts = await source.list(occurrenceId);
         const selected = attempts.at(-1);
-        if (selected === undefined) throw new Error('story_source_photo_unavailable');
-
         const draftId = generateUuid();
-        const imageVersionId = generateUuid();
-        const materialized = await source.materialize(selected, imageVersionId);
-        const composition = createEmptyStoryComposition(new Date().toISOString());
-        const payload = storyDraftSyncPayloadSchema.parse({
-          draftId,
-          notes: {
-            musicMood: null,
-            mention: null,
-            location: null,
-            poll: null,
-          },
-          imageVersions: [
-            {
-              id: imageVersionId,
-              kind: 'source',
-              storageKey: `story/source/${imageVersionId}`,
-              composition,
-            },
-          ],
-        });
-        await enqueueSave(payload);
-        if (lifecycle.cancelled) return;
+        const createdAt = new Date().toISOString();
 
-        commitEditorState({
-          payload,
-          imageVersionId,
-          selectedAttemptId: selected.attemptId,
-          sourceAttempts: attempts,
-          sourceImage: {
-            id: materialized.imageVersionId,
-            uri: materialized.uri,
-            width: materialized.width,
-            height: materialized.height,
-          },
-          remainingGenerations: null,
-          textSuggestions: null,
-          aiOperationsAvailable: false,
-        });
+        let initialState: StoryRouteState;
+        if (selected === undefined) {
+          const payload = createEmptyStoryPayload(draftId, createdAt);
+          const initialized = await initializeSourceFreeStory({
+            payload,
+            save: enqueueSave,
+            synchronize: () => rootSyncRuntime.run(),
+            getBudget: () => imageGeneration.getBudget(draftId),
+            generate: () => imageGeneration.generate(draftId),
+            appendGeneratedVersion: appendGeneratedStoryVersion,
+            materialize: (targetDraftId, imageVersionId) =>
+              versionFiles.materializeGenerated(targetDraftId, imageVersionId),
+          });
+          initialState = {
+            payload: initialized.payload,
+            imageVersionId: initialized.imageVersionId,
+            selectedAttemptId: '',
+            sourceAttempts: attempts,
+            sourceImage: initialized.sourceImage,
+            remainingGenerations: initialized.remainingGenerations,
+            textSuggestions: null,
+            aiOperationsAvailable: true,
+          };
+        } else {
+          const imageVersionId = generateUuid();
+          const materialized = await source.materialize(selected, imageVersionId);
+          const composition = createEmptyStoryComposition(createdAt);
+          const payload = storyDraftSyncPayloadSchema.parse({
+            draftId,
+            createdAt,
+            notes: {
+              musicMood: null,
+              mention: null,
+              location: null,
+              poll: null,
+            },
+            imageVersions: [
+              {
+                id: imageVersionId,
+                kind: 'source',
+                storageKey: `story/source/${imageVersionId}`,
+                composition,
+              },
+            ],
+          });
+          await enqueueSave(payload);
+          initialState = {
+            payload,
+            imageVersionId,
+            selectedAttemptId: selected.attemptId,
+            sourceAttempts: attempts,
+            sourceImage: {
+              id: materialized.imageVersionId,
+              uri: materialized.uri,
+              width: materialized.width,
+              height: materialized.height,
+            },
+            remainingGenerations: null,
+            textSuggestions: null,
+            aiOperationsAvailable: false,
+          };
+        }
+        if (lifecycle.cancelled) return;
+        commitEditorState(initialState);
 
         void imageGeneration
           .getBudget(draftId)
