@@ -64,6 +64,13 @@ export type StoryEditorMessages = Readonly<{
   versionGenerated: string;
   generateVersion: string;
   deleteVersion: string;
+  startOver: string;
+  startOverTitle: string;
+  startOverBody: string;
+  confirmStartOver: string;
+  cancelStartOver: string;
+  initialImageNetworkRequired: string;
+  retry: string;
   saveToPhotos: string;
   shareElsewhere: string;
   savedToPhotos: string;
@@ -121,6 +128,7 @@ export function StoryEditorScreen({
   onCompositionChange,
   onDeleteImageVersion,
   onGenerateVersion,
+  onStartOver,
   onSave,
   onSaveToPhotos,
   onShareElsewhere,
@@ -150,6 +158,7 @@ export function StoryEditorScreen({
   onCompositionChange: (composition: StoryComposition) => void;
   onDeleteImageVersion?: (versionId: string) => void;
   onGenerateVersion?: () => void;
+  onStartOver?: () => void | Promise<void>;
   onSave: (composition: StoryComposition) => void;
   onSaveToPhotos?: () => void | Promise<void>;
   onShareElsewhere?: () => void | Promise<void>;
@@ -195,6 +204,7 @@ export function StoryEditorScreen({
   const [composition, setComposition] = useState(() => session.getComposition());
   const [selectedTextRole, setSelectedTextRole] = useState<TextRole>('headline');
   const [sharingNotesVisible, setSharingNotesVisible] = useState(false);
+  const [startOverConfirmVisible, setStartOverConfirmVisible] = useState(false);
 
   useEffect(() => {
     setComposition(session.getComposition());
