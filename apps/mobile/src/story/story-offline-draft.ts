@@ -199,7 +199,10 @@ export function createStoryOfflineDraftStore({
                draft_id = excluded.draft_id,
                composition_json = excluded.composition_json,
                updated_at = excluded.updated_at,
-               created_at = COALESCE(story_drafts.created_at, excluded.created_at)`,
+               created_at = CASE
+                 WHEN story_drafts.draft_id <> excluded.draft_id THEN excluded.created_at
+                 ELSE COALESCE(story_drafts.created_at, excluded.created_at)
+               END`,
             accountId,
             occurrenceId,
             payload.draftId,
