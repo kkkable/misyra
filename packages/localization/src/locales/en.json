@@ -77,5 +77,6 @@
   "story.editor.confirmStartOver": "Start Over",
   "story.editor.cancelStartOver": "Cancel",
   "story.editor.initialImageNetworkRequired": "An internet connection is required to create a Story without an evidence photo. Check your connection and try again.",
+  "story.editor.noGenerationsRemaining": "No AI generations remain for this mission.",
   "story.editor.retry": "Retry"
 }
