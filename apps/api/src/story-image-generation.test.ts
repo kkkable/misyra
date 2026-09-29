@@ -348,9 +348,7 @@ describe('MTS-109 cross-ticket Story generation corrections', () => {
       pool,
       gateway: {
         generateStoryImage: vi.fn(() =>
-          Promise.resolve({
-            storageKey: `story/generated/replacement-${String(++serial)}`,
-          }),
+          Promise.resolve({ storageKey: `story/generated/replacement-${String(++serial)}` }),
         ),
       },
     });
