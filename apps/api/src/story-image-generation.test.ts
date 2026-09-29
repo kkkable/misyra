@@ -320,9 +320,8 @@ describe('MTS-094 Story image generation budget and versions', () => {
 describe('MTS-109 cross-ticket Story generation corrections', () => {
   it('creates the first generated Story image without an evidence source version', async () => {
     const fixture = await createStoryFixture();
-    const generateStoryImage = vi.fn(() =>
-      Promise.resolve({ storageKey: 'story/generated/source-free-initial' }),
-    );
+    const generatedStorageKey = 'story/generated/source-free-initial';
+    const generateStoryImage = vi.fn(() => Promise.resolve({ storageKey: generatedStorageKey }));
     const service = createStoryImageGenerationService({
       pool,
       gateway: { generateStoryImage },
@@ -344,9 +343,10 @@ describe('MTS-109 cross-ticket Story generation corrections', () => {
   it('keeps consumed generation requests after the Story draft is replaced', async () => {
     const fixture = await createStoryFixture();
     let serial = 0;
-    const generateStoryImage = vi.fn(() =>
-      Promise.resolve({ storageKey: `story/generated/replacement-${String(++serial)}` }),
-    );
+    const generateStoryImage = vi.fn(() => {
+      serial += 1;
+      return Promise.resolve({ storageKey: `story/generated/replacement-${String(serial)}` });
+    });
     const service = createStoryImageGenerationService({
       pool,
       gateway: { generateStoryImage },
