@@ -330,6 +330,15 @@ export function StoryEditorScreen({
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.sourceRow}>
           <SecondaryButton
+            accessibilityLabel={messages.startOver}
+            colorScheme={colorScheme}
+            label={messages.startOver}
+            onPress={() => {
+              setStartOverConfirmVisible(true);
+            }}
+            testID="story-start-over"
+          />
+          <SecondaryButton
             accessibilityLabel={messages.saveToPhotos}
             colorScheme={colorScheme}
             label={messages.saveToPhotos}
