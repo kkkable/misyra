@@ -614,6 +614,86 @@ describe('MTS-090/MTS-096 Story schema and synchronization contracts', () => {
   });
 });
 
+describe('MTS-109 explicit Story Start Over replacement', () => {
+  it('replaces the named active draft and schedules obsolete working media for cleanup', async () => {
+    const fixture = await createMissionFixture(true);
+    const firstDraftId = randomUUID();
+    const firstSourceId = randomUUID();
+    const firstGeneratedId = randomUUID();
+    const firstPayload = storyPayload(
+      firstDraftId,
+      firstSourceId,
+      firstGeneratedId,
+      'start-over-old',
+      1,
+      '2026-09-23T09:32:00.000Z',
+    );
+    await fixture.store.push(fixture.account.id, [
+      {
+        mutationId: randomUUID(),
+        accountId: fixture.account.id,
+        deviceId: fixture.firstDevice,
+        entityType: 'story',
+        entityId: fixture.occurrenceId,
+        operation: 'create',
+        baseVersion: null,
+        clientOccurredAt: '2026-09-23T09:32:00.000Z',
+        payload: firstPayload,
+      },
+    ]);
+    await pool.query(
+      `INSERT INTO media_assets (id, account_id, purpose, storage_key)
+       VALUES ($1, $2, 'story-working', $3)`,
+      [firstGeneratedId, fixture.account.id, `story/generated/${firstGeneratedId}`],
+    );
+
+    const replacementDraftId = randomUUID();
+    const replacementPayload = {
+      ...storyPayload(
+        replacementDraftId,
+        randomUUID(),
+        randomUUID(),
+        'start-over-new',
+        1,
+        '2026-09-23T09:40:00.000Z',
+      ),
+      replacesDraftId: firstDraftId,
+    };
+    const replacementMutationId = randomUUID();
+    await expect(
+      fixture.store.push(fixture.account.id, [
+        {
+          mutationId: replacementMutationId,
+          accountId: fixture.account.id,
+          deviceId: fixture.secondDevice,
+          entityType: 'story',
+          entityId: fixture.occurrenceId,
+          operation: 'update',
+          baseVersion: null,
+          clientOccurredAt: '2026-09-23T09:40:00.000Z',
+          payload: replacementPayload,
+        },
+      ]),
+    ).resolves.toEqual({ acceptedMutationIds: [replacementMutationId] });
+
+    const active = await pool.query<{ id: string }>(
+      `SELECT id FROM story_drafts
+        WHERE account_id = $1 AND occurrence_id = $2 AND state = 'active'`,
+      [fixture.account.id, fixture.occurrenceId],
+    );
+    expect(active.rows).toEqual([{ id: replacementDraftId }]);
+
+    const oldMedia = await pool.query<{ deletionDueAt: Date | null; retryState: string }>(
+      `SELECT deletion_due_at AS "deletionDueAt", retry_state AS "retryState"
+         FROM media_assets
+        WHERE id = $1`,
+      [firstGeneratedId],
+    );
+    expect(oldMedia.rows[0]?.deletionDueAt).not.toBeNull();
+    expect(oldMedia.rows[0]?.retryState).toBe('ready');
+  });
+});
+
 describe('MTS-099 Story retention replacement', () => {
   it('replaces an expired Story draft with a fresh Create Story', async () => {
     const fixture = await createMissionFixture(true);
