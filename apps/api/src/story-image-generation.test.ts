@@ -317,6 +317,94 @@ describe('MTS-094 Story image generation budget and versions', () => {
   });
 });
 
+describe('MTS-109 cross-ticket Story generation corrections', () => {
+  it('creates the first generated Story image without an evidence source version', async () => {
+    const fixture = await createStoryFixture();
+    const generateStoryImage = vi.fn(() =>
+      Promise.resolve({ storageKey: 'story/generated/source-free-initial' }),
+    );
+    const service = createStoryImageGenerationService({
+      pool,
+      gateway: { generateStoryImage },
+    });
+
+    const result = await service.generate(fixture.accountId, {
+      draftId: fixture.draftId,
+    });
+
+    expect(result.remainingGenerations).toBe(2);
+    expect(generateStoryImage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: null,
+        missionTitle: 'MTS-094 Story mission',
+      }),
+    );
+  });
+
+  it('keeps consumed generation requests after the Story draft is replaced', async () => {
+    const fixture = await createStoryFixture();
+    let serial = 0;
+    const service = createStoryImageGenerationService({
+      pool,
+      gateway: {
+        generateStoryImage: vi.fn(() =>
+          Promise.resolve({
+            storageKey: `story/generated/replacement-${String(++serial)}`,
+          }),
+        ),
+      },
+    });
+
+    await service.generate(fixture.accountId, {
+      draftId: fixture.draftId,
+      sourceVersionId: fixture.sourceVersionId,
+    });
+    await service.generate(fixture.accountId, {
+      draftId: fixture.draftId,
+      sourceVersionId: fixture.sourceVersionId,
+    });
+
+    const replacementDraftId = randomUUID();
+    const replacementSourceId = randomUUID();
+    await pool.query('DELETE FROM story_drafts WHERE id = $1', [fixture.draftId]);
+    await pool.query(
+      `INSERT INTO story_drafts (
+         id, account_id, occurrence_id, state,
+         original_client_time, server_receipt_time, effective_save_time
+       ) VALUES ($1, $2, $3, 'active', $4, $4, $4)`,
+      [
+        replacementDraftId,
+        fixture.accountId,
+        fixture.occurrenceId,
+        new Date('2026-09-24T05:00:00.000Z'),
+      ],
+    );
+    await pool.query(
+      `INSERT INTO story_image_versions (id, draft_id, kind, storage_key)
+       VALUES ($1, $2, 'source', $3)`,
+      [
+        replacementSourceId,
+        replacementDraftId,
+        `story/source/${replacementSourceId}`,
+      ],
+    );
+
+    await expect(service.getBudget(fixture.accountId, replacementDraftId)).resolves.toEqual({
+      remainingGenerations: 1,
+    });
+    await service.generate(fixture.accountId, {
+      draftId: replacementDraftId,
+      sourceVersionId: replacementSourceId,
+    });
+    await expect(
+      service.generate(fixture.accountId, {
+        draftId: replacementDraftId,
+        sourceVersionId: replacementSourceId,
+      }),
+    ).rejects.toBeInstanceOf(StoryImageGenerationBudgetExceededError);
+  });
+});
+
 describe('MTS-095 generated Story version lifecycle', () => {
   it('creates a generated version with an empty independent composition', async () => {
     const fixture = await createStoryFixture();
