@@ -1548,9 +1548,34 @@ async function applyStoryMutation(
   }
 
   if (current !== undefined && current.id !== payload.draftId) {
-    throw new SyncMutationConflictError(
-      'A different unfinished Story draft already exists for this mission',
+    if (payload.replacesDraftId !== current.id) {
+      throw new SyncMutationConflictError(
+        'A different unfinished Story draft already exists for this mission',
+      );
+    }
+
+    await client.query(
+      `UPDATE media_assets
+          SET deletion_due_at = LEAST(COALESCE(deletion_due_at, $3), $3),
+              retry_state = 'ready'
+        WHERE account_id = $1
+          AND purpose = 'story-working'
+          AND id IN (
+            SELECT id
+              FROM story_image_versions
+             WHERE draft_id = $2
+          )`,
+      [mutation.accountId, current.id, timing.serverReceiptTime],
     );
+    await client.query(
+      `DELETE FROM story_drafts
+        WHERE id = $1
+          AND account_id = $2
+          AND occurrence_id = $3
+          AND state = 'active'`,
+      [current.id, mutation.accountId, mutation.entityId],
+    );
+    current = undefined;
   }
   if (current !== undefined && !storySaveIsNewer(current, timing, mutation.mutationId)) {
     return {
