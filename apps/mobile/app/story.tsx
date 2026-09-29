@@ -47,6 +47,7 @@ import { createStoryImageGenerationApi } from '../src/story/story-image-generati
 import {
   initializeSourceFreeStory,
   StoryGenerationBudgetExhaustedError,
+  StoryInitialImageUnavailableError,
 } from '../src/story/story-initialization.js';
 import { createStoryInstagramController } from '../src/story/story-instagram-sharing.js';
 import { createStoryOfflineDraftStore } from '../src/story/story-offline-draft.js';
