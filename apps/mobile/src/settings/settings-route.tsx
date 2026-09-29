@@ -176,9 +176,7 @@ export function SettingsRouteScreen() {
         privacyPolicyUrl:
           typeof configuredPrivacyPolicyUrl === 'string' ? configuredPrivacyPolicyUrl : undefined,
         termsOfServiceUrl:
-          typeof configuredTermsOfServiceUrl === 'string'
-            ? configuredTermsOfServiceUrl
-            : undefined,
+          typeof configuredTermsOfServiceUrl === 'string' ? configuredTermsOfServiceUrl : undefined,
       }),
     [configuredPrivacyPolicyUrl, configuredTermsOfServiceUrl],
   );
