@@ -17,9 +17,7 @@ function harness() {
   const save = vi.fn(() => Promise.resolve());
   const synchronize = vi.fn(() => Promise.resolve());
   const getBudget = vi.fn(() => Promise.resolve({ remainingGenerations: 3 }));
-  const generate = vi.fn(() =>
-    Promise.resolve({ version, remainingGenerations: 2 }),
-  );
+  const generate = vi.fn(() => Promise.resolve({ version, remainingGenerations: 2 }));
   const appendGeneratedVersion = vi.fn((value, generated) => ({
     ...value,
     versions: [...value.versions, generated.id],
