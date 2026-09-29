@@ -109,6 +109,41 @@ function initialVersion(payload: StoryDraftPayload) {
   return sourceVersion(payload) ?? payload.imageVersions[0] ?? null;
 }
 
+function createEmptyStoryPayload(
+  draftId: string,
+  createdAt: string,
+  replacesDraftId?: string,
+): StoryDraftPayload {
+  return storyDraftSyncPayloadSchema.parse({
+    draftId,
+    ...(replacesDraftId === undefined ? {} : { replacesDraftId }),
+    createdAt,
+    notes: {
+      musicMood: null,
+      mention: null,
+      location: null,
+      poll: null,
+    },
+    imageVersions: [],
+  });
+}
+
+function appendGeneratedStoryVersion(
+  payload: StoryDraftPayload,
+  version: Readonly<{ id: string; kind: 'generated'; storageKey: string }>,
+): StoryDraftPayload {
+  return storyDraftSyncPayloadSchema.parse({
+    ...payload,
+    imageVersions: [
+      ...payload.imageVersions,
+      {
+        ...version,
+        composition: createEmptyStoryComposition(new Date().toISOString()),
+      },
+    ],
+  });
+}
+
 function sharingNotesForEditor(
   payload: StoryDraftPayload,
 ): StoryTextSuggestionsResult['sharingNotes'] {
