@@ -350,6 +350,33 @@ export const streakDays = pgTable(
   (table) => [uniqueIndex('streak_days_account_date_uidx').on(table.accountId, table.localDate)],
 );
 
+export const storyGenerationUsage = pgTable(
+  'story_generation_usage',
+  {
+    accountId: uuid('account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    occurrenceId: uuid('occurrence_id').notNull(),
+    aiGenerationCount: smallint('ai_generation_count').notNull().default(0),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    primaryKey({
+      columns: [table.accountId, table.occurrenceId],
+      name: 'story_generation_usage_pkey',
+    }),
+    foreignKey({
+      columns: [table.occurrenceId, table.accountId],
+      foreignColumns: [missionOccurrences.id, missionOccurrences.accountId],
+      name: 'story_generation_usage_occurrence_account_fk',
+    }).onDelete('cascade'),
+    check(
+      'story_generation_usage_count_check',
+      sql`${table.aiGenerationCount} between 0 and 3`,
+    ),
+  ],
+);
+
 export const storyDrafts = pgTable(
   'story_drafts',
   {
@@ -755,6 +782,7 @@ export const coreTables = Object.freeze([
   evidenceAttempts,
   rewardLedger,
   streakDays,
+  storyGenerationUsage,
   storyDrafts,
   storyImageVersions,
   storyCompositions,
