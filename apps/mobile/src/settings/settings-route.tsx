@@ -2,15 +2,17 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AppState, Pressable, ScrollView, StyleSheet, View, useColorScheme } from 'react-native';
 
 import type { AccountSettings, CalendarConnection } from '@misyra/contracts';
-import { space, typography } from '@misyra/design-tokens';
+import { radius, space, typography } from '@misyra/design-tokens';
 import type { RecurringSeriesScope } from '@misyra/domain';
 import {
   formatRegionalNumber,
   formatRegionalNumericDate,
+  helpLegalCatalogs,
   localizationCatalogs,
   notificationSettingsCatalogs,
   type LocalizationLocale,
 } from '@misyra/localization';
+import * as Application from 'expo-application';
 import { getCalendars, getLocales } from 'expo-localization';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
@@ -38,6 +40,7 @@ import {
   type HiddenCalendarEvent,
 } from '../sync/authenticated-sync-api.js';
 import { rootSyncRuntime } from '../sync/root-sync-runtime.js';
+import { openHelpLegalUrl, resolveHelpLegalConfiguration } from './help-legal-config.js';
 import { createNotificationSettingsModel } from './notification-settings-model.js';
 
 function localDateForFormatting(value: string): Date {
@@ -74,6 +77,84 @@ function selectedParam(value: string | string[] | undefined): string | null {
   return value ?? null;
 }
 
+type InformationEntry = Readonly<{
+  question: string;
+  answer: string;
+}>;
+
+type SettingsInformationPanelProps = Readonly<{
+  colorScheme: ColorScheme;
+  title: string;
+  paragraphs: readonly string[];
+  entries?: readonly InformationEntry[];
+  actionLabel?: string;
+  onAction?: () => void;
+  testID: string;
+}>;
+
+function SettingsInformationPanel({
+  colorScheme,
+  title,
+  paragraphs,
+  entries = [],
+  actionLabel,
+  onAction,
+  testID,
+}: SettingsInformationPanelProps) {
+  const colors = themeColors(colorScheme);
+  return (
+    <View
+      style={[
+        styles.informationPanel,
+        { backgroundColor: colors.surface, borderColor: colors.border },
+      ]}
+      testID={testID}
+    >
+      <Text
+        accessibilityRole="header"
+        allowFontScaling
+        style={[styles.informationTitle, { color: colors.textPrimary }]}
+      >
+        {title}
+      </Text>
+      {paragraphs.map((paragraph) => (
+        <Text
+          allowFontScaling
+          key={paragraph}
+          style={[styles.informationBody, { color: colors.textSecondary }]}
+        >
+          {paragraph}
+        </Text>
+      ))}
+      {entries.map((entry) => (
+        <View key={entry.question} style={styles.informationEntry}>
+          <Text
+            allowFontScaling
+            style={[styles.informationQuestion, { color: colors.textPrimary }]}
+          >
+            {entry.question}
+          </Text>
+          <Text allowFontScaling style={[styles.informationBody, { color: colors.textSecondary }]}>
+            {entry.answer}
+          </Text>
+        </View>
+      ))}
+      {actionLabel === undefined || onAction === undefined ? null : (
+        <Pressable
+          accessibilityLabel={actionLabel}
+          accessibilityRole="link"
+          onPress={onAction}
+          style={styles.informationAction}
+        >
+          <Text allowFontScaling style={[styles.informationActionText, { color: colors.primary }]}>
+            {actionLabel}
+          </Text>
+        </Pressable>
+      )}
+    </View>
+  );
+}
+
 export function SettingsRouteScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ section?: string | string[] }>();
@@ -86,6 +167,22 @@ export function SettingsRouteScreen() {
   const colors = themeColors(colorScheme);
   const catalog = notificationSettingsCatalogs[language];
   const generalCatalog = localizationCatalogs[language];
+  const helpLegalCatalog = helpLegalCatalogs[language];
+  const configuredPrivacyPolicyUrl: unknown = process.env.EXPO_PUBLIC_PRIVACY_POLICY_URL;
+  const configuredTermsOfServiceUrl: unknown = process.env.EXPO_PUBLIC_TERMS_OF_SERVICE_URL;
+  const helpLegalConfiguration = useMemo(
+    () =>
+      resolveHelpLegalConfiguration({
+        privacyPolicyUrl:
+          typeof configuredPrivacyPolicyUrl === 'string' ? configuredPrivacyPolicyUrl : undefined,
+        termsOfServiceUrl:
+          typeof configuredTermsOfServiceUrl === 'string' ? configuredTermsOfServiceUrl : undefined,
+      }),
+    [configuredPrivacyPolicyUrl, configuredTermsOfServiceUrl],
+  );
+  const privacyPolicyUrl = helpLegalConfiguration.privacyPolicyUrl;
+  const termsOfServiceUrl = helpLegalConfiguration.termsOfServiceUrl;
+  const installedAppVersion = Application.nativeApplicationVersion ?? '0.0.0';
   const permissionService = useMemo(
     () =>
       createExpoNotificationPermissionService({
@@ -415,6 +512,25 @@ export function SettingsRouteScreen() {
             selected={selectedEntry === 'privacy-policy'}
             testID="settings-row-privacy-policy"
           />
+          {selectedEntry === 'privacy-policy' ? (
+            <SettingsInformationPanel
+              colorScheme={colorScheme}
+              paragraphs={[
+                helpLegalCatalog.privacySummary,
+                helpLegalCatalog.privacyFeedbackRetention,
+              ]}
+              testID="help-legal-privacy-panel"
+              title={helpLegalCatalog.privacyTitle}
+              {...(privacyPolicyUrl === null
+                ? {}
+                : {
+                    actionLabel: helpLegalCatalog.privacyOpenPolicy,
+                    onAction: () => {
+                      void openHelpLegalUrl(privacyPolicyUrl).catch(() => undefined);
+                    },
+                  })}
+            />
+          ) : null}
           <SettingsRow
             accessibilityLabel={catalog.termsOfService}
             colorScheme={colorScheme}
@@ -425,6 +541,22 @@ export function SettingsRouteScreen() {
             selected={selectedEntry === 'terms-of-service'}
             testID="settings-row-terms-of-service"
           />
+          {selectedEntry === 'terms-of-service' ? (
+            <SettingsInformationPanel
+              colorScheme={colorScheme}
+              paragraphs={[helpLegalCatalog.termsSummary]}
+              testID="help-legal-terms-panel"
+              title={helpLegalCatalog.termsTitle}
+              {...(termsOfServiceUrl === null
+                ? {}
+                : {
+                    actionLabel: helpLegalCatalog.termsOpen,
+                    onAction: () => {
+                      void openHelpLegalUrl(termsOfServiceUrl).catch(() => undefined);
+                    },
+                  })}
+            />
+          ) : null}
           <DestructiveButton
             accessibilityLabel={catalog.deleteAccount}
             colorScheme={colorScheme}
@@ -543,6 +675,15 @@ export function SettingsRouteScreen() {
             selected={selectedEntry === 'faq'}
             testID="settings-row-faq"
           />
+          {selectedEntry === 'faq' ? (
+            <SettingsInformationPanel
+              colorScheme={colorScheme}
+              entries={helpLegalCatalog.faqEntries}
+              paragraphs={[helpLegalCatalog.faqIntro]}
+              testID="help-legal-faq-panel"
+              title={helpLegalCatalog.faqTitle}
+            />
+          ) : null}
           <SettingsRow
             accessibilityLabel={catalog.sendFeedback}
             colorScheme={colorScheme}
@@ -573,6 +714,17 @@ export function SettingsRouteScreen() {
             selected={selectedEntry === 'about'}
             testID="settings-row-about"
           />
+          {selectedEntry === 'about' ? (
+            <SettingsInformationPanel
+              colorScheme={colorScheme}
+              paragraphs={[
+                helpLegalCatalog.aboutBody,
+                helpLegalCatalog.versionLabel.replace('{version}', installedAppVersion),
+              ]}
+              testID="help-legal-about-panel"
+              title={helpLegalCatalog.aboutTitle}
+            />
+          ) : null}
           <DestructiveButton
             accessibilityLabel={catalog.signOut}
             colorScheme={colorScheme}
@@ -646,6 +798,39 @@ const styles = StyleSheet.create({
     paddingHorizontal: space[2],
   },
   restoreText: {
+    fontSize: typography.body.fontSize,
+    fontWeight: typography.body.mediumFontWeight,
+  },
+  informationPanel: {
+    borderRadius: radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    gap: space[2],
+    marginHorizontal: space[2],
+    padding: space[3],
+  },
+  informationTitle: {
+    fontSize: typography.headline.fontSize,
+    fontWeight: typography.headline.fontWeight,
+  },
+  informationBody: {
+    fontSize: typography.bodySmall.fontSize,
+    fontWeight: typography.bodySmall.fontWeight,
+  },
+  informationEntry: {
+    gap: space[1],
+    paddingVertical: space[1],
+  },
+  informationQuestion: {
+    fontSize: typography.body.fontSize,
+    fontWeight: typography.body.mediumFontWeight,
+  },
+  informationAction: {
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    minHeight: 44,
+    paddingVertical: space[1],
+  },
+  informationActionText: {
     fontSize: typography.body.fontSize,
     fontWeight: typography.body.mediumFontWeight,
   },

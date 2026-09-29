@@ -22,6 +22,7 @@ const EXPECTED_TABLES = [
   'evidence_attempts',
   'reward_ledger',
   'streak_days',
+  'story_generation_usage',
   'story_drafts',
   'story_image_versions',
   'story_compositions',

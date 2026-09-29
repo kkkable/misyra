@@ -1,3 +1,5 @@
+export { helpLegalCatalogs } from './help-legal-catalogs.js';
+export type { HelpLegalCatalog, HelpLegalFaqEntry } from './help-legal-catalogs.js';
 export { feedbackCatalogs } from './feedback-catalogs.js';
 export type { FeedbackCatalog } from './feedback-catalogs.js';
 export { aiPlannerCatalogs } from './ai-planner-catalogs.js';

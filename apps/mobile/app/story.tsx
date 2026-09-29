@@ -7,10 +7,17 @@ import {
 } from '@misyra/contracts';
 import { localizationCatalogs } from '@misyra/localization';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useColorScheme } from 'react-native';
+import { View, useColorScheme } from 'react-native';
 
 import { getAuthApiBaseUrl, rootAuthController } from '../src/auth/auth-runtime.js';
-import type { ColorScheme } from '../src/design-system/index.js';
+import { SystemText as Text } from '../src/accessibility/system-text.js';
+import {
+  PrimaryButton,
+  Screen,
+  SecondaryButton,
+  themeColors,
+  type ColorScheme,
+} from '../src/design-system/index.js';
 import {
   createEvidenceApi,
   type EvidenceStorySourceAttempt,
@@ -37,6 +44,11 @@ import { createStoryExportController } from '../src/story/story-export.js';
 import { StoryEditorScreen, type StoryEditorMessages } from '../src/story/story-editor-screen.js';
 import type { StorySourceImage } from '../src/story/story-editor-state.js';
 import { createStoryImageGenerationApi } from '../src/story/story-image-generation-api.js';
+import {
+  initializeSourceFreeStory,
+  StoryGenerationBudgetExhaustedError,
+  StoryInitialImageUnavailableError,
+} from '../src/story/story-initialization.js';
 import { createStoryInstagramController } from '../src/story/story-instagram-sharing.js';
 import { createStoryOfflineDraftStore } from '../src/story/story-offline-draft.js';
 import { createStorySourceRuntime } from '../src/story/story-source-runtime.js';
@@ -96,6 +108,45 @@ function routeOccurrenceId(value: string | string[] | undefined): string | null 
 
 function sourceVersion(payload: StoryDraftPayload) {
   return payload.imageVersions.find((version) => version.kind === 'source') ?? null;
+}
+
+function initialVersion(payload: StoryDraftPayload) {
+  return sourceVersion(payload) ?? payload.imageVersions[0] ?? null;
+}
+
+function createEmptyStoryPayload(
+  draftId: string,
+  createdAt: string,
+  replacesDraftId?: string,
+): StoryDraftPayload {
+  return storyDraftSyncPayloadSchema.parse({
+    draftId,
+    ...(replacesDraftId === undefined ? {} : { replacesDraftId }),
+    createdAt,
+    notes: {
+      musicMood: null,
+      mention: null,
+      location: null,
+      poll: null,
+    },
+    imageVersions: [],
+  });
+}
+
+function appendGeneratedStoryVersion(
+  payload: StoryDraftPayload,
+  version: Readonly<{ id: string; kind: 'generated'; storageKey: string }>,
+): StoryDraftPayload {
+  return storyDraftSyncPayloadSchema.parse({
+    ...payload,
+    imageVersions: [
+      ...payload.imageVersions,
+      {
+        ...version,
+        composition: createEmptyStoryComposition(new Date().toISOString()),
+      },
+    ],
+  });
 }
 
 function sharingNotesForEditor(
@@ -174,6 +225,13 @@ function editorMessages(
     versionGenerated: catalog['story.editor.versionGenerated'],
     generateVersion: catalog['story.editor.generateVersion'],
     deleteVersion: catalog['story.editor.deleteVersion'],
+    startOver: catalog['story.editor.startOver'],
+    startOverTitle: catalog['story.editor.startOverTitle'],
+    startOverBody: catalog['story.editor.startOverBody'],
+    confirmStartOver: catalog['story.editor.confirmStartOver'],
+    cancelStartOver: catalog['story.editor.cancelStartOver'],
+    initialImageNetworkRequired: catalog['story.editor.initialImageNetworkRequired'],
+    retry: catalog['story.editor.retry'],
     saveToPhotos: catalog['story.editor.saveToPhotos'],
     shareElsewhere: catalog['story.editor.shareElsewhere'],
     savedToPhotos: catalog['story.editor.savedToPhotos'],
@@ -198,7 +256,10 @@ export default function StoryRoute() {
   const textSuggestionMessages = suggestionMessages(catalog);
   const nativeColorScheme = useColorScheme();
   const colorScheme: ColorScheme = nativeColorScheme === 'dark' ? 'dark' : 'light';
+  const colors = themeColors(colorScheme);
   const [editorState, setEditorState] = useState<StoryRouteState | null>(null);
+  const [initializationError, setInitializationError] = useState<string | null>(null);
+  const [restoreEpoch, setRestoreEpoch] = useState(0);
   const editorStateRef = useRef<StoryRouteState | null>(null);
   const runtimeRef = useRef<StoryRouteRuntime | null>(null);
   const saveChainRef = useRef<Promise<void>>(Promise.resolve());
@@ -316,6 +377,95 @@ export default function StoryRoute() {
     });
   }, [catalog, commitEditorState, occurrenceId]);
 
+  const startOver = useCallback(async () => {
+    const runtime = runtimeRef.current;
+    const current = editorStateRef.current;
+    if (runtime === null || current === null || occurrenceId === null) return;
+
+    setConflictMessage(null);
+    const attempts = await runtime.source.list(occurrenceId).catch(() => current.sourceAttempts);
+    const selected = attempts.at(-1);
+    if (selected === undefined && current.remainingGenerations === 0) {
+      setConflictMessage(catalog['story.editor.noGenerationsRemaining']);
+      return;
+    }
+
+    try {
+      const draftId = generateUuid();
+      const createdAt = new Date().toISOString();
+      let next: StoryRouteState;
+
+      if (selected === undefined) {
+        const payload = createEmptyStoryPayload(draftId, createdAt, current.payload.draftId);
+        const initialized = await initializeSourceFreeStory({
+          payload,
+          save: enqueueSave,
+          synchronize: () => rootSyncRuntime.run(),
+          getBudget: () => runtime.imageGeneration.getBudget(draftId),
+          generate: () => runtime.imageGeneration.generate(draftId),
+          appendGeneratedVersion: appendGeneratedStoryVersion,
+          materialize: (targetDraftId, imageVersionId) =>
+            runtime.versionFiles.materializeGenerated(targetDraftId, imageVersionId),
+        });
+        next = {
+          payload: initialized.payload,
+          imageVersionId: initialized.imageVersionId,
+          selectedAttemptId: '',
+          sourceAttempts: attempts,
+          sourceImage: initialized.sourceImage,
+          remainingGenerations: initialized.remainingGenerations,
+          textSuggestions: null,
+          aiOperationsAvailable: true,
+        };
+      } else {
+        const imageVersionId = generateUuid();
+        const materialized = await runtime.source.materialize(selected, imageVersionId);
+        const payload = storyDraftSyncPayloadSchema.parse({
+          ...createEmptyStoryPayload(draftId, createdAt, current.payload.draftId),
+          imageVersions: [
+            {
+              id: imageVersionId,
+              kind: 'source',
+              storageKey: `story/source/${imageVersionId}`,
+              composition: createEmptyStoryComposition(createdAt),
+            },
+          ],
+        });
+        await enqueueSave(payload);
+        next = {
+          payload,
+          imageVersionId,
+          selectedAttemptId: selected.attemptId,
+          sourceAttempts: attempts,
+          sourceImage: {
+            id: materialized.imageVersionId,
+            uri: materialized.uri,
+            width: materialized.width,
+            height: materialized.height,
+          },
+          remainingGenerations: current.remainingGenerations,
+          textSuggestions: null,
+          aiOperationsAvailable: current.aiOperationsAvailable,
+        };
+        void rootSyncRuntime.run().catch(() => undefined);
+      }
+
+      for (const version of current.payload.imageVersions) {
+        await runtime.versionFiles.delete(version.id).catch(() => undefined);
+      }
+      commitEditorState(next);
+      setEditorSessionEpoch((value) => value + 1);
+    } catch (error) {
+      if (error instanceof StoryGenerationBudgetExhaustedError) {
+        setConflictMessage(catalog['story.editor.noGenerationsRemaining']);
+        return;
+      }
+      if (error instanceof StoryInitialImageUnavailableError) {
+        setInitializationError(catalog['story.editor.initialImageNetworkRequired']);
+      }
+    }
+  }, [catalog, commitEditorState, enqueueSave, occurrenceId]);
+
   useEffect(() => {
     if (occurrenceId === null) {
       router.back();
@@ -325,6 +475,7 @@ export default function StoryRoute() {
     const lifecycle = { cancelled: false };
 
     const restore = async () => {
+      setInitializationError(null);
       try {
         const authState = await rootAuthController.restore();
         if (authState.status !== 'signed_in') throw new Error('story_requires_sign_in');
@@ -377,9 +528,35 @@ export default function StoryRoute() {
         await store.pruneExpired();
         const existing = await store.load(occurrenceId);
         if (existing !== null) {
-          const version = sourceVersion(existing);
-          if (version === null) throw new Error('story_source_version_missing');
-          const sourceImage = await loadExpoStoryWorkingCopy(version.id);
+          const version = initialVersion(existing);
+          if (version === null) {
+            const initialized = await initializeSourceFreeStory({
+              payload: existing,
+              save: enqueueSave,
+              synchronize: () => rootSyncRuntime.run(),
+              getBudget: () => imageGeneration.getBudget(existing.draftId),
+              generate: () => imageGeneration.generate(existing.draftId),
+              appendGeneratedVersion: appendGeneratedStoryVersion,
+              materialize: (draftId, imageVersionId) =>
+                versionFiles.materializeGenerated(draftId, imageVersionId),
+            });
+            if (lifecycle.cancelled) return;
+            commitEditorState({
+              payload: initialized.payload,
+              imageVersionId: initialized.imageVersionId,
+              selectedAttemptId: '',
+              sourceAttempts: [],
+              sourceImage: initialized.sourceImage,
+              remainingGenerations: initialized.remainingGenerations,
+              textSuggestions: null,
+              aiOperationsAvailable: true,
+            });
+            return;
+          }
+          const sourceImage =
+            version.kind === 'source'
+              ? await loadExpoStoryWorkingCopy(version.id)
+              : await versionFiles.materializeGenerated(existing.draftId, version.id);
           if (lifecycle.cancelled) return;
 
           commitEditorState({
@@ -431,47 +608,73 @@ export default function StoryRoute() {
 
         const attempts = await source.list(occurrenceId);
         const selected = attempts.at(-1);
-        if (selected === undefined) throw new Error('story_source_photo_unavailable');
-
         const draftId = generateUuid();
-        const imageVersionId = generateUuid();
-        const materialized = await source.materialize(selected, imageVersionId);
-        const composition = createEmptyStoryComposition(new Date().toISOString());
-        const payload = storyDraftSyncPayloadSchema.parse({
-          draftId,
-          notes: {
-            musicMood: null,
-            mention: null,
-            location: null,
-            poll: null,
-          },
-          imageVersions: [
-            {
-              id: imageVersionId,
-              kind: 'source',
-              storageKey: `story/source/${imageVersionId}`,
-              composition,
-            },
-          ],
-        });
-        await enqueueSave(payload);
-        if (lifecycle.cancelled) return;
+        const createdAt = new Date().toISOString();
 
-        commitEditorState({
-          payload,
-          imageVersionId,
-          selectedAttemptId: selected.attemptId,
-          sourceAttempts: attempts,
-          sourceImage: {
-            id: materialized.imageVersionId,
-            uri: materialized.uri,
-            width: materialized.width,
-            height: materialized.height,
-          },
-          remainingGenerations: null,
-          textSuggestions: null,
-          aiOperationsAvailable: false,
-        });
+        let initialState: StoryRouteState;
+        if (selected === undefined) {
+          const payload = createEmptyStoryPayload(draftId, createdAt);
+          const initialized = await initializeSourceFreeStory({
+            payload,
+            save: enqueueSave,
+            synchronize: () => rootSyncRuntime.run(),
+            getBudget: () => imageGeneration.getBudget(draftId),
+            generate: () => imageGeneration.generate(draftId),
+            appendGeneratedVersion: appendGeneratedStoryVersion,
+            materialize: (targetDraftId, imageVersionId) =>
+              versionFiles.materializeGenerated(targetDraftId, imageVersionId),
+          });
+          initialState = {
+            payload: initialized.payload,
+            imageVersionId: initialized.imageVersionId,
+            selectedAttemptId: '',
+            sourceAttempts: attempts,
+            sourceImage: initialized.sourceImage,
+            remainingGenerations: initialized.remainingGenerations,
+            textSuggestions: null,
+            aiOperationsAvailable: true,
+          };
+        } else {
+          const imageVersionId = generateUuid();
+          const materialized = await source.materialize(selected, imageVersionId);
+          const composition = createEmptyStoryComposition(createdAt);
+          const payload = storyDraftSyncPayloadSchema.parse({
+            draftId,
+            createdAt,
+            notes: {
+              musicMood: null,
+              mention: null,
+              location: null,
+              poll: null,
+            },
+            imageVersions: [
+              {
+                id: imageVersionId,
+                kind: 'source',
+                storageKey: `story/source/${imageVersionId}`,
+                composition,
+              },
+            ],
+          });
+          await enqueueSave(payload);
+          initialState = {
+            payload,
+            imageVersionId,
+            selectedAttemptId: selected.attemptId,
+            sourceAttempts: attempts,
+            sourceImage: {
+              id: materialized.imageVersionId,
+              uri: materialized.uri,
+              width: materialized.width,
+              height: materialized.height,
+            },
+            remainingGenerations: null,
+            textSuggestions: null,
+            aiOperationsAvailable: false,
+          };
+        }
+        if (lifecycle.cancelled) return;
+        commitEditorState(initialState);
 
         void imageGeneration
           .getBudget(draftId)
@@ -506,8 +709,17 @@ export default function StoryRoute() {
             await enqueueSave(next.payload);
           })
           .catch(() => undefined);
-      } catch {
-        if (!lifecycle.cancelled) router.back();
+      } catch (error) {
+        if (lifecycle.cancelled) return;
+        if (error instanceof StoryGenerationBudgetExhaustedError) {
+          setInitializationError(catalog['story.editor.noGenerationsRemaining']);
+          return;
+        }
+        if (error instanceof StoryInitialImageUnavailableError) {
+          setInitializationError(catalog['story.editor.initialImageNetworkRequired']);
+          return;
+        }
+        router.back();
       }
     };
 
@@ -515,9 +727,38 @@ export default function StoryRoute() {
     return () => {
       lifecycle.cancelled = true;
     };
-  }, [commitEditorState, enqueueSave, occurrenceId, router]);
+  }, [catalog, commitEditorState, enqueueSave, occurrenceId, restoreEpoch, router]);
 
-  if (occurrenceId === null || editorState === null) return null;
+  if (occurrenceId === null) return null;
+  if (initializationError !== null) {
+    return (
+      <Screen colorScheme={colorScheme} testID="story-initialization-error">
+        <View style={{ gap: 12, padding: 16 }}>
+          <Text style={{ color: colors.textPrimary }}>{initializationError}</Text>
+          <PrimaryButton
+            accessibilityLabel={messages.retry}
+            colorScheme={colorScheme}
+            label={messages.retry}
+            onPress={() => {
+              setInitializationError(null);
+              setRestoreEpoch((value) => value + 1);
+            }}
+            testID="story-initialization-retry"
+          />
+          <SecondaryButton
+            accessibilityLabel={messages.close}
+            colorScheme={colorScheme}
+            label={messages.close}
+            onPress={() => {
+              router.back();
+            }}
+            testID="story-initialization-close"
+          />
+        </View>
+      </Screen>
+    );
+  }
+  if (editorState === null) return null;
 
   return (
     <StoryEditorScreen
@@ -552,6 +793,7 @@ export default function StoryRoute() {
         commitEditorState(next);
         void enqueueSave(next.payload).catch(() => undefined);
       }}
+      onStartOver={startOver}
       onSave={(composition) => {
         const next = withComposition(editorState, composition);
         commitEditorState(next);
@@ -615,7 +857,6 @@ export default function StoryRoute() {
         const source = sourceVersion(editorState.payload);
         if (
           runtime === null ||
-          source === null ||
           !editorState.aiOperationsAvailable ||
           editorState.remainingGenerations === 0
         ) {
@@ -625,7 +866,7 @@ export default function StoryRoute() {
         void (async () => {
           const generated = await runtime.imageGeneration.generate(
             editorState.payload.draftId,
-            source.id,
+            source?.id,
           );
           const composition = createEmptyStoryComposition(new Date().toISOString());
           const payload = storyDraftSyncPayloadSchema.parse({

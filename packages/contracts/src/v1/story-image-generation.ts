@@ -7,7 +7,7 @@ const storageKeySchema = z.string().trim().min(1);
 
 export const storyImageGenerationRequestSchema = z
   .object({
-    sourceVersionId: uuidSchema,
+    sourceVersionId: uuidSchema.optional(),
   })
   .strict();
 
@@ -18,7 +18,9 @@ export const storyImageGenerationGatewayRequestSchema = z
         imageVersionId: uuidSchema,
         storageKey: storageKeySchema,
       })
-      .strict(),
+      .strict()
+      .nullable(),
+    missionTitle: z.string().trim().min(1),
     styleProfile: storyStyleProfileSchema.nullable(),
     output: z
       .object({

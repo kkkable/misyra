@@ -88,6 +88,10 @@ vi.mock('expo-localization', () => ({
   getLocales: () => [{ languageTag: 'en-HK' }],
 }));
 
+vi.mock('expo-application', () => ({
+  nativeApplicationVersion: '1.0.0',
+}));
+
 vi.mock('../experience/native-haptics.js', () => ({
   haptics: { triggerNonBlocking: vi.fn() },
 }));

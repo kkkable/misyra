@@ -64,6 +64,13 @@ export type StoryEditorMessages = Readonly<{
   versionGenerated: string;
   generateVersion: string;
   deleteVersion: string;
+  startOver: string;
+  startOverTitle: string;
+  startOverBody: string;
+  confirmStartOver: string;
+  cancelStartOver: string;
+  initialImageNetworkRequired: string;
+  retry: string;
   saveToPhotos: string;
   shareElsewhere: string;
   savedToPhotos: string;
@@ -121,6 +128,7 @@ export function StoryEditorScreen({
   onCompositionChange,
   onDeleteImageVersion,
   onGenerateVersion,
+  onStartOver,
   onSave,
   onSaveToPhotos,
   onShareElsewhere,
@@ -150,6 +158,7 @@ export function StoryEditorScreen({
   onCompositionChange: (composition: StoryComposition) => void;
   onDeleteImageVersion?: (versionId: string) => void;
   onGenerateVersion?: () => void;
+  onStartOver?: () => void | Promise<void>;
   onSave: (composition: StoryComposition) => void;
   onSaveToPhotos?: () => void | Promise<void>;
   onShareElsewhere?: () => void | Promise<void>;
@@ -195,6 +204,7 @@ export function StoryEditorScreen({
   const [composition, setComposition] = useState(() => session.getComposition());
   const [selectedTextRole, setSelectedTextRole] = useState<TextRole>('headline');
   const [sharingNotesVisible, setSharingNotesVisible] = useState(false);
+  const [startOverConfirmVisible, setStartOverConfirmVisible] = useState(false);
 
   useEffect(() => {
     setComposition(session.getComposition());
@@ -320,6 +330,15 @@ export function StoryEditorScreen({
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.sourceRow}>
           <SecondaryButton
+            accessibilityLabel={messages.startOver}
+            colorScheme={colorScheme}
+            label={messages.startOver}
+            onPress={() => {
+              setStartOverConfirmVisible(true);
+            }}
+            testID="story-start-over"
+          />
+          <SecondaryButton
             accessibilityLabel={messages.saveToPhotos}
             colorScheme={colorScheme}
             label={messages.saveToPhotos}
@@ -347,6 +366,38 @@ export function StoryEditorScreen({
             testID="story-share-elsewhere"
           />
         </View>
+        {startOverConfirmVisible ? (
+          <View
+            style={[styles.confirmation, { borderColor: colors.border }]}
+            testID="story-start-over-confirmation"
+          >
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
+              {messages.startOverTitle}
+            </Text>
+            <Text style={{ color: colors.textSecondary }}>{messages.startOverBody}</Text>
+            <View style={styles.toolRow}>
+              <PrimaryButton
+                accessibilityLabel={messages.confirmStartOver}
+                colorScheme={colorScheme}
+                label={messages.confirmStartOver}
+                onPress={() => {
+                  setStartOverConfirmVisible(false);
+                  void onStartOver?.();
+                }}
+                testID="story-start-over-confirm"
+              />
+              <SecondaryButton
+                accessibilityLabel={messages.cancelStartOver}
+                colorScheme={colorScheme}
+                label={messages.cancelStartOver}
+                onPress={() => {
+                  setStartOverConfirmVisible(false);
+                }}
+                testID="story-start-over-cancel"
+              />
+            </View>
+          </View>
+        ) : null}
         {sharingNotesVisible ? (
           <View
             accessibilityRole="summary"
@@ -833,6 +884,12 @@ const styles = StyleSheet.create({
   content: {
     gap: 12,
     paddingBottom: 32,
+  },
+  confirmation: {
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 8,
+    padding: 12,
   },
   generationCount: {
     fontSize: 14,

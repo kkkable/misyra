@@ -283,7 +283,7 @@ export function CalendarDayScreen({
       onHelpFaqPress();
       return;
     }
-    router.push({ pathname: '/settings', params: { section: 'help' } });
+    router.push({ pathname: '/settings', params: { section: 'faq' } });
   };
 
   return (

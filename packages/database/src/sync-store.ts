@@ -245,6 +245,7 @@ type StoryImageVersionPayload = Readonly<{
 
 type StoryDraftPayload = Readonly<{
   draftId: string;
+  replacesDraftId?: string;
   createdAt?: string;
   notes: StorySharingNotesPayload;
   imageVersions: readonly StoryImageVersionPayload[];
@@ -667,7 +668,7 @@ function parseStoryImageVersion(value: unknown): StoryImageVersionPayload {
 
 function parseStoryDraftPayload(payload: unknown): StoryDraftPayload {
   const source = asRecord(payload, 'Story draft payload');
-  const supported = ['draftId', 'createdAt', 'notes', 'imageVersions'];
+  const supported = ['draftId', 'replacesDraftId', 'createdAt', 'notes', 'imageVersions'];
   const required = ['draftId', 'notes', 'imageVersions'];
   if (
     Object.keys(source).some((key) => !supported.includes(key)) ||
@@ -682,6 +683,10 @@ function parseStoryDraftPayload(payload: unknown): StoryDraftPayload {
   if (new Set(imageVersions.map((version) => version.id)).size !== imageVersions.length) {
     throw new SyncMutationValidationError('Story image-version ids must be unique');
   }
+  let replacesDraftId: string | undefined;
+  if (Object.hasOwn(source, 'replacesDraftId')) {
+    replacesDraftId = requireUuid(source, 'replacesDraftId', 'Story draft replaced draft id');
+  }
   let createdAt: string | undefined;
   if (Object.hasOwn(source, 'createdAt')) {
     createdAt = requireString(source, 'createdAt', 'Story draft createdAt');
@@ -691,6 +696,7 @@ function parseStoryDraftPayload(payload: unknown): StoryDraftPayload {
   }
   return {
     draftId: requireUuid(source, 'draftId', 'Story draft id'),
+    ...(replacesDraftId === undefined ? {} : { replacesDraftId }),
     ...(createdAt === undefined ? {} : { createdAt }),
     notes: parseStorySharingNotes(source.notes),
     imageVersions,
@@ -1548,9 +1554,34 @@ async function applyStoryMutation(
   }
 
   if (current !== undefined && current.id !== payload.draftId) {
-    throw new SyncMutationConflictError(
-      'A different unfinished Story draft already exists for this mission',
+    if (payload.replacesDraftId !== current.id) {
+      throw new SyncMutationConflictError(
+        'A different unfinished Story draft already exists for this mission',
+      );
+    }
+
+    await client.query(
+      `UPDATE media_assets
+          SET deletion_due_at = LEAST(COALESCE(deletion_due_at, $3), $3),
+              retry_state = 'ready'
+        WHERE account_id = $1
+          AND purpose = 'story-working'
+          AND id IN (
+            SELECT id
+              FROM story_image_versions
+             WHERE draft_id = $2
+          )`,
+      [mutation.accountId, current.id, timing.serverReceiptTime],
     );
+    await client.query(
+      `DELETE FROM story_drafts
+        WHERE id = $1
+          AND account_id = $2
+          AND occurrence_id = $3
+          AND state = 'active'`,
+      [current.id, mutation.accountId, mutation.entityId],
+    );
+    current = undefined;
   }
   if (current !== undefined && !storySaveIsNewer(current, timing, mutation.mutationId)) {
     return {
