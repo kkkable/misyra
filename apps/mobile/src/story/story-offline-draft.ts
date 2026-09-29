@@ -131,9 +131,6 @@ export function createStoryOfflineDraftStore({
 
     async save(occurrenceId: string, value: unknown): Promise<void> {
       const payload = storyDraftSyncPayloadSchema.parse(value);
-      if (payload.imageVersions.length === 0) {
-        throw new TypeError('Story draft must contain at least one image version.');
-      }
 
       const retentionTombstone = await database.getFirstAsync<{ draft_id: string }>(
         `SELECT draft_id
@@ -169,13 +166,16 @@ export function createStoryOfflineDraftStore({
         accountId,
         occurrenceId,
       );
-      if (existing !== null && existing.draft_id !== payload.draftId) {
-        throw new Error('A different unfinished Story draft already exists for this mission.');
+      const replacing = existing !== null && existing.draft_id !== payload.draftId;
+      if (replacing && payload.replacesDraftId !== existing.draft_id) {
+        throw new Error('Story draft replacement must identify the active draft.');
       }
 
       const operation: SyncMutationOperation = existing === null ? 'create' : 'update';
       const localSavedAt = newestCompositionSaveTime(payload.imageVersions, now());
-      const createdAt = existing?.created_at ?? payload.createdAt ?? localSavedAt;
+      const createdAt = replacing
+        ? (payload.createdAt ?? localSavedAt)
+        : (existing?.created_at ?? payload.createdAt ?? localSavedAt);
 
       await queue.enqueue({
         mutation: {
