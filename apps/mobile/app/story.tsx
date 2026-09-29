@@ -377,6 +377,95 @@ export default function StoryRoute() {
     });
   }, [catalog, commitEditorState, occurrenceId]);
 
+  const startOver = useCallback(async () => {
+    const runtime = runtimeRef.current;
+    const current = editorStateRef.current;
+    if (runtime === null || current === null || occurrenceId === null) return;
+
+    setConflictMessage(null);
+    const attempts = await runtime.source.list(occurrenceId).catch(() => current.sourceAttempts);
+    const selected = attempts.at(-1);
+    if (selected === undefined && current.remainingGenerations === 0) {
+      setConflictMessage(catalog['story.editor.noGenerationsRemaining']);
+      return;
+    }
+
+    try {
+      const draftId = generateUuid();
+      const createdAt = new Date().toISOString();
+      let next: StoryRouteState;
+
+      if (selected === undefined) {
+        const payload = createEmptyStoryPayload(draftId, createdAt, current.payload.draftId);
+        const initialized = await initializeSourceFreeStory({
+          payload,
+          save: enqueueSave,
+          synchronize: () => rootSyncRuntime.run(),
+          getBudget: () => runtime.imageGeneration.getBudget(draftId),
+          generate: () => runtime.imageGeneration.generate(draftId),
+          appendGeneratedVersion: appendGeneratedStoryVersion,
+          materialize: (targetDraftId, imageVersionId) =>
+            runtime.versionFiles.materializeGenerated(targetDraftId, imageVersionId),
+        });
+        next = {
+          payload: initialized.payload,
+          imageVersionId: initialized.imageVersionId,
+          selectedAttemptId: '',
+          sourceAttempts: attempts,
+          sourceImage: initialized.sourceImage,
+          remainingGenerations: initialized.remainingGenerations,
+          textSuggestions: null,
+          aiOperationsAvailable: true,
+        };
+      } else {
+        const imageVersionId = generateUuid();
+        const materialized = await runtime.source.materialize(selected, imageVersionId);
+        const payload = storyDraftSyncPayloadSchema.parse({
+          ...createEmptyStoryPayload(draftId, createdAt, current.payload.draftId),
+          imageVersions: [
+            {
+              id: imageVersionId,
+              kind: 'source',
+              storageKey: `story/source/${imageVersionId}`,
+              composition: createEmptyStoryComposition(createdAt),
+            },
+          ],
+        });
+        await enqueueSave(payload);
+        next = {
+          payload,
+          imageVersionId,
+          selectedAttemptId: selected.attemptId,
+          sourceAttempts: attempts,
+          sourceImage: {
+            id: materialized.imageVersionId,
+            uri: materialized.uri,
+            width: materialized.width,
+            height: materialized.height,
+          },
+          remainingGenerations: current.remainingGenerations,
+          textSuggestions: null,
+          aiOperationsAvailable: current.aiOperationsAvailable,
+        };
+        void rootSyncRuntime.run().catch(() => undefined);
+      }
+
+      for (const version of current.payload.imageVersions) {
+        await runtime.versionFiles.delete(version.id).catch(() => undefined);
+      }
+      commitEditorState(next);
+      setEditorSessionEpoch((value) => value + 1);
+    } catch (error) {
+      if (error instanceof StoryGenerationBudgetExhaustedError) {
+        setConflictMessage(catalog['story.editor.noGenerationsRemaining']);
+        return;
+      }
+      if (error instanceof StoryInitialImageUnavailableError) {
+        setInitializationError(catalog['story.editor.initialImageNetworkRequired']);
+      }
+    }
+  }, [catalog, commitEditorState, enqueueSave, occurrenceId]);
+
   useEffect(() => {
     if (occurrenceId === null) {
       router.back();
