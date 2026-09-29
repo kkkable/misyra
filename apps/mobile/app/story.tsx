@@ -437,9 +437,35 @@ export default function StoryRoute() {
         await store.pruneExpired();
         const existing = await store.load(occurrenceId);
         if (existing !== null) {
-          const version = sourceVersion(existing);
-          if (version === null) throw new Error('story_source_version_missing');
-          const sourceImage = await loadExpoStoryWorkingCopy(version.id);
+          const version = initialVersion(existing);
+          if (version === null) {
+            const initialized = await initializeSourceFreeStory({
+              payload: existing,
+              save: enqueueSave,
+              synchronize: () => rootSyncRuntime.run(),
+              getBudget: () => imageGeneration.getBudget(existing.draftId),
+              generate: () => imageGeneration.generate(existing.draftId),
+              appendGeneratedVersion: appendGeneratedStoryVersion,
+              materialize: (draftId, imageVersionId) =>
+                versionFiles.materializeGenerated(draftId, imageVersionId),
+            });
+            if (lifecycle.cancelled) return;
+            commitEditorState({
+              payload: initialized.payload,
+              imageVersionId: initialized.imageVersionId,
+              selectedAttemptId: '',
+              sourceAttempts: [],
+              sourceImage: initialized.sourceImage,
+              remainingGenerations: initialized.remainingGenerations,
+              textSuggestions: null,
+              aiOperationsAvailable: true,
+            });
+            return;
+          }
+          const sourceImage =
+            version.kind === 'source'
+              ? await loadExpoStoryWorkingCopy(version.id)
+              : await versionFiles.materializeGenerated(existing.draftId, version.id);
           if (lifecycle.cancelled) return;
 
           commitEditorState({
