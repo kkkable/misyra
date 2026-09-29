@@ -13,30 +13,35 @@ const calendarDayPath = fileURLToPath(
 );
 
 describe('MTS-109 policy URL configuration', () => {
-  it('accepts only configured HTTPS legal URLs and reuses the app-version build setting', () => {
+  it('accepts only configured HTTPS legal URLs', () => {
     expect(
       resolveHelpLegalConfiguration({
-        EXPO_PUBLIC_PRIVACY_POLICY_URL: 'https://example.test/privacy',
-        EXPO_PUBLIC_TERMS_OF_SERVICE_URL: 'https://example.test/terms',
-        EXPO_PUBLIC_APP_VERSION: '1.2.3',
+        privacyPolicyUrl: 'https://example.test/privacy',
+        termsOfServiceUrl: 'https://example.test/terms',
       }),
     ).toEqual({
       privacyPolicyUrl: 'https://example.test/privacy',
       termsOfServiceUrl: 'https://example.test/terms',
-      appVersion: '1.2.3',
     });
 
     expect(
       resolveHelpLegalConfiguration({
-        EXPO_PUBLIC_PRIVACY_POLICY_URL: 'http://example.test/privacy',
-        EXPO_PUBLIC_TERMS_OF_SERVICE_URL: 'mailto:support@example.test',
-        EXPO_PUBLIC_APP_VERSION: '  ',
+        privacyPolicyUrl: 'http://example.test/privacy',
+        termsOfServiceUrl: 'mailto:support@example.test',
       }),
     ).toEqual({
       privacyPolicyUrl: null,
       termsOfServiceUrl: null,
-      appVersion: '0.0.0',
     });
+  });
+
+  it('uses statically inlinable Expo public env reads and the native installed version', async () => {
+    const source = await readFile(settingsRoutePath, 'utf8');
+
+    expect(source).toContain('process.env.EXPO_PUBLIC_PRIVACY_POLICY_URL');
+    expect(source).toContain('process.env.EXPO_PUBLIC_TERMS_OF_SERVICE_URL');
+    expect(source).toContain('Application.nativeApplicationVersion');
+    expect(source).not.toContain('EXPO_PUBLIC_APP_VERSION');
   });
 });
 
