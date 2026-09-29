@@ -857,7 +857,6 @@ export default function StoryRoute() {
         const source = sourceVersion(editorState.payload);
         if (
           runtime === null ||
-          source === null ||
           !editorState.aiOperationsAvailable ||
           editorState.remainingGenerations === 0
         ) {
@@ -867,7 +866,7 @@ export default function StoryRoute() {
         void (async () => {
           const generated = await runtime.imageGeneration.generate(
             editorState.payload.draftId,
-            source.id,
+            source?.id,
           );
           const composition = createEmptyStoryComposition(new Date().toISOString());
           const payload = storyDraftSyncPayloadSchema.parse({
