@@ -366,6 +366,38 @@ export function StoryEditorScreen({
             testID="story-share-elsewhere"
           />
         </View>
+        {startOverConfirmVisible ? (
+          <View
+            style={[styles.confirmation, { borderColor: colors.border }]}
+            testID="story-start-over-confirmation"
+          >
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
+              {messages.startOverTitle}
+            </Text>
+            <Text style={{ color: colors.textSecondary }}>{messages.startOverBody}</Text>
+            <View style={styles.toolRow}>
+              <PrimaryButton
+                accessibilityLabel={messages.confirmStartOver}
+                colorScheme={colorScheme}
+                label={messages.confirmStartOver}
+                onPress={() => {
+                  setStartOverConfirmVisible(false);
+                  void onStartOver?.();
+                }}
+                testID="story-start-over-confirm"
+              />
+              <SecondaryButton
+                accessibilityLabel={messages.cancelStartOver}
+                colorScheme={colorScheme}
+                label={messages.cancelStartOver}
+                onPress={() => {
+                  setStartOverConfirmVisible(false);
+                }}
+                testID="story-start-over-cancel"
+              />
+            </View>
+          </View>
+        ) : null}
         {sharingNotesVisible ? (
           <View
             accessibilityRole="summary"
@@ -852,6 +884,12 @@ const styles = StyleSheet.create({
   content: {
     gap: 12,
     paddingBottom: 32,
+  },
+  confirmation: {
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 8,
+    padding: 12,
   },
   generationCount: {
     fontSize: 14,
