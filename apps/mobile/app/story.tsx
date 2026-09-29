@@ -386,6 +386,7 @@ export default function StoryRoute() {
     const lifecycle = { cancelled: false };
 
     const restore = async () => {
+      setInitializationError(null);
       try {
         const authState = await rootAuthController.restore();
         if (authState.status !== 'signed_in') throw new Error('story_requires_sign_in');
@@ -619,8 +620,17 @@ export default function StoryRoute() {
             await enqueueSave(next.payload);
           })
           .catch(() => undefined);
-      } catch {
-        if (!lifecycle.cancelled) router.back();
+      } catch (error) {
+        if (lifecycle.cancelled) return;
+        if (error instanceof StoryGenerationBudgetExhaustedError) {
+          setInitializationError(catalog['story.editor.noGenerationsRemaining']);
+          return;
+        }
+        if (error instanceof StoryInitialImageUnavailableError) {
+          setInitializationError(catalog['story.editor.initialImageNetworkRequired']);
+          return;
+        }
+        router.back();
       }
     };
 
@@ -628,9 +638,38 @@ export default function StoryRoute() {
     return () => {
       lifecycle.cancelled = true;
     };
-  }, [commitEditorState, enqueueSave, occurrenceId, router]);
+  }, [catalog, commitEditorState, enqueueSave, occurrenceId, restoreEpoch, router]);
 
-  if (occurrenceId === null || editorState === null) return null;
+  if (occurrenceId === null) return null;
+  if (initializationError !== null) {
+    return (
+      <Screen colorScheme={colorScheme} testID="story-initialization-error">
+        <View style={{ gap: 12, padding: 16 }}>
+          <Text style={{ color: colors.textPrimary }}>{initializationError}</Text>
+          <PrimaryButton
+            accessibilityLabel={messages.retry}
+            colorScheme={colorScheme}
+            label={messages.retry}
+            onPress={() => {
+              setInitializationError(null);
+              setRestoreEpoch((value) => value + 1);
+            }}
+            testID="story-initialization-retry"
+          />
+          <SecondaryButton
+            accessibilityLabel={messages.close}
+            colorScheme={colorScheme}
+            label={messages.close}
+            onPress={() => {
+              router.back();
+            }}
+            testID="story-initialization-close"
+          />
+        </View>
+      </Screen>
+    );
+  }
+  if (editorState === null) return null;
 
   return (
     <StoryEditorScreen
