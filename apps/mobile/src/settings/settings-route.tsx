@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { AppState, Pressable, ScrollView, StyleSheet, View, useColorScheme } from 'react-native';
+import {
+  AppState,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+  useColorScheme,
+} from 'react-native';
 
 import type { AccountSettings, CalendarConnection } from '@misyra/contracts';
 import { radius, space, typography } from '@misyra/design-tokens';
@@ -12,6 +19,7 @@ import {
   notificationSettingsCatalogs,
   type LocalizationLocale,
 } from '@misyra/localization';
+import * as Application from 'expo-application';
 import { getCalendars, getLocales } from 'expo-localization';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
@@ -173,7 +181,15 @@ export function SettingsRouteScreen() {
   const catalog = notificationSettingsCatalogs[language];
   const generalCatalog = localizationCatalogs[language];
   const helpLegalCatalog = helpLegalCatalogs[language];
-  const helpLegalConfiguration = useMemo(() => resolveHelpLegalConfiguration(), []);
+  const helpLegalConfiguration = useMemo(
+    () =>
+      resolveHelpLegalConfiguration({
+        privacyPolicyUrl: process.env.EXPO_PUBLIC_PRIVACY_POLICY_URL,
+        termsOfServiceUrl: process.env.EXPO_PUBLIC_TERMS_OF_SERVICE_URL,
+      }),
+    [],
+  );
+  const installedAppVersion = Application.nativeApplicationVersion ?? '0.0.0';
   const permissionService = useMemo(
     () =>
       createExpoNotificationPermissionService({
@@ -716,7 +732,7 @@ export function SettingsRouteScreen() {
                 helpLegalCatalog.aboutBody,
                 helpLegalCatalog.versionLabel.replace(
                   '{version}',
-                  helpLegalConfiguration.appVersion,
+                  installedAppVersion,
                 ),
               ]}
               testID="help-legal-about-panel"
