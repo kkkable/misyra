@@ -104,6 +104,13 @@ const messages = {
   versionGenerated: 'AI {number}',
   generateVersion: 'Generate AI version',
   deleteVersion: 'Delete version',
+  startOver: 'Start Over',
+  startOverTitle: 'Start over?',
+  startOverBody: 'Replace this unfinished Story and start again?',
+  confirmStartOver: 'Start Over',
+  cancelStartOver: 'Cancel',
+  initialImageNetworkRequired: 'Internet required',
+  retry: 'Retry',
   saveToPhotos: 'Save to Photos',
   shareElsewhere: 'Share elsewhere',
   savedToPhotos: 'Saved to Photos.',
@@ -174,6 +181,23 @@ function renderScreen(overrides = {}) {
   });
   return { renderer, props };
 }
+
+describe('MTS-109 Story draft replacement control', () => {
+  it('requires explicit confirmation before Start Over replaces the active draft', async () => {
+    const onStartOver = vi.fn(() => Promise.resolve());
+    const { renderer } = renderScreen({ onStartOver });
+
+    act(() => renderer.root.findByProps({ testID: 'story-start-over' }).props.onPress());
+    expect(onStartOver).not.toHaveBeenCalled();
+    expect(renderer.root.findByProps({ testID: 'story-start-over-confirmation' })).toBeDefined();
+
+    await act(async () => {
+      renderer.root.findByProps({ testID: 'story-start-over-confirm' }).props.onPress();
+      await Promise.resolve();
+    });
+    expect(onStartOver).toHaveBeenCalledTimes(1);
+  });
+});
 
 describe('MTS-091 Story editor interactions', () => {
   it('selects a source and edits crop/zoom/position/effect with session undo and redo', () => {
