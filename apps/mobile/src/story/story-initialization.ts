@@ -1,7 +1,4 @@
-import type {
-  StoryImageGenerationBudget,
-  StoryImageGenerationResult,
-} from '@misyra/contracts';
+import type { StoryImageGenerationBudget, StoryImageGenerationResult } from '@misyra/contracts';
 
 import type { StorySourceImage } from './story-editor-state.js';
 
@@ -15,10 +12,7 @@ export type SourceFreeStoryInitializationInput<Payload> = Readonly<{
     payload: Payload,
     version: StoryImageGenerationResult['version'],
   ) => Payload;
-  materialize: (
-    draftId: string,
-    imageVersionId: string,
-  ) => Promise<StorySourceImage>;
+  materialize: (draftId: string, imageVersionId: string) => Promise<StorySourceImage>;
 }>;
 
 export type SourceFreeStoryInitializationResult<Payload> = Readonly<{
