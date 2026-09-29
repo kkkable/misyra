@@ -6,8 +6,22 @@ import {
   StoryInitialImageUnavailableError,
 } from './story-initialization.js';
 
-const payload = { draftId: '11111111-1111-4111-8111-111111111111', versions: [] as string[] };
-const version = {
+type TestPayload = Readonly<{
+  draftId: string;
+  versions: readonly string[];
+}>;
+
+type TestGeneratedVersion = Readonly<{
+  id: string;
+  kind: 'generated';
+  storageKey: string;
+}>;
+
+const payload: TestPayload = {
+  draftId: '11111111-1111-4111-8111-111111111111',
+  versions: [],
+};
+const version: TestGeneratedVersion = {
   id: '22222222-2222-4222-8222-222222222222',
   kind: 'generated' as const,
   storageKey: 'story/generated/initial',
@@ -18,10 +32,12 @@ function harness() {
   const synchronize = vi.fn(() => Promise.resolve());
   const getBudget = vi.fn(() => Promise.resolve({ remainingGenerations: 3 }));
   const generate = vi.fn(() => Promise.resolve({ version, remainingGenerations: 2 }));
-  const appendGeneratedVersion = vi.fn((value, generated) => ({
-    ...value,
-    versions: [...value.versions, generated.id],
-  }));
+  const appendGeneratedVersion = vi.fn(
+    (value: TestPayload, generated: TestGeneratedVersion): TestPayload => ({
+      ...value,
+      versions: [...value.versions, generated.id],
+    }),
+  );
   const sourceImage = {
     id: version.id,
     uri: 'file:///story/initial.jpg',
