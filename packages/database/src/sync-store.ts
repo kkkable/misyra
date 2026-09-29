@@ -245,6 +245,7 @@ type StoryImageVersionPayload = Readonly<{
 
 type StoryDraftPayload = Readonly<{
   draftId: string;
+  replacesDraftId?: string;
   createdAt?: string;
   notes: StorySharingNotesPayload;
   imageVersions: readonly StoryImageVersionPayload[];
@@ -667,7 +668,7 @@ function parseStoryImageVersion(value: unknown): StoryImageVersionPayload {
 
 function parseStoryDraftPayload(payload: unknown): StoryDraftPayload {
   const source = asRecord(payload, 'Story draft payload');
-  const supported = ['draftId', 'createdAt', 'notes', 'imageVersions'];
+  const supported = ['draftId', 'replacesDraftId', 'createdAt', 'notes', 'imageVersions'];
   const required = ['draftId', 'notes', 'imageVersions'];
   if (
     Object.keys(source).some((key) => !supported.includes(key)) ||
@@ -682,6 +683,10 @@ function parseStoryDraftPayload(payload: unknown): StoryDraftPayload {
   if (new Set(imageVersions.map((version) => version.id)).size !== imageVersions.length) {
     throw new SyncMutationValidationError('Story image-version ids must be unique');
   }
+  let replacesDraftId: string | undefined;
+  if (Object.hasOwn(source, 'replacesDraftId')) {
+    replacesDraftId = requireUuid(source, 'replacesDraftId', 'Story draft replaced draft id');
+  }
   let createdAt: string | undefined;
   if (Object.hasOwn(source, 'createdAt')) {
     createdAt = requireString(source, 'createdAt', 'Story draft createdAt');
@@ -691,6 +696,7 @@ function parseStoryDraftPayload(payload: unknown): StoryDraftPayload {
   }
   return {
     draftId: requireUuid(source, 'draftId', 'Story draft id'),
+    ...(replacesDraftId === undefined ? {} : { replacesDraftId }),
     ...(createdAt === undefined ? {} : { createdAt }),
     notes: parseStorySharingNotes(source.notes),
     imageVersions,
