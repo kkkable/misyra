@@ -188,7 +188,7 @@ export function createStoryImageGenerationService(input: {
 
     async generate(
       accountId: string,
-      request: Readonly<{ draftId: string; sourceVersionId: string }>,
+      request: Readonly<{ draftId: string; sourceVersionId?: string }>,
     ): Promise<StoryImageGenerationResult> {
       if (input.gateway === undefined) throw new StoryImageGenerationUnavailableError();
 
