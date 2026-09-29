@@ -35,25 +35,37 @@ export class StoryGenerationBudgetExhaustedError extends Error {
   }
 }
 
+export class StoryInitialImageUnavailableError extends Error {
+  constructor() {
+    super('story_initial_image_unavailable');
+    this.name = 'StoryInitialImageUnavailableError';
+  }
+}
+
 export async function initializeSourceFreeStory<Payload extends { draftId: string }>(
   input: SourceFreeStoryInitializationInput<Payload>,
 ): Promise<SourceFreeStoryInitializationResult<Payload>> {
-  await input.save(input.payload);
-  await input.synchronize();
-  const budget = await input.getBudget();
-  if (budget.remainingGenerations === 0) {
-    throw new StoryGenerationBudgetExhaustedError();
+  try {
+    await input.save(input.payload);
+    await input.synchronize();
+    const budget = await input.getBudget();
+    if (budget.remainingGenerations === 0) {
+      throw new StoryGenerationBudgetExhaustedError();
+    }
+
+    const generated = await input.generate();
+    const payload = input.appendGeneratedVersion(input.payload, generated.version);
+    const sourceImage = await input.materialize(payload.draftId, generated.version.id);
+    await input.save(payload);
+
+    return {
+      payload,
+      sourceImage,
+      imageVersionId: generated.version.id,
+      remainingGenerations: generated.remainingGenerations,
+    };
+  } catch (error) {
+    if (error instanceof StoryGenerationBudgetExhaustedError) throw error;
+    throw new StoryInitialImageUnavailableError();
   }
-
-  const generated = await input.generate();
-  const payload = input.appendGeneratedVersion(input.payload, generated.version);
-  const sourceImage = await input.materialize(payload.draftId, generated.version.id);
-  await input.save(payload);
-
-  return {
-    payload,
-    sourceImage,
-    imageVersionId: generated.version.id,
-    remainingGenerations: generated.remainingGenerations,
-  };
 }
