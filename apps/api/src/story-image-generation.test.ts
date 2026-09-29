@@ -344,13 +344,12 @@ describe('MTS-109 cross-ticket Story generation corrections', () => {
   it('keeps consumed generation requests after the Story draft is replaced', async () => {
     const fixture = await createStoryFixture();
     let serial = 0;
+    const generateStoryImage = vi.fn(() =>
+      Promise.resolve({ storageKey: `story/generated/replacement-${String(++serial)}` }),
+    );
     const service = createStoryImageGenerationService({
       pool,
-      gateway: {
-        generateStoryImage: vi.fn(() =>
-          Promise.resolve({ storageKey: `story/generated/replacement-${String(++serial)}` }),
-        ),
-      },
+      gateway: { generateStoryImage },
     });
 
     await service.generate(fixture.accountId, {
