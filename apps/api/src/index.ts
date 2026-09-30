@@ -7,6 +7,12 @@ import {
   clientActionErrorCodes,
   type ClientActionError,
 } from '@misyra/contracts';
+import Fastify, {
+  type FastifyReply,
+  type FastifyRequest,
+  type FastifySchema,
+  type HTTPMethods,
+} from 'fastify';
 
 import {
   abuseControlClasses,
@@ -15,12 +21,6 @@ import {
   type AbuseControlClass,
   type AbuseControlClassName,
 } from './abuse-controls.js';
-import Fastify, {
-  type FastifyReply,
-  type FastifyRequest,
-  type FastifySchema,
-  type HTTPMethods,
-} from 'fastify';
 
 export type ReadinessCheck = () => boolean | Promise<boolean>;
 
@@ -197,6 +197,7 @@ function requestRateKey(
     case 'device':
       return auth?.accountId ?? null;
   }
+  return null;
 }
 
 function appliedBodyLimit(
