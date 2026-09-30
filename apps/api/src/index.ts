@@ -7,6 +7,14 @@ import {
   clientActionErrorCodes,
   type ClientActionError,
 } from '@misyra/contracts';
+
+import {
+  abuseControlClasses,
+  routeAbuseControls,
+  unversionedRouteAbuseControls,
+  type AbuseControlClass,
+  type AbuseControlClassName,
+} from './abuse-controls.js';
 import Fastify, {
   type FastifyReply,
   type FastifyRequest,
@@ -162,6 +170,48 @@ function routeLabel(request: FastifyRequest) {
   return request.routeOptions.url ?? 'unmatched';
 }
 
+type RateWindow = { count: number; resetAt: number };
+
+function routeAbuseClass(method: string, path: string): AbuseControlClassName | undefined {
+  const key = `${method.toUpperCase()} ${path}` as keyof typeof routeAbuseControls;
+  return routeAbuseControls[key];
+}
+
+function requestRateKey(
+  control: AbuseControlClass,
+  request: FastifyRequest,
+  auth: AuthContext | null,
+): string | null {
+  switch (control.keyedBy) {
+    case 'ip':
+      return request.ip;
+    case 'account':
+      return auth?.accountId ?? null;
+    case 'channel': {
+      const raw = request.headers['x-goog-channel-id'];
+      const channelId = Array.isArray(raw) ? raw[0] : raw;
+      return typeof channelId === 'string' && channelId.length > 0
+        ? channelId
+        : `ip:${request.ip}`;
+    }
+    case 'device':
+      return auth?.accountId ?? null;
+  }
+}
+
+function appliedBodyLimit(
+  route: ApiRouteDefinition,
+  className: AbuseControlClassName | undefined,
+): number | undefined {
+  const policyLimit =
+    className === undefined || abuseControlClasses[className].maxBodyBytes === 0
+      ? undefined
+      : abuseControlClasses[className].maxBodyBytes;
+  if (route.bodyLimit === undefined) return policyLimit;
+  if (policyLimit === undefined) return route.bodyLimit;
+  return Math.min(route.bodyLimit, policyLimit);
+}
+
 export function createLocalReadinessCheck(env: NodeJS.ProcessEnv = process.env): ReadinessCheck {
   const postgresPort = resolvePort(env.POSTGRES_PORT, 5432);
   const azuriteBlobPort = resolvePort(env.AZURITE_BLOB_PORT, 10000);
@@ -182,6 +232,35 @@ export function createApiServer(options: ApiServerOptions = {}) {
   const authenticate = options.authenticate ?? (() => null);
   const requestStartedAt = new Map<string, number>();
   const requestErrorCodes = new Map<string, ApiErrorCode>();
+  const rateWindows = new Map<string, RateWindow>();
+
+  const enforceRateLimit = (
+    className: AbuseControlClassName,
+    request: FastifyRequest,
+    reply: FastifyReply,
+    auth: AuthContext | null,
+  ) => {
+    const control = abuseControlClasses[className];
+    const key = requestRateKey(control, request, auth);
+    if (key === null) return false;
+    const now = Date.now();
+    const windowKey = `${className}:${key}`;
+    const current = rateWindows.get(windowKey);
+    if (current === undefined || current.resetAt <= now) {
+      rateWindows.set(windowKey, {
+        count: 1,
+        resetAt: now + control.windowSeconds * 1_000,
+      });
+      return true;
+    }
+    if (current.count >= control.maxRequests) {
+      reply.header('retry-after', String(Math.max(1, Math.ceil((current.resetAt - now) / 1_000))));
+      reply.code(429).send(errorEnvelope(request.id, 'temporarily_unavailable'));
+      return false;
+    }
+    current.count += 1;
+    return true;
+  };
   const server = Fastify({
     logger: false,
     routerOptions: {
@@ -212,6 +291,11 @@ export function createApiServer(options: ApiServerOptions = {}) {
   server.addHook('onRequest', (request, reply, done) => {
     if (options.auditLog !== undefined) requestStartedAt.set(request.id, Date.now());
     reply.header('x-request-id', request.id);
+    reply.header('x-content-type-options', 'nosniff');
+    reply.header('x-frame-options', 'DENY');
+    reply.header('referrer-policy', 'no-referrer');
+    reply.header('cache-control', 'no-store');
+    reply.header('content-security-policy', "default-src 'none'; frame-ancestors 'none'");
     done();
   });
 
@@ -241,20 +325,31 @@ export function createApiServer(options: ApiServerOptions = {}) {
   }
 
   server.setErrorHandler((error, request, reply) => {
-    const validationError = isValidationError(error);
+    const bodyTooLarge =
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      (error as { code?: unknown }).code === 'FST_ERR_CTP_BODY_TOO_LARGE';
+    const validationError = bodyTooLarge || isValidationError(error);
     const code: ApiErrorCode = validationError
       ? 'validation_failed'
       : error instanceof ApiError
         ? error.code
         : 'temporarily_unavailable';
-    const statusCode = validationError ? 400 : errorStatus[code];
+    const statusCode = bodyTooLarge ? 413 : validationError ? 400 : errorStatus[code];
     if (options.auditLog !== undefined) requestErrorCodes.set(request.id, code);
 
     return reply.code(statusCode).send(errorEnvelope(request.id, code));
   });
 
-  server.get('/health/live', () => ({ status: 'ok' as const }));
-  server.get('/health/ready', async (_request, reply) => {
+  server.get('/health/live', (request, reply) => {
+    const className = unversionedRouteAbuseControls['GET /health/live'];
+    if (!enforceRateLimit(className, request, reply, null)) return;
+    return { status: 'ok' as const };
+  });
+  server.get('/health/ready', async (request, reply) => {
+    const className = unversionedRouteAbuseControls['GET /health/ready'];
+    if (!enforceRateLimit(className, request, reply, null)) return;
     let ready: boolean;
 
     try {
@@ -281,6 +376,9 @@ export function createApiServer(options: ApiServerOptions = {}) {
       };
 
       for (const route of routes) {
+        const className =
+          typeof route.method === 'string' ? routeAbuseClass(route.method, route.path) : undefined;
+        const bodyLimit = appliedBodyLimit(route, className);
         const routeOptions = {
           method: route.method,
           url: route.path,
@@ -289,11 +387,17 @@ export function createApiServer(options: ApiServerOptions = {}) {
             let payload: unknown;
 
             if (route.public) {
+              if (className !== undefined && !enforceRateLimit(className, request, reply, null)) {
+                return;
+              }
               payload = await route.handler(request, reply, null);
             } else {
               const auth = request.authContext;
               if (!auth) {
                 return reply.code(401).send(errorEnvelope(request.id, 'unauthorized'));
+              }
+              if (className !== undefined && !enforceRateLimit(className, request, reply, auth)) {
+                return;
               }
               payload = await route.handler(request, reply, auth);
             }
@@ -302,7 +406,7 @@ export function createApiServer(options: ApiServerOptions = {}) {
             return successEnvelope(request.id, payload);
           },
           ...(route.schema === undefined ? {} : { schema: route.schema }),
-          ...(route.bodyLimit === undefined ? {} : { bodyLimit: route.bodyLimit }),
+          ...(bodyLimit === undefined ? {} : { bodyLimit }),
         };
         v1.route(routeOptions);
       }
