@@ -31,6 +31,7 @@ export type ProtectedMediaUploadCommitted = Readonly<{
 type ProtectedMediaServiceOptions = Readonly<{
   pool: Pool;
   signingSecret: string;
+  verificationSigningSecrets?: readonly string[];
   blobStore: ProtectedMediaBlobStore;
   now?: () => Date;
   onUploadCommitted?: (input: ProtectedMediaUploadCommitted) => Promise<void>;
@@ -82,8 +83,161 @@ function isVariant(value: unknown): value is MediaUploadVariant {
   return typeof value === 'string' && MEDIA_VARIANTS.has(value as MediaUploadVariant);
 }
 
+const SUPPORTED_IMAGE_CONTENT_TYPES = new Set([
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'image/heic',
+  'image/heif',
+  'image/avif',
+]);
+const MAX_IMAGE_DIMENSION = 8_192;
+const MAX_IMAGE_PIXELS = 64_000_000;
+
 function isImageContentType(value: unknown): value is string {
-  return typeof value === 'string' && /^image\/[a-z0-9.+-]{1,64}$/i.test(value);
+  return (
+    typeof value === 'string' &&
+    SUPPORTED_IMAGE_CONTENT_TYPES.has(value.toLowerCase())
+  );
+}
+
+type ImageDimensions = Readonly<{ width: number; height: number }>;
+
+function validDimensions(dimensions: ImageDimensions | null): boolean {
+  if (dimensions === null) return false;
+  const { width, height } = dimensions;
+  return (
+    Number.isInteger(width) &&
+    Number.isInteger(height) &&
+    width > 0 &&
+    height > 0 &&
+    width <= MAX_IMAGE_DIMENSION &&
+    height <= MAX_IMAGE_DIMENSION &&
+    width * height <= MAX_IMAGE_PIXELS
+  );
+}
+
+function pngDimensions(bytes: Buffer): ImageDimensions | null {
+  const signature = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  if (bytes.length < 24 || !bytes.subarray(0, 8).equals(signature)) return null;
+  if (bytes.toString('ascii', 12, 16) !== 'IHDR') return null;
+  return { width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20) };
+}
+
+function gifDimensions(bytes: Buffer): ImageDimensions | null {
+  if (bytes.length < 10) return null;
+  const signature = bytes.toString('ascii', 0, 6);
+  if (signature !== 'GIF87a' && signature !== 'GIF89a') return null;
+  return { width: bytes.readUInt16LE(6), height: bytes.readUInt16LE(8) };
+}
+
+function jpegDimensions(bytes: Buffer): ImageDimensions | null {
+  if (bytes.length < 4 || bytes[0] !== 0xff || bytes[1] !== 0xd8) return null;
+  const startOfFrameMarkers = new Set([
+    0xc0, 0xc1, 0xc2, 0xc3, 0xc5, 0xc6, 0xc7, 0xc9, 0xca, 0xcb, 0xcd, 0xce, 0xcf,
+  ]);
+  let offset = 2;
+  while (offset < bytes.length) {
+    if (bytes[offset] !== 0xff) {
+      offset += 1;
+      continue;
+    }
+    while (offset < bytes.length && bytes[offset] === 0xff) offset += 1;
+    if (offset >= bytes.length) return null;
+    const marker = bytes[offset] ?? 0;
+    offset += 1;
+    if (marker === 0xd9 || marker === 0xda) return null;
+    if (marker === 0x01 || (marker >= 0xd0 && marker <= 0xd8)) continue;
+    if (offset + 2 > bytes.length) return null;
+    const segmentLength = bytes.readUInt16BE(offset);
+    if (segmentLength < 2 || offset + segmentLength > bytes.length) return null;
+    if (startOfFrameMarkers.has(marker)) {
+      if (segmentLength < 7) return null;
+      return {
+        height: bytes.readUInt16BE(offset + 3),
+        width: bytes.readUInt16BE(offset + 5),
+      };
+    }
+    offset += segmentLength;
+  }
+  return null;
+}
+
+function webpDimensions(bytes: Buffer): ImageDimensions | null {
+  if (
+    bytes.length < 30 ||
+    bytes.toString('ascii', 0, 4) !== 'RIFF' ||
+    bytes.toString('ascii', 8, 12) !== 'WEBP'
+  ) {
+    return null;
+  }
+  const chunk = bytes.toString('ascii', 12, 16);
+  if (chunk === 'VP8X') {
+    const width = 1 + bytes.readUIntLE(24, 3);
+    const height = 1 + bytes.readUIntLE(27, 3);
+    return { width, height };
+  }
+  if (chunk === 'VP8L' && bytes.length >= 25 && bytes[20] === 0x2f) {
+    const b1 = bytes[21] ?? 0;
+    const b2 = bytes[22] ?? 0;
+    const b3 = bytes[23] ?? 0;
+    const b4 = bytes[24] ?? 0;
+    return {
+      width: 1 + (b1 | ((b2 & 0x3f) << 8)),
+      height: 1 + ((b2 >> 6) | (b3 << 2) | ((b4 & 0x0f) << 10)),
+    };
+  }
+  if (
+    chunk === 'VP8 ' &&
+    bytes.length >= 30 &&
+    bytes[23] === 0x9d &&
+    bytes[24] === 0x01 &&
+    bytes[25] === 0x2a
+  ) {
+    return {
+      width: bytes.readUInt16LE(26) & 0x3fff,
+      height: bytes.readUInt16LE(28) & 0x3fff,
+    };
+  }
+  return null;
+}
+
+function isoBaseMediaDimensions(bytes: Buffer): ImageDimensions | null {
+  if (bytes.length < 32 || bytes.toString('ascii', 4, 8) !== 'ftyp') return null;
+  const brands = bytes.toString('ascii', 8, Math.min(bytes.length, 64));
+  if (!/(heic|heix|hevc|hevx|heif|mif1|msf1|avif|avis)/.test(brands)) return null;
+  const ispe = bytes.indexOf(Buffer.from('ispe'));
+  if (ispe < 4 || ispe + 16 > bytes.length) return null;
+  return {
+    width: bytes.readUInt32BE(ispe + 8),
+    height: bytes.readUInt32BE(ispe + 12),
+  };
+}
+
+function imageDimensions(bytes: Buffer, contentType: string): ImageDimensions | null {
+  switch (contentType.toLowerCase()) {
+    case 'image/jpeg':
+    case 'image/jpg':
+      return jpegDimensions(bytes);
+    case 'image/png':
+      return pngDimensions(bytes);
+    case 'image/gif':
+      return gifDimensions(bytes);
+    case 'image/webp':
+      return webpDimensions(bytes);
+    case 'image/heic':
+    case 'image/heif':
+    case 'image/avif':
+      return isoBaseMediaDimensions(bytes);
+    default:
+      return null;
+  }
+}
+
+function isValidImagePayload(bytes: Buffer, contentType: string): boolean {
+  return validDimensions(imageDimensions(bytes, contentType));
 }
 
 function storageColumn(variant: MediaUploadVariant) {
@@ -109,14 +263,21 @@ function signToken(secret: string, claims: UploadClaims) {
   return `${payload}.${signature}`;
 }
 
-function verifyToken(secret: string, token: string, now: Date): UploadClaims | null {
+function verifyToken(
+  secrets: readonly string[],
+  token: string,
+  now: Date,
+): UploadClaims | null {
   const [payload, suppliedSignature, ...extra] = token.split('.');
   if (!payload || !suppliedSignature || extra.length > 0) return null;
 
-  const expectedSignature = createHmac('sha256', secret).update(payload).digest('base64url');
-  const expected = Buffer.from(expectedSignature);
   const supplied = Buffer.from(suppliedSignature);
-  if (expected.length !== supplied.length || !timingSafeEqual(expected, supplied)) return null;
+  const signatureMatches = secrets.some((secret) => {
+    const expectedSignature = createHmac('sha256', secret).update(payload).digest('base64url');
+    const expected = Buffer.from(expectedSignature);
+    return expected.length === supplied.length && timingSafeEqual(expected, supplied);
+  });
+  if (!signatureMatches) return null;
 
   try {
     const claims = JSON.parse(
@@ -373,9 +534,14 @@ export function createProtectedMediaBlobStore(
 }
 
 export function createProtectedMediaService(options: ProtectedMediaServiceOptions) {
-  if (options.signingSecret.length < 32) {
+  const verificationSigningSecrets = options.verificationSigningSecrets ?? [];
+  if (
+    options.signingSecret.length < 32 ||
+    verificationSigningSecrets.some((secret) => secret.length < 32)
+  ) {
     throw new Error('Protected media signing secret must be at least 32 characters');
   }
+  const acceptedSigningSecrets = [options.signingSecret, ...verificationSigningSecrets];
   const now = options.now ?? (() => new Date());
 
   return {
@@ -601,9 +767,12 @@ export function createProtectedMediaService(options: ProtectedMediaServiceOption
     },
 
     async upload(accountId: string, token: string, body: unknown) {
-      const claims = verifyToken(options.signingSecret, token, now());
+      const claims = verifyToken(acceptedSigningSecrets, token, now());
       if (claims === null || claims.accountId !== accountId || !Buffer.isBuffer(body)) {
         throw new ProtectedMediaError('not_found');
+      }
+      if (!isValidImagePayload(body, claims.contentType)) {
+        throw new ProtectedMediaError('validation_failed');
       }
 
       const key = storageKey(claims.accountId, claims.assetId, claims.variant);
