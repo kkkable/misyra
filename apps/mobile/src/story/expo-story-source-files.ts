@@ -1,11 +1,6 @@
 import { createElement } from 'react';
 
-import {
-  Image as SkiaImage,
-  ImageFormat,
-  Skia,
-  drawAsImage,
-} from '@shopify/react-native-skia';
+import { Image as SkiaImage, ImageFormat, Skia, drawAsImage } from '@shopify/react-native-skia';
 import * as FileSystem from 'expo-file-system/legacy';
 import { Image as NativeImage } from 'react-native';
 
@@ -88,7 +83,9 @@ async function materializePreviewResource(
 async function describeStoryWorkingCopy(
   imageVersionId: string,
   uri: string,
-): Promise<Readonly<{ id: string; uri: string; previewUri: string; width: number; height: number }>> {
+): Promise<
+  Readonly<{ id: string; uri: string; previewUri: string; width: number; height: number }>
+> {
   const size = await dimensions(uri);
   const previewUri = await materializePreviewResource(
     imageVersionId,
