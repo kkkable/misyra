@@ -170,9 +170,9 @@ describe('MTS-110 abuse-control policy', () => {
     }
   });
 
-  it('states truthfully that enforcement is declared here and delivered by MTS-111', () => {
+  it('states truthfully that MTS-111 runtime enforcement is active', () => {
     expect(abuseControlEnforcement).toEqual({
-      status: 'declared-not-enforced',
+      status: 'enforced',
       enforcedBy: 'MTS-111',
     });
   });

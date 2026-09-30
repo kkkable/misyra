@@ -46,4 +46,21 @@ describe('MTS-069 Google refresh-token encryption', () => {
       'Google calendar token encryption key must be 32 bytes',
     );
   });
+
+  it('uses the previous key only for decryption during rotation', async () => {
+    const previousKey = Buffer.alloc(32, 3);
+    const currentKey = Buffer.alloc(32, 4);
+    const previousCipher = createGoogleCalendarTokenCipher(previousKey);
+    const rotatingCipher = createGoogleCalendarTokenCipher(currentKey, [previousKey]);
+    const currentOnlyCipher = createGoogleCalendarTokenCipher(currentKey);
+
+    const existing = await previousCipher.encrypt('existing-refresh-token');
+    await expect(rotatingCipher.decrypt(existing)).resolves.toBe('existing-refresh-token');
+
+    const newlyEncrypted = await rotatingCipher.encrypt('new-refresh-token');
+    await expect(currentOnlyCipher.decrypt(newlyEncrypted)).resolves.toBe('new-refresh-token');
+    await expect(previousCipher.decrypt(newlyEncrypted)).rejects.toThrow(
+      'Google calendar token decryption failed',
+    );
+  });
 });

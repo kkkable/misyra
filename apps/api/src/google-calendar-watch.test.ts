@@ -166,6 +166,21 @@ describe('MTS-071 Google Calendar webhook', () => {
     expect(scheduledWork).toHaveLength(1);
   });
 
+  it('rejects oversized webhook message numbers before database work', async () => {
+    const { service, schedulePullOnce } = createHarness();
+
+    await expect(
+      service.handleWebhook({
+        channelId: 'channel-old',
+        resourceId: 'resource-1',
+        channelToken: 'secret-token',
+        messageNumber: '9'.repeat(21),
+        resourceState: 'exists',
+      }),
+    ).resolves.toEqual({ accepted: false, scheduled: false });
+    expect(schedulePullOnce).not.toHaveBeenCalled();
+  });
+
   it.each([
     ['unknown channel', null, 'resource-1', 'secret-token'],
     ['wrong resource', channel(), 'resource-wrong', 'secret-token'],

@@ -84,9 +84,11 @@ export function createPostgresGoogleCalendarWatchStore(
   }
 
   async function schedulePullOnce(input: GoogleCalendarPullSignalRecord): Promise<boolean> {
-    const result = await pool.query<{ scheduled: boolean }>(
-      `WITH connected AS (
-         SELECT c.account_id
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const connected = await client.query<{ accountId: string }>(
+        `SELECT c.account_id AS "accountId"
            FROM external_calendar_connections c
            JOIN misyra_internal.google_calendar_watch_channels w
              ON w.connection_id = c.id
@@ -94,38 +96,67 @@ export function createPostgresGoogleCalendarWatchStore(
           WHERE c.id = $1
             AND c.provider = 'google'
             AND c.connection_state = 'connected'
-       ),
-       inserted_signal AS (
-         INSERT INTO misyra_internal.google_calendar_watch_signals (
+          FOR UPDATE OF w`,
+        [input.connectionId, input.channelId],
+      );
+      const accountId = connected.rows[0]?.accountId;
+      if (accountId === undefined) {
+        await client.query('ROLLBACK');
+        return false;
+      }
+
+      const fresh = await client.query<{ present: boolean }>(
+        `SELECT EXISTS (
+           SELECT 1
+             FROM misyra_internal.google_calendar_watch_signals
+            WHERE channel_id = $1
+              AND message_number::numeric >= $2::numeric
+         ) AS present`,
+        [input.channelId, input.messageNumber],
+      );
+      if (fresh.rows[0]?.present) {
+        await client.query('ROLLBACK');
+        return false;
+      }
+
+      const inserted = await client.query<{ channelId: string }>(
+        `INSERT INTO misyra_internal.google_calendar_watch_signals (
            channel_id, message_number, resource_state
-         )
-         SELECT $2, $3, $4
-           FROM connected
+         ) VALUES ($1, $2, $3)
          ON CONFLICT (channel_id, message_number) DO NOTHING
-         RETURNING channel_id
-       ),
-       queued AS (
-         INSERT INTO outbox_events (
+         RETURNING channel_id AS "channelId"`,
+        [input.channelId, input.messageNumber, input.resourceState],
+      );
+      if (inserted.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return false;
+      }
+
+      await client.query(
+        `INSERT INTO outbox_events (
            account_id, event_type, aggregate_type, aggregate_id, payload
-         )
-         SELECT connected.account_id,
-                'google_calendar_pull_requested',
-                'external_calendar_connection',
-                $1,
-                jsonb_build_object(
-                  'connectionId', $1::text,
-                  'channelId', $2::text,
-                  'messageNumber', $3::text,
-                  'resourceState', $4::text
-                )
-           FROM connected
-           JOIN inserted_signal ON true
-         RETURNING id
-       )
-       SELECT EXISTS (SELECT 1 FROM queued) AS scheduled`,
-      [input.connectionId, input.channelId, input.messageNumber, input.resourceState],
-    );
-    return result.rows[0]?.scheduled ?? false;
+         ) VALUES (
+           $1,
+           'google_calendar_pull_requested',
+           'external_calendar_connection',
+           $2::uuid,
+           jsonb_build_object(
+             'connectionId', $2::uuid::text,
+             'channelId', $3::text,
+             'messageNumber', $4::text,
+             'resourceState', $5::text
+           )
+         )`,
+        [accountId, input.connectionId, input.channelId, input.messageNumber, input.resourceState],
+      );
+      await client.query('COMMIT');
+      return true;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 
   async function hasCurrentChannel(connectionId: string): Promise<boolean> {

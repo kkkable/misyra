@@ -129,14 +129,29 @@ afterAll(async () => {
   await admin.end();
 });
 
-function createServer(activeAccount: { value: string }, auditLog = vi.fn()) {
+function validJpeg(label = '') {
+  return Buffer.concat([
+    Buffer.from('ffd8ffc00011080001000103011100021100031100ffd9', 'hex'),
+    Buffer.from(label),
+  ]);
+}
+
+function createServer(
+  activeAccount: { value: string },
+  auditLog = vi.fn(),
+  rotation: Readonly<{ currentSecret?: string; previousSecrets?: readonly string[] }> = {},
+) {
   return {
     auditLog,
     server: createApiApplication({
       pool,
       expectedAudience: { apple: 'apple-audience', google: 'google-audience' },
       issueAccessToken: () => 'fixture-access-token',
-      reauthenticationProofSecret: 'fixture-reauthentication-proof-secret',
+      reauthenticationProofSecret:
+        rotation.currentSecret ?? 'fixture-reauthentication-proof-secret',
+      ...(rotation.previousSecrets === undefined
+        ? {}
+        : { previousReauthenticationProofSecrets: rotation.previousSecrets }),
       now: () => apiNow,
       authenticate: () => ({ accountId: activeAccount.value }),
       auditLog,
@@ -258,12 +273,78 @@ describe('MTS-078 protected media upload service', () => {
     await server.close();
   });
 
+  it('rejects a payload whose bytes do not match the authorized image type', async () => {
+    const activeAccount = { value: accountA };
+    const assetId = randomUUID();
+    const { server } = createServer(activeAccount);
+    const authorization = await authorizeOriginalUpload(server, assetId);
+
+    const upload = await server.inject({
+      method: 'PUT',
+      url: authorization.uploadPath,
+      headers: { 'content-type': 'application/octet-stream' },
+      payload: Buffer.from('not-a-jpeg'),
+    });
+
+    expect(upload.statusCode).toBe(400);
+    expect(upload.json()).toMatchObject({ error: { code: 'validation_failed' } });
+    await server.close();
+  });
+
+  it('rejects image dimensions above the server safety budget before Blob storage', async () => {
+    const activeAccount = { value: accountA };
+    const assetId = randomUUID();
+    const { server } = createServer(activeAccount);
+    const authorization = await authorizeOriginalUpload(server, assetId);
+    const oversizedJpegHeader = Buffer.from(
+      'ffd8ffc00011080001232903011100021100031100ffd9',
+      'hex',
+    );
+
+    const upload = await server.inject({
+      method: 'PUT',
+      url: authorization.uploadPath,
+      headers: { 'content-type': 'application/octet-stream' },
+      payload: oversizedJpegHeader,
+    });
+
+    expect(upload.statusCode).toBe(400);
+    expect(upload.json()).toMatchObject({ error: { code: 'validation_failed' } });
+    await server.close();
+  });
+
+  it('accepts an old upload token only through the configured rotation fallback', async () => {
+    const activeAccount = { value: accountA };
+    const assetId = randomUUID();
+    const previousSecret = 'fixture-previous-media-signing-secret-value';
+    const currentSecret = 'fixture-current-media-signing-secret-value';
+    const { server: previousServer } = createServer(activeAccount, vi.fn(), {
+      currentSecret: previousSecret,
+    });
+    const authorization = await authorizeOriginalUpload(previousServer, assetId);
+    await previousServer.close();
+
+    const { server: rotatingServer } = createServer(activeAccount, vi.fn(), {
+      currentSecret,
+      previousSecrets: [previousSecret],
+    });
+    const upload = await rotatingServer.inject({
+      method: 'PUT',
+      url: authorization.uploadPath,
+      headers: { 'content-type': 'application/octet-stream' },
+      payload: validJpeg('rotation-fallback'),
+    });
+
+    expect(upload.statusCode).toBe(200);
+    await rotatingServer.close();
+  });
+
   it('uploads through the scoped API path into a private Azurite container', async () => {
     const activeAccount = { value: accountA };
     const assetId = randomUUID();
     const { server } = createServer(activeAccount);
     const authorization = await authorizeOriginalUpload(server, assetId);
-    const bytes = Buffer.from('fixture-image-binary');
+    const bytes = validJpeg('fixture-image-binary');
 
     const upload = await server.inject({
       method: 'PUT',
@@ -301,7 +382,7 @@ describe('MTS-078 protected media upload service', () => {
     const assetId = randomUUID();
     const { server } = createServer(activeAccount);
     const firstAuthorization = await authorizeOriginalUpload(server, assetId);
-    const firstBytes = Buffer.from('first-evidence-original');
+    const firstBytes = validJpeg('first-evidence-original');
 
     const firstUpload = await server.inject({
       method: 'PUT',
@@ -316,7 +397,7 @@ describe('MTS-078 protected media upload service', () => {
       method: 'PUT',
       url: retryAuthorization.uploadPath,
       headers: { 'content-type': 'application/octet-stream' },
-      payload: Buffer.from('different-retry-bytes'),
+      payload: validJpeg('different-retry-bytes'),
     });
     expect(retryUpload.statusCode).toBe(200);
 
@@ -342,7 +423,7 @@ describe('MTS-078 protected media upload service', () => {
       method: 'PUT',
       url: authorization.uploadPath,
       headers: { 'content-type': 'application/octet-stream' },
-      payload: Buffer.from('secret-image-body'),
+      payload: validJpeg('secret-image-body'),
     });
 
     expect(auditLog.mock.calls).toEqual([

@@ -1,11 +1,9 @@
 /**
  * MTS-110 declared abuse-control policy.
  *
- * This module is DATA ONLY. It records the request-rate and body-size budget that every API route
- * is expected to live within, so the threat model (docs/security/threat-model.md) and its tests can
- * prove that no route is left unclassified. Nothing here is enforced at runtime yet: rate limiting,
- * body-limit enforcement, replay protection, and header hardening are delivered by MTS-111, which
- * must calibrate these initial targets against real traffic before enabling enforcement.
+ * This module records the request-rate and body-size budget that every API route is expected to
+ * live within. MTS-111 wires these calibrated values into the Fastify request boundary; route
+ * inventory tests keep the policy complete as endpoints are added.
  */
 
 const KIBIBYTE = 1024;
@@ -43,7 +41,7 @@ export const abuseControlClasses = {
     windowSeconds: 60,
     maxRequests: 120,
     maxBodyBytes: 8 * KIBIBYTE,
-    keyedBy: 'channel',
+    keyedBy: 'ip',
   },
   // Authenticated surfaces: keyed by account (or device for sync).
   'authenticated-read': {
@@ -64,7 +62,12 @@ export const abuseControlClasses = {
     maxBodyBytes: 4 * KIBIBYTE,
     keyedBy: 'account',
   },
-  sync: { windowSeconds: 60, maxRequests: 60, maxBodyBytes: 1 * MEBIBYTE, keyedBy: 'device' },
+  sync: {
+    windowSeconds: 60,
+    maxRequests: 60,
+    maxBodyBytes: 1 * MEBIBYTE,
+    keyedBy: 'account',
+  },
   'media-upload-authorization': {
     windowSeconds: 60,
     maxRequests: 30,
@@ -102,9 +105,9 @@ export const aiGenerationLimits = {
   maxPlannerImages: 3,
 } as const;
 
-/** Honest status marker: this policy is declared here and enforced by MTS-111. */
+/** Runtime status marker. MTS-111 wires these route budgets into the Fastify boundary. */
 export const abuseControlEnforcement = {
-  status: 'declared-not-enforced',
+  status: 'enforced',
   enforcedBy: 'MTS-111',
 } as const;
 

@@ -102,11 +102,13 @@ type AuthApplicationOptions = {
   expectedAudience: Record<AuthProvider, string>;
   issueAccessToken: (input: AccessTokenInput) => string | Promise<string>;
   reauthenticationProofSecret: string;
+  previousReauthenticationProofSecrets?: readonly string[];
   verifier?: ProviderProofVerifier;
   now?: () => Date;
   readiness?: ReadinessCheck;
   authenticate?: AuthenticateRequest;
   auditLog?: ApiAuditLog;
+  trustAzureContainerAppsForwardedFor?: boolean;
   googleCalendar?: GoogleCalendarApplicationDependencies;
   mediaBlobStore?: ProtectedMediaBlobStore;
   plannerExtractionService?: PlannerExtractionRouteService;
@@ -238,6 +240,9 @@ export function createApiApplication(options: AuthApplicationOptions) {
   const protectedMediaService = createProtectedMediaService({
     pool: options.pool,
     signingSecret: options.reauthenticationProofSecret,
+    ...(options.previousReauthenticationProofSecrets === undefined
+      ? {}
+      : { verificationSigningSecrets: options.previousReauthenticationProofSecrets }),
     blobStore: mediaBlobStore,
     ...(options.now === undefined ? {} : { now: options.now }),
     onUploadCommitted: async (input) => {
@@ -344,6 +349,11 @@ export function createApiApplication(options: AuthApplicationOptions) {
     ...(options.readiness === undefined ? {} : { readiness: options.readiness }),
     ...(options.authenticate === undefined ? {} : { authenticate: options.authenticate }),
     ...(options.auditLog === undefined ? {} : { auditLog: options.auditLog }),
+    ...(options.trustAzureContainerAppsForwardedFor === undefined
+      ? {}
+      : {
+          trustAzureContainerAppsForwardedFor: options.trustAzureContainerAppsForwardedFor,
+        }),
   });
 }
 
@@ -360,6 +370,23 @@ function localOrRequiredEnv(env: NodeJS.ProcessEnv, name: string, localDefault: 
   return requiredEnv(env, name);
 }
 
+function optionalSecret(env: NodeJS.ProcessEnv, name: string): string[] {
+  const value = env[name];
+  return value === undefined || value === '' ? [] : [value];
+}
+
+function decodeCalendarEncryptionKey(value: string, name: string): Buffer {
+  const decoded = Buffer.from(value, 'base64url');
+  if (
+    !/^[A-Za-z0-9_-]+$/.test(value) ||
+    decoded.length !== 32 ||
+    decoded.toString('base64url') !== value
+  ) {
+    throw new Error(`${name} must be a 32-byte base64url value`);
+  }
+  return decoded;
+}
+
 export function resolveAuthStartupConfiguration(env: NodeJS.ProcessEnv) {
   return {
     expectedAudience: {
@@ -371,6 +398,7 @@ export function resolveAuthStartupConfiguration(env: NodeJS.ProcessEnv) {
       'AUTH_ACCESS_TOKEN_SECRET',
       LOCAL_AUTH_DEFAULTS.accessTokenSecret,
     ),
+    previousAccessTokenSecrets: optionalSecret(env, 'AUTH_ACCESS_TOKEN_SECRET_PREVIOUS'),
   };
 }
 
@@ -400,14 +428,16 @@ export function resolveGoogleCalendarStartupConfiguration(env: NodeJS.ProcessEnv
     'GOOGLE_CALENDAR_TOKEN_ENCRYPTION_KEY',
     LOCAL_GOOGLE_CALENDAR_DEFAULTS.encryptionKey,
   );
-  const encryptionKey = Buffer.from(encodedEncryptionKey, 'base64url');
-  if (
-    !/^[A-Za-z0-9_-]+$/.test(encodedEncryptionKey) ||
-    encryptionKey.length !== 32 ||
-    encryptionKey.toString('base64url') !== encodedEncryptionKey
-  ) {
-    throw new Error('GOOGLE_CALENDAR_TOKEN_ENCRYPTION_KEY must be a 32-byte base64url value');
-  }
+  const encryptionKey = decodeCalendarEncryptionKey(
+    encodedEncryptionKey,
+    'GOOGLE_CALENDAR_TOKEN_ENCRYPTION_KEY',
+  );
+  const previousEncryptionKeys = optionalSecret(
+    env,
+    'GOOGLE_CALENDAR_TOKEN_ENCRYPTION_KEY_PREVIOUS',
+  ).map((value) =>
+    decodeCalendarEncryptionKey(value, 'GOOGLE_CALENDAR_TOKEN_ENCRYPTION_KEY_PREVIOUS'),
+  );
   let webhookUrl: URL;
   try {
     webhookUrl = new URL(webhookAddress);
@@ -424,6 +454,7 @@ export function resolveGoogleCalendarStartupConfiguration(env: NodeJS.ProcessEnv
     redirectUri,
     webhookAddress,
     encryptionKey,
+    previousEncryptionKeys,
   };
 }
 
@@ -467,9 +498,11 @@ export function createHmacAccessTokenAuthenticator(
   secret: string,
   isSessionActive: SessionActiveCheck,
   now: () => Date = () => new Date(),
+  previousSecrets: readonly string[] = [],
 ): AuthenticateRequest {
-  if (secret.length < 32)
+  if (secret.length < 32 || previousSecrets.some((candidate) => candidate.length < 32))
     throw new Error('AUTH_ACCESS_TOKEN_SECRET must be at least 32 characters');
+  const verificationSecrets = [secret, ...previousSecrets];
 
   return async (request) => {
     const authorization = request.headers.authorization;
@@ -478,7 +511,11 @@ export function createHmacAccessTokenAuthenticator(
     const token = authorization.slice('Bearer '.length);
     const [headerSegment, payloadSegment, signatureSegment, ...extra] = token.split('.');
     if (!headerSegment || !payloadSegment || !signatureSegment || extra.length > 0) return null;
-    if (!hmacSignatureMatches(secret, `${headerSegment}.${payloadSegment}`, signatureSegment)) {
+    if (
+      !verificationSecrets.some((candidate) =>
+        hmacSignatureMatches(candidate, `${headerSegment}.${payloadSegment}`, signatureSegment),
+      )
+    ) {
       return null;
     }
 
@@ -522,6 +559,7 @@ export async function startApiApplication(env: NodeJS.ProcessEnv = process.env) 
   const authStore = createPostgresAuthStore(pool);
   const googleCalendarCipher = createGoogleCalendarTokenCipher(
     googleCalendarConfiguration.encryptionKey,
+    googleCalendarConfiguration.previousEncryptionKeys,
   );
   const googleCalendarSyncStore = createPostgresGoogleCalendarSyncStore(pool);
   const loadGoogleCalendarSession = createGoogleCalendarSyncSessionLoader(
@@ -548,11 +586,16 @@ export async function startApiApplication(env: NodeJS.ProcessEnv = process.env) 
     expectedAudience: authConfiguration.expectedAudience,
     issueAccessToken: createHmacAccessTokenIssuer(authConfiguration.accessTokenSecret),
     reauthenticationProofSecret: authConfiguration.accessTokenSecret,
+    previousReauthenticationProofSecrets: authConfiguration.previousAccessTokenSecrets,
+    trustAzureContainerAppsForwardedFor:
+      typeof env.CONTAINER_APP_NAME === 'string' && env.CONTAINER_APP_NAME.length > 0,
     mediaBlobStore: createProtectedMediaBlobStore(env),
     authenticate: createHmacAccessTokenAuthenticator(
       authConfiguration.accessTokenSecret,
       (accountId, sessionId, currentTime) =>
         authStore.isSessionActive(accountId, sessionId, currentTime),
+      () => new Date(),
+      authConfiguration.previousAccessTokenSecrets,
     ),
     googleCalendar: {
       provider: createGoogleCalendarOAuthGateway({

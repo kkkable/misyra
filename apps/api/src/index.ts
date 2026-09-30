@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { connect } from 'node:net';
+import { connect, isIP } from 'node:net';
 import { pathToFileURL } from 'node:url';
 
 import {
@@ -13,6 +13,14 @@ import Fastify, {
   type FastifySchema,
   type HTTPMethods,
 } from 'fastify';
+
+import {
+  abuseControlClasses,
+  routeAbuseControls,
+  unversionedRouteAbuseControls,
+  type AbuseControlClass,
+  type AbuseControlClassName,
+} from './abuse-controls.js';
 
 export type ReadinessCheck = () => boolean | Promise<boolean>;
 
@@ -60,6 +68,11 @@ type ApiServerOptions = {
   routes?: ApiRouteDefinition[];
   authenticate?: AuthenticateRequest;
   auditLog?: ApiAuditLog;
+  /**
+   * Azure Container Apps appends the real sender to X-Forwarded-For. Enable this only when the
+   * process is running behind that managed ingress; arbitrary forwarded values remain untrusted.
+   */
+  trustAzureContainerAppsForwardedFor?: boolean;
 };
 
 export const apiErrorCodes = clientActionErrorCodes;
@@ -162,6 +175,65 @@ function routeLabel(request: FastifyRequest) {
   return request.routeOptions.url ?? 'unmatched';
 }
 
+type RateWindow = { count: number; resetAt: number };
+const MAX_RATE_WINDOWS = 20_000;
+
+function routeAbuseClass(method: string, path: string): AbuseControlClassName | undefined {
+  const key = `${method.toUpperCase()} ${path}` as keyof typeof routeAbuseControls;
+  return routeAbuseControls[key];
+}
+
+function azureContainerAppsOrigin(request: FastifyRequest): string | null {
+  const raw = request.headers['x-forwarded-for'];
+  const forwarded = Array.isArray(raw) ? raw.at(-1) : raw;
+  if (typeof forwarded !== 'string') return null;
+  const rightmost = forwarded.split(',').at(-1)?.trim();
+  return rightmost !== undefined && isIP(rightmost) !== 0 ? rightmost : null;
+}
+
+function requestOrigin(
+  request: FastifyRequest,
+  trustAzureContainerAppsForwardedFor: boolean,
+): string {
+  if (!trustAzureContainerAppsForwardedFor) return request.ip;
+  return azureContainerAppsOrigin(request) ?? request.ip;
+}
+
+function requestRateKey(
+  control: AbuseControlClass,
+  request: FastifyRequest,
+  auth: AuthContext | null,
+  trustAzureContainerAppsForwardedFor: boolean,
+): string | null {
+  switch (control.keyedBy) {
+    case 'ip':
+      return requestOrigin(request, trustAzureContainerAppsForwardedFor);
+    case 'account':
+      return auth?.accountId ?? null;
+    case 'channel': {
+      const raw = request.headers['x-goog-channel-id'];
+      const channelId = Array.isArray(raw) ? raw[0] : raw;
+      return typeof channelId === 'string' && channelId.length > 0
+        ? channelId
+        : `ip:${requestOrigin(request, trustAzureContainerAppsForwardedFor)}`;
+    }
+    case 'device':
+      return auth?.accountId ?? null;
+  }
+  return null;
+}
+
+function appliedBodyLimit(
+  route: ApiRouteDefinition,
+  className: AbuseControlClassName | undefined,
+): number | undefined {
+  const policyLimit =
+    className === undefined ? undefined : Math.max(1, abuseControlClasses[className].maxBodyBytes);
+  if (route.bodyLimit === undefined) return policyLimit;
+  if (policyLimit === undefined) return route.bodyLimit;
+  return Math.min(route.bodyLimit, policyLimit);
+}
+
 export function createLocalReadinessCheck(env: NodeJS.ProcessEnv = process.env): ReadinessCheck {
   const postgresPort = resolvePort(env.POSTGRES_PORT, 5432);
   const azuriteBlobPort = resolvePort(env.AZURITE_BLOB_PORT, 10000);
@@ -182,6 +254,50 @@ export function createApiServer(options: ApiServerOptions = {}) {
   const authenticate = options.authenticate ?? (() => null);
   const requestStartedAt = new Map<string, number>();
   const requestErrorCodes = new Map<string, ApiErrorCode>();
+  const rateWindows = new Map<string, RateWindow>();
+
+  const enforceRateLimit = (
+    className: AbuseControlClassName,
+    request: FastifyRequest,
+    reply: FastifyReply,
+    auth: AuthContext | null,
+  ) => {
+    const control = abuseControlClasses[className];
+    const key = requestRateKey(
+      control,
+      request,
+      auth,
+      options.trustAzureContainerAppsForwardedFor === true,
+    );
+    if (key === null) return false;
+    const now = Date.now();
+    const windowKey = `${className}:${key}`;
+    const current = rateWindows.get(windowKey);
+    if (current === undefined || current.resetAt <= now) {
+      if (current === undefined && rateWindows.size >= MAX_RATE_WINDOWS) {
+        for (const [candidateKey, candidate] of rateWindows) {
+          if (candidate.resetAt <= now) rateWindows.delete(candidateKey);
+        }
+        if (rateWindows.size >= MAX_RATE_WINDOWS) {
+          reply.header('retry-after', '1');
+          reply.code(429).send(errorEnvelope(request.id, 'temporarily_unavailable'));
+          return false;
+        }
+      }
+      rateWindows.set(windowKey, {
+        count: 1,
+        resetAt: now + control.windowSeconds * 1_000,
+      });
+      return true;
+    }
+    if (current.count >= control.maxRequests) {
+      reply.header('retry-after', String(Math.max(1, Math.ceil((current.resetAt - now) / 1_000))));
+      reply.code(429).send(errorEnvelope(request.id, 'temporarily_unavailable'));
+      return false;
+    }
+    current.count += 1;
+    return true;
+  };
   const server = Fastify({
     logger: false,
     routerOptions: {
@@ -212,6 +328,11 @@ export function createApiServer(options: ApiServerOptions = {}) {
   server.addHook('onRequest', (request, reply, done) => {
     if (options.auditLog !== undefined) requestStartedAt.set(request.id, Date.now());
     reply.header('x-request-id', request.id);
+    reply.header('x-content-type-options', 'nosniff');
+    reply.header('x-frame-options', 'DENY');
+    reply.header('referrer-policy', 'no-referrer');
+    reply.header('cache-control', 'no-store');
+    reply.header('content-security-policy', "default-src 'none'; frame-ancestors 'none'");
     done();
   });
 
@@ -241,20 +362,33 @@ export function createApiServer(options: ApiServerOptions = {}) {
   }
 
   server.setErrorHandler((error, request, reply) => {
-    const validationError = isValidationError(error);
+    const bodyTooLarge =
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      (error as { code?: unknown }).code === 'FST_ERR_CTP_BODY_TOO_LARGE';
+    const validationError = bodyTooLarge || isValidationError(error);
     const code: ApiErrorCode = validationError
       ? 'validation_failed'
       : error instanceof ApiError
         ? error.code
         : 'temporarily_unavailable';
-    const statusCode = validationError ? 400 : errorStatus[code];
+    const statusCode = bodyTooLarge ? 413 : validationError ? 400 : errorStatus[code];
     if (options.auditLog !== undefined) requestErrorCodes.set(request.id, code);
 
     return reply.code(statusCode).send(errorEnvelope(request.id, code));
   });
 
-  server.get('/health/live', () => ({ status: 'ok' as const }));
-  server.get('/health/ready', async (_request, reply) => {
+  server.get('/health/live', { bodyLimit: 1 }, (request, reply) => {
+    const className = unversionedRouteAbuseControls['GET /health/live'];
+    if (request.body !== undefined) throw new ApiError('validation_failed');
+    if (!enforceRateLimit(className, request, reply, null)) return;
+    return { status: 'ok' as const };
+  });
+  server.get('/health/ready', { bodyLimit: 1 }, async (request, reply) => {
+    const className = unversionedRouteAbuseControls['GET /health/ready'];
+    if (request.body !== undefined) throw new ApiError('validation_failed');
+    if (!enforceRateLimit(className, request, reply, null)) return;
     let ready: boolean;
 
     try {
@@ -281,6 +415,9 @@ export function createApiServer(options: ApiServerOptions = {}) {
       };
 
       for (const route of routes) {
+        const className =
+          typeof route.method === 'string' ? routeAbuseClass(route.method, route.path) : undefined;
+        const bodyLimit = appliedBodyLimit(route, className);
         const routeOptions = {
           method: route.method,
           url: route.path,
@@ -288,12 +425,26 @@ export function createApiServer(options: ApiServerOptions = {}) {
           handler: async (request: FastifyRequest, reply: FastifyReply) => {
             let payload: unknown;
 
+            if (
+              className !== undefined &&
+              abuseControlClasses[className].maxBodyBytes === 0 &&
+              request.body !== undefined
+            ) {
+              throw new ApiError('validation_failed');
+            }
+
             if (route.public) {
+              if (className !== undefined && !enforceRateLimit(className, request, reply, null)) {
+                return;
+              }
               payload = await route.handler(request, reply, null);
             } else {
               const auth = request.authContext;
               if (!auth) {
                 return reply.code(401).send(errorEnvelope(request.id, 'unauthorized'));
+              }
+              if (className !== undefined && !enforceRateLimit(className, request, reply, auth)) {
+                return;
               }
               payload = await route.handler(request, reply, auth);
             }
@@ -302,7 +453,7 @@ export function createApiServer(options: ApiServerOptions = {}) {
             return successEnvelope(request.id, payload);
           },
           ...(route.schema === undefined ? {} : { schema: route.schema }),
-          ...(route.bodyLimit === undefined ? {} : { bodyLimit: route.bodyLimit }),
+          ...(bodyLimit === undefined ? {} : { bodyLimit }),
         };
         v1.route(routeOptions);
       }

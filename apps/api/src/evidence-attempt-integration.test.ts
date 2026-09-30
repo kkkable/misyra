@@ -17,6 +17,10 @@ let pool: Pool;
 let accountId: string;
 let apiNow = new Date('2026-09-18T10:00:00.000Z');
 
+function validEvidenceJpeg() {
+  return Buffer.from('ffd8ffc00011080001000103011100021100031100ffd9', 'hex');
+}
+
 type AttemptPayload = Readonly<{
   attemptId: string;
   occurrenceId: string;
@@ -102,7 +106,7 @@ function createServer(
     authenticate: () => ({ accountId }),
     mediaBlobStore: {
       put: blobStore.put ?? vi.fn(() => Promise.resolve()),
-      get: blobStore.get ?? vi.fn(() => Promise.resolve(Buffer.from('evidence-image'))),
+      get: blobStore.get ?? vi.fn(() => Promise.resolve(validEvidenceJpeg())),
       delete: blobStore.delete ?? vi.fn(() => Promise.resolve()),
     },
   });
@@ -217,7 +221,7 @@ describe('MTS-080 evidence-attempt creation and upload', () => {
       method: 'PUT',
       url: reserved.payload?.uploadPath ?? '/missing-upload-path',
       headers: { 'content-type': 'application/octet-stream' },
-      payload: Buffer.from('evidence-image'),
+      payload: validEvidenceJpeg(),
     });
     expect(upload.statusCode).toBe(200);
 
@@ -472,7 +476,7 @@ describe('MTS-080 evidence-attempt creation and upload', () => {
     });
     expect(originalRead.statusCode).toBe(200);
     expect(originalRead.headers['content-type']).toMatch(/^image\/jpeg/);
-    expect(originalRead.body).toBe('evidence-image');
+    expect(originalRead.rawPayload).toEqual(validEvidenceJpeg());
 
     const deleted = await server.inject({
       method: 'DELETE',
@@ -609,7 +613,7 @@ describe('MTS-080 evidence-attempt creation and upload', () => {
       method: 'PUT',
       url: reserved.payload?.uploadPath ?? '/missing-upload-path',
       headers: { 'content-type': 'application/octet-stream' },
-      payload: Buffer.from('evidence-image'),
+      payload: validEvidenceJpeg(),
     });
     expect(failedUpload.statusCode).toBe(503);
 
@@ -658,7 +662,7 @@ describe('MTS-080 evidence-attempt creation and upload', () => {
       method: 'PUT',
       url: replay.payload?.uploadPath ?? '/missing-upload-path',
       headers: { 'content-type': 'application/octet-stream' },
-      payload: Buffer.from('evidence-image'),
+      payload: validEvidenceJpeg(),
     });
     expect(upload.statusCode).toBe(200);
     expect(succeedingPut).toHaveBeenCalledTimes(1);

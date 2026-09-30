@@ -4,7 +4,7 @@ const DEFAULT_RENEWAL_LEAD_MS = 6 * 60 * 60 * 1_000;
 const DEFAULT_MAINTENANCE_BATCH_LIMIT = 100;
 const MAX_MAINTENANCE_BATCH_LIMIT = 500;
 const TOKEN_HASH_PATTERN = /^[0-9a-f]{64}$/;
-const MESSAGE_NUMBER_PATTERN = /^\d+$/;
+const MESSAGE_NUMBER_PATTERN = /^\d{1,20}$/;
 
 export type GoogleCalendarWatchChannel = Readonly<{
   connectionId: string;
