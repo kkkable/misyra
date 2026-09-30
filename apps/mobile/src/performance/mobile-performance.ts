@@ -6,10 +6,7 @@ export const MOBILE_PERFORMANCE_BUDGETS = Object.freeze({
 });
 
 export type MobilePerformanceMetric =
-  | 'warmCalendarInteractive'
-  | 'cachedDayQuery'
-  | 'screenTransition'
-  | 'storyExport';
+  'warmCalendarInteractive' | 'cachedDayQuery' | 'screenTransition' | 'storyExport';
 
 export type MobilePerformanceSamples = Readonly<Record<MobilePerformanceMetric, readonly number[]>>;
 
@@ -47,9 +44,7 @@ function nearestRank(sorted: readonly number[], percentile: number): number {
   return sorted[index] ?? sorted[sorted.length - 1] ?? 0;
 }
 
-export function summarizePerformanceSamples(
-  samples: readonly number[],
-): MobilePerformanceSummary {
+export function summarizePerformanceSamples(samples: readonly number[]): MobilePerformanceSummary {
   if (samples.length === 0) throw new Error('performance_samples_empty');
   const sorted = samples.map(assertSample).sort((left, right) => left - right);
   return Object.freeze({
@@ -136,11 +131,13 @@ function assertMetadata(value: string, field: string): string {
   return value;
 }
 
-export function createMobilePerformanceProfile(input: Readonly<{
-  device: MobilePerformanceDevice;
-  recordedAt: string;
-  samples: MobilePerformanceSamples;
-}>) {
+export function createMobilePerformanceProfile(
+  input: Readonly<{
+    device: MobilePerformanceDevice;
+    recordedAt: string;
+    samples: MobilePerformanceSamples;
+  }>,
+) {
   const recordedAtMs = Date.parse(input.recordedAt);
   if (!Number.isFinite(recordedAtMs)) throw new Error('performance_recorded_at_invalid');
   const device = Object.freeze({
