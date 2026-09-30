@@ -139,9 +139,9 @@ export function createPostgresGoogleCalendarWatchStore(
            $1,
            'google_calendar_pull_requested',
            'external_calendar_connection',
-           $2,
+           $2::uuid,
            jsonb_build_object(
-             'connectionId', $2::text,
+             'connectionId', $2::uuid::text,
              'channelId', $3::text,
              'messageNumber', $4::text,
              'resourceState', $5::text
