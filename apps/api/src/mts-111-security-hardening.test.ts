@@ -80,7 +80,7 @@ describe('MTS-111 API security hardening', () => {
         url: '/v1/auth/google/exchange',
         remoteAddress: '10.0.0.4',
         headers: {
-          'x-forwarded-for': `198.51.100.${attempt + 1}, 203.0.113.10`,
+          'x-forwarded-for': `198.51.100.${String(attempt + 1)}, 203.0.113.10`,
         },
       });
       expect(response.statusCode).toBe(200);
@@ -112,7 +112,7 @@ describe('MTS-111 API security hardening', () => {
         method: 'POST',
         url: '/v1/auth/google/exchange',
         remoteAddress: '203.0.113.20',
-        headers: { 'x-forwarded-for': `198.51.100.${attempt + 1}` },
+        headers: { 'x-forwarded-for': `198.51.100.${String(attempt + 1)}` },
       });
       expect(response.statusCode).toBe(200);
     }
