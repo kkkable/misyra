@@ -476,7 +476,7 @@ describe('MTS-080 evidence-attempt creation and upload', () => {
     });
     expect(originalRead.statusCode).toBe(200);
     expect(originalRead.headers['content-type']).toMatch(/^image\/jpeg/);
-    expect(originalRead.body).toBe('evidence-image');
+    expect(originalRead.rawPayload).toEqual(validEvidenceJpeg());
 
     const deleted = await server.inject({
       method: 'DELETE',
