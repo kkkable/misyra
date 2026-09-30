@@ -72,18 +72,20 @@ function emptySamples(): Record<MobilePerformanceMetric, number[]> {
   };
 }
 
+function defaultMonotonicNow(): number {
+  if (typeof globalThis.performance?.now === 'function') {
+    return globalThis.performance.now();
+  }
+  return Date.now();
+}
+
 export function createMobilePerformanceRecorder(
   options: Readonly<{
     now?: () => number;
     maxSamplesPerMetric?: number;
   }> = {},
 ) {
-  const now =
-    options.now ??
-    (() =>
-      typeof globalThis.performance?.now === 'function'
-        ? globalThis.performance.now()
-        : Date.now());
+  const now = options.now ?? defaultMonotonicNow;
   const maxSamplesPerMetric = options.maxSamplesPerMetric ?? 100;
   if (!Number.isSafeInteger(maxSamplesPerMetric) || maxSamplesPerMetric < 1) {
     throw new RangeError('performance_sample_capacity_invalid');
