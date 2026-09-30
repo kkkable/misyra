@@ -66,7 +66,7 @@ function emptySamples(): Record<MobilePerformanceMetric, number[]> {
 }
 
 function defaultMonotonicNow(): number {
-  if (typeof globalThis.performance?.now === 'function') {
+  if (typeof globalThis.performance.now === 'function') {
     return globalThis.performance.now();
   }
   return Date.now();
