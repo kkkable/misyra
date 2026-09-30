@@ -56,7 +56,9 @@ function declaredRoutes(): DeclaredRoute[] {
                 )
                 .join('');
           } else {
-            throw new Error(`Dynamic route path in ${name} cannot be classified: ${path.getText(source)}`);
+            throw new Error(
+              `Dynamic route path in ${name} cannot be classified: ${path.getText(source)}`,
+            );
           }
           routes.push({
             key: `${method.text} ${normalized}`,
@@ -123,7 +125,9 @@ describe('MTS-110 abuse-control policy', () => {
       if (route.isPublic) {
         expect(className, route.key).toMatch(/^public-/);
         expect(control.keyedBy, route.key).not.toBe('account');
-        expect(control.maxRequests / (control.windowSeconds / 60), route.key).toBeLessThanOrEqual(120);
+        expect(control.maxRequests / (control.windowSeconds / 60), route.key).toBeLessThanOrEqual(
+          120,
+        );
       } else {
         expect(className, route.key).not.toMatch(/^public-/);
       }
@@ -143,7 +147,9 @@ describe('MTS-110 abuse-control policy', () => {
     expect(mediaRoutes).toContain('bodyLimit: 12 * 1024 * 1024');
     expect(routeAbuseControls['PUT /media/uploads/:token']).toBe('media-upload');
     expect(abuseControlClasses['media-upload'].maxBodyBytes).toBe(maximumBodyBytes);
-    expect(abuseControlClasses['media-upload-authorization'].maxBodyBytes).toBeLessThanOrEqual(16 * 1024);
+    expect(abuseControlClasses['media-upload-authorization'].maxBodyBytes).toBeLessThanOrEqual(
+      16 * 1024,
+    );
   });
 
   it('caps AI usage at the approved product limits', () => {

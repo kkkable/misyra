@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { Buffer } from 'node:buffer';
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -18,10 +19,23 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 // Synthetic values assembled at runtime so this file never contains a scannable secret literal.
 const fake = {
   privateKey: ['-----BEGIN', 'PRIVATE KEY-----', 'MIIEvQIBADANBgkq'].join(' '),
-  storageKey: ['DefaultEndpointsProtocol=https;AccountName=misyra;', 'AccountKey=', 'A'.repeat(64), '=='].join(''),
+  storageKey: [
+    'DefaultEndpointsProtocol=https;AccountName=misyra;Account',
+    'Key',
+    '=',
+    'A'.repeat(64),
+    '==',
+  ].join(''),
   googleSecret: ['GOCSPX', 'a1B2c3D4e5F6g7H8i9J0k1L2m3N4'].join('-'),
   databaseUrl: ['postgresql://misyra:', 'hunter2hunter2', '@db.internal:5432/misyra'].join(''),
-  bearer: ['Authorization: Bearer ', 'eyJhbGciOiJIUzI1NiJ9', '.', 'eyJzdWIiOiIxMjM0NTY3ODkwIn0', '.', 'c2lnbmF0dXJlLXZhbHVl'].join(''),
+  bearer: [
+    'Authorization: Bearer ',
+    'eyJhbGciOiJIUzI1NiJ9',
+    '.',
+    'eyJzdWIiOiIxMjM0NTY3ODkwIn0',
+    '.',
+    'c2lnbmF0dXJlLXZhbHVl',
+  ].join(''),
   assignment: ['clientSecret', ' = "', 'opaque-value-12345', '"'].join(''),
 };
 
@@ -40,7 +54,10 @@ test('MTS-110 mobile scan flags every seeded secret class without echoing the se
       findings.some((finding) => finding.rule === rule),
       `expected rule ${rule} to fire`,
     );
-    assert.ok(!JSON.stringify(findings).includes(secret), `finding for ${rule} leaked the secret value`);
+    assert.ok(
+      !JSON.stringify(findings).includes(secret),
+      `finding for ${rule} leaked the secret value`,
+    );
     for (const finding of findings) {
       assert.deepEqual(Object.keys(finding).sort(), ['file', 'line', 'rule']);
     }
@@ -94,8 +111,14 @@ test('MTS-110 mobile source reads only public or allow-listed environment variab
 test('MTS-110 mobile environment check rejects server-only variables in mobile source', () => {
   const directory = mkdtempSync(join(tmpdir(), 'misyra-mobile-src-'));
   mkdirSync(join(directory, 'src'), { recursive: true });
-  writeFileSync(join(directory, 'src', 'leak.ts'), 'export const url = process.env.DATABASE_URL;\n');
-  writeFileSync(join(directory, 'app.config.ts'), 'export default { extra: { key: process.env.TOKEN_ENCRYPTION_KEY } };\n');
+  writeFileSync(
+    join(directory, 'src', 'leak.ts'),
+    'export const url = process.env.DATABASE_URL;\n',
+  );
+  writeFileSync(
+    join(directory, 'app.config.ts'),
+    'export default { extra: { key: process.env.TOKEN_ENCRYPTION_KEY } };\n',
+  );
   const violations = checkMobileEnvUsage(directory);
   assert.equal(violations.length, 2);
   assert.ok(violations.some((violation) => violation.name === 'DATABASE_URL'));

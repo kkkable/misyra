@@ -38,10 +38,16 @@ test('MTS-110 threat register exists, parses, and passes structural validation',
 });
 
 test('MTS-110 covers every required system component', () => {
-  assert.deepEqual(
-    [...requiredComponents].sort(),
-    ['api', 'blob', 'database', 'external-calendars', 'mobile', 'providers', 'queues', 'worker'],
-  );
+  assert.deepEqual([...requiredComponents].sort(), [
+    'api',
+    'blob',
+    'database',
+    'external-calendars',
+    'mobile',
+    'providers',
+    'queues',
+    'worker',
+  ]);
   const register = loadRegister(repoRoot);
   for (const component of requiredComponents) {
     assert.ok(
@@ -52,10 +58,13 @@ test('MTS-110 covers every required system component', () => {
 });
 
 test('MTS-110 covers rate limits, upload abuse, AI input risks, and account takeover', () => {
-  assert.deepEqual(
-    [...requiredCategories].sort(),
-    ['account-takeover', 'ai-input', 'credential-exposure', 'rate-limit-abuse', 'upload-abuse'],
-  );
+  assert.deepEqual([...requiredCategories].sort(), [
+    'account-takeover',
+    'ai-input',
+    'credential-exposure',
+    'rate-limit-abuse',
+    'upload-abuse',
+  ]);
   const register = loadRegister(repoRoot);
   for (const category of requiredCategories) {
     assert.ok(
@@ -67,11 +76,18 @@ test('MTS-110 covers rate limits, upload abuse, AI input risks, and account take
 
 test('MTS-110 mitigations map to real tickets and, when mitigated, to existing test evidence', () => {
   const register = loadRegister(repoRoot);
-  const tickets = readFileSync(resolve(repoRoot, 'docs/specifications/implementation-tickets.md'), 'utf8');
+  const tickets = readFileSync(
+    resolve(repoRoot, 'docs/specifications/implementation-tickets.md'),
+    'utf8',
+  );
   for (const threat of register.threats) {
     assert.ok(threat.tickets.length > 0, `${threat.id} has no mapped ticket`);
     for (const ticket of threat.tickets) {
-      assert.match(tickets, new RegExp(`^## ${ticket} `, 'm'), `${threat.id} references unknown ${ticket}`);
+      assert.match(
+        tickets,
+        new RegExp(`^## ${ticket} `, 'm'),
+        `${threat.id} references unknown ${ticket}`,
+      );
     }
     if (threat.status === 'mitigated') {
       assert.ok(threat.evidence.length > 0, `${threat.id} is mitigated without evidence`);
@@ -87,14 +103,21 @@ test('MTS-110 mitigations map to real tickets and, when mitigated, to existing t
 });
 
 test('MTS-110 validation rejects malformed registers', () => {
-  const rejected = (threats) => validateRegister(syntheticRegister(threats), { repoRoot }).length > 0;
+  const rejected = (threats) =>
+    validateRegister(syntheticRegister(threats), { repoRoot }).length > 0;
   assert.equal(rejected([{ ...baseThreat, id: 'bad id' }]), true);
   assert.equal(rejected([{ ...baseThreat, tickets: ['MTS-999'] }]), true);
   assert.equal(rejected([{ ...baseThreat, tickets: [] }]), true);
   assert.equal(rejected([{ ...baseThreat, status: 'mitigated', evidence: [] }]), true);
-  assert.equal(rejected([{ ...baseThreat, status: 'mitigated', evidence: ['no/such/file.test.ts'] }]), true);
+  assert.equal(
+    rejected([{ ...baseThreat, status: 'mitigated', evidence: ['no/such/file.test.ts'] }]),
+    true,
+  );
   assert.equal(rejected([baseThreat, baseThreat]), true);
-  assert.equal(rejected([{ ...baseThreat, severity: 'high', status: 'accepted', rationale: 'no' }]), true);
+  assert.equal(
+    rejected([{ ...baseThreat, severity: 'high', status: 'accepted', rationale: 'no' }]),
+    true,
+  );
   assert.equal(rejected([{ ...baseThreat, severity: 'high', releaseBlocking: false }]), true);
   assert.equal(rejected([{ ...baseThreat, component: 'toaster' }]), true);
 });

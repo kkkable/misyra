@@ -1,0 +1,511 @@
+{
+  "version": 1,
+  "ticket": "MTS-110",
+  "threats": [
+    {
+      "id": "T-MOB-01",
+      "component": "mobile",
+      "category": "credential-exposure",
+      "severity": "high",
+      "status": "mitigated",
+      "title": "Server secrets or provider credentials are shipped inside the mobile app bundle or binary.",
+      "mitigation": "Provider tokens are exchanged and verified server-side and mobile only reads EXPO_PUBLIC_* configuration. A static check proves mobile source reads no server-only variable, and a bundle/binary scanner rejects credential-shaped strings and server-only variable names in built artifacts.",
+      "residual": "The static environment check runs in CI through pnpm test. The built-artifact scan runs against the release-candidate build (MTS-118); CI does not produce a mobile bundle on every run.",
+      "tickets": [
+        "MTS-034",
+        "MTS-110"
+      ],
+      "evidence": [
+        "scripts/mobile-secret-scan.mjs",
+        "tests/mts-110/mobile-secret-scan.test.mjs",
+        "apps/api/src/provider-proof-verifier.test.ts"
+      ],
+      "releaseBlocking": false
+    },
+    {
+      "id": "T-MOB-02",
+      "component": "mobile",
+      "category": "credential-exposure",
+      "severity": "medium",
+      "status": "mitigated",
+      "title": "Session or refresh tokens are read from device storage by other apps or from backups.",
+      "mitigation": "Session credentials live in OS secure storage behind a dedicated storage module, not in SQLite, plain files, or diagnostics.",
+      "tickets": [
+        "MTS-035",
+        "MTS-036"
+      ],
+      "evidence": [
+        "apps/mobile/src/auth/secure-session-storage.ts",
+        "apps/mobile/src/auth/secure-session-storage.test.mjs"
+      ],
+      "releaseBlocking": false
+    },
+    {
+      "id": "T-MOB-03",
+      "component": "mobile",
+      "category": "privacy-disclosure",
+      "severity": "medium",
+      "status": "planned",
+      "title": "Evidence or Story working media becomes readable by unrelated apps through shared photo-library or external storage.",
+      "mitigation": "Review found working media written only to app-private document and cache directories, with no shared-library writes. The release-candidate suite must assert this and fail on any shared-storage write that is not an explicit user export.",
+      "tickets": [
+        "MTS-079",
+        "MTS-118"
+      ],
+      "evidence": [
+        "apps/mobile/src/story/expo-story-source-files.ts"
+      ],
+      "releaseBlocking": false
+    },
+    {
+      "id": "T-MOB-04",
+      "component": "mobile",
+      "category": "privacy-disclosure",
+      "severity": "medium",
+      "status": "mitigated",
+      "title": "Diagnostics or logs leak tokens or private mission, evidence, or Story content.",
+      "mitigation": "Diagnostics are minimal with an opt-out, and a CI privacy gate rejects content-bearing or credential-bearing logging calls in implementation code.",
+      "tickets": [
+        "MTS-105",
+        "MTS-007"
+      ],
+      "evidence": [
+        "apps/mobile/src/diagnostics/mts-105-mobile-diagnostics.test.mjs",
+        "tests/mts-007/ci-quality-gates.test.mjs",
+        "scripts/ci-gates.mjs"
+      ],
+      "releaseBlocking": false
+    },
+    {
+      "id": "T-MOB-05",
+      "component": "mobile",
+      "category": "replay",
+      "severity": "medium",
+      "status": "mitigated",
+      "title": "Queued offline mutations are replayed or duplicated after retries, reconnects, or multi-device use.",
+      "mitigation": "Every mutation carries an idempotency key and the server validates and applies mutations authoritatively, so replays return the recorded result instead of applying twice.",
+      "tickets": [
+        "MTS-025",
+        "MTS-030",
+        "MTS-031"
+      ],
+      "evidence": [
+        "packages/database/src/idempotency-outbox.test.ts",
+        "packages/database/src/sync-store.test.ts",
+        "apps/api/src/sync-routes.test.ts"
+      ],
+      "releaseBlocking": false
+    },
+    {
+      "id": "T-API-01",
+      "component": "api",
+      "category": "account-takeover",
+      "severity": "high",
+      "status": "mitigated",
+      "title": "A stolen or replayed refresh token gives long-lived access to an account.",
+      "mitigation": "Refresh tokens are stored only as hashes, rotated on every use, and reuse of a rotated token is detected and rejected as refresh_token_reuse.",
+      "tickets": [
+        "MTS-034",
+        "MTS-036"
+      ],
+      "evidence": [
+        "apps/api/src/auth.ts",
+        "apps/api/src/auth.test.ts",
+        "apps/api/src/auth-routes.test.ts",
+        "packages/database/src/auth-store.test.ts"
+      ],
+      "releaseBlocking": false
+    },
+    {
+      "id": "T-API-02",
+      "component": "api",
+      "category": "account-takeover",
+      "severity": "high",
+      "status": "mitigated",
+      "title": "A forged or unverified Apple or Google identity proof signs an attacker into a victim account.",
+      "mitigation": "Provider proofs are cryptographically verified server-side; unknown signing keys and invalid signatures are rejected before any claim is trusted.",
+      "tickets": [
+        "MTS-034"
+      ],
+      "evidence": [
+        "apps/api/src/provider-proof-verifier.ts",
+        "apps/api/src/provider-proof-verifier.test.ts"
+      ],
+      "releaseBlocking": false
+    },
+    {
+      "id": "T-API-03",
+      "component": "api",
+      "category": "account-takeover",
+      "severity": "medium",
+      "status": "mitigated",
+      "title": "A hijacked session deletes the account or its data.",
+      "mitigation": "Account deletion requires recent reauthentication with the identity provider.",
+      "tickets": [
+        "MTS-037"
+      ],
+      "evidence": [
+        "apps/api/src/account-lifecycle.test.ts",
+        "apps/api/src/account-lifecycle-routes.test.ts"
+      ],
+      "releaseBlocking": false
+    },
+    {
+      "id": "T-API-04",
+      "component": "api",
+      "category": "rate-limit-abuse",
+      "severity": "high",
+      "status": "planned",
+      "title": "Credential stuffing, enumeration, cost abuse, or resource exhaustion against public and authenticated endpoints, because no runtime rate limiting exists yet.",
+      "mitigation": "MTS-110 declares a rate and body budget for every route, and tests prove no route is unclassified. Runtime enforcement of those budgets is delivered and calibrated by MTS-111.",
+      "residual": "Until MTS-111 lands the policy is declared, not enforced (see abuseControlEnforcement).",
+      "tickets": [
+        "MTS-111"
+      ],
+      "evidence": [
+        "apps/api/src/abuse-controls.ts",
+        "apps/api/src/abuse-controls.test.ts"
+      ],
+      "releaseBlocking": true
+    },
+    {
+      "id": "T-API-05",
+      "component": "api",
+      "category": "denial-of-service",
+      "severity": "medium",
+      "status": "planned",
+      "title": "Oversized or malformed request bodies exhaust API memory or parsing time.",
+      "mitigation": "Fastify's default body limit is the only ceiling for most routes and only media upload and feedback raise it explicitly (12 MiB). MTS-111 sets an explicit bound per route class and adds invalid-input fuzz tests.",
+      "tickets": [
+        "MTS-111"
+      ],
+      "evidence": [
+        "apps/api/src/abuse-controls.ts",
+        "apps/api/src/protected-media-routes.ts"
+      ],
+      "releaseBlocking": false
+    },
+    {
+      "id": "T-API-06",
+      "component": "api",
+      "category": "privacy-disclosure",
+      "severity": "medium",
+      "status": "mitigated",
+      "title": "Server logs or audit records leak credentials or private content.",
+      "mitigation": "The API audit log records only request id, method, route label, status, duration, outcome, and error code, and the CI privacy gate rejects content-bearing logging.",
+      "tickets": [
+        "MTS-027",
+        "MTS-007"
+      ],
+      "evidence": [
+        "apps/api/src/application.test.ts",
+        "tests/mts-007/ci-quality-gates.test.mjs",
+        "scripts/ci-gates.mjs"
+      ],
+      "releaseBlocking": false
+    },
+    {
+      "id": "T-API-07",
+      "component": "api",
+      "category": "hardening",
+      "severity": "medium",
+      "status": "planned",
+      "title": "Missing security headers and no signing or encryption key rotation hooks.",
+      "mitigation": "MTS-111 adds security headers and rotation hooks for the token-signing, upload-signing, and token-encryption keys, which are single static values today.",
+      "tickets": [
+        "MTS-111"
+      ],
+      "evidence": [],
+      "releaseBlocking": false
+    },
+    {
+      "id": "T-WRK-01",
+      "component": "worker",
+      "category": "privilege-escalation",
+      "severity": "medium",
+      "status": "mitigated",
+      "title": "The cleanup job identity reaches storage or data beyond the working containers it must clean.",
+      "mitigation": "The cleanup identity is granted Blob Data Contributor only on individual working containers and is explicitly excluded from retained feedback.",
+      "tickets": [
+        "MTS-085",
+        "MTS-108"
+      ],
+      "evidence": [
+        "apps/worker/src/product-media-cleanup-infra.test.ts",
+        "apps/api/src/mts-108-retained-feedback-infra.test.ts",
+        "tests/mts-006/infrastructure-contract.test.mjs"
+      ],
+      "releaseBlocking": false
+    },
+    {
+      "id": "T-WRK-02",
+      "component": "worker",
+      "category": "privacy-disclosure",
+      "severity": "medium",
+      "status": "mitigated",
+      "title": "Cleanup deletes or retains the wrong media, leaving private content past its retention period.",
+      "mitigation": "Cleanup and reconciliation are covered by focused tests against real PostgreSQL and blob storage emulators.",
+      "residual": "End-to-end deletion guarantees are verified by MTS-114.",
+      "tickets": [
+        "MTS-085",
+        "MTS-099"
+      ],
+      "evidence": [
+        "apps/worker/src/product-media-cleanup.test.ts"
+      ],
+      "releaseBlocking": false
+    },
+    {
+      "id": "T-DB-01",
+      "component": "database",
+      "category": "privilege-escalation",
+      "severity": "high",
+      "status": "planned",
+      "title": "One account reads or modifies another account's missions, evidence, or Story data through an identifier it should not reach.",
+      "mitigation": "Data stores scope rows by account and use composite account foreign keys, with cross-account isolation asserted in sync, settings, change-log, and media tests. The release-candidate and multi-device suites must re-verify isolation end to end across every route.",
+      "tickets": [
+        "MTS-113",
+        "MTS-118"
+      ],
+      "evidence": [
+        "packages/database/src/sync-store.test.ts",
+        "packages/database/src/account-change-log.test.ts",
+        "packages/database/src/device-settings-store.test.ts",
+        "apps/api/src/protected-media-integration.test.ts"
+      ],
+      "releaseBlocking": true
+    },
+    {
+      "id": "T-DB-02",
+      "component": "database",
+      "category": "privacy-disclosure",
+      "severity": "medium",
+      "status": "planned",
+      "title": "Indefinitely retained feedback, screenshots, and optional email create privacy and legal exposure, including after account deletion.",
+      "mitigation": "Product specification requires a focused privacy and legal review before release. Retained feedback is unlinked from the account on deletion and restricted by role.",
+      "tickets": [
+        "MTS-108",
+        "MTS-119"
+      ],
+      "evidence": [
+        "apps/api/src/mts-108-retained-feedback.test.ts"
+      ],
+      "releaseBlocking": false
+    },
+    {
+      "id": "T-DB-03",
+      "component": "database",
+      "category": "replay",
+      "severity": "medium",
+      "status": "mitigated",
+      "title": "Retried or duplicated requests apply an effect twice, such as double reward issuance.",
+      "mitigation": "Idempotency records and a transactional outbox make retries return the recorded result, and completion is authoritative and exactly-once per occurrence.",
+      "tickets": [
+        "MTS-025",
+        "MTS-058"
+      ],
+      "evidence": [
+        "packages/database/src/idempotency-outbox.test.ts",
+        "apps/api/src/authoritative-completion.test.ts"
+      ],
+      "releaseBlocking": false
+    },
+    {
+      "id": "T-BLOB-01",
+      "component": "blob",
+      "category": "upload-abuse",
+      "severity": "high",
+      "status": "planned",
+      "title": "Malicious, mislabeled, or oversized images are stored and later processed, for example decompression bombs or non-image payloads with an image content type.",
+      "mitigation": "Uploads currently validate the declared image content type and a 12 MiB body ceiling. MTS-111 adds magic-byte and dimension validation, and the rate budget for uploads is declared in the abuse-control policy.",
+      "tickets": [
+        "MTS-078",
+        "MTS-111"
+      ],
+      "evidence": [
+        "apps/api/src/protected-media.ts",
+        "apps/api/src/protected-media.test.ts",
+        "apps/api/src/abuse-controls.ts"
+      ],
+      "releaseBlocking": true
+    },
+    {
+      "id": "T-BLOB-02",
+      "component": "blob",
+      "category": "upload-abuse",
+      "severity": "high",
+      "status": "mitigated",
+      "title": "An attacker forges, tampers with, or replays an upload authorization to write media they should not.",
+      "mitigation": "Upload authorizations are HMAC-SHA256 signed, verified in constant time, bound to claims, and expire after a short time-to-live before any bytes are written.",
+      "tickets": [
+        "MTS-078"
+      ],
+      "evidence": [
+        "apps/api/src/protected-media.ts",
+        "apps/api/src/protected-media.test.ts",
+        "apps/api/src/protected-media-integration.test.ts"
+      ],
+      "releaseBlocking": false
+    },
+    {
+      "id": "T-BLOB-03",
+      "component": "blob",
+      "category": "privilege-escalation",
+      "severity": "medium",
+      "status": "mitigated",
+      "title": "Managed identities hold broad storage access, so one compromised identity exposes every container.",
+      "mitigation": "Role assignments are scoped to individual containers, and retained feedback is readable only by a designated operations group with a read-only role.",
+      "residual": "MTS-111 adds explicit infrastructure role assertions.",
+      "tickets": [
+        "MTS-006",
+        "MTS-108"
+      ],
+      "evidence": [
+        "tests/mts-006/infrastructure-contract.test.mjs",
+        "apps/api/src/mts-108-retained-feedback-infra.test.ts"
+      ],
+      "releaseBlocking": false
+    },
+    {
+      "id": "T-QUE-01",
+      "component": "queues",
+      "category": "replay",
+      "severity": "medium",
+      "status": "mitigated",
+      "title": "The transactional outbox delivers an event more than once or out of order.",
+      "mitigation": "Outbox delivery is idempotent and ordered per account through the change log and cursors.",
+      "tickets": [
+        "MTS-025",
+        "MTS-026"
+      ],
+      "evidence": [
+        "packages/database/src/idempotency-outbox.test.ts",
+        "packages/database/src/account-change-log.test.ts"
+      ],
+      "releaseBlocking": false
+    },
+    {
+      "id": "T-QUE-02",
+      "component": "queues",
+      "category": "denial-of-service",
+      "severity": "low",
+      "status": "accepted",
+      "title": "A poisoned or replayed Azure Storage Queue message stalls a consumer or triggers unauthorized work.",
+      "mitigation": "No Azure Storage Queue infrastructure or client exists today; the Azurite queue port is local development only.",
+      "rationale": "No queue infrastructure exists, so there is no attack surface. Any future queue must add threat entries for poison messages, replay, and role scope before it merges.",
+      "tickets": [
+        "MTS-004"
+      ],
+      "evidence": [],
+      "releaseBlocking": false
+    },
+    {
+      "id": "T-PRV-01",
+      "component": "providers",
+      "category": "ai-input",
+      "severity": "medium",
+      "status": "mitigated",
+      "title": "Hostile text or images in AI Planner input, Story text, or imported event titles manipulate model output.",
+      "mitigation": "Provider output is treated as untrusted data: it is validated against strict schemas and rejected when invalid, never executed, and the user reviews and confirms drafts before anything is saved.",
+      "residual": "Prompt-injection cannot be fully prevented; impact is limited to a wrong draft the user must confirm.",
+      "tickets": [
+        "MTS-056",
+        "MTS-087",
+        "MTS-089"
+      ],
+      "evidence": [
+        "apps/api/src/ai-planner-extraction.ts",
+        "apps/api/src/ai-planner-extraction.test.ts",
+        "apps/api/src/planner-confirmation.test.ts"
+      ],
+      "releaseBlocking": false
+    },
+    {
+      "id": "T-PRV-02",
+      "component": "providers",
+      "category": "rate-limit-abuse",
+      "severity": "medium",
+      "status": "mitigated",
+      "title": "Repeated AI Story generation for one mission drains the provider budget.",
+      "mitigation": "Generation is capped at three requests per mission with the count enforced atomically in the database and recoverable across devices.",
+      "residual": "Overall request-rate abuse across missions is tracked under T-API-04.",
+      "tickets": [
+        "MTS-094"
+      ],
+      "evidence": [
+        "apps/api/src/story-image-generation.test.ts",
+        "packages/database/src/story-schema-sync.test.ts"
+      ],
+      "releaseBlocking": false
+    },
+    {
+      "id": "T-CAL-01",
+      "component": "external-calendars",
+      "category": "credential-exposure",
+      "severity": "high",
+      "status": "mitigated",
+      "title": "Stored Google Calendar tokens are read from the database or backups.",
+      "mitigation": "Provider tokens are encrypted at rest with AES-256-GCM using a random nonce per value and authenticated data.",
+      "residual": "The encryption key is a single static value until MTS-111 adds a rotation hook (T-API-07).",
+      "tickets": [
+        "MTS-069"
+      ],
+      "evidence": [
+        "apps/api/src/google-calendar-token-cipher.ts",
+        "apps/api/src/google-calendar-token-cipher.test.ts"
+      ],
+      "releaseBlocking": false
+    },
+    {
+      "id": "T-CAL-02",
+      "component": "external-calendars",
+      "category": "replay",
+      "severity": "medium",
+      "status": "mitigated",
+      "title": "The Google OAuth callback is forged or replayed to link an attacker's calendar to a victim account.",
+      "mitigation": "OAuth state is random, stored only as a hash, single-use, and expires after ten minutes.",
+      "tickets": [
+        "MTS-069"
+      ],
+      "evidence": [
+        "apps/api/src/google-calendar-connection.test.ts",
+        "apps/api/src/google-calendar-oauth-gateway.test.ts"
+      ],
+      "releaseBlocking": false
+    },
+    {
+      "id": "T-CAL-03",
+      "component": "external-calendars",
+      "category": "injection",
+      "severity": "medium",
+      "status": "mitigated",
+      "title": "A spoofed Google webhook notification triggers unauthorized synchronization work.",
+      "mitigation": "Notifications must carry a channel token that is compared in constant time against the stored value, and the message number is validated before any work is scheduled.",
+      "tickets": [
+        "MTS-071"
+      ],
+      "evidence": [
+        "apps/api/src/google-calendar-watch.ts",
+        "apps/api/src/google-calendar-watch.test.ts",
+        "apps/api/src/google-calendar-watch-routes.test.ts"
+      ],
+      "releaseBlocking": false
+    },
+    {
+      "id": "T-CAL-04",
+      "component": "external-calendars",
+      "category": "replay",
+      "severity": "low",
+      "status": "planned",
+      "title": "A captured valid webhook notification is replayed to cause repeated synchronization.",
+      "mitigation": "A notification is only a change signal that starts an idempotent sync, so replay costs work but cannot change data. MTS-111 adds explicit replay protection.",
+      "tickets": [
+        "MTS-111"
+      ],
+      "evidence": [
+        "apps/api/src/google-calendar-watch.test.ts"
+      ],
+      "releaseBlocking": false
+    }
+  ]
+}
