@@ -188,11 +188,13 @@ describe('MTS-031 server synchronization', () => {
     const database = await createDatabase();
     try {
       const requestedCursors = [];
+      const requestedLimits = [];
       const applied = [];
       const transport = {
         push: async () => ({ acceptedMutationIds: [] }),
-        pull: async ({ cursor }) => {
+        pull: async ({ cursor, limit }) => {
           requestedCursors.push(cursor);
+          requestedLimits.push(limit);
           const nextCursor = cursor + 1;
           return {
             kind: 'incremental',
@@ -226,6 +228,7 @@ describe('MTS-031 server synchronization', () => {
       await sync.run();
 
       expect(requestedCursors).toEqual([0, 1]);
+      expect(requestedLimits).toEqual([100, 100]);
       expect(applied).toEqual([1, 2]);
       expect(await readCursor(database)).toBe('2');
     } finally {
