@@ -187,10 +187,13 @@ describe('MTS-108 retained feedback storage and unlinking', () => {
         submit(accountId: string, input: unknown): Promise<{ feedbackId: string }>;
       };
     };
+    // The idempotency store compares expires_at with the database clock, so the injected clock must
+    // track real time. A fixed past date makes the new record expire immediately and breaks replay.
+    const submittedAt = new Date();
     const service = module.createRetainedFeedbackService({
       pool,
       blobStore: { put, get: vi.fn(), delete: remove },
-      now: () => new Date('2026-09-28T12:30:00.000Z'),
+      now: () => submittedAt,
       generateId: randomUUID,
     });
     const idempotencyKey = randomUUID();
@@ -201,7 +204,7 @@ describe('MTS-108 retained feedback storage and unlinking', () => {
       email: 'followup@example.test',
       technicalDetails: {
         screenName: 'feedback',
-        submissionTimestamp: '2026-09-28T12:30:00.000Z',
+        submissionTimestamp: submittedAt.toISOString(),
       },
       screenshot: {
         bytes: screenshotBytes,
@@ -215,7 +218,7 @@ describe('MTS-108 retained feedback storage and unlinking', () => {
       ...submission,
       technicalDetails: {
         ...submission.technicalDetails,
-        submissionTimestamp: '2026-09-28T12:31:00.000Z',
+        submissionTimestamp: new Date(submittedAt.getTime() + 60_000).toISOString(),
       },
     });
 

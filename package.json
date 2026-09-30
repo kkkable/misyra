@@ -9,11 +9,13 @@
   },
   "scripts": {
     "format": "turbo run format",
-    "format:ci": "prettier --check .github/workflows/ci.yml scripts/ci-gates.mjs scripts/visual-regression.mjs tests/mts-007/*.test.mjs tests/mts-008/*.test.mjs tests/mts-012/*.test.mjs package.json --config packages/config/prettier.config.mjs",
+    "format:ci": "prettier --check .github/workflows/ci.yml scripts/ci-gates.mjs scripts/visual-regression.mjs tests/mts-007/*.test.mjs tests/mts-008/*.test.mjs tests/mts-012/*.test.mjs scripts/mobile-secret-scan.mjs scripts/threat-model-check.mjs tests/mts-110/*.test.mjs package.json --config packages/config/prettier.config.mjs",
     "lint": "turbo run lint",
-    "lint:ci": "eslint scripts/ci-gates.mjs scripts/visual-regression.mjs tests/mts-007/*.test.mjs tests/mts-008/*.test.mjs tests/mts-012/*.test.mjs --config packages/config/eslint.config.mjs",
+    "lint:ci": "eslint scripts/ci-gates.mjs scripts/visual-regression.mjs tests/mts-007/*.test.mjs tests/mts-008/*.test.mjs tests/mts-012/*.test.mjs scripts/mobile-secret-scan.mjs scripts/threat-model-check.mjs tests/mts-110/*.test.mjs --config packages/config/eslint.config.mjs",
     "typecheck": "turbo run typecheck",
-    "test": "node --test tests/mts-001/*.test.mjs tests/mts-002/*.test.mjs tests/mts-003/*.test.mjs tests/mts-004/*.test.mjs tests/mts-006/*.test.mjs tests/mts-007/*.test.mjs tests/mts-008/*.test.mjs tests/mts-012/*.test.mjs && turbo run test",
+    "ci:threat-model": "node scripts/threat-model-check.mjs",
+    "scan:mobile-secrets": "node scripts/mobile-secret-scan.mjs",
+    "test": "node --test tests/mts-001/*.test.mjs tests/mts-002/*.test.mjs tests/mts-003/*.test.mjs tests/mts-004/*.test.mjs tests/mts-006/*.test.mjs tests/mts-007/*.test.mjs tests/mts-008/*.test.mjs tests/mts-012/*.test.mjs tests/mts-110/*.test.mjs && turbo run test",
     "build": "turbo run build",
     "audit": "pnpm audit --audit-level high",
     "validate:infra": "node scripts/validate-infra.mjs",
@@ -38,6 +40,7 @@
   },
   "pnpm": {
     "overrides": {
+      "brace-expansion@>=4.0.0 <5.0.11": "5.0.11",
       "fast-uri@>=3.0.0 <3.1.7": "3.1.7",
       "fast-uri@>=4.0.0 <4.1.4": "4.1.4",
       "image-size@<=2.0.2": "npm:image-size-next@2.1.1"
