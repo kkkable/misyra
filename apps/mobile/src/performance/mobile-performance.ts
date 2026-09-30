@@ -176,4 +176,6 @@ export function createMobilePerformanceProfile(
   });
 }
 
+export type MobilePerformanceRecorder = ReturnType<typeof createMobilePerformanceRecorder>;
+
 export const rootMobilePerformanceRecorder = createMobilePerformanceRecorder();
