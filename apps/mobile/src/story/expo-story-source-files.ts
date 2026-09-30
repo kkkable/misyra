@@ -1,6 +1,15 @@
-import * as FileSystem from 'expo-file-system/legacy';
-import { Image } from 'react-native';
+import { createElement } from 'react';
 
+import {
+  Image as SkiaImage,
+  ImageFormat,
+  Skia,
+  drawAsImage,
+} from '@shopify/react-native-skia';
+import * as FileSystem from 'expo-file-system/legacy';
+import { Image as NativeImage } from 'react-native';
+
+import { resolveStoryPreviewDimensions } from './story-image-memory.js';
 import type { StorySourceFiles } from './story-source-runtime.js';
 
 export function storyWorkingDirectory(): string {
@@ -13,7 +22,7 @@ export function storyWorkingDirectory(): string {
 
 function dimensions(uri: string): Promise<Readonly<{ width: number; height: number }>> {
   return new Promise((resolve, reject) => {
-    Image.getSize(
+    NativeImage.getSize(
       uri,
       (width, height) => {
         resolve({ width, height });
@@ -27,6 +36,73 @@ function dimensions(uri: string): Promise<Readonly<{ width: number; height: numb
 
 export function storyWorkingCopyUri(imageVersionId: string): string {
   return `${storyWorkingDirectory()}${imageVersionId}.jpg`;
+}
+
+export function storyPreviewWorkingCopyUri(imageVersionId: string): string {
+  return `${storyWorkingDirectory()}${imageVersionId}.preview.png`;
+}
+
+async function materializePreviewResource(
+  imageVersionId: string,
+  sourceUri: string,
+  sourceWidth: number,
+  sourceHeight: number,
+): Promise<string> {
+  const target = resolveStoryPreviewDimensions(sourceWidth, sourceHeight);
+  if (target.width === sourceWidth && target.height === sourceHeight) {
+    return sourceUri;
+  }
+
+  const previewUri = storyPreviewWorkingCopyUri(imageVersionId);
+  const existing = await FileSystem.getInfoAsync(previewUri);
+  if (existing.exists) return previewUri;
+
+  const data = await Skia.Data.fromURI(sourceUri);
+  const sourceImage = Skia.Image.MakeImageFromEncoded(data);
+  if (sourceImage === null) {
+    throw new Error('story_preview_source_decode_failed');
+  }
+
+  const preview = await drawAsImage(
+    createElement(SkiaImage, {
+      image: sourceImage,
+      x: 0,
+      y: 0,
+      width: target.width,
+      height: target.height,
+      fit: 'fill',
+    }),
+    target,
+  );
+  if (preview === null) {
+    throw new Error('story_preview_render_failed');
+  }
+
+  const base64 = preview.encodeToBase64(ImageFormat.PNG, 100);
+  await FileSystem.writeAsStringAsync(previewUri, base64, {
+    encoding: FileSystem.EncodingType.Base64,
+  });
+  return previewUri;
+}
+
+async function describeStoryWorkingCopy(
+  imageVersionId: string,
+  uri: string,
+): Promise<Readonly<{ id: string; uri: string; previewUri: string; width: number; height: number }>> {
+  const size = await dimensions(uri);
+  const previewUri = await materializePreviewResource(
+    imageVersionId,
+    uri,
+    size.width,
+    size.height,
+  );
+  return {
+    id: imageVersionId,
+    uri,
+    previewUri,
+    width: size.width,
+    height: size.height,
+  };
 }
 
 const STORY_FILE_RETENTION_MILLISECONDS = 30 * 24 * 60 * 60 * 1000;
@@ -56,16 +132,13 @@ export async function pruneExpiredStoryWorkingFiles(
   return deleted;
 }
 
-export async function loadExpoStoryWorkingCopy(
-  imageVersionId: string,
-): Promise<Readonly<{ id: string; uri: string; width: number; height: number }>> {
+export async function loadExpoStoryWorkingCopy(imageVersionId: string) {
   const uri = storyWorkingCopyUri(imageVersionId);
   const info = await FileSystem.getInfoAsync(uri);
   if (!info.exists) {
     throw new Error('story_working_copy_unavailable');
   }
-  const size = await dimensions(uri);
-  return { id: imageVersionId, uri, width: size.width, height: size.height };
+  return describeStoryWorkingCopy(imageVersionId, uri);
 }
 
 export function createExpoStorySourceFiles(
@@ -91,8 +164,13 @@ export function createExpoStorySourceFiles(
       if (response.status < 200 || response.status >= 300) {
         throw new Error('story_source_download_failed');
       }
-      const size = await dimensions(response.uri);
-      return { uri: response.uri, width: size.width, height: size.height };
+      const described = await describeStoryWorkingCopy(imageVersionId, response.uri);
+      return {
+        uri: described.uri,
+        previewUri: described.previewUri,
+        width: described.width,
+        height: described.height,
+      };
     },
   });
 }
@@ -124,17 +202,14 @@ export function createExpoStoryVersionFiles(
       if (response.status < 200 || response.status >= 300) {
         throw new Error('story_generated_download_failed');
       }
-      const size = await dimensions(response.uri);
-      return {
-        id: imageVersionId,
-        uri: response.uri,
-        width: size.width,
-        height: size.height,
-      };
+      return describeStoryWorkingCopy(imageVersionId, response.uri);
     },
 
     async delete(imageVersionId: string) {
-      await FileSystem.deleteAsync(storyWorkingCopyUri(imageVersionId), { idempotent: true });
+      await Promise.all([
+        FileSystem.deleteAsync(storyWorkingCopyUri(imageVersionId), { idempotent: true }),
+        FileSystem.deleteAsync(storyPreviewWorkingCopyUri(imageVersionId), { idempotent: true }),
+      ]);
     },
   });
 }
