@@ -147,13 +147,7 @@ export function createPostgresGoogleCalendarWatchStore(
              'resourceState', $5::text
            )
          )`,
-        [
-          accountId,
-          input.connectionId,
-          input.channelId,
-          input.messageNumber,
-          input.resourceState,
-        ],
+        [accountId, input.connectionId, input.channelId, input.messageNumber, input.resourceState],
       );
       await client.query('COMMIT');
       return true;
