@@ -162,11 +162,9 @@ Public classes are keyed by network origin or provider channel, never by account
 
 A release candidate may not ship while any **high**-severity threat is not mitigated. This is computed, not judged: `releaseBlocking` must equal (severity is high and status is not mitigated), and validation rejects any register where it does not.
 
-Unresolved high-risk threats at the time of writing:
+Unresolved high-risk threats after MTS-111:
 
-- **T-API-04** (api, rate-limit-abuse): Credential stuffing, enumeration, cost abuse, or resource exhaustion against public and authenticated endpoints, because no runtime rate limiting exists yet. Cleared by MTS-111.
 - **T-DB-01** (database, privilege-escalation): One account reads or modifies another account's missions, evidence, or Story data through an identifier it should not reach. Cleared by MTS-113, MTS-118.
-- **T-BLOB-01** (blob, upload-abuse): Malicious, mislabeled, or oversized images are stored and later processed, for example decompression bombs or non-image payloads with an image content type. Cleared by MTS-078, MTS-111.
 
 Commands:
 
