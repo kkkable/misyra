@@ -10,6 +10,8 @@ const state = vi.hoisted(() => ({
   searchQuery: vi.fn(),
   restore: vi.fn(),
   routerPush: vi.fn(),
+  performanceStart: vi.fn(),
+  performanceFinish: vi.fn(),
 }));
 
 vi.mock('react-native', async () => {
@@ -38,6 +40,10 @@ vi.mock('expo-router', async () => {
 vi.mock('../auth/auth-runtime.js', () => ({
   rootAuthController: { restore: state.restore },
   rootAuthStorage: { read: vi.fn(async () => null) },
+}));
+
+vi.mock('../performance/mobile-performance.js', () => ({
+  rootMobilePerformanceRecorder: { start: state.performanceStart },
 }));
 
 vi.mock('../storage/database.js', () => ({
@@ -163,6 +169,26 @@ beforeEach(() => {
     session: { accountId: '11111111-1111-4111-8111-111111111111' },
   });
   state.routerPush.mockReset();
+  state.performanceFinish.mockReset();
+  state.performanceStart.mockReset().mockReturnValue({
+    finish: state.performanceFinish,
+  });
+});
+
+describe('MTS-112 Calendar performance instrumentation', () => {
+  it('records warm Calendar focus through the committed cached-data render', async () => {
+    let renderer;
+    await act(async () => {
+      renderer = create(createElement(CalendarRouteScreen));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(state.performanceStart).toHaveBeenCalledWith('warmCalendarInteractive');
+    expect(state.performanceFinish).toHaveBeenCalledTimes(1);
+
+    act(() => renderer.unmount());
+  });
 });
 
 describe('MTS-049 Calendar route search navigation', () => {
