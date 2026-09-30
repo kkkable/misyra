@@ -97,13 +97,9 @@ describe('MTS-111 API security hardening', () => {
         .previousAccessTokenSecrets,
     ).toEqual([previousAccess]);
     expect(calendar.encryptionKey.equals(Buffer.alloc(32, 7))).toBe(true);
-    expect(
-      (
-        calendar as typeof calendar & {
-          previousEncryptionKeys?: readonly Buffer[];
-        }
-      ).previousEncryptionKeys?.map((key) => key.toString('base64url')),
-    ).toEqual([previousCalendar]);
+    expect(calendar.previousEncryptionKeys.map((key) => key.toString('base64url'))).toEqual([
+      previousCalendar,
+    ]);
   });
 
   it('does not claim runtime abuse controls are enforced until this ticket is green', () => {
