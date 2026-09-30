@@ -258,6 +258,53 @@ describe('MTS-078 protected media upload service', () => {
     await server.close();
   });
 
+  it('rejects a payload whose bytes do not match the authorized image type', async () => {
+    const activeAccount = { value: accountA };
+    const assetId = randomUUID();
+    const { server } = createServer(activeAccount);
+    const authorization = await authorizeOriginalUpload(server, assetId);
+
+    const upload = await server.inject({
+      method: 'PUT',
+      url: authorization.uploadPath,
+      headers: { 'content-type': 'application/octet-stream' },
+      payload: Buffer.from('not-a-jpeg'),
+    });
+
+    expect(upload.statusCode).toBe(400);
+    expect(upload.json()).toMatchObject({ error: { code: 'validation_failed' } });
+    await server.close();
+  });
+
+  it('rejects image dimensions above the server safety budget before Blob storage', async () => {
+    const activeAccount = { value: accountA };
+    const assetId = randomUUID();
+    const { server } = createServer(activeAccount);
+    const authorization = await authorizeOriginalUpload(server, assetId);
+    const oversizedJpegHeader = Buffer.from([
+      0xff, 0xd8,
+      0xff, 0xc0, 0x00, 0x11, 0x08,
+      0x00, 0x01,
+      0x23, 0x29,
+      0x03,
+      0x01, 0x11, 0x00,
+      0x02, 0x11, 0x00,
+      0x03, 0x11, 0x00,
+      0xff, 0xd9,
+    ]);
+
+    const upload = await server.inject({
+      method: 'PUT',
+      url: authorization.uploadPath,
+      headers: { 'content-type': 'application/octet-stream' },
+      payload: oversizedJpegHeader,
+    });
+
+    expect(upload.statusCode).toBe(400);
+    expect(upload.json()).toMatchObject({ error: { code: 'validation_failed' } });
+    await server.close();
+  });
+
   it('uploads through the scoped API path into a private Azurite container', async () => {
     const activeAccount = { value: accountA };
     const assetId = randomUUID();
