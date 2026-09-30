@@ -64,7 +64,12 @@ export const abuseControlClasses = {
     maxBodyBytes: 4 * KIBIBYTE,
     keyedBy: 'account',
   },
-  sync: { windowSeconds: 60, maxRequests: 60, maxBodyBytes: 1 * MEBIBYTE, keyedBy: 'device' },
+  sync: {
+    windowSeconds: 60,
+    maxRequests: 60,
+    maxBodyBytes: 1 * MEBIBYTE,
+    keyedBy: 'account',
+  },
   'media-upload-authorization': {
     windowSeconds: 60,
     maxRequests: 30,
@@ -102,9 +107,9 @@ export const aiGenerationLimits = {
   maxPlannerImages: 3,
 } as const;
 
-/** Honest status marker: this policy is declared here and enforced by MTS-111. */
+/** Runtime status marker. MTS-111 wires these route budgets into the Fastify boundary. */
 export const abuseControlEnforcement = {
-  status: 'declared-not-enforced',
+  status: 'enforced',
   enforcedBy: 'MTS-111',
 } as const;
 
