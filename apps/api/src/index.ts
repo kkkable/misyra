@@ -191,9 +191,7 @@ function requestRateKey(
     case 'channel': {
       const raw = request.headers['x-goog-channel-id'];
       const channelId = Array.isArray(raw) ? raw[0] : raw;
-      return typeof channelId === 'string' && channelId.length > 0
-        ? channelId
-        : `ip:${request.ip}`;
+      return typeof channelId === 'string' && channelId.length > 0 ? channelId : `ip:${request.ip}`;
     }
     case 'device':
       return auth?.accountId ?? null;
@@ -206,9 +204,7 @@ function appliedBodyLimit(
   className: AbuseControlClassName | undefined,
 ): number | undefined {
   const policyLimit =
-    className === undefined
-      ? undefined
-      : Math.max(1, abuseControlClasses[className].maxBodyBytes);
+    className === undefined ? undefined : Math.max(1, abuseControlClasses[className].maxBodyBytes);
   if (route.bodyLimit === undefined) return policyLimit;
   if (policyLimit === undefined) return route.bodyLimit;
   return Math.min(route.bodyLimit, policyLimit);
@@ -266,10 +262,7 @@ export function createApiServer(options: ApiServerOptions = {}) {
       return true;
     }
     if (current.count >= control.maxRequests) {
-      reply.header(
-        'retry-after',
-        String(Math.max(1, Math.ceil((current.resetAt - now) / 1_000))),
-      );
+      reply.header('retry-after', String(Math.max(1, Math.ceil((current.resetAt - now) / 1_000))));
       reply.code(429).send(errorEnvelope(request.id, 'temporarily_unavailable'));
       return false;
     }
