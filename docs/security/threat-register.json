@@ -157,7 +157,7 @@
       "severity": "high",
       "status": "mitigated",
       "title": "Credential stuffing, enumeration, cost abuse, or resource exhaustion targets public or authenticated API endpoints.",
-      "mitigation": "MTS-111 enforces the route inventory's calibrated fixed-window rate and body budgets at the Fastify boundary, with public requests keyed by origin or verified provider channel and authenticated requests keyed by account.",
+      "mitigation": "MTS-111 enforces the route inventory's calibrated fixed-window rate and body budgets at the Fastify boundary. Public requests are keyed by network origin; in Azure Container Apps the API accepts only the platform-appended rightmost X-Forwarded-For address, and otherwise falls back to the direct socket address. Authenticated requests are keyed by account.",
       "residual": "Budgets are per API process, so effective aggregate capacity scales with the explicitly bounded replica count.",
       "tickets": [
         "MTS-111"
