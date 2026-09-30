@@ -57,7 +57,7 @@ Status meanings: **mitigated** has a control and test evidence in the repository
 | T-API-01 | high | mitigated | A stolen or replayed refresh token gives long-lived access to an account. | MTS-034, MTS-036 |
 | T-API-02 | high | mitigated | A forged or unverified Apple or Google identity proof signs an attacker into a victim account. | MTS-034 |
 | T-API-03 | medium | mitigated | A hijacked session deletes the account or its data. | MTS-037 |
-| T-API-04 | high | mitigated | Credential stuffing, enumeration, cost abuse, or resource exhaustion against public and authenticated endpoints, because no runtime rate limiting exists yet. | MTS-111 |
+| T-API-04 | high | mitigated | Credential stuffing, enumeration, cost abuse, or resource exhaustion targets public and authenticated API endpoints. | MTS-111 |
 | T-API-05 | medium | mitigated | Oversized or malformed request bodies exhaust API memory or parsing time. | MTS-111 |
 | T-API-06 | medium | mitigated | Server logs or audit records leak credentials or private content. | MTS-027, MTS-007 |
 | T-API-07 | medium | mitigated | Missing security headers and no signing or encryption key rotation hooks. | MTS-111 |
