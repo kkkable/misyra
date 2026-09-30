@@ -83,9 +83,7 @@ export function createPostgresGoogleCalendarWatchStore(
     return result.rows[0] ?? null;
   }
 
-  async function schedulePullOnce(
-    input: GoogleCalendarPullSignalRecord,
-  ): Promise<boolean> {
+  async function schedulePullOnce(input: GoogleCalendarPullSignalRecord): Promise<boolean> {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
