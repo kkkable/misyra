@@ -167,6 +167,56 @@ describe('MTS-071 PostgreSQL Google watch store', () => {
     expect(persisted.rows[0]).toEqual({ signals: '1', outbox: '1' });
   });
 
+  it('rejects stale lower message numbers after a newer webhook signal was accepted', async () => {
+    const connectionId = await createConnection();
+    const store = createPostgresGoogleCalendarWatchStore(pool);
+    await store.saveChannel({
+      connectionId,
+      channel: {
+        channelId: 'channel-monotonic',
+        resourceId: 'resource-monotonic',
+        tokenHash,
+        expiresAt: new Date('2099-09-20T12:00:00.000Z'),
+      },
+    });
+
+    await expect(
+      store.schedulePullOnce({
+        connectionId,
+        channelId: 'channel-monotonic',
+        messageNumber: '44',
+        resourceState: 'exists',
+      }),
+    ).resolves.toBe(true);
+    await expect(
+      store.schedulePullOnce({
+        connectionId,
+        channelId: 'channel-monotonic',
+        messageNumber: '43',
+        resourceState: 'exists',
+      }),
+    ).resolves.toBe(false);
+
+    const persisted = await pool.query<{ numbers: string[]; outbox: string }>(
+      `SELECT
+         ARRAY(
+           SELECT message_number
+             FROM misyra_internal.google_calendar_watch_signals
+            WHERE channel_id = 'channel-monotonic'
+            ORDER BY message_number::numeric
+         ) AS numbers,
+         (
+           SELECT count(*)::text
+             FROM outbox_events
+            WHERE aggregate_id = $1
+              AND event_type = 'google_calendar_pull_requested'
+              AND payload ? 'messageNumber'
+         ) AS outbox`,
+      [connectionId],
+    );
+    expect(persisted.rows[0]).toEqual({ numbers: ['44'], outbox: '1' });
+  });
+
   it('stops accepting or renewing channels after disconnect', async () => {
     const connectionId = await createConnection();
     const store = createPostgresGoogleCalendarWatchStore(pool);
