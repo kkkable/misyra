@@ -171,6 +171,7 @@ function routeLabel(request: FastifyRequest) {
 }
 
 type RateWindow = { count: number; resetAt: number };
+const MAX_RATE_WINDOWS = 20_000;
 
 function routeAbuseClass(method: string, path: string): AbuseControlClassName | undefined {
   const key = `${method.toUpperCase()} ${path}` as keyof typeof routeAbuseControls;
@@ -246,6 +247,16 @@ export function createApiServer(options: ApiServerOptions = {}) {
     const windowKey = `${className}:${key}`;
     const current = rateWindows.get(windowKey);
     if (current === undefined || current.resetAt <= now) {
+      if (current === undefined && rateWindows.size >= MAX_RATE_WINDOWS) {
+        for (const [candidateKey, candidate] of rateWindows) {
+          if (candidate.resetAt <= now) rateWindows.delete(candidateKey);
+        }
+        if (rateWindows.size >= MAX_RATE_WINDOWS) {
+          reply.header('retry-after', '1');
+          reply.code(429).send(errorEnvelope(request.id, 'temporarily_unavailable'));
+          return false;
+        }
+      }
       rateWindows.set(windowKey, {
         count: 1,
         resetAt: now + control.windowSeconds * 1_000,
