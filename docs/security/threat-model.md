@@ -156,6 +156,8 @@ Public classes are keyed by network origin or provider channel, never by account
 
 `scripts/mobile-secret-scan.mjs` provides two independent checks. `--env-only` proves mobile source reads only `EXPO_PUBLIC_*` (plus two allow-listed build-time names), and it runs inside `pnpm test`. Passing a built artifact directory scans bundles, Hermes bytecode, and assets for credential-shaped strings and server-only variable names. Findings report file, line, and rule only, never the matched value.
 
+**Known limitation.** A real bundle cannot be produced yet: `expo export` fails because Metro cannot resolve the `.js` import specifiers that point at TypeScript sources, and CI's mobile build is only `tsc --noEmit`. The artifact scanner is therefore verified against seeded fixtures, and it must be run on the release-candidate build (MTS-118) once the app bundles.
+
 ## Release gate
 
 A release candidate may not ship while any **high**-severity threat is not mitigated. This is computed, not judged: `releaseBlocking` must equal (severity is high and status is not mitigated), and validation rejects any register where it does not.

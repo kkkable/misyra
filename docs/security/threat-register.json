@@ -10,7 +10,7 @@
       "status": "mitigated",
       "title": "Server secrets or provider credentials are shipped inside the mobile app bundle or binary.",
       "mitigation": "Provider tokens are exchanged and verified server-side and mobile only reads EXPO_PUBLIC_* configuration. A static check proves mobile source reads no server-only variable, and a bundle/binary scanner rejects credential-shaped strings and server-only variable names in built artifacts.",
-      "residual": "The static environment check runs in CI through pnpm test. The built-artifact scan runs against the release-candidate build (MTS-118); CI does not produce a mobile bundle on every run.",
+      "residual": "The static environment check runs in CI through pnpm test. The built-artifact scan is exercised against seeded fixtures only: a real bundle cannot be produced today because Metro cannot resolve the NodeNext-style .js import specifiers used by TypeScript sources (for example ../../src/localization/use-app-language.js), and CI's mobile build is tsc --noEmit. The scan must be run on the release-candidate build (MTS-118) once bundling works.",
       "tickets": [
         "MTS-034",
         "MTS-110"
