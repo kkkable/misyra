@@ -68,6 +68,65 @@ describe('MTS-111 API security hardening', () => {
     await server.close();
   });
 
+  it('uses only the ACA-appended rightmost forwarded address as the public rate origin', async () => {
+    const server = createApiServer({
+      routes: [publicExchangeRoute],
+      trustAzureContainerAppsForwardedFor: true,
+    });
+
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      const response = await server.inject({
+        method: 'POST',
+        url: '/v1/auth/google/exchange',
+        remoteAddress: '10.0.0.4',
+        headers: {
+          'x-forwarded-for': `198.51.100.${attempt + 1}, 203.0.113.10`,
+        },
+      });
+      expect(response.statusCode).toBe(200);
+    }
+
+    const limited = await server.inject({
+      method: 'POST',
+      url: '/v1/auth/google/exchange',
+      remoteAddress: '10.0.0.4',
+      headers: { 'x-forwarded-for': '192.0.2.250, 203.0.113.10' },
+    });
+    expect(limited.statusCode).toBe(429);
+
+    const independentOrigin = await server.inject({
+      method: 'POST',
+      url: '/v1/auth/google/exchange',
+      remoteAddress: '10.0.0.4',
+      headers: { 'x-forwarded-for': '192.0.2.250, 203.0.113.11' },
+    });
+    expect(independentOrigin.statusCode).toBe(200);
+    await server.close();
+  });
+
+  it('ignores spoofed forwarded addresses when ACA ingress trust is not enabled', async () => {
+    const server = createApiServer({ routes: [publicExchangeRoute] });
+
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      const response = await server.inject({
+        method: 'POST',
+        url: '/v1/auth/google/exchange',
+        remoteAddress: '203.0.113.20',
+        headers: { 'x-forwarded-for': `198.51.100.${attempt + 1}` },
+      });
+      expect(response.statusCode).toBe(200);
+    }
+
+    const limited = await server.inject({
+      method: 'POST',
+      url: '/v1/auth/google/exchange',
+      remoteAddress: '203.0.113.20',
+      headers: { 'x-forwarded-for': '198.51.100.250' },
+    });
+    expect(limited.statusCode).toBe(429);
+    await server.close();
+  });
+
   it('exposes previous auth and calendar encryption keys only as verification/decryption fallbacks', () => {
     const currentAccess = 'c'.repeat(40);
     const previousAccess = 'p'.repeat(40);
