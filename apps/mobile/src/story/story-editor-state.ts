@@ -11,6 +11,7 @@ import {
 export type StorySourceImage = Readonly<{
   id: string;
   uri: string;
+  previewUri?: string;
   width: number;
   height: number;
 }>;
@@ -22,7 +23,11 @@ type StoryEditorSessionOptions = Readonly<{
 }>;
 
 function validateSourceImage(source: StorySourceImage): StorySourceImage {
-  if (source.id.trim().length === 0 || source.uri.trim().length === 0) {
+  if (
+    source.id.trim().length === 0 ||
+    source.uri.trim().length === 0 ||
+    (source.previewUri !== undefined && source.previewUri.trim().length === 0)
+  ) {
     throw new TypeError('Story source image id and uri must not be empty.');
   }
   if (

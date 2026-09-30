@@ -1,3 +1,7 @@
+import {
+  rootMobilePerformanceRecorder,
+  type MobilePerformanceRecorder,
+} from '../performance/mobile-performance.js';
 import type { StoryComposition } from './story-composition.js';
 import type { StorySourceImage } from './story-editor-state.js';
 import { createStorySkiaSceneSnapshot } from './story-skia-preview.js';
@@ -57,9 +61,19 @@ function assertFinalArtifact(
   return artifact;
 }
 
-export function createStoryExportController(platform: StoryExportPlatform) {
+export function createStoryExportController(
+  platform: StoryExportPlatform,
+  options: Readonly<{
+    performanceRecorder?: Pick<MobilePerformanceRecorder, 'start'>;
+  }> = {},
+) {
+  const performanceRecorder = options.performanceRecorder ?? rootMobilePerformanceRecorder;
+
   async function render(input: StoryExportInput): Promise<StoryExportArtifact> {
-    return assertFinalArtifact(input, await platform.renderPng(input));
+    const span = performanceRecorder.start('storyExport');
+    const artifact = await platform.renderPng(input);
+    span.finish();
+    return assertFinalArtifact(input, artifact);
   }
 
   return Object.freeze({

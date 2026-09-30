@@ -4,6 +4,7 @@ export type StorySourceMaterialized = Readonly<{
   attemptId: string;
   imageVersionId: string;
   uri: string;
+  previewUri: string;
   width: number;
   height: number;
 }>;
@@ -12,7 +13,7 @@ export type StorySourceFiles = Readonly<{
   copyOriginalToStoryWorking(
     attemptId: string,
     imageVersionId: string,
-  ): Promise<Readonly<{ uri: string; width: number; height: number }>>;
+  ): Promise<Readonly<{ uri: string; previewUri: string; width: number; height: number }>>;
 }>;
 
 export function createStorySourceRuntime(
@@ -38,6 +39,7 @@ export function createStorySourceRuntime(
         attemptId: source.attemptId,
         imageVersionId,
         uri: copied.uri,
+        previewUri: copied.previewUri,
         width: copied.width,
         height: copied.height,
       });

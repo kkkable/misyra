@@ -8,6 +8,10 @@ import {
   type MissionSeriesInput,
 } from '@misyra/domain';
 
+import {
+  rootMobilePerformanceRecorder,
+  type MobilePerformanceRecorder,
+} from '../performance/mobile-performance.js';
 import type { MigrationDatabase, SqlBindValue } from './schema.js';
 
 const LOCAL_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -276,7 +280,14 @@ function createObservableQuery<T>(
   return query;
 }
 
-export function createLocalRepositories(database: LocalRepositoryDatabase, accountId: string) {
+export function createLocalRepositories(
+  database: LocalRepositoryDatabase,
+  accountId: string,
+  options: Readonly<{
+    performanceRecorder?: Pick<MobilePerformanceRecorder, 'start'>;
+  }> = {},
+) {
+  const performanceRecorder = options.performanceRecorder ?? rootMobilePerformanceRecorder;
   const registeredQueries = new Set<RegisteredQuery>();
 
   const register = (query: RegisteredQuery) => {
@@ -289,6 +300,10 @@ export function createLocalRepositories(database: LocalRepositoryDatabase, accou
 
   const listCalendarWindow = async (window: CalendarWindow): Promise<LocalMission[]> => {
     assertWindow(window);
+    const performanceSpan =
+      window.startLocalDate === window.endLocalDate
+        ? performanceRecorder.start('cachedDayQuery')
+        : null;
     const rows = await database.getAllAsync<MissionRow>(
       `SELECT s.payload_json AS series_payload_json,
               o.payload_json AS occurrence_payload_json
@@ -307,7 +322,9 @@ export function createLocalRepositories(database: LocalRepositoryDatabase, accou
       window.startLocalDate,
       window.endLocalDate,
     );
-    return rows.map(mapMission).filter(isVisibleMission);
+    const missions = rows.map(mapMission).filter(isVisibleMission);
+    performanceSpan?.finish();
+    return missions;
   };
 
   const getMissionById = async (occurrenceId: string): Promise<MissionDetails | null> => {

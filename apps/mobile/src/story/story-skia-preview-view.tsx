@@ -16,7 +16,7 @@ export function StorySkiaPreviewView({
   composition: StoryComposition;
 }>) {
   const layout = createStoryPreviewLayout(availableWidth);
-  const image = useImage(sourceImage.uri);
+  const image = useImage(sourceImage.previewUri ?? sourceImage.uri);
 
   return (
     <View

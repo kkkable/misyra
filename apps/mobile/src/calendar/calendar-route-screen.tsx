@@ -17,6 +17,7 @@ import {
 import { createOfflineCalendarSearch } from '../search/offline-search.js';
 import { openMobileDatabase } from '../storage/database.js';
 import { createLocalRepositories } from '../storage/local-repositories.js';
+import { rootMobilePerformanceRecorder } from '../performance/mobile-performance.js';
 import { requireRegisteredDeviceId } from '../sync/root-sync-runtime.js';
 import type { AllDayMissionSummary } from './calendar-all-day.js';
 import { CalendarDayScreen, type CalendarSearchFocusTarget } from './calendar-day-screen.js';
@@ -90,6 +91,10 @@ export function CalendarRouteScreen() {
   );
   const searchFocusRequestId = useRef(0);
   const adjustmentFeedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const warmCalendarSpan = useRef<ReturnType<typeof rootMobilePerformanceRecorder.start> | null>(
+    null,
+  );
+  const [warmCalendarRenderRevision, setWarmCalendarRenderRevision] = useState(0);
 
   useEffect(
     () => () => {
@@ -99,6 +104,12 @@ export function CalendarRouteScreen() {
     },
     [],
   );
+
+  useEffect(() => {
+    if (warmCalendarRenderRevision === 0) return;
+    warmCalendarSpan.current?.finish();
+    warmCalendarSpan.current = null;
+  }, [warmCalendarRenderRevision]);
 
   const refreshCalendarMissions = useCallback(async () => {
     const authState = await rootAuthController.restore();
@@ -121,8 +132,19 @@ export function CalendarRouteScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      void refreshCalendarMissions().catch(() => undefined);
-      return undefined;
+      let active = true;
+      warmCalendarSpan.current = rootMobilePerformanceRecorder.start('warmCalendarInteractive');
+      void refreshCalendarMissions()
+        .then(() => {
+          if (active) setWarmCalendarRenderRevision((revision) => revision + 1);
+        })
+        .catch(() => {
+          if (active) warmCalendarSpan.current = null;
+        });
+      return () => {
+        active = false;
+        warmCalendarSpan.current = null;
+      };
     }, [refreshCalendarMissions]),
   );
 

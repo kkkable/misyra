@@ -26,6 +26,8 @@ describe('MTS-091 Story source-photo runtime', () => {
       copyOriginalToStoryWorking: vi.fn(() =>
         Promise.resolve({
           uri: 'file:///documents/misyra/story-working/33333333-3333-4333-8333-333333333333.jpg',
+          previewUri:
+            'file:///documents/misyra/story-working/33333333-3333-4333-8333-333333333333.preview.jpg',
           width: 3024,
           height: 4032,
         }),
@@ -48,6 +50,8 @@ describe('MTS-091 Story source-photo runtime', () => {
       attemptId: '22222222-2222-4222-8222-222222222222',
       imageVersionId: '33333333-3333-4333-8333-333333333333',
       uri: 'file:///documents/misyra/story-working/33333333-3333-4333-8333-333333333333.jpg',
+      previewUri:
+        'file:///documents/misyra/story-working/33333333-3333-4333-8333-333333333333.preview.jpg',
       width: 3024,
       height: 4032,
     });
