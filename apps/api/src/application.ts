@@ -239,7 +239,9 @@ export function createApiApplication(options: AuthApplicationOptions) {
   const protectedMediaService = createProtectedMediaService({
     pool: options.pool,
     signingSecret: options.reauthenticationProofSecret,
-    verificationSigningSecrets: options.previousReauthenticationProofSecrets,
+    ...(options.previousReauthenticationProofSecrets === undefined
+      ? {}
+      : { verificationSigningSecrets: options.previousReauthenticationProofSecrets }),
     blobStore: mediaBlobStore,
     ...(options.now === undefined ? {} : { now: options.now }),
     onUploadCommitted: async (input) => {
