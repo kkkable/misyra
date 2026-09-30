@@ -665,6 +665,7 @@ export default function StoryRoute() {
             sourceImage: {
               id: materialized.imageVersionId,
               uri: materialized.uri,
+              previewUri: materialized.previewUri,
               width: materialized.width,
               height: materialized.height,
             },
@@ -957,6 +958,7 @@ export default function StoryRoute() {
             sourceImage: {
               id: materialized.imageVersionId,
               uri: materialized.uri,
+              previewUri: materialized.previewUri,
               width: materialized.width,
               height: materialized.height,
             },
