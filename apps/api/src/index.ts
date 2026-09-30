@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { connect } from 'node:net';
+import { connect, isIP } from 'node:net';
 import { pathToFileURL } from 'node:url';
 
 import {
@@ -68,6 +68,11 @@ type ApiServerOptions = {
   routes?: ApiRouteDefinition[];
   authenticate?: AuthenticateRequest;
   auditLog?: ApiAuditLog;
+  /**
+   * Azure Container Apps appends the real sender to X-Forwarded-For. Enable this only when the
+   * process is running behind that managed ingress; arbitrary forwarded values remain untrusted.
+   */
+  trustAzureContainerAppsForwardedFor?: boolean;
 };
 
 export const apiErrorCodes = clientActionErrorCodes;
@@ -178,20 +183,36 @@ function routeAbuseClass(method: string, path: string): AbuseControlClassName | 
   return routeAbuseControls[key];
 }
 
+function azureContainerAppsOrigin(request: FastifyRequest): string | null {
+  const raw = request.headers['x-forwarded-for'];
+  const forwarded = Array.isArray(raw) ? raw.at(-1) : raw;
+  if (typeof forwarded !== 'string') return null;
+  const rightmost = forwarded.split(',').at(-1)?.trim();
+  return rightmost !== undefined && isIP(rightmost) !== 0 ? rightmost : null;
+}
+
+function requestOrigin(request: FastifyRequest, trustAzureContainerAppsForwardedFor: boolean): string {
+  if (!trustAzureContainerAppsForwardedFor) return request.ip;
+  return azureContainerAppsOrigin(request) ?? request.ip;
+}
+
 function requestRateKey(
   control: AbuseControlClass,
   request: FastifyRequest,
   auth: AuthContext | null,
+  trustAzureContainerAppsForwardedFor: boolean,
 ): string | null {
   switch (control.keyedBy) {
     case 'ip':
-      return request.ip;
+      return requestOrigin(request, trustAzureContainerAppsForwardedFor);
     case 'account':
       return auth?.accountId ?? null;
     case 'channel': {
       const raw = request.headers['x-goog-channel-id'];
       const channelId = Array.isArray(raw) ? raw[0] : raw;
-      return typeof channelId === 'string' && channelId.length > 0 ? channelId : `ip:${request.ip}`;
+      return typeof channelId === 'string' && channelId.length > 0
+        ? channelId
+        : `ip:${requestOrigin(request, trustAzureContainerAppsForwardedFor)}`;
     }
     case 'device':
       return auth?.accountId ?? null;
@@ -239,7 +260,12 @@ export function createApiServer(options: ApiServerOptions = {}) {
     auth: AuthContext | null,
   ) => {
     const control = abuseControlClasses[className];
-    const key = requestRateKey(control, request, auth);
+    const key = requestRateKey(
+      control,
+      request,
+      auth,
+      options.trustAzureContainerAppsForwardedFor === true,
+    );
     if (key === null) return false;
     const now = Date.now();
     const windowKey = `${className}:${key}`;
