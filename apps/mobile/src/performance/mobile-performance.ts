@@ -11,9 +11,7 @@ export type MobilePerformanceMetric =
   | 'screenTransition'
   | 'storyExport';
 
-export type MobilePerformanceSamples = Readonly<
-  Record<MobilePerformanceMetric, readonly number[]>
->;
+export type MobilePerformanceSamples = Readonly<Record<MobilePerformanceMetric, readonly number[]>>;
 
 export type MobilePerformanceSummary = Readonly<{
   count: number;
