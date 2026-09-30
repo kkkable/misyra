@@ -2,9 +2,9 @@
 
 This document is the human-readable companion of [`threat-register.json`](./threat-register.json). The register is the source of truth: `scripts/threat-model-check.mjs` validates it, `pnpm test` proves it covers every component and maps every mitigation to a real ticket and, when mitigated, to an existing test, and the release gate below is computed from it.
 
-**Scope.** MTS-110 documents the threats and declares the abuse-control budget. It does **not** enforce runtime rate limits, replay protection, security headers, upload content validation, or least-privilege role changes. Those are delivered by **MTS-111**, which must use this model as its input. The policy in `apps/api/src/abuse-controls.ts` is explicitly marked `declared-not-enforced`.
+**Scope.** MTS-110 created this threat model and the abuse-control budget. MTS-111 now enforces the classified request-rate/body budgets, webhook replay protection, security headers, media byte/dimension validation, key-rotation fallbacks, and explicit least-privilege role assertions. Later tickets remain responsible for threats mapped beyond MTS-111.
 
-Current register: 28 threats, 19 mitigated, 8 planned, 1 accepted.
+Current register: 28 threats, 24 mitigated, 3 planned, 1 accepted.
 
 ## Assets
 
@@ -57,10 +57,10 @@ Status meanings: **mitigated** has a control and test evidence in the repository
 | T-API-01 | high | mitigated | A stolen or replayed refresh token gives long-lived access to an account. | MTS-034, MTS-036 |
 | T-API-02 | high | mitigated | A forged or unverified Apple or Google identity proof signs an attacker into a victim account. | MTS-034 |
 | T-API-03 | medium | mitigated | A hijacked session deletes the account or its data. | MTS-037 |
-| T-API-04 | high | planned | Credential stuffing, enumeration, cost abuse, or resource exhaustion against public and authenticated endpoints, because no runtime rate limiting exists yet. | MTS-111 |
-| T-API-05 | medium | planned | Oversized or malformed request bodies exhaust API memory or parsing time. | MTS-111 |
+| T-API-04 | high | mitigated | Credential stuffing, enumeration, cost abuse, or resource exhaustion against public and authenticated endpoints, because no runtime rate limiting exists yet. | MTS-111 |
+| T-API-05 | medium | mitigated | Oversized or malformed request bodies exhaust API memory or parsing time. | MTS-111 |
 | T-API-06 | medium | mitigated | Server logs or audit records leak credentials or private content. | MTS-027, MTS-007 |
-| T-API-07 | medium | planned | Missing security headers and no signing or encryption key rotation hooks. | MTS-111 |
+| T-API-07 | medium | mitigated | Missing security headers and no signing or encryption key rotation hooks. | MTS-111 |
 
 ### worker
 
@@ -81,7 +81,7 @@ Status meanings: **mitigated** has a control and test evidence in the repository
 
 | ID | Severity | Status | Threat | Tickets |
 |---|---|---|---|---|
-| T-BLOB-01 | high | planned | Malicious, mislabeled, or oversized images are stored and later processed, for example decompression bombs or non-image payloads with an image content type. | MTS-078, MTS-111 |
+| T-BLOB-01 | high | mitigated | Malicious, mislabeled, or oversized images are stored and later processed, for example decompression bombs or non-image payloads with an image content type. | MTS-078, MTS-111 |
 | T-BLOB-02 | high | mitigated | An attacker forges, tampers with, or replays an upload authorization to write media they should not. | MTS-078 |
 | T-BLOB-03 | medium | mitigated | Managed identities hold broad storage access, so one compromised identity exposes every container. | MTS-006, MTS-108 |
 
@@ -106,7 +106,7 @@ Status meanings: **mitigated** has a control and test evidence in the repository
 | T-CAL-01 | high | mitigated | Stored Google Calendar tokens are read from the database or backups. | MTS-069 |
 | T-CAL-02 | medium | mitigated | The Google OAuth callback is forged or replayed to link an attacker's calendar to a victim account. | MTS-069 |
 | T-CAL-03 | medium | mitigated | A spoofed Google webhook notification triggers unauthorized synchronization work. | MTS-071 |
-| T-CAL-04 | low | planned | A captured valid webhook notification is replayed to cause repeated synchronization. | MTS-111 |
+| T-CAL-04 | low | mitigated | A captured valid webhook notification is replayed to cause repeated synchronization. | MTS-111 |
 
 Residual risk, exact mitigations, and evidence files for each threat are in the register.
 
@@ -114,7 +114,7 @@ Residual risk, exact mitigations, and evidence files for each threat are in the 
 
 ### Rate and body budget
 
-Every `/v1` route and both health probes are assigned to one class below. A test enumerates the real routes from source with the TypeScript compiler and fails if a route is unclassified or a stale entry remains, so a new endpoint cannot ship without a budget. Values are initial targets that MTS-111 calibrates before enforcing.
+Every `/v1` route and both health probes are assigned to one class below. A test enumerates the real routes from source with the TypeScript compiler and fails if a route is unclassified or a stale entry remains, so a new endpoint cannot ship without a budget. MTS-111 calibrates and enforces these values at the Fastify boundary.
 
 | Class | Keyed by | Rate | Max body | Routes |
 |---|---|---|---|---|
@@ -125,7 +125,7 @@ Every `/v1` route and both health probes are assigned to one class below. A test
 | `authenticated-read` | account | 300 per 60 s | none | 10 |
 | `authenticated-write` | account | 120 per 60 s | 64 KiB | 12 |
 | `account-sensitive` | account | 10 per 1 h | 4 KiB | 2 |
-| `sync` | device | 60 per 60 s | 1 MiB | 5 |
+| `sync` | account | 60 per 60 s | 1 MiB | 5 |
 | `media-upload-authorization` | account | 30 per 60 s | 8 KiB | 1 |
 | `media-upload` | account | 30 per 60 s | 12 MiB | 1 |
 | `feedback-submission` | account | 20 per 1 h | 12 MiB | 1 |
@@ -144,7 +144,7 @@ Public classes are keyed by network origin or provider channel, never by account
 
 - Uploads require an HMAC-signed, short-lived authorization verified in constant time before any bytes are written.
 - Media and feedback bodies are capped at 12 MiB; all other bodies have smaller declared ceilings.
-- Content-type-only validation is a known gap: magic-byte and dimension validation is T-BLOB-01 and belongs to MTS-111.
+- Protected media is allowlisted by supported image type and validated by matching file signature plus decoded dimensions before Blob storage.
 
 ### Account takeover
 
