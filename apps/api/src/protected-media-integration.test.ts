@@ -129,6 +129,16 @@ afterAll(async () => {
   await admin.end();
 });
 
+function validJpeg(label = '') {
+  return Buffer.concat([
+    Buffer.from([
+      0xff, 0xd8, 0xff, 0xc0, 0x00, 0x11, 0x08, 0x00, 0x01, 0x00, 0x01, 0x03, 0x01, 0x11,
+      0x00, 0x02, 0x11, 0x00, 0x03, 0x11, 0x00, 0xff, 0xd9,
+    ]),
+    Buffer.from(label),
+  ]);
+}
+
 function createServer(activeAccount: { value: string }, auditLog = vi.fn()) {
   return {
     auditLog,
@@ -282,15 +292,8 @@ describe('MTS-078 protected media upload service', () => {
     const { server } = createServer(activeAccount);
     const authorization = await authorizeOriginalUpload(server, assetId);
     const oversizedJpegHeader = Buffer.from([
-      0xff, 0xd8,
-      0xff, 0xc0, 0x00, 0x11, 0x08,
-      0x00, 0x01,
-      0x23, 0x29,
-      0x03,
-      0x01, 0x11, 0x00,
-      0x02, 0x11, 0x00,
-      0x03, 0x11, 0x00,
-      0xff, 0xd9,
+      0xff, 0xd8, 0xff, 0xc0, 0x00, 0x11, 0x08, 0x00, 0x01, 0x23, 0x29, 0x03, 0x01, 0x11,
+      0x00, 0x02, 0x11, 0x00, 0x03, 0x11, 0x00, 0xff, 0xd9,
     ]);
 
     const upload = await server.inject({
@@ -310,7 +313,7 @@ describe('MTS-078 protected media upload service', () => {
     const assetId = randomUUID();
     const { server } = createServer(activeAccount);
     const authorization = await authorizeOriginalUpload(server, assetId);
-    const bytes = Buffer.from('fixture-image-binary');
+    const bytes = validJpeg('fixture-image-binary');
 
     const upload = await server.inject({
       method: 'PUT',
@@ -348,7 +351,7 @@ describe('MTS-078 protected media upload service', () => {
     const assetId = randomUUID();
     const { server } = createServer(activeAccount);
     const firstAuthorization = await authorizeOriginalUpload(server, assetId);
-    const firstBytes = Buffer.from('first-evidence-original');
+    const firstBytes = validJpeg('first-evidence-original');
 
     const firstUpload = await server.inject({
       method: 'PUT',
@@ -363,7 +366,7 @@ describe('MTS-078 protected media upload service', () => {
       method: 'PUT',
       url: retryAuthorization.uploadPath,
       headers: { 'content-type': 'application/octet-stream' },
-      payload: Buffer.from('different-retry-bytes'),
+      payload: validJpeg('different-retry-bytes'),
     });
     expect(retryUpload.statusCode).toBe(200);
 
@@ -389,7 +392,7 @@ describe('MTS-078 protected media upload service', () => {
       method: 'PUT',
       url: authorization.uploadPath,
       headers: { 'content-type': 'application/octet-stream' },
-      payload: Buffer.from('secret-image-body'),
+      payload: validJpeg('secret-image-body'),
     });
 
     expect(auditLog.mock.calls).toEqual([
