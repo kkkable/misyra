@@ -202,4 +202,44 @@ describe('MTS-037 session-backed access authentication', () => {
     expect(isSessionActive).toHaveBeenCalledTimes(2);
     await server.close();
   });
+
+  it('accepts an unexpired token signed by the previous key during rotation', async () => {
+    const accountId = '123e4567-e89b-42d3-a456-426614174000';
+    const sessionId = '123e4567-e89b-42d3-a456-426614174010';
+    const currentSecret = 'fixture-current-access-secret-value-32';
+    const previousSecret = 'fixture-previous-access-secret-value-32';
+    const now = new Date('2026-09-30T10:00:00.000Z');
+    const isSessionActive = vi.fn().mockResolvedValue(true);
+    const authenticate = createHmacAccessTokenAuthenticator(
+      currentSecret,
+      isSessionActive,
+      () => now,
+      [previousSecret],
+    );
+    const oldToken = createHmacAccessTokenIssuer(previousSecret)({
+      accountId,
+      sessionId,
+      expiresAt: new Date('2026-09-30T10:10:00.000Z'),
+    });
+    const server = createApiServer({
+      authenticate,
+      routes: [
+        {
+          method: 'GET',
+          path: '/account/session-proof',
+          handler: (_request, _reply, auth) => ({ accountId: auth.accountId }),
+        },
+      ],
+    });
+
+    const accepted = await server.inject({
+      method: 'GET',
+      url: '/v1/account/session-proof',
+      headers: { authorization: `Bearer ${oldToken}` },
+    });
+
+    expect(accepted.statusCode).toBe(200);
+    expect(accepted.json()).toMatchObject({ ok: true, payload: { accountId } });
+    await server.close();
+  });
 });
