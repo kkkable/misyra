@@ -4,6 +4,10 @@ import { describe, expect, it, vi } from 'vitest';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
+const skiaRuntime = vi.hoisted(() => ({
+  useImage: vi.fn(() => ({ id: 'decoded-image' })),
+}));
+
 vi.mock('react-native', async () => {
   const { createElement: h } = await import('react');
   return {
@@ -26,7 +30,7 @@ vi.mock('@shopify/react-native-skia', async () => {
     Image: host('SkiaImage'),
     Text: host('SkiaText'),
     matchFont: vi.fn((style) => ({ style })),
-    useImage: vi.fn(() => ({ id: 'decoded-image' })),
+    useImage: skiaRuntime.useImage,
   };
 });
 
@@ -54,6 +58,34 @@ const composition = {
   revision: 2,
   savedAt: '2026-09-23T05:49:00.000Z',
 };
+
+describe('MTS-112 Story preview image-memory boundary', () => {
+  it('decodes the display-sized preview resource while preserving the original source URI', () => {
+    skiaRuntime.useImage.mockClear();
+    const sourceImage = {
+      id: 'source-large',
+      uri: 'file:///story/source-large-original.jpg',
+      previewUri: 'file:///story/source-large-preview.jpg',
+      width: 3024,
+      height: 4032,
+    };
+
+    let renderer;
+    act(() => {
+      renderer = create(
+        createElement(StorySkiaPreviewView, {
+          availableWidth: 360,
+          composition,
+          sourceImage,
+        }),
+      );
+    });
+
+    expect(skiaRuntime.useImage).toHaveBeenCalledWith(sourceImage.previewUri);
+    expect(sourceImage.uri).toBe('file:///story/source-large-original.jpg');
+    act(() => renderer.unmount());
+  });
+});
 
 describe('MTS-091 rendered Skia Story preview', () => {
   it('scales the fixed canvas while keeping composition coordinates inside the Skia scene', () => {
