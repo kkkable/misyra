@@ -131,10 +131,7 @@ afterAll(async () => {
 
 function validJpeg(label = '') {
   return Buffer.concat([
-    Buffer.from([
-      0xff, 0xd8, 0xff, 0xc0, 0x00, 0x11, 0x08, 0x00, 0x01, 0x00, 0x01, 0x03, 0x01, 0x11,
-      0x00, 0x02, 0x11, 0x00, 0x03, 0x11, 0x00, 0xff, 0xd9,
-    ]),
+    Buffer.from('ffd8ffc00011080001000103011100021100031100ffd9', 'hex'),
     Buffer.from(label),
   ]);
 }
@@ -291,10 +288,10 @@ describe('MTS-078 protected media upload service', () => {
     const assetId = randomUUID();
     const { server } = createServer(activeAccount);
     const authorization = await authorizeOriginalUpload(server, assetId);
-    const oversizedJpegHeader = Buffer.from([
-      0xff, 0xd8, 0xff, 0xc0, 0x00, 0x11, 0x08, 0x00, 0x01, 0x23, 0x29, 0x03, 0x01, 0x11,
-      0x00, 0x02, 0x11, 0x00, 0x03, 0x11, 0x00, 0xff, 0xd9,
-    ]);
+    const oversizedJpegHeader = Buffer.from(
+      'ffd8ffc00011080001232903011100021100031100ffd9',
+      'hex',
+    );
 
     const upload = await server.inject({
       method: 'PUT',
