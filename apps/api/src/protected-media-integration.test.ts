@@ -136,14 +136,22 @@ function validJpeg(label = '') {
   ]);
 }
 
-function createServer(activeAccount: { value: string }, auditLog = vi.fn()) {
+function createServer(
+  activeAccount: { value: string },
+  auditLog = vi.fn(),
+  rotation: Readonly<{ currentSecret?: string; previousSecrets?: readonly string[] }> = {},
+) {
   return {
     auditLog,
     server: createApiApplication({
       pool,
       expectedAudience: { apple: 'apple-audience', google: 'google-audience' },
       issueAccessToken: () => 'fixture-access-token',
-      reauthenticationProofSecret: 'fixture-reauthentication-proof-secret',
+      reauthenticationProofSecret:
+        rotation.currentSecret ?? 'fixture-reauthentication-proof-secret',
+      ...(rotation.previousSecrets === undefined
+        ? {}
+        : { previousReauthenticationProofSecrets: rotation.previousSecrets }),
       now: () => apiNow,
       authenticate: () => ({ accountId: activeAccount.value }),
       auditLog,
@@ -303,6 +311,32 @@ describe('MTS-078 protected media upload service', () => {
     expect(upload.statusCode).toBe(400);
     expect(upload.json()).toMatchObject({ error: { code: 'validation_failed' } });
     await server.close();
+  });
+
+  it('accepts an old upload token only through the configured rotation fallback', async () => {
+    const activeAccount = { value: accountA };
+    const assetId = randomUUID();
+    const previousSecret = 'fixture-previous-media-signing-secret-value';
+    const currentSecret = 'fixture-current-media-signing-secret-value';
+    const { server: previousServer } = createServer(activeAccount, vi.fn(), {
+      currentSecret: previousSecret,
+    });
+    const authorization = await authorizeOriginalUpload(previousServer, assetId);
+    await previousServer.close();
+
+    const { server: rotatingServer } = createServer(activeAccount, vi.fn(), {
+      currentSecret,
+      previousSecrets: [previousSecret],
+    });
+    const upload = await rotatingServer.inject({
+      method: 'PUT',
+      url: authorization.uploadPath,
+      headers: { 'content-type': 'application/octet-stream' },
+      payload: validJpeg('rotation-fallback'),
+    });
+
+    expect(upload.statusCode).toBe(200);
+    await rotatingServer.close();
   });
 
   it('uploads through the scoped API path into a private Azurite container', async () => {
