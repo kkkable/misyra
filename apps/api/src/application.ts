@@ -108,6 +108,7 @@ type AuthApplicationOptions = {
   readiness?: ReadinessCheck;
   authenticate?: AuthenticateRequest;
   auditLog?: ApiAuditLog;
+  trustAzureContainerAppsForwardedFor?: boolean;
   googleCalendar?: GoogleCalendarApplicationDependencies;
   mediaBlobStore?: ProtectedMediaBlobStore;
   plannerExtractionService?: PlannerExtractionRouteService;
@@ -348,6 +349,11 @@ export function createApiApplication(options: AuthApplicationOptions) {
     ...(options.readiness === undefined ? {} : { readiness: options.readiness }),
     ...(options.authenticate === undefined ? {} : { authenticate: options.authenticate }),
     ...(options.auditLog === undefined ? {} : { auditLog: options.auditLog }),
+    ...(options.trustAzureContainerAppsForwardedFor === undefined
+      ? {}
+      : {
+          trustAzureContainerAppsForwardedFor: options.trustAzureContainerAppsForwardedFor,
+        }),
   });
 }
 
@@ -581,6 +587,8 @@ export async function startApiApplication(env: NodeJS.ProcessEnv = process.env) 
     issueAccessToken: createHmacAccessTokenIssuer(authConfiguration.accessTokenSecret),
     reauthenticationProofSecret: authConfiguration.accessTokenSecret,
     previousReauthenticationProofSecrets: authConfiguration.previousAccessTokenSecrets,
+    trustAzureContainerAppsForwardedFor:
+      typeof env.CONTAINER_APP_NAME === 'string' && env.CONTAINER_APP_NAME.length > 0,
     mediaBlobStore: createProtectedMediaBlobStore(env),
     authenticate: createHmacAccessTokenAuthenticator(
       authConfiguration.accessTokenSecret,
