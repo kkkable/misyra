@@ -46,7 +46,8 @@ describe('MTS-069 Google refresh-token encryption', () => {
       'Google calendar token encryption key must be 32 bytes',
     );
   });
-  it('decrypts existing ciphertext with the previous key while encrypting only with the current key', async () => {
+
+  it('uses the previous key only for decryption during rotation', async () => {
     const previousKey = Buffer.alloc(32, 3);
     const currentKey = Buffer.alloc(32, 4);
     const previousCipher = createGoogleCalendarTokenCipher(previousKey);
@@ -62,5 +63,4 @@ describe('MTS-069 Google refresh-token encryption', () => {
       'Google calendar token decryption failed',
     );
   });
-
 });
