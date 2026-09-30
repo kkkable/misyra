@@ -132,7 +132,7 @@ Every `/v1` route and both health probes are assigned to one class below. A test
 | `ai-request` | account | 30 per 1 h | 256 KiB | 4 |
 | `health-probe` | ip | 600 per 60 s | none | 2 |
 
-Public classes are keyed by network origin or provider channel, never by account, and every public class stays at or below 120 requests per minute. Sensitive account operations (reauthentication and account deletion) are limited to 10 per hour.
+Public classes are keyed by network origin, never by account, and every public class stays at or below 120 requests per minute. Direct/test servers use the socket address. In Azure Container Apps, detected via its built-in runtime metadata, the API uses only the platform-appended rightmost `X-Forwarded-For` address and ignores earlier client-supplied values. Sensitive account operations (reauthentication and account deletion) are limited to 10 per hour.
 
 ### AI abuse
 
