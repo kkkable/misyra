@@ -191,7 +191,10 @@ function azureContainerAppsOrigin(request: FastifyRequest): string | null {
   return rightmost !== undefined && isIP(rightmost) !== 0 ? rightmost : null;
 }
 
-function requestOrigin(request: FastifyRequest, trustAzureContainerAppsForwardedFor: boolean): string {
+function requestOrigin(
+  request: FastifyRequest,
+  trustAzureContainerAppsForwardedFor: boolean,
+): string {
   if (!trustAzureContainerAppsForwardedFor) return request.ip;
   return azureContainerAppsOrigin(request) ?? request.ip;
 }
