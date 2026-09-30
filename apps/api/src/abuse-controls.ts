@@ -1,11 +1,9 @@
 /**
  * MTS-110 declared abuse-control policy.
  *
- * This module is DATA ONLY. It records the request-rate and body-size budget that every API route
- * is expected to live within, so the threat model (docs/security/threat-model.md) and its tests can
- * prove that no route is left unclassified. Nothing here is enforced at runtime yet: rate limiting,
- * body-limit enforcement, replay protection, and header hardening are delivered by MTS-111, which
- * must calibrate these initial targets against real traffic before enabling enforcement.
+ * This module records the request-rate and body-size budget that every API route is expected to
+ * live within. MTS-111 wires these calibrated values into the Fastify request boundary; route
+ * inventory tests keep the policy complete as endpoints are added.
  */
 
 const KIBIBYTE = 1024;
