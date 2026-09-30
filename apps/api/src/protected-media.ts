@@ -97,10 +97,7 @@ const MAX_IMAGE_DIMENSION = 8_192;
 const MAX_IMAGE_PIXELS = 64_000_000;
 
 function isImageContentType(value: unknown): value is string {
-  return (
-    typeof value === 'string' &&
-    SUPPORTED_IMAGE_CONTENT_TYPES.has(value.toLowerCase())
-  );
+  return typeof value === 'string' && SUPPORTED_IMAGE_CONTENT_TYPES.has(value.toLowerCase());
 }
 
 type ImageDimensions = Readonly<{ width: number; height: number }>;
@@ -263,11 +260,7 @@ function signToken(secret: string, claims: UploadClaims) {
   return `${payload}.${signature}`;
 }
 
-function verifyToken(
-  secrets: readonly string[],
-  token: string,
-  now: Date,
-): UploadClaims | null {
+function verifyToken(secrets: readonly string[], token: string, now: Date): UploadClaims | null {
   const [payload, suppliedSignature, ...extra] = token.split('.');
   if (!payload || !suppliedSignature || extra.length > 0) return null;
 
