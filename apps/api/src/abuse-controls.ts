@@ -41,7 +41,7 @@ export const abuseControlClasses = {
     windowSeconds: 60,
     maxRequests: 120,
     maxBodyBytes: 8 * KIBIBYTE,
-    keyedBy: 'channel',
+    keyedBy: 'ip',
   },
   // Authenticated surfaces: keyed by account (or device for sync).
   'authenticated-read': {
