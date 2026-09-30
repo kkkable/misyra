@@ -17,6 +17,13 @@ let pool: Pool;
 let accountId: string;
 let apiNow = new Date('2026-09-18T10:00:00.000Z');
 
+function validEvidenceJpeg() {
+  return Buffer.from([
+    0xff, 0xd8, 0xff, 0xc0, 0x00, 0x11, 0x08, 0x00, 0x01, 0x00, 0x01, 0x03, 0x01, 0x11,
+    0x00, 0x02, 0x11, 0x00, 0x03, 0x11, 0x00, 0xff, 0xd9,
+  ]);
+}
+
 type AttemptPayload = Readonly<{
   attemptId: string;
   occurrenceId: string;
@@ -102,7 +109,7 @@ function createServer(
     authenticate: () => ({ accountId }),
     mediaBlobStore: {
       put: blobStore.put ?? vi.fn(() => Promise.resolve()),
-      get: blobStore.get ?? vi.fn(() => Promise.resolve(Buffer.from('evidence-image'))),
+      get: blobStore.get ?? vi.fn(() => Promise.resolve(validEvidenceJpeg())),
       delete: blobStore.delete ?? vi.fn(() => Promise.resolve()),
     },
   });
@@ -217,7 +224,7 @@ describe('MTS-080 evidence-attempt creation and upload', () => {
       method: 'PUT',
       url: reserved.payload?.uploadPath ?? '/missing-upload-path',
       headers: { 'content-type': 'application/octet-stream' },
-      payload: Buffer.from('evidence-image'),
+      payload: validEvidenceJpeg(),
     });
     expect(upload.statusCode).toBe(200);
 
@@ -609,7 +616,7 @@ describe('MTS-080 evidence-attempt creation and upload', () => {
       method: 'PUT',
       url: reserved.payload?.uploadPath ?? '/missing-upload-path',
       headers: { 'content-type': 'application/octet-stream' },
-      payload: Buffer.from('evidence-image'),
+      payload: validEvidenceJpeg(),
     });
     expect(failedUpload.statusCode).toBe(503);
 
@@ -658,7 +665,7 @@ describe('MTS-080 evidence-attempt creation and upload', () => {
       method: 'PUT',
       url: replay.payload?.uploadPath ?? '/missing-upload-path',
       headers: { 'content-type': 'application/octet-stream' },
-      payload: Buffer.from('evidence-image'),
+      payload: validEvidenceJpeg(),
     });
     expect(upload.statusCode).toBe(200);
     expect(succeedingPut).toHaveBeenCalledTimes(1);
