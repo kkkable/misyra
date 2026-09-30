@@ -78,7 +78,9 @@ export function createGoogleCalendarTokenCipher(
             lastError = error;
           }
         }
-        throw lastError ?? new Error('No Google calendar token decryption key configured');
+        throw new Error('No Google calendar token decryption key accepted the ciphertext', {
+          cause: lastError,
+        });
       } catch (error) {
         return Promise.reject(
           new Error('Google calendar token decryption failed', { cause: error }),
