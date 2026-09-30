@@ -205,9 +205,7 @@ function appliedBodyLimit(
   className: AbuseControlClassName | undefined,
 ): number | undefined {
   const policyLimit =
-    className === undefined || abuseControlClasses[className].maxBodyBytes === 0
-      ? undefined
-      : abuseControlClasses[className].maxBodyBytes;
+    className === undefined ? undefined : Math.max(1, abuseControlClasses[className].maxBodyBytes);
   if (route.bodyLimit === undefined) return policyLimit;
   if (policyLimit === undefined) return route.bodyLimit;
   return Math.min(route.bodyLimit, policyLimit);
@@ -343,13 +341,15 @@ export function createApiServer(options: ApiServerOptions = {}) {
     return reply.code(statusCode).send(errorEnvelope(request.id, code));
   });
 
-  server.get('/health/live', (request, reply) => {
+  server.get('/health/live', { bodyLimit: 1 }, (request, reply) => {
     const className = unversionedRouteAbuseControls['GET /health/live'];
+    if (request.body !== undefined) throw new ApiError('validation_failed');
     if (!enforceRateLimit(className, request, reply, null)) return;
     return { status: 'ok' as const };
   });
-  server.get('/health/ready', async (request, reply) => {
+  server.get('/health/ready', { bodyLimit: 1 }, async (request, reply) => {
     const className = unversionedRouteAbuseControls['GET /health/ready'];
+    if (request.body !== undefined) throw new ApiError('validation_failed');
     if (!enforceRateLimit(className, request, reply, null)) return;
     let ready: boolean;
 
@@ -386,6 +386,14 @@ export function createApiServer(options: ApiServerOptions = {}) {
           ...(route.public ? {} : { onRequest: authenticateProtected }),
           handler: async (request: FastifyRequest, reply: FastifyReply) => {
             let payload: unknown;
+
+            if (
+              className !== undefined &&
+              abuseControlClasses[className].maxBodyBytes === 0 &&
+              request.body !== undefined
+            ) {
+              throw new ApiError('validation_failed');
+            }
 
             if (route.public) {
               if (className !== undefined && !enforceRateLimit(className, request, reply, null)) {
