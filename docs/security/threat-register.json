@@ -155,32 +155,34 @@
       "component": "api",
       "category": "rate-limit-abuse",
       "severity": "high",
-      "status": "planned",
-      "title": "Credential stuffing, enumeration, cost abuse, or resource exhaustion against public and authenticated endpoints, because no runtime rate limiting exists yet.",
-      "mitigation": "MTS-110 declares a rate and body budget for every route, and tests prove no route is unclassified. Runtime enforcement of those budgets is delivered and calibrated by MTS-111.",
-      "residual": "Until MTS-111 lands the policy is declared, not enforced (see abuseControlEnforcement).",
+      "status": "mitigated",
+      "title": "Credential stuffing, enumeration, cost abuse, or resource exhaustion targets public or authenticated API endpoints.",
+      "mitigation": "MTS-111 enforces the route inventory's calibrated fixed-window rate and body budgets at the Fastify boundary, with public requests keyed by origin or verified provider channel and authenticated requests keyed by account.",
+      "residual": "Budgets are per API process, so effective aggregate capacity scales with the explicitly bounded replica count.",
       "tickets": [
         "MTS-111"
       ],
       "evidence": [
         "apps/api/src/abuse-controls.ts",
-        "apps/api/src/abuse-controls.test.ts"
+        "apps/api/src/abuse-controls.test.ts",
+        "apps/api/src/mts-111-security-hardening.test.ts"
       ],
-      "releaseBlocking": true
+      "releaseBlocking": false
     },
     {
       "id": "T-API-05",
       "component": "api",
       "category": "denial-of-service",
       "severity": "medium",
-      "status": "planned",
+      "status": "mitigated",
       "title": "Oversized or malformed request bodies exhaust API memory or parsing time.",
-      "mitigation": "Fastify's default body limit is the only ceiling for most routes and only media upload and feedback raise it explicitly (12 MiB). MTS-111 sets an explicit bound per route class and adds invalid-input fuzz tests.",
+      "mitigation": "MTS-111 applies each classified route's explicit body ceiling at the Fastify parser boundary, maps oversized bodies to a bounded validation response, and retains the 12 MiB media ceiling.",
       "tickets": [
         "MTS-111"
       ],
       "evidence": [
         "apps/api/src/abuse-controls.ts",
+        "apps/api/src/mts-111-security-hardening.test.ts",
         "apps/api/src/protected-media-routes.ts"
       ],
       "releaseBlocking": false
@@ -209,13 +211,17 @@
       "component": "api",
       "category": "hardening",
       "severity": "medium",
-      "status": "planned",
+      "status": "mitigated",
       "title": "Missing security headers and no signing or encryption key rotation hooks.",
-      "mitigation": "MTS-111 adds security headers and rotation hooks for the token-signing, upload-signing, and token-encryption keys, which are single static values today.",
+      "mitigation": "MTS-111 adds no-store, nosniff, frame, referrer and restrictive CSP response headers plus verification/decryption fallback hooks so access/upload signing keys and Google Calendar token-encryption keys can rotate without issuing new material under the old key.",
       "tickets": [
         "MTS-111"
       ],
-      "evidence": [],
+      "evidence": [
+        "apps/api/src/mts-111-security-hardening.test.ts",
+        "apps/api/src/application.test.ts",
+        "apps/api/src/google-calendar-token-cipher.test.ts"
+      ],
       "releaseBlocking": false
     },
     {
@@ -315,19 +321,19 @@
       "component": "blob",
       "category": "upload-abuse",
       "severity": "high",
-      "status": "planned",
-      "title": "Malicious, mislabeled, or oversized images are stored and later processed, for example decompression bombs or non-image payloads with an image content type.",
-      "mitigation": "Uploads currently validate the declared image content type and a 12 MiB body ceiling. MTS-111 adds magic-byte and dimension validation, and the rate budget for uploads is declared in the abuse-control policy.",
+      "status": "mitigated",
+      "title": "Malicious, mislabeled, or oversized images attempt to enter protected media storage or later image-processing paths.",
+      "mitigation": "MTS-111 allowlists supported image media types and validates matching JPEG/PNG/GIF/WebP/HEIC/HEIF/AVIF signatures plus decoded dimensions before Blob writes, while the route keeps its 12 MiB body ceiling.",
       "tickets": [
         "MTS-078",
         "MTS-111"
       ],
       "evidence": [
         "apps/api/src/protected-media.ts",
-        "apps/api/src/protected-media.test.ts",
+        "apps/api/src/protected-media-integration.test.ts",
         "apps/api/src/abuse-controls.ts"
       ],
-      "releaseBlocking": true
+      "releaseBlocking": false
     },
     {
       "id": "T-BLOB-02",
@@ -496,14 +502,15 @@
       "component": "external-calendars",
       "category": "replay",
       "severity": "low",
-      "status": "planned",
+      "status": "mitigated",
       "title": "A captured valid webhook notification is replayed to cause repeated synchronization.",
-      "mitigation": "A notification is only a change signal that starts an idempotent sync, so replay costs work but cannot change data. MTS-111 adds explicit replay protection.",
+      "mitigation": "MTS-111 retains exact-message deduplication and serializes each channel's signal write so a message number at or below the highest accepted number is rejected before another pull event is queued.",
       "tickets": [
         "MTS-111"
       ],
       "evidence": [
-        "apps/api/src/google-calendar-watch.test.ts"
+        "apps/api/src/google-calendar-watch.test.ts",
+        "packages/database/src/google-calendar-watch-store.test.ts"
       ],
       "releaseBlocking": false
     }
