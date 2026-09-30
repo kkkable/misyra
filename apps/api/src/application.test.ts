@@ -90,6 +90,7 @@ describe('MTS-034 executable API composition', () => {
         google: 'fixture-google-auth-audience',
       },
       accessTokenSecret: 'fixture-local-auth-access-token-secret',
+      previousAccessTokenSecrets: [],
     });
 
     expect(() => resolveAuthStartupConfiguration({ NODE_ENV: 'production' })).toThrow(
@@ -109,6 +110,7 @@ describe('MTS-034 executable API composition', () => {
         google: 'production-google-audience',
       },
       accessTokenSecret: 'production-auth-secret-at-least-32-characters',
+      previousAccessTokenSecrets: [],
     });
   });
 });
