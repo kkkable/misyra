@@ -87,12 +87,7 @@ async function describeStoryWorkingCopy(
   Readonly<{ id: string; uri: string; previewUri: string; width: number; height: number }>
 > {
   const size = await dimensions(uri);
-  const previewUri = await materializePreviewResource(
-    imageVersionId,
-    uri,
-    size.width,
-    size.height,
-  );
+  const previewUri = await materializePreviewResource(imageVersionId, uri, size.width, size.height);
   return {
     id: imageVersionId,
     uri,
