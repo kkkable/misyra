@@ -121,7 +121,7 @@ Every `/v1` route and both health probes are assigned to one class below. A test
 | `public-auth-exchange` | ip | 10 per 60 s | 16 KiB | 1 |
 | `public-auth-session` | ip | 30 per 60 s | 4 KiB | 2 |
 | `public-oauth-callback` | ip | 20 per 60 s | none | 1 |
-| `public-webhook` | channel | 120 per 60 s | 8 KiB | 1 |
+| `public-webhook` | IP | 120 per 60 s | 8 KiB | 1 |
 | `authenticated-read` | account | 300 per 60 s | none | 10 |
 | `authenticated-write` | account | 120 per 60 s | 64 KiB | 12 |
 | `account-sensitive` | account | 10 per 1 h | 4 KiB | 2 |
