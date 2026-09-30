@@ -50,6 +50,27 @@ describe('MTS-112 mobile performance budget contracts', () => {
     });
   });
 
+  it('fails the aggregate profile when any p95 exceeds its approved regression threshold', () => {
+    const profile = createMobilePerformanceProfile({
+      device: {
+        platform: 'ios',
+        model: 'mid-range-fixture',
+        osVersion: 'fixture-os',
+        appBuild: 'fixture-build',
+      },
+      recordedAt: '2026-09-30T12:38:18.000Z',
+      samples: {
+        warmCalendarInteractive: [1_900, 2_050],
+        cachedDayQuery: [20, 30],
+        screenTransition: [220, 250],
+        storyExport: [4_200, 4_800],
+      },
+    });
+
+    expect(profile.metrics.warmCalendarInteractive.passesBudget).toBe(false);
+    expect(profile.allBudgetsPass).toBe(false);
+  });
+
   it('requires concrete supported-device metadata and evaluates measurements against budgets', () => {
     const profile = createMobilePerformanceProfile({
       device: {
