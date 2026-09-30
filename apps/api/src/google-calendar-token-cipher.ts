@@ -20,9 +20,13 @@ function decodeSegment(value: string, expectedBytes: number | null): Buffer {
   return decoded;
 }
 
-export function createGoogleCalendarTokenCipher(key: Uint8Array): GoogleCalendarTokenCipher {
+export function createGoogleCalendarTokenCipher(
+  key: Uint8Array,
+  previousKeys: readonly Uint8Array[] = [],
+): GoogleCalendarTokenCipher {
   const encryptionKey = Buffer.from(key);
-  if (encryptionKey.length !== KEY_BYTES) {
+  const decryptionKeys = [encryptionKey, ...previousKeys.map((previous) => Buffer.from(previous))];
+  if (decryptionKeys.some((candidate) => candidate.length !== KEY_BYTES)) {
     throw new Error('Google calendar token encryption key must be 32 bytes');
   }
 
@@ -59,15 +63,22 @@ export function createGoogleCalendarTokenCipher(key: Uint8Array): GoogleCalendar
         const nonce = decodeSegment(nonceSegment, NONCE_BYTES);
         const authTag = decodeSegment(authTagSegment, AUTH_TAG_BYTES);
         const encrypted = decodeSegment(encryptedSegment, null);
-        const decipher = createDecipheriv(ALGORITHM, encryptionKey, nonce, {
-          authTagLength: AUTH_TAG_BYTES,
-        });
-        decipher.setAAD(ADDITIONAL_AUTHENTICATED_DATA);
-        decipher.setAuthTag(authTag);
-        const plaintext = Buffer.concat([decipher.update(encrypted), decipher.final()]).toString(
-          'utf8',
-        );
-        return Promise.resolve(plaintext);
+        let lastError: unknown;
+        for (const candidateKey of decryptionKeys) {
+          try {
+            const decipher = createDecipheriv(ALGORITHM, candidateKey, nonce, {
+              authTagLength: AUTH_TAG_BYTES,
+            });
+            decipher.setAAD(ADDITIONAL_AUTHENTICATED_DATA);
+            decipher.setAuthTag(authTag);
+            return Promise.resolve(
+              Buffer.concat([decipher.update(encrypted), decipher.final()]).toString('utf8'),
+            );
+          } catch (error) {
+            lastError = error;
+          }
+        }
+        throw lastError ?? new Error('No Google calendar token decryption key configured');
       } catch (error) {
         return Promise.reject(
           new Error('Google calendar token decryption failed', { cause: error }),
