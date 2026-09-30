@@ -8,6 +8,9 @@ const gestureRuntime = vi.hoisted(() => ({
 const hapticRuntime = vi.hoisted(() => ({
   triggerNonBlocking: vi.fn(),
 }));
+const workletRuntime = vi.hoisted(() => ({
+  scheduleOnRN: vi.fn((fn, ...args) => fn(...args)),
+}));
 
 vi.mock('react-native', async () => {
   const { createElement: createReactElement } = await import('react');
@@ -44,7 +47,7 @@ vi.mock('react-native-reanimated', async () => {
 });
 
 vi.mock('react-native-worklets', () => ({
-  scheduleOnRN: (fn, ...args) => fn(...args),
+  scheduleOnRN: workletRuntime.scheduleOnRN,
 }));
 
 vi.mock('react-native-gesture-handler', async () => {
@@ -83,6 +86,7 @@ function renderLayer({
 } = {}) {
   gestureRuntime.panConfigs.length = 0;
   hapticRuntime.triggerNonBlocking.mockClear();
+  workletRuntime.scheduleOnRN.mockClear();
   let renderer;
   act(() => {
     renderer = create(
@@ -136,6 +140,26 @@ describe('MTS-047 rendered adjustment runtime', () => {
     );
     expect(animatedStyle.top).toBe(555);
     expect(animatedStyle.height).toBe(60);
+  });
+
+  it('keeps drag-frame updates on shared values and crosses to JS only on release', () => {
+    renderLayer();
+    const gesture = moveGesture();
+
+    act(() => {
+      gesture.onActivate();
+      gesture.onUpdate({ translationY: 4 });
+      gesture.onUpdate({ translationY: 9 });
+      gesture.onUpdate({ translationY: 17 });
+    });
+
+    expect(workletRuntime.scheduleOnRN).not.toHaveBeenCalled();
+
+    act(() => {
+      gesture.onDeactivate({ translationY: 17, canceled: false });
+    });
+
+    expect(workletRuntime.scheduleOnRN).toHaveBeenCalledTimes(1);
   });
 
   it('fires one snap haptic only after a successful committed drag adjustment', () => {
