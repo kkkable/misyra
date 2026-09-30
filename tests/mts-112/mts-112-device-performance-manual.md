@@ -52,6 +52,23 @@ For repeated measurements, use the p95 summary produced by the MTS-112 performan
 | Cached day p95 ms | _not run_ | _not run_ |
 | Cached day normally < 50 ms | _not run_ | _not run_ |
 
+## Calendar scroll and ordinary transitions
+
+1. Keep the representative ordinary-density Calendar day loaded.
+2. Capture a native frame timeline while scrolling through the day timeline in both directions.
+3. Navigate through ordinary already-loaded screens/date transitions and capture transition durations after required data is available.
+4. Record at least enough repeated ordinary transitions to make p95 meaningful.
+5. Verify transition p95 is <= 300 ms and preserve the raw scroll/frame trace for review.
+6. Do not treat Linux CI render timing as device evidence.
+
+| Evidence | iOS | Android |
+| --- | --- | --- |
+| Calendar scroll trace/reference | _not run_ | _not run_ |
+| Calendar scroll frame/jank summary | _not run_ | _not run_ |
+| Ordinary transition sample count | _not run_ | _not run_ |
+| Ordinary transition p95 ms | _not run_ | _not run_ |
+| Ordinary transition <= 300 ms | _not run_ | _not run_ |
+
 ## Drag and resize
 
 1. Select an unfinished timed mission.
